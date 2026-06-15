@@ -56,6 +56,7 @@ export const MOCK_USERS: Record<"pet-owner" | "building-manager", AppUser> = {
     plan: "Pet Plus",
     petCount: 2,
     onboarded: true,
+    isSuperAdmin: false,
   },
   "building-manager": {
     id: "u3",
@@ -71,6 +72,7 @@ export const MOCK_USERS: Record<"pet-owner" | "building-manager", AppUser> = {
     plan: "Enterprise",
     petCount: 0,
     onboarded: true,
+    isSuperAdmin: false,
   },
 }
 

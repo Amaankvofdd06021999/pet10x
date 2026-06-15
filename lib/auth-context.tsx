@@ -55,7 +55,7 @@ async function loadAppUser(authUser: User): Promise<AppUser> {
   const supabase = getSupabaseBrowserClient()!
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, full_name, email, avatar_url, member_since, plan_label, onboarded")
+    .select("role, full_name, email, avatar_url, member_since, plan_label, onboarded, is_super_admin")
     .eq("id", authUser.id)
     .maybeSingle()
 
@@ -117,6 +117,7 @@ async function loadAppUser(authUser: User): Promise<AppUser> {
     plan: profile?.plan_label || "Free",
     petCount,
     onboarded: profile?.onboarded ?? false,
+    isSuperAdmin: profile?.is_super_admin ?? false,
   }
 }
 

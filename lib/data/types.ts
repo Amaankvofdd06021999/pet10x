@@ -70,6 +70,7 @@ export interface AppUser {
   plan: string
   petCount: number
   onboarded: boolean
+  isSuperAdmin: boolean
 }
 
 export interface GuestSession {
