@@ -141,12 +141,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                       <SpeciesIcon className="h-3 w-3 text-muted-foreground" />
                       <span className="text-[13px] font-semibold text-foreground">{pet.name}</span>
                     </div>
-                    <div className="mt-0.5 flex items-center gap-1.5">
-                      <div className="h-1 w-10 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-success" style={{ width: `${pet.compliance}%` }} />
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">{pet.compliance}%</span>
-                    </div>
+                    <span className="mt-0.5 block text-[10px] text-muted-foreground">{pet.breed || "Pet"}</span>
                   </div>
                 </div>
               )

@@ -43,6 +43,7 @@ function AppContent() {
   const isManager = user?.role === "building-manager"
   const [activeTab, setActiveTab] = useState("home")
   const [currentScreen, setCurrentScreen] = useState("home")
+  const [selectedPetId, setSelectedPetId] = useState<string | undefined>(undefined)
 
   // Reset tabs when user/role changes (e.g. after sign-in)
   useEffect(() => {
@@ -72,7 +73,8 @@ function AppContent() {
     setCurrentScreen(tab)
   }
 
-  const handleNavigate = (screen: string) => {
+  const handleNavigate = (screen: string, petId?: string) => {
+    if (petId !== undefined) setSelectedPetId(petId)
     setCurrentScreen(screen)
   }
 
@@ -89,7 +91,7 @@ function AppContent() {
       <div className="flex-1 md:min-w-0">
         <div className={`mx-auto w-full ${contentMax}`}>
           {currentScreen === "pet-detail" ? (
-            <PetDetailScreen onBack={handleBack} />
+            <PetDetailScreen onBack={handleBack} petId={selectedPetId} />
           ) : currentScreen === "add-pet" ? (
             <AddPetScreen onBack={handleBack} onNavigate={handleNavigate} />
           ) : currentScreen === "pet-care" ? (

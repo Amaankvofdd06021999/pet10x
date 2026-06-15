@@ -120,7 +120,8 @@ export interface PetMedicalInfo {
   behavioralNotes: string
   vetClinic: string
   vetName: string
-  vetDistance: string
+  vetPhone?: string
+  vetDistance?: string
 }
 
 export type CareKind = "meal" | "medication" | "water" | "walk" | "grooming" | "other"
@@ -170,6 +171,46 @@ export interface CareTarget {
   kind: CareEntryKind
   targetAmount?: number | null
   unit?: string | null
+}
+
+/* ---- Pet documents / vaccinations / contacts (live, from child tables) ---- */
+
+export type PetDocKind =
+  | "vaccination"
+  | "municipal_license"
+  | "liability_insurance"
+  | "building_registration"
+  | "microchip_registration"
+  | "esa_letter"
+  | "other"
+
+export interface PetDoc {
+  id: string
+  petId: string
+  kind: PetDocKind
+  name: string | null
+  status: string
+  storagePath: string | null
+  expiresOn: string | null
+  verifiedAt: string | null
+}
+
+export interface PetVaccinationRecord {
+  id: string
+  petId: string
+  name: string
+  givenOn: string | null
+  expiresOn: string | null
+  status: string
+}
+
+export interface PetContact {
+  id: string
+  petId: string
+  role: string
+  name: string
+  phone: string
+  sortOrder: number | null
 }
 
 export interface Pet {

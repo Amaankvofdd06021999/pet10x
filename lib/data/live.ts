@@ -13,9 +13,21 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client"
+import { petFileSignedUrls, isStoragePath, uploadPetFile, deletePetFile } from "@/lib/supabase/storage"
 import type { Database } from "@/lib/supabase/database.types"
 import { PETS as MOCK_PETS } from "./mock-data"
-import type { CareEntry, CareEntryKind, CareTarget, Pet, PetStatus, Species } from "./types"
+import type {
+  CareEntry,
+  CareEntryKind,
+  CareTarget,
+  Pet,
+  PetContact,
+  PetDoc,
+  PetDocKind,
+  PetStatus,
+  PetVaccinationRecord,
+  Species,
+} from "./types"
 
 const ENABLED = isSupabaseConfigured()
 
@@ -73,6 +85,15 @@ function mapPet(r: PetRow): Pet {
     color: r.color ?? undefined,
     microchip: r.microchip ?? undefined,
     neutered: r.neutered ?? undefined,
+    medical: {
+      conditions: r.conditions ?? "",
+      medications: r.medications_notes ?? "",
+      allergies: r.allergies ?? "",
+      behavioralNotes: r.behavioral_notes ?? "",
+      vetClinic: r.vet_clinic ?? "",
+      vetName: r.vet_name ?? "",
+      vetPhone: r.vet_phone ?? "",
+    },
   }
 }
 
@@ -122,7 +143,16 @@ export function usePets(): LiveResult<Pet[]> {
       setError(err.message)
       setData([])
     } else {
-      setData((rows ?? []).map(mapPet))
+      const mapped = (rows ?? []).map(mapPet)
+      // pet-media is private — swap storage paths for short-lived signed URLs
+      const paths = mapped.filter((p) => isStoragePath(p.image)).map((p) => p.image)
+      if (paths.length) {
+        const urls = await petFileSignedUrls(paths)
+        for (const p of mapped) {
+          if (isStoragePath(p.image)) p.image = urls[p.image] ?? "/placeholder.svg"
+        }
+      }
+      setData(mapped)
       setError(null)
     }
     setLoading(false)
@@ -179,6 +209,282 @@ export async function addPet(input: AddPetInput): Promise<{ error: string | null
     .single()
   if (error) return { error: error.message }
   return { error: null, pet: mapPet(data) }
+}
+
+export async function updatePet(
+  petId: string,
+  patch: Partial<{
+    name: string
+    breed: string | null
+    dob: string | null
+    sex: PetSex | null
+    weightKg: number | null
+    color: string | null
+    microchip: string | null
+    neutered: boolean | null
+    status: PetStatus
+    conditions: string | null
+    medications: string | null
+    allergies: string | null
+    behavioralNotes: string | null
+    vetClinic: string | null
+    vetName: string | null
+    vetPhone: string | null
+  }>,
+): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const db: Database["public"]["Tables"]["pets"]["Update"] = {}
+  if (patch.name !== undefined) db.name = patch.name
+  if (patch.breed !== undefined) db.breed = patch.breed
+  if (patch.dob !== undefined) db.dob = patch.dob
+  if (patch.sex !== undefined) db.sex = patch.sex
+  if (patch.weightKg !== undefined) db.weight_grams = patch.weightKg == null ? null : Math.round(patch.weightKg * 1000)
+  if (patch.color !== undefined) db.color = patch.color
+  if (patch.microchip !== undefined) db.microchip = patch.microchip
+  if (patch.neutered !== undefined) db.neutered = patch.neutered
+  if (patch.conditions !== undefined) db.conditions = patch.conditions
+  if (patch.medications !== undefined) db.medications_notes = patch.medications
+  if (patch.allergies !== undefined) db.allergies = patch.allergies
+  if (patch.behavioralNotes !== undefined) db.behavioral_notes = patch.behavioralNotes
+  if (patch.vetClinic !== undefined) db.vet_clinic = patch.vetClinic
+  if (patch.vetName !== undefined) db.vet_name = patch.vetName
+  if (patch.vetPhone !== undefined) db.vet_phone = patch.vetPhone
+  if (patch.status !== undefined) {
+    const rev: Record<PetStatus, Database["public"]["Enums"]["pet_status"]> = {
+      home: "home",
+      away: "away",
+      "at-vet": "at_vet",
+      vacation: "vacation",
+    }
+    db.status = rev[patch.status]
+  }
+  const { error } = await supabase.from("pets").update(db).eq("id", petId)
+  return { error: error?.message ?? null }
+}
+
+export async function setPetPhoto(petId: string, file: File): Promise<{ error: string | null }> {
+  const { path, error } = await uploadPetFile({ petId, file, prefix: "photo" })
+  if (error || !path) return { error: error ?? "Upload failed." }
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error: uerr } = await supabase.from("pets").update({ image_url: path }).eq("id", petId)
+  return { error: uerr?.message ?? null }
+}
+
+/* ---------------------- pet documents / vax / contacts ------------------ */
+
+function docStatusFromExpiry(expiresOn?: string | null): Database["public"]["Enums"]["doc_status"] {
+  if (!expiresOn) return "active"
+  const exp = new Date(expiresOn).getTime()
+  if (Number.isNaN(exp)) return "active"
+  const now = Date.now()
+  if (exp < now) return "expired"
+  if (exp < now + 30 * 86_400_000) return "expiring"
+  return "current"
+}
+
+type DocRow = Database["public"]["Tables"]["pet_documents"]["Row"]
+type VaxRow = Database["public"]["Tables"]["pet_vaccinations"]["Row"]
+type ContactRow = Database["public"]["Tables"]["pet_emergency_contacts"]["Row"]
+
+export function usePetDocuments(petId?: string): LiveResult<PetDoc[]> {
+  const [data, setData] = useState<PetDoc[]>([])
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase || !petId) {
+      setData([])
+      setLoading(false)
+      return
+    }
+    const { data: rows, error: err } = await supabase
+      .from("pet_documents")
+      .select("*")
+      .eq("pet_id", petId)
+      .order("created_at", { ascending: false })
+    if (err) setError(err.message)
+    else {
+      setData(
+        (rows ?? []).map((r: DocRow) => ({
+          id: r.id,
+          petId: r.pet_id ?? petId,
+          kind: r.kind as PetDocKind,
+          name: r.name,
+          status: r.status,
+          storagePath: r.storage_path,
+          expiresOn: r.expires_on,
+          verifiedAt: r.verified_at,
+        })),
+      )
+      setError(null)
+    }
+    setLoading(false)
+  }, [petId])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+export async function addPetDocument(input: {
+  petId: string
+  kind: PetDocKind
+  name?: string
+  file?: File
+  expiresOn?: string | null
+}): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  let storagePath: string | null = null
+  if (input.file) {
+    const up = await uploadPetFile({ petId: input.petId, file: input.file, prefix: input.kind })
+    if (up.error) return { error: up.error }
+    storagePath = up.path
+  }
+  const { error } = await supabase.from("pet_documents").insert({
+    pet_id: input.petId,
+    kind: input.kind,
+    name: input.name || null,
+    storage_path: storagePath,
+    expires_on: input.expiresOn || null,
+    status: docStatusFromExpiry(input.expiresOn),
+  })
+  return { error: error?.message ?? null }
+}
+
+export async function deletePetDocument(doc: PetDoc): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  if (doc.storagePath) await deletePetFile(doc.storagePath)
+  const { error } = await supabase.from("pet_documents").delete().eq("id", doc.id)
+  return { error: error?.message ?? null }
+}
+
+export function usePetVaccinations(petId?: string): LiveResult<PetVaccinationRecord[]> {
+  const [data, setData] = useState<PetVaccinationRecord[]>([])
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase || !petId) {
+      setData([])
+      setLoading(false)
+      return
+    }
+    const { data: rows, error: err } = await supabase
+      .from("pet_vaccinations")
+      .select("*")
+      .eq("pet_id", petId)
+      .order("expires_on", { ascending: true, nullsFirst: false })
+    if (err) setError(err.message)
+    else {
+      setData(
+        (rows ?? []).map((r: VaxRow) => ({
+          id: r.id,
+          petId: r.pet_id,
+          name: r.name,
+          givenOn: r.given_on,
+          expiresOn: r.expires_on,
+          status: r.status,
+        })),
+      )
+      setError(null)
+    }
+    setLoading(false)
+  }, [petId])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+export async function addPetVaccination(input: {
+  petId: string
+  name: string
+  givenOn?: string | null
+  expiresOn?: string | null
+}): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase.from("pet_vaccinations").insert({
+    pet_id: input.petId,
+    name: input.name,
+    given_on: input.givenOn || null,
+    expires_on: input.expiresOn || null,
+    status: docStatusFromExpiry(input.expiresOn),
+  })
+  return { error: error?.message ?? null }
+}
+
+export async function deletePetVaccination(id: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase.from("pet_vaccinations").delete().eq("id", id)
+  return { error: error?.message ?? null }
+}
+
+export function usePetEmergencyContacts(petId?: string): LiveResult<PetContact[]> {
+  const [data, setData] = useState<PetContact[]>([])
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase || !petId) {
+      setData([])
+      setLoading(false)
+      return
+    }
+    const { data: rows, error: err } = await supabase
+      .from("pet_emergency_contacts")
+      .select("*")
+      .eq("pet_id", petId)
+      .order("sort_order", { ascending: true, nullsFirst: false })
+    if (err) setError(err.message)
+    else {
+      setData(
+        (rows ?? []).map((r: ContactRow) => ({
+          id: r.id,
+          petId: r.pet_id,
+          role: r.role,
+          name: r.name,
+          phone: r.phone,
+          sortOrder: r.sort_order,
+        })),
+      )
+      setError(null)
+    }
+    setLoading(false)
+  }, [petId])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+export async function addPetContact(input: {
+  petId: string
+  role: string
+  name: string
+  phone: string
+}): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase.from("pet_emergency_contacts").insert({
+    pet_id: input.petId,
+    role: input.role,
+    name: input.name,
+    phone: input.phone,
+  })
+  return { error: error?.message ?? null }
+}
+
+export async function deletePetContact(id: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase.from("pet_emergency_contacts").delete().eq("id", id)
+  return { error: error?.message ?? null }
 }
 
 /* ------------------------------ care log -------------------------------- */

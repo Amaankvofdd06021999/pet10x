@@ -40,7 +40,7 @@ const ALERT_STYLES = {
 } as const
 
 interface HomeScreenProps {
-  onNavigate?: (screen: string) => void
+  onNavigate?: (screen: string, petId?: string) => void
 }
 
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
@@ -152,7 +152,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               return (
                 <button
                   key={pet.id}
-                  onClick={() => onNavigate?.("pet-detail")}
+                  onClick={() => onNavigate?.("pet-detail", pet.id)}
                   className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left transition-transform active:scale-[0.98]"
                 >
                   <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-muted">
@@ -173,16 +173,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                         <span className="text-[10px] font-medium text-card">{statusInfo.label}</span>
                       </span>
                     </div>
-                    <span className="mt-0.5 text-[12px] text-muted-foreground">{pet.breed}</span>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-success transition-all"
-                          style={{ width: `${pet.compliance}%` }}
-                        />
-                      </div>
-                      <span className="text-[11px] font-medium text-muted-foreground">{pet.compliance}%</span>
-                    </div>
+                    <span className="mt-0.5 text-[12px] text-muted-foreground">{pet.breed || "Pet"}</span>
                   </div>
                 </button>
               )

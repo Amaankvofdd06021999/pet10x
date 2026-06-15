@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { addPet } from "@/lib/data"
+import { addPet, setPetPhoto } from "@/lib/data"
 import { toast } from "sonner"
 import { ArrowLeft, ImagePlus, Dog, Cat, PawPrint, CheckCircle2, Loader2 } from "lucide-react"
 
@@ -33,6 +33,9 @@ export function AddPetScreen({ onBack }: AddPetScreenProps) {
   const [microchip, setMicrochip] = useState("")
   const [neutered, setNeutered] = useState(false)
   const [unit, setUnit] = useState(user?.unit ?? "")
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const photoInput = useRef<HTMLInputElement>(null)
 
   const canSubmit = name.trim().length > 0 && species !== null
 
@@ -40,7 +43,7 @@ export function AddPetScreen({ onBack }: AddPetScreenProps) {
     if (!canSubmit || saving || !species) return
     setSaving(true)
     const weightKg = weight ? parseFloat(weight.replace(/[^\d.]/g, "")) : undefined
-    const { error } = await addPet({
+    const { error, pet } = await addPet({
       name: name.trim(),
       species,
       breed: breed.trim() || undefined,
@@ -51,11 +54,16 @@ export function AddPetScreen({ onBack }: AddPetScreenProps) {
       microchip: microchip.trim() || undefined,
       neutered,
     })
-    setSaving(false)
-    if (error) {
-      toast.error("Couldn't add pet", { description: error })
+    if (error || !pet) {
+      setSaving(false)
+      toast.error("Couldn't add pet", { description: error ?? "Please try again." })
       return
     }
+    if (photoFile) {
+      const up = await setPetPhoto(pet.id, photoFile)
+      if (up.error) toast("Pet saved — photo upload failed", { description: up.error })
+    }
+    setSaving(false)
     toast.success(`${name} added`, { description: "Saved to your account." })
     setSubmitted(true)
   }
@@ -118,12 +126,30 @@ export function AddPetScreen({ onBack }: AddPetScreenProps) {
       <main className="ios-scroll flex-1 px-4 pb-28 pt-5">
         {/* Photo */}
         <button
-          onClick={() => toast("Photo upload coming with cloud storage")}
-          className="mx-auto mb-6 flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-border bg-card transition-colors hover:bg-muted"
+          onClick={() => photoInput.current?.click()}
+          className="mx-auto mb-6 flex h-24 w-24 flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-2 border-dashed border-border bg-card transition-colors hover:bg-muted"
         >
-          <ImagePlus className="h-6 w-6 text-muted-foreground" />
-          <span className="text-[11px] text-muted-foreground">Add photo</span>
+          {photoPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoPreview} alt="Pet preview" className="h-full w-full object-cover" />
+          ) : (
+            <>
+              <ImagePlus className="h-6 w-6 text-muted-foreground" />
+              <span className="text-[11px] text-muted-foreground">Add photo</span>
+            </>
+          )}
         </button>
+        <input
+          ref={photoInput}
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0] ?? null
+            setPhotoFile(file)
+            setPhotoPreview(file ? URL.createObjectURL(file) : null)
+          }}
+          className="hidden"
+        />
 
         {/* Species */}
         <Label>Species <Req /></Label>
