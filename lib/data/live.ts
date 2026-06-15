@@ -21,6 +21,7 @@ import type {
   CareEntry,
   CareEntryKind,
   CareTarget,
+  ManagerPet,
   Pet,
   PetContact,
   PetDoc,
@@ -31,6 +32,87 @@ import type {
   ResidentLinkStatus,
   Species,
 } from "./types"
+
+interface BuildingRules {
+  require_rabies?: boolean
+  require_core_vaccines?: boolean
+  require_license?: boolean
+  require_insurance?: boolean
+  require_spay_neuter?: boolean
+}
+
+function computeCompliance(
+  pet: { neutered: boolean | null; vax: { name: string; status: string }[]; docs: { kind: string }[] },
+  rules: BuildingRules,
+): { pct: number; missing: string[] } {
+  const checks: { ok: boolean; label: string }[] = []
+  const badVax = ["expired", "missing", "rejected"]
+  if (rules.require_rabies)
+    checks.push({ ok: pet.vax.some((v) => /rabies/i.test(v.name) && !badVax.includes(v.status)), label: "Rabies" })
+  if (rules.require_core_vaccines)
+    checks.push({ ok: pet.vax.some((v) => !badVax.includes(v.status)), label: "Core vaccines" })
+  if (rules.require_license) checks.push({ ok: pet.docs.some((d) => d.kind === "municipal_license"), label: "License" })
+  if (rules.require_insurance) checks.push({ ok: pet.docs.some((d) => d.kind === "liability_insurance"), label: "Insurance" })
+  if (rules.require_spay_neuter) checks.push({ ok: !!pet.neutered, label: "Spay/neuter" })
+  if (checks.length === 0) return { pct: 100, missing: [] }
+  const met = checks.filter((c) => c.ok).length
+  return { pct: Math.round((met / checks.length) * 100), missing: checks.filter((c) => !c.ok).map((c) => c.label) }
+}
+
+export function useBuildingPets(): LiveResult<ManagerPet[]> {
+  const [data, setData] = useState<ManagerPet[]>([])
+  const [isLoading, setLoading] = useState(ENABLED)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    if (!ENABLED) {
+      setLoading(false)
+      return
+    }
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    const { data: blds } = await supabase.from("buildings").select("id, pet_rules")
+    const rulesByBuilding = new Map<string, BuildingRules>()
+    for (const b of blds ?? []) rulesByBuilding.set(b.id, (b.pet_rules as BuildingRules) ?? {})
+    const { data: rows, error: err } = await supabase
+      .from("pets")
+      .select("id, owner_id, building_id, name, species, breed, neutered, pet_vaccinations(name, status), pet_documents(kind)")
+      .not("building_id", "is", null)
+      .is("deleted_at", null)
+    if (err) {
+      setError(err.message)
+      setData([])
+      setLoading(false)
+      return
+    }
+    setData(
+      (rows ?? []).map((r) => {
+        const rules = r.building_id ? rulesByBuilding.get(r.building_id) ?? {} : {}
+        const vax = (r.pet_vaccinations as { name: string; status: string }[] | null) ?? []
+        const docs = (r.pet_documents as { kind: string }[] | null) ?? []
+        const { pct, missing } = computeCompliance({ neutered: r.neutered, vax, docs }, rules)
+        return {
+          id: r.id,
+          ownerId: r.owner_id,
+          buildingId: r.building_id,
+          name: r.name,
+          species: r.species as Species,
+          breed: r.breed ?? "",
+          compliancePct: pct,
+          missing,
+        }
+      }),
+    )
+    setError(null)
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
 
 const ENABLED = isSupabaseConfigured()
 

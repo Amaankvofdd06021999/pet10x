@@ -1,7 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { usePets } from "@/lib/data"
+import { exportMyData, deleteMyAccount } from "@/lib/data/account"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
@@ -22,6 +24,9 @@ import {
   Building2,
   Heart,
   Star,
+  Download,
+  Trash2,
+  Loader2,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
@@ -71,6 +76,34 @@ interface ProfileScreenProps {
 export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const { user, signOut } = useAuth()
   const { data: pets } = usePets()
+  const [busy, setBusy] = useState<"export" | "delete" | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  async function handleExport() {
+    setBusy("export")
+    const data = await exportMyData()
+    setBusy(null)
+    if (!data) return toast.error("Couldn't export your data.")
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `pet10x-data-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success("Your data was exported")
+  }
+
+  async function handleDelete() {
+    setBusy("delete")
+    const { error } = await deleteMyAccount()
+    if (error) {
+      setBusy(null)
+      return toast.error("Couldn't delete account", { description: error })
+    }
+    toast.success("Account deleted")
+    await signOut()
+  }
 
   const handleItem = (label: string) => {
     if (label.includes("Pet Profiles")) onNavigate?.("home")
@@ -176,6 +209,65 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             </div>
           </section>
         ))}
+
+        {/* Privacy & data */}
+        <section className="mb-5">
+          <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase text-muted-foreground">Privacy &amp; data</h3>
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+            <button
+              onClick={handleExport}
+              disabled={busy !== null}
+              className="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left transition-colors active:bg-muted disabled:opacity-60"
+            >
+              {busy === "export" ? (
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              ) : (
+                <Download className="h-5 w-5 text-primary" />
+              )}
+              <span className="flex-1 text-[14px] text-foreground">Export my data</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <button
+              onClick={() => setConfirmDelete(true)}
+              disabled={busy !== null}
+              className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors active:bg-muted disabled:opacity-60"
+            >
+              <Trash2 className="h-5 w-5 text-destructive" />
+              <span className="flex-1 text-[14px] text-destructive">Delete account</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+        </section>
+
+        {confirmDelete && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6"
+            onClick={() => busy === null && setConfirmDelete(false)}
+          >
+            <div className="w-full max-w-sm rounded-2xl bg-card p-5" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-[17px] font-semibold text-foreground">Delete your account?</h3>
+              <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
+                This permanently deletes your profile, pets, documents and care history. This can&apos;t be undone.
+              </p>
+              <div className="mt-5 flex gap-2">
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={busy !== null}
+                  className="flex-1 rounded-xl border border-border py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={busy !== null}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive py-2.5 text-[14px] font-semibold text-destructive-foreground disabled:opacity-60"
+                >
+                  {busy === "delete" && <Loader2 className="h-4 w-4 animate-spin" />} Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Sign Out */}
         <section className="mb-5">

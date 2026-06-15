@@ -238,6 +238,17 @@ export interface ResidentLinkRow {
   residentEmail: string | null
 }
 
+export interface ManagerPet {
+  id: string
+  ownerId: string
+  buildingId: string | null
+  name: string
+  species: Species
+  breed: string
+  compliancePct: number
+  missing: string[]
+}
+
 export interface Pet {
   id: string
   ownerId: string
