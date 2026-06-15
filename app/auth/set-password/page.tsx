@@ -64,7 +64,21 @@ export default function SetPasswordPage() {
     setSaving(true)
     const { error: updErr } = await supabase.auth.updateUser({ password })
     setSaving(false)
-    if (updErr) return setError("Couldn't set your password. The link may have expired — request a new one.")
+    if (updErr) {
+      const m = updErr.message.toLowerCase()
+      if (/different|same.*password|should be different/.test(m)) {
+        return setError("Your new password must be different from your old one.")
+      }
+      if (/at least|weak|short|characters/.test(m)) {
+        return setError("Please choose a stronger password (at least 8 characters).")
+      }
+      if (/expired|session|jwt|not authenticated|auth session missing/.test(m)) {
+        // genuinely no usable session — fall back to the expired state
+        setStatus("invalid")
+        return
+      }
+      return setError("Couldn't set your password. Please try again.")
+    }
     router.replace("/app")
   }
 

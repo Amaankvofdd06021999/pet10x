@@ -15,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 
 const ROLE_CARDS: { role: DemoRole; icon: typeof Dog; iconColor: string; iconBg: string; accent: string }[] = [
   { role: "pet-owner", icon: Dog, iconColor: "text-primary", iconBg: "bg-primary/10", accent: "border-primary/20 active:border-primary/40" },
@@ -295,7 +296,13 @@ export function SignInScreen() {
       </div>
 
       <div className="px-5 pb-[env(safe-area-inset-bottom,24px)] pt-4">
-        <p className="text-center text-[11px] text-muted-foreground">
+        <Link
+          href="/manager"
+          className="block rounded-xl border border-border bg-card py-2.5 text-center text-[13px] font-semibold text-info transition-colors active:bg-muted"
+        >
+          Are you a manager at a building? Sign in here
+        </Link>
+        <p className="mt-3 text-center text-[11px] text-muted-foreground">
           By continuing, you agree to our Terms &amp; Privacy Policy
         </p>
       </div>
