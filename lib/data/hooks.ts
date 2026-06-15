@@ -1,33 +1,14 @@
 /**
  * Pet10x — Data-access seam (hooks).
  *
- * Screens read all data through these hooks instead of importing mock arrays
- * directly. Today each hook returns the consolidated mock data instantly.
- *
- * PHASE 1 SWAP: each hook body becomes a Supabase query wrapped in React Query
- * (`useQuery`), returning the same `{ data, isLoading, error }` shape — so the
- * screens consuming these hooks do not need to change. This is the single seam
- * between the UI and the backend.
+ * Pets, care, building links, residents, businesses and admin all read LIVE
+ * Supabase data (see ./live, ./business, ./admin). The remaining domains below
+ * (community, events, notifications, the manager violation/approval queues and
+ * the emergency directory) don't have a write path wired yet, so they return
+ * EMPTY data — screens render honest empty states instead of placeholder/mock
+ * content. Each becomes a Supabase query when its feature is built.
  */
 
-import {
-  ACCOMMODATIONS,
-  BUILDINGS,
-  COMMUNITY_POSTS,
-  DOCUMENTS_REVIEW,
-  EMERGENCY_DIRECTORY,
-  EVENTS,
-  HOME_RECENT_ALERTS,
-  LOST_FOUND,
-  MANAGER_RECENT_ACTIVITY,
-  NOTIFICATIONS,
-  REGISTRATIONS,
-  RESIDENTS,
-  RESOLVED_VIOLATIONS,
-  SERVICE_PROVIDERS,
-  URGENT_ITEMS,
-  VIOLATIONS,
-} from "./mock-data"
 import type {
   AccommodationRequest,
   AppNotification,
@@ -54,95 +35,125 @@ export interface QueryResult<T> {
   error: Error | null
 }
 
-/** Wrap a synchronous mock value in the query-result shape. */
 function resolved<T>(data: T): QueryResult<T> {
   return { data, isLoading: false, error: null }
 }
 
-/* Pets + care live in ./live (real Supabase, dual-mode). */
+const EMPTY_BUILDING: Building = {
+  id: 0,
+  name: "",
+  address: "",
+  code: "",
+  stats: {
+    ownerComplianceScore: 0,
+    buildingComplianceScore: 0,
+    totalPets: 0,
+    dogs: 0,
+    cats: 0,
+    esa: 0,
+    serviceAnimals: 0,
+    largeBreedExemptions: 0,
+    riskScore: 0,
+    openIncidents: 0,
+    upcomingEvents: 0,
+    nonCompliantUnits: 0,
+    registered: 0,
+    activeViolations: 0,
+    pendingApprovals: 0,
+  },
+}
+
+const EMPTY_DIRECTORY: EmergencyBuildingDirectory = {
+  name: "",
+  address: "",
+  totalPets: 0,
+  dogs: 0,
+  cats: 0,
+  floors: [],
+}
+
+/* Pets + care live in ./live · businesses in ./business · admin in ./admin. */
 
 /* ----------------------------- Community -------------------------- */
 
 export function useCommunityPosts(): QueryResult<CommunityPost[]> {
-  return resolved(COMMUNITY_POSTS)
+  return resolved([])
 }
 
 export function useLostFound(): QueryResult<LostFoundItem[]> {
-  return resolved(LOST_FOUND)
+  return resolved([])
 }
 
 export function useEvents(): QueryResult<CommunityEvent[]> {
-  return resolved(EVENTS)
+  return resolved([])
 }
 
 /* ----------------------------- Services --------------------------- */
+/* The real services directory lives in ./business (useNearbyBusinesses). */
 
 export function useServiceProviders(): QueryResult<ServiceProvider[]> {
-  return resolved(SERVICE_PROVIDERS)
+  return resolved([])
 }
 
 /* --------------------------- Notifications ------------------------ */
 
 export function useNotifications(): QueryResult<AppNotification[]> {
-  return resolved(NOTIFICATIONS)
+  return resolved([])
 }
 
 export function useHomeAlerts(): QueryResult<HomeAlert[]> {
-  return resolved(HOME_RECENT_ALERTS)
+  return resolved([])
 }
 
 /* ------------------------- Manager: residents --------------------- */
+/* The real resident queue lives in ./live (useBuildingResidents). */
 
 export function useResidents(): QueryResult<Resident[]> {
-  return resolved(RESIDENTS)
+  return resolved([])
 }
 
 /* ------------------------- Manager: approvals --------------------- */
 
 export function useRegistrations(): QueryResult<Registration[]> {
-  return resolved(REGISTRATIONS)
+  return resolved([])
 }
 
 export function useAccommodations(): QueryResult<AccommodationRequest[]> {
-  return resolved(ACCOMMODATIONS)
+  return resolved([])
 }
 
 export function useDocumentsReview(): QueryResult<DocumentReviewItem[]> {
-  return resolved(DOCUMENTS_REVIEW)
+  return resolved([])
 }
 
 /* ------------------------- Manager: violations -------------------- */
 
 export function useViolations(): QueryResult<Violation[]> {
-  return resolved(VIOLATIONS)
+  return resolved([])
 }
 
 export function useResolvedViolations(): QueryResult<ResolvedViolation[]> {
-  return resolved(RESOLVED_VIOLATIONS)
+  return resolved([])
 }
 
 /* ------------------------- Manager: dashboard --------------------- */
 
 export function useUrgentItems(): QueryResult<UrgentItem[]> {
-  return resolved(URGENT_ITEMS)
+  return resolved([])
 }
 
 export function useManagerActivity(): QueryResult<ManagerActivityEntry[]> {
-  return resolved(MANAGER_RECENT_ACTIVITY)
+  return resolved([])
 }
 
 /* ----------------------------- Buildings -------------------------- */
+/* Real managed-building metrics are computed in the dashboard from
+ * useBuildingResidents + useBuildingPets; this stays empty. */
 
-/** The current/primary building (multi-building support arrives in Phase 3). */
 export function useBuilding(): QueryResult<Building> {
-  return resolved(BUILDINGS[0])
+  return resolved(EMPTY_BUILDING)
 }
 
-/**
- * The emergency pet directory for a building. The `code`/token is ignored in the
- * mock; Phase 4 resolves it from `emergency_access_tokens` with server-enforced
- * expiry.
- */
 export function useEmergencyDirectory(_code?: string): QueryResult<EmergencyBuildingDirectory> {
-  return resolved(EMERGENCY_DIRECTORY)
+  return resolved(EMPTY_DIRECTORY)
 }

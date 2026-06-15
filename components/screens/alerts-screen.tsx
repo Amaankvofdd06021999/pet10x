@@ -14,6 +14,7 @@ import {
   Syringe,
   Plus,
   Filter,
+  BellOff,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -110,6 +111,17 @@ export function AlertsScreen() {
 
         {/* Alert List */}
         <div className="flex flex-col gap-2.5">
+          {filteredAlerts.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <BellOff className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="mt-4 text-[15px] font-semibold text-foreground">You&apos;re all caught up</h3>
+              <p className="mx-auto mt-1 max-w-[20rem] text-[13px] leading-relaxed text-muted-foreground">
+                No notifications right now. Reminders, compliance updates and building alerts will appear here.
+              </p>
+            </div>
+          )}
           {filteredAlerts.map((alert) => {
             const style = SEVERITY_STYLES[alert.severity]
             const Icon = NOTIFICATION_ICONS[alert.iconKey]

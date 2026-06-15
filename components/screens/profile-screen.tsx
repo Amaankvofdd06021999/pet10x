@@ -35,24 +35,24 @@ const MENU_SECTIONS = [
   {
     title: "My Pets",
     items: [
-      { icon: Dog, label: "Pet Profiles", detail: "2 pets registered" },
-      { icon: Shield, label: "Compliance Status", detail: "96% compliant" },
+      { icon: Dog, label: "Pet Profiles" },
+      { icon: Shield, label: "Compliance Status" },
       { icon: FileText, label: "Documents & Records" },
-      { icon: Award, label: "Achievements", detail: "5 badges" },
+      { icon: Award, label: "Achievements" },
     ],
   },
   {
     title: "Building",
     items: [
-      { icon: Building2, label: "Building Rules", detail: "Harbour View Tower" },
+      { icon: Building2, label: "Building Rules" },
       { icon: FileText, label: "Accommodation Requests" },
-      { icon: Heart, label: "Favorite Services", detail: "3 saved" },
+      { icon: Heart, label: "Favorite Services" },
     ],
   },
   {
     title: "Account",
     items: [
-      { icon: CreditCard, label: "Subscription", detail: "Pet Plus" },
+      { icon: CreditCard, label: "Subscription" },
       { icon: Bell, label: "Notification Settings" },
       { icon: Lock, label: "Privacy & Security" },
       { icon: Globe, label: "Language", detail: "English" },
@@ -109,8 +109,8 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
     if (label.includes("Pet Profiles")) onNavigate?.("home")
     else if (label.includes("Documents")) onNavigate?.("pet-detail")
     else if (label.includes("Favorite Services")) onNavigate?.("services")
-    else if (label.includes("Compliance")) toast("Compliance status", { description: "96% compliant · 1 item needs attention." })
-    else if (label.includes("Subscription")) toast("Pet Plus", { description: "Your premium plan is active." })
+    else if (label.includes("Compliance")) toast("Compliance status", { description: "View your pets' compliance — coming soon." })
+    else if (label.includes("Subscription")) toast("Subscription", { description: "Manage your plan — coming soon." })
     else toast(label, { description: "Coming soon." })
   }
 

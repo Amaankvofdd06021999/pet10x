@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   XCircle,
   ArrowRight,
+  ShieldCheck,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -47,6 +48,19 @@ export function ManagerViolationsScreen() {
 
   const totalFines = fineViolations.reduce((sum, v) => sum + v.amount, 0)
   const unpaidFines = fineViolations.filter((v) => !v.paid).reduce((sum, v) => sum + v.amount, 0)
+
+  const currentList =
+    activeTab === "active" ? activeViolations :
+    activeTab === "warnings" ? warningViolations :
+    activeTab === "fines" ? fineViolations :
+    resolvedViolations
+
+  const EMPTY_COPY: Record<ViolationTab, { title: string; subtext: string }> = {
+    active: { title: "No active cases", subtext: "There are no open violations to investigate right now. New reports will land here." },
+    warnings: { title: "No warnings outstanding", subtext: "No verbal or written warnings are in progress for this building." },
+    fines: { title: "No fines issued", subtext: "No fines have been issued. Anything outstanding will be tracked here." },
+    resolved: { title: "Nothing resolved yet", subtext: "Closed and resolved cases will be archived here for your records." },
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -98,6 +112,19 @@ export function ManagerViolationsScreen() {
                 <p className="text-[22px] font-bold text-destructive">${unpaidFines}</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {currentList.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+              <ShieldCheck className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="mt-4 text-[15px] font-semibold text-foreground">{EMPTY_COPY[activeTab].title}</h3>
+            <p className="mx-auto mt-1 max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground">
+              {EMPTY_COPY[activeTab].subtext}
+            </p>
           </div>
         )}
 

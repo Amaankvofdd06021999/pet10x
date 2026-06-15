@@ -127,6 +127,17 @@ export default function EmergencyPage() {
         {/* Floor-by-Floor */}
         <section>
           <h2 className="mb-2.5 text-[15px] font-semibold text-white">Floor-by-Floor Pet Presence</h2>
+          {buildingData.floors.length === 0 && (
+            <div className="rounded-xl border border-dashed border-[#333] bg-[#2C2C2E] p-8 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#3A3A3C]">
+                <Dog className="h-6 w-6 text-[#8E8E8E]" />
+              </div>
+              <h3 className="mt-4 text-[15px] font-semibold text-white">No pets registered yet</h3>
+              <p className="mx-auto mt-1 max-w-[22rem] text-[12px] leading-relaxed text-[#8E8E8E]">
+                No pets are registered for this building yet. Once residents add their pets, their floor and unit details will appear here for first responders.
+              </p>
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             {buildingData.floors.map((floor) => {
               const isOpen = expandedFloor === floor.floor

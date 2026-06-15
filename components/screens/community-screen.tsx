@@ -20,6 +20,9 @@ import {
   Megaphone,
   Pin,
   Shield,
+  Users,
+  CalendarDays,
+  type LucideIcon,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
@@ -34,6 +37,29 @@ const CATEGORY_COLORS: Record<string, string> = {
   Social: "bg-primary/10 text-primary",
   Health: "bg-accent/10 text-accent",
   Building: "bg-info/10 text-info",
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  subtext,
+  cta,
+}: {
+  icon: LucideIcon
+  title: string
+  subtext: string
+  cta?: string
+}) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+        <Icon className="h-6 w-6 text-primary" />
+      </div>
+      <h3 className="mt-4 text-[15px] font-semibold text-foreground">{title}</h3>
+      <p className="mx-auto mt-1 max-w-[20rem] text-[13px] leading-relaxed text-muted-foreground">{subtext}</p>
+      {cta && <p className="mt-3 text-[13px] font-semibold text-primary">{cta}</p>}
+    </div>
+  )
 }
 
 export function CommunityScreen() {
@@ -106,6 +132,14 @@ export function CommunityScreen() {
                 </div>
               </button>
             )}
+            {posts.length === 0 && (
+              <EmptyState
+                icon={Users}
+                title="No posts yet"
+                subtext="The community feed is quiet for now. Share an update, a tip, or a hello with your neighbours."
+                cta="Be the first to share"
+              />
+            )}
             {posts.map((post) => (
               <article
                 key={post.id}
@@ -175,6 +209,14 @@ export function CommunityScreen() {
         {/* Lost & Found Tab */}
         {activeTab === "lost" && (
           <div className="flex flex-col gap-3">
+            {lostFound.length === 0 && (
+              <EmptyState
+                icon={MapPin}
+                title="Nothing lost or found"
+                subtext="No active reports right now. If a pet goes missing or you spot one wandering, post here to reach the whole building fast."
+                cta="Report a lost or found pet"
+              />
+            )}
             {lostFound.map((item) => {
               const SpeciesIcon = item.species === "dog" ? Dog : Cat
               return (
@@ -226,6 +268,14 @@ export function CommunityScreen() {
         {/* Events Tab */}
         {activeTab === "events" && (
           <div className="flex flex-col gap-3">
+            {events.length === 0 && (
+              <EmptyState
+                icon={CalendarDays}
+                title="No upcoming events"
+                subtext="Nothing on the calendar yet. Meetups, play dates and building gatherings will show up here once they're scheduled."
+                cta="Suggest an event"
+              />
+            )}
             {events.map((event) => (
               <div
                 key={event.id}

@@ -3,13 +3,7 @@
 import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
-import {
-  useUrgentItems,
-  useManagerActivity,
-  useBuilding,
-  type BuildingStats,
-  type ManagerActivityIconKey,
-} from "@/lib/data"
+import { useBuildingResidents, useBuildingPets } from "@/lib/data"
 import {
   Shield,
   AlertTriangle,
@@ -17,37 +11,20 @@ import {
   Gavel,
   BarChart3,
   QrCode,
-  ChevronRight,
-  TrendingUp,
-  TrendingDown,
   Dog,
   Cat,
-  FileText,
   Clock,
   Building2,
   Bell,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-
-const SUMMARY_STATS: { label: string; key: keyof BuildingStats; icon: typeof Dog; color: string }[] = [
-  { label: "Registered", key: "registered", icon: Dog, color: "text-primary" },
-  { label: "Violations", key: "activeViolations", icon: Gavel, color: "text-destructive" },
-  { label: "Approvals", key: "pendingApprovals", icon: UserCheck, color: "text-info" },
-  { label: "Risk Score", key: "riskScore", icon: Shield, color: "text-success" },
-]
-
-const ACTIVITY_ICONS: Record<ManagerActivityIconKey, typeof UserCheck> = {
-  approval: UserCheck,
-  gavel: Gavel,
-  file: FileText,
-  alert: AlertTriangle,
-}
 
 const QUICK_ACTIONS = [
-  { icon: Gavel, label: "Issue\nWarning", color: "bg-destructive/10 text-destructive" },
-  { icon: UserCheck, label: "Review\nRegistration", color: "bg-primary/10 text-primary" },
-  { icon: BarChart3, label: "Generate\nReport", color: "bg-accent/10 text-accent" },
-  { icon: QrCode, label: "Emergency\nQR", color: "bg-info/10 text-info" },
+  { icon: UserCheck, label: "Review\nResidents", color: "bg-primary/10 text-primary", screen: "residents" },
+  { icon: Gavel, label: "Violations", color: "bg-destructive/10 text-destructive", screen: "violations" },
+  { icon: BarChart3, label: "Approvals", color: "bg-info/10 text-info", screen: "approvals" },
+  { icon: QrCode, label: "Emergency\nQR", color: "bg-accent/10 text-accent", screen: "" },
 ]
 
 interface DashboardScreenProps {
@@ -56,16 +33,28 @@ interface DashboardScreenProps {
 
 export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
   const { user } = useAuth()
-  const { data: building } = useBuilding()
-  const { data: urgentItems } = useUrgentItems()
-  const { data: recentActivity } = useManagerActivity()
-  const stats = building.stats
+  const { data: residents, isLoading: rLoading } = useBuildingResidents()
+  const { data: pets, isLoading: pLoading } = useBuildingPets()
 
-  const handleQuickAction = (label: string) => {
-    if (label.includes("QR")) toast.success("Emergency QR generated", { description: "Valid for 4 hours." })
-    else if (label.includes("Warning")) onNavigate?.("violations")
-    else if (label.includes("Registration")) onNavigate?.("approvals")
-    else if (label.includes("Report")) toast.success("Report generating…")
+  const members = residents.filter((r) => r.status === "approved").length
+  const pending = residents.filter((r) => r.status === "pending").length
+  const dogs = pets.filter((p) => p.species === "dog").length
+  const cats = pets.filter((p) => p.species === "cat").length
+  const compliant = pets.filter((p) => p.compliancePct >= 100).length
+  const needsAttention = pets.length - compliant
+  const avgCompliance = pets.length ? Math.round(pets.reduce((s, p) => s + p.compliancePct, 0) / pets.length) : 100
+  const loading = rLoading || pLoading
+
+  const SUMMARY = [
+    { label: "Pets", value: pets.length, icon: Dog, color: "text-primary" },
+    { label: "Members", value: members, icon: UserCheck, color: "text-info" },
+    { label: "Pending", value: pending, icon: Clock, color: "text-[#B8860B]" },
+    { label: "Attention", value: needsAttention, icon: AlertTriangle, color: "text-destructive" },
+  ]
+
+  const handleQuickAction = (screen: string) => {
+    if (!screen) toast.success("Emergency QR generated", { description: "Valid for 4 hours." })
+    else onNavigate?.(screen)
   }
 
   return (
@@ -75,7 +64,6 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
         rightAction={
           <button onClick={() => toast("No new notifications")} className="relative p-2" aria-label="Notifications">
             <Bell className="h-5 w-5 text-foreground" />
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
           </button>
         }
       />
@@ -84,46 +72,50 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
         {/* Greeting */}
         <section className="mb-4">
           <p className="text-[13px] text-muted-foreground">Welcome back, {user?.name?.split(" ")[0]}</p>
-          <div className="mt-0.5 flex items-center gap-1.5">
-            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[13px] text-muted-foreground">{user?.building}</span>
-          </div>
+          {user?.building && (
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[13px] text-muted-foreground">{user.building}</span>
+            </div>
+          )}
         </section>
 
-        {/* Compliance Score Hero */}
+        {/* Compliance hero */}
         <section className="mb-5">
           <div className="rounded-2xl bg-info p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[12px] font-medium text-info-foreground/80">Building Compliance</p>
-                <p className="text-[32px] font-bold leading-tight text-info-foreground">{stats.buildingComplianceScore}%</p>
+                <p className="text-[12px] font-medium text-info-foreground/80">Building compliance</p>
+                <p className="text-[32px] font-semibold leading-tight text-info-foreground">
+                  {loading ? "—" : `${avgCompliance}%`}
+                </p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-info-foreground/20">
                 <Shield className="h-6 w-6 text-info-foreground" />
               </div>
             </div>
             <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-info-foreground/20">
-              <div className="h-full rounded-full bg-info-foreground transition-all" style={{ width: `${stats.buildingComplianceScore}%` }} />
+              <div className="h-full rounded-full bg-info-foreground transition-all" style={{ width: `${avgCompliance}%` }} />
             </div>
-            <div className="mt-2 flex items-center justify-between">
-              <p className="text-[11px] text-info-foreground/70">{stats.nonCompliantUnits} units non-compliant</p>
-              <div className="flex items-center gap-1">
-                <TrendingUp className="h-3 w-3 text-info-foreground/70" />
-                <span className="text-[11px] text-info-foreground/70">+2% this month</span>
-              </div>
-            </div>
+            <p className="mt-2 text-[11px] text-info-foreground/70">
+              {pets.length === 0
+                ? "No registered pets yet"
+                : needsAttention === 0
+                  ? "All registered pets are compliant"
+                  : `${needsAttention} pet${needsAttention === 1 ? "" : "s"} need attention`}
+            </p>
           </div>
         </section>
 
-        {/* Summary Row */}
+        {/* Summary row */}
         <section className="mb-5">
           <div className="grid grid-cols-4 gap-2">
-            {SUMMARY_STATS.map((stat) => {
+            {SUMMARY.map((stat) => {
               const Icon = stat.icon
               return (
-                <div key={stat.label} className="rounded-xl border border-border bg-card p-2.5 text-center">
+                <div key={stat.label} className="rounded-2xl border border-border bg-card p-2.5 text-center">
                   <Icon className={`mx-auto h-4 w-4 ${stat.color}`} />
-                  <p className={`mt-1 text-[18px] font-bold ${stat.color}`}>{stats[stat.key]}</p>
+                  <p className={`mt-1 text-[18px] font-semibold ${stat.color}`}>{loading ? "—" : stat.value}</p>
                   <p className="text-[9px] font-medium text-muted-foreground">{stat.label}</p>
                 </div>
               )
@@ -131,136 +123,97 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
           </div>
         </section>
 
-        <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-5">
-        {/* Urgent Items */}
-        {urgentItems.length > 0 && (
-          <section className="mb-5">
-            <div className="mb-2.5 flex items-center gap-2">
-              <h2 className="text-[15px] font-semibold text-foreground">Urgent</h2>
-              <Badge className="bg-destructive/10 text-destructive border-0 text-[10px]">{urgentItems.length}</Badge>
+        {/* Pending approvals nudge */}
+        {pending > 0 && (
+          <button
+            onClick={() => onNavigate?.("residents")}
+            className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-warning/30 bg-[#FFFBEF] p-3.5 text-left transition-transform active:scale-[0.99]"
+          >
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-warning/15">
+              <Clock className="h-5 w-5 text-[#B8860B]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[14px] font-semibold text-foreground">
+                {pending} resident{pending === 1 ? "" : "s"} awaiting approval
+              </p>
+              <p className="text-[12px] text-muted-foreground">Review and approve to add them to your building</p>
             </div>
-            <div className="flex flex-col gap-2">
-              {urgentItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate?.("violations")}
-                  className="w-full rounded-2xl border border-border bg-card p-3.5 text-left transition-transform active:scale-[0.99]"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-[14px] font-semibold text-foreground">{item.title}</h3>
-                    <span className="flex-shrink-0 text-[10px] text-muted-foreground">{item.time}</span>
-                  </div>
-                  <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">{item.body}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <Badge className={`border-0 text-[10px] ${
-                      item.severity === "critical"
-                        ? "bg-destructive/10 text-destructive"
-                        : "bg-warning/10 text-[#B8860B]"
-                    }`}>
-                      {item.severity === "critical" ? "Critical" : "High Priority"}
-                    </Badge>
-                    <span className="text-[12px] font-semibold text-info">Take Action</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
+          </button>
         )}
 
-        {/* Quick Actions */}
-        <section className="mb-5">
-          <h2 className="mb-2.5 text-[15px] font-semibold text-foreground">Quick Actions</h2>
-          <div className="grid grid-cols-4 gap-2">
-            {QUICK_ACTIONS.map((action) => {
-              const Icon = action.icon
-              return (
-                <button
-                  key={action.label}
-                  onClick={() => handleQuickAction(action.label)}
-                  className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card p-2.5 transition-transform active:scale-[0.97]"
-                >
-                  <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${action.color}`}>
-                    <Icon className="h-4.5 w-4.5" />
-                  </span>
-                  <span className="whitespace-pre-line text-center text-[10px] font-medium leading-tight text-foreground">
-                    {action.label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </section>
+        <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-5">
+          {/* Quick Actions */}
+          <section className="mb-5">
+            <h2 className="mb-2.5 text-[15px] font-semibold text-foreground">Quick actions</h2>
+            <div className="grid grid-cols-4 gap-2">
+              {QUICK_ACTIONS.map((action) => {
+                const Icon = action.icon
+                return (
+                  <button
+                    key={action.label}
+                    onClick={() => handleQuickAction(action.screen)}
+                    className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-2.5 transition-transform active:scale-[0.97]"
+                  >
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${action.color}`}>
+                      <Icon className="h-4.5 w-4.5" />
+                    </span>
+                    <span className="whitespace-pre-line text-center text-[10px] font-medium leading-tight text-foreground">
+                      {action.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
 
-        {/* Recent Activity */}
-        <section className="mb-5">
-          <div className="mb-2.5 flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold text-foreground">Recent Activity</h2>
-            <button onClick={() => toast("Activity log — coming soon")} className="text-[13px] font-medium text-info">View All</button>
-          </div>
-          <div className="overflow-hidden rounded-2xl border border-border bg-card">
-            {recentActivity.map((item, idx) => {
-              const Icon = ACTIVITY_ICONS[item.iconKey]
-              return (
-                <div
-                  key={item.id}
-                  className={`flex items-center gap-3 px-3 py-2.5 ${
-                    idx < recentActivity.length - 1 ? "border-b border-border" : ""
-                  }`}
-                >
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-muted">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-[13px] font-medium text-foreground">{item.action}</p>
-                    <p className="truncate text-[11px] text-muted-foreground">{item.detail}</p>
-                  </div>
-                  <span className="flex-shrink-0 text-[10px] text-muted-foreground">{item.time}</span>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-
-        {/* Pet Breakdown */}
-        <section className="mb-5">
-          <h2 className="mb-2.5 text-[15px] font-semibold text-foreground">Pet Breakdown</h2>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-border bg-card p-3">
-              <div className="flex items-center gap-2">
-                <Dog className="h-4 w-4 text-primary" />
-                <span className="text-[13px] font-semibold text-foreground">Dogs</span>
+          {/* Pet breakdown */}
+          <section className="mb-5">
+            <h2 className="mb-2.5 text-[15px] font-semibold text-foreground">Pet breakdown</h2>
+            {loading ? (
+              <div className="flex justify-center rounded-2xl border border-border bg-card py-10">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-              <p className="mt-1 text-[22px] font-bold text-foreground">{stats.dogs}</p>
-              <p className="text-[10px] text-muted-foreground">{stats.largeBreedExemptions} large breed exemptions</p>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-3">
-              <div className="flex items-center gap-2">
-                <Cat className="h-4 w-4 text-accent" />
-                <span className="text-[13px] font-semibold text-foreground">Cats</span>
+            ) : pets.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+                <Dog className="mx-auto h-7 w-7 text-muted-foreground" />
+                <p className="mt-2 text-[14px] font-semibold text-foreground">No registered pets yet</p>
+                <p className="mt-1 text-[12px] text-muted-foreground">
+                  Pets appear here once residents join and add them.
+                </p>
               </div>
-              <p className="mt-1 text-[22px] font-bold text-foreground">{stats.cats}</p>
-              <p className="text-[10px] text-muted-foreground">All compliant</p>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-3">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-info" />
-                <span className="text-[13px] font-semibold text-foreground">ESA</span>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <BreakdownCard icon={Dog} color="text-primary" label="Dogs" value={dogs} />
+                <BreakdownCard icon={Cat} color="text-accent" label="Cats" value={cats} />
+                <BreakdownCard icon={CheckCircle2} color="text-success" label="Compliant" value={compliant} />
+                <BreakdownCard icon={AlertTriangle} color="text-destructive" label="Needs attention" value={needsAttention} />
               </div>
-              <p className="mt-1 text-[22px] font-bold text-foreground">{stats.esa}</p>
-              <p className="text-[10px] text-muted-foreground">1 pending verification</p>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-3">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-success" />
-                <span className="text-[13px] font-semibold text-foreground">Service</span>
-              </div>
-              <p className="mt-1 text-[22px] font-bold text-foreground">{stats.serviceAnimals}</p>
-              <p className="text-[10px] text-muted-foreground">All verified</p>
-            </div>
-          </div>
-        </section>
+            )}
+          </section>
         </div>
       </main>
+    </div>
+  )
+}
+
+function BreakdownCard({
+  icon: Icon,
+  color,
+  label,
+  value,
+}: {
+  icon: typeof Dog
+  color: string
+  label: string
+  value: number
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3">
+      <div className="flex items-center gap-2">
+        <Icon className={`h-4 w-4 ${color}`} />
+        <span className="text-[13px] font-semibold text-foreground">{label}</span>
+      </div>
+      <p className="mt-1 text-[22px] font-semibold text-foreground">{value}</p>
     </div>
   )
 }

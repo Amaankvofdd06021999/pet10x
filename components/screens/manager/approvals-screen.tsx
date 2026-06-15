@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  Inbox,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -29,6 +30,18 @@ const TABS: { id: ApprovalTab; label: string; count: number }[] = [
   { id: "accommodations", label: "Accommodations", count: 2 },
   { id: "documents", label: "Documents", count: 4 },
 ]
+
+function ApprovalsEmptyState({ title, subtext }: { title: string; subtext: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+        <Inbox className="h-6 w-6 text-primary" />
+      </div>
+      <h3 className="mt-4 text-[15px] font-semibold text-foreground">{title}</h3>
+      <p className="mx-auto mt-1 max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground">{subtext}</p>
+    </div>
+  )
+}
 
 export function ManagerApprovalsScreen() {
   const [activeTab, setActiveTab] = useState<ApprovalTab>("registrations")
@@ -66,6 +79,14 @@ export function ManagerApprovalsScreen() {
         {/* Registrations Tab */}
         {activeTab === "registrations" && (
           <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
+            {registrations.length === 0 && (
+              <div className="lg:col-span-2">
+                <ApprovalsEmptyState
+                  title="Nothing pending"
+                  subtext="No new pet registrations are waiting for review. Submissions from residents will appear here."
+                />
+              </div>
+            )}
             {registrations.map((reg) => {
               const isOpen = expandedReg === reg.id
               const SpeciesIcon = reg.species === "dog" ? Dog : Cat
@@ -139,6 +160,14 @@ export function ManagerApprovalsScreen() {
         {/* Accommodations Tab */}
         {activeTab === "accommodations" && (
           <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
+            {accommodations.length === 0 && (
+              <div className="lg:col-span-2">
+                <ApprovalsEmptyState
+                  title="Nothing pending"
+                  subtext="No ESA or service animal accommodation requests are awaiting review."
+                />
+              </div>
+            )}
             {accommodations.map((acc) => {
               const isOpen = expandedAcc === acc.id
               return (
@@ -217,6 +246,12 @@ export function ManagerApprovalsScreen() {
             <div className="mb-1">
               <p className="text-[12px] font-semibold text-muted-foreground">Document renewals and expirations</p>
             </div>
+            {documentsReview.length === 0 && (
+              <ApprovalsEmptyState
+                title="Nothing pending"
+                subtext="No documents need review and nothing is expiring soon. Renewals and flagged records will show up here."
+              />
+            )}
             {documentsReview.map((doc) => (
               <div key={doc.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
                 <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
