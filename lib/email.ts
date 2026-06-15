@@ -49,7 +49,7 @@ export function emailHtml({ headline, body, ctaUrl, ctaLabel, footnote }: Templa
         ${cta}
         ${foot}
         <tr><td style="padding:20px 32px;border-top:1px solid #f0f0f0;color:#9a9a9a;font-size:12px;line-height:1.5">
-          Pet10x · Park10x Services Inc.<br/>A governance &amp; management tool — not legal advice or a life-safety system.
+          Pet10x<br/>A governance &amp; management tool — not legal advice or a life-safety system.
         </td></tr>
       </table>
     </td></tr>
