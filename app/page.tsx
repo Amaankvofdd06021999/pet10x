@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import {
   PawPrint,
   Shield,
@@ -192,7 +193,14 @@ export default function LandingPage() {
           </div>
 
           <Reveal delay={200} className="relative">
-            <HeroMock />
+            <Image
+              src="/hero-image.png"
+              alt="Pet10x — pet governance app preview"
+              width={1448}
+              height={1086}
+              priority
+              className="h-auto w-full rounded-2xl border border-border/70 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.18)]"
+            />
           </Reveal>
         </div>
       </section>
