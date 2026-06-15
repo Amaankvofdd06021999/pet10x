@@ -15,6 +15,8 @@ import { ProfileScreen } from "@/components/screens/profile-screen"
 import { PetDetailScreen } from "@/components/screens/pet-detail-screen"
 import { AddPetScreen } from "@/components/screens/add-pet-screen"
 import { PetCareScreen } from "@/components/screens/pet-care-screen"
+import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
+import { LinkBuildingScreen } from "@/components/screens/link-building-screen"
 import { ManagerDashboardScreen } from "@/components/screens/manager/dashboard-screen"
 import { ManagerResidentsScreen } from "@/components/screens/manager/residents-screen"
 import { ManagerViolationsScreen } from "@/components/screens/manager/violations-screen"
@@ -31,6 +33,7 @@ const CONTENT_MAX: Record<string, string> = {
   "pet-detail": "max-w-3xl",
   "add-pet": "max-w-2xl",
   "pet-care": "max-w-2xl",
+  "link-building": "max-w-2xl",
   dashboard: "max-w-5xl",
   residents: "max-w-5xl",
   violations: "max-w-5xl",
@@ -67,6 +70,14 @@ function AppContent() {
       </div>
     )
   }
+  // New pet owners answer one onboarding question before entering the app.
+  if (user && user.role === "pet-owner" && !user.onboarded) {
+    return (
+      <div className="mx-auto w-full max-w-md">
+        <OnboardingFlow />
+      </div>
+    )
+  }
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
@@ -96,6 +107,8 @@ function AppContent() {
             <AddPetScreen onBack={handleBack} onNavigate={handleNavigate} />
           ) : currentScreen === "pet-care" ? (
             <PetCareScreen onBack={handleBack} onNavigate={handleNavigate} />
+          ) : currentScreen === "link-building" ? (
+            <LinkBuildingScreen onBack={handleBack} />
           ) : isManager ? (
             <>
               {currentScreen === "dashboard" && <ManagerDashboardScreen onNavigate={handleNavigate} />}

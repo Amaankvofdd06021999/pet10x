@@ -55,7 +55,7 @@ async function loadAppUser(authUser: User): Promise<AppUser> {
   const supabase = getSupabaseBrowserClient()!
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, full_name, email, avatar_url, member_since, plan_label")
+    .select("role, full_name, email, avatar_url, member_since, plan_label, onboarded")
     .eq("id", authUser.id)
     .maybeSingle()
 
@@ -116,6 +116,7 @@ async function loadAppUser(authUser: User): Promise<AppUser> {
     memberSince: formatMonthYear(profile?.member_since),
     plan: profile?.plan_label || "Free",
     petCount,
+    onboarded: profile?.onboarded ?? false,
   }
 }
 
@@ -136,6 +137,7 @@ interface AuthContextValue {
     fullName?: string,
   ) => Promise<{ error: string | null; needsConfirmation?: boolean }>
   resetPassword: (email: string) => Promise<{ error: string | null }>
+  markOnboarded: () => Promise<void>
   signInGuest: (code: string) => string | null
   signOut: () => Promise<void>
 }
@@ -152,6 +154,7 @@ const AuthContext = createContext<AuthContextValue>({
   signInWithPassword: async () => ({ error: "Auth not configured." }),
   signUp: async () => ({ error: "Auth not configured." }),
   resetPassword: async () => ({ error: "Auth not configured." }),
+  markOnboarded: async () => {},
   signInGuest: () => null,
   signOut: async () => {},
 })
@@ -253,6 +256,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? sanitizeAuthError(error.message) : null }
   }, [])
 
+  const markOnboarded = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (supabase) {
+      const {
+        data: { user: au },
+      } = await supabase.auth.getUser()
+      if (au) await supabase.from("profiles").update({ onboarded: true }).eq("id", au.id)
+    }
+    setUser((prev) => (prev ? { ...prev, onboarded: true } : prev))
+  }, [])
+
   const signInGuest = useCallback((code: string): string | null => {
     const building = resolveBuildingCode(code)
     if (!building) return "Invalid building code. Please check with your building management."
@@ -285,6 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithPassword,
         signUp,
         resetPassword,
+        markOnboarded,
         signInGuest,
         signOut,
       }}

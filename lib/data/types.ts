@@ -69,6 +69,7 @@ export interface AppUser {
   memberSince: string
   plan: string
   petCount: number
+  onboarded: boolean
 }
 
 export interface GuestSession {
@@ -211,6 +212,29 @@ export interface PetContact {
   name: string
   phone: string
   sortOrder: number | null
+}
+
+/* ---- Building membership (resident links) ---- */
+
+export type ResidentLinkStatus = "pending" | "approved" | "denied" | "revoked" | "left"
+
+export interface BuildingLink {
+  linkId: string
+  buildingId: string
+  buildingName: string
+  status: ResidentLinkStatus
+  unit: string | null
+  requestedAt: string
+}
+
+export interface ResidentLinkRow {
+  linkId: string
+  profileId: string
+  status: ResidentLinkStatus
+  unit: string | null
+  requestedAt: string
+  residentName: string
+  residentEmail: string | null
 }
 
 export interface Pet {

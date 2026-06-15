@@ -17,6 +17,7 @@ import { petFileSignedUrls, isStoragePath, uploadPetFile, deletePetFile } from "
 import type { Database } from "@/lib/supabase/database.types"
 import { PETS as MOCK_PETS } from "./mock-data"
 import type {
+  BuildingLink,
   CareEntry,
   CareEntryKind,
   CareTarget,
@@ -26,6 +27,8 @@ import type {
   PetDocKind,
   PetStatus,
   PetVaccinationRecord,
+  ResidentLinkRow,
+  ResidentLinkStatus,
   Species,
 } from "./types"
 
@@ -605,4 +608,161 @@ export async function setCareTarget(
     .from("care_targets")
     .upsert({ pet_id: petId, kind, target_amount: targetAmount, unit }, { onConflict: "pet_id,kind" })
   return { error: error?.message ?? null }
+}
+
+/* -------------------------- building membership ------------------------- */
+
+export async function requestBuildingLink(
+  code: string,
+): Promise<{ ok: boolean; error?: string; buildingName?: string; status?: string; already?: boolean }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { ok: false, error: "Not configured." }
+  const { data, error } = await supabase.rpc("request_building_link", { p_code: code })
+  if (error) return { ok: false, error: error.message }
+  const r = (data ?? {}) as { ok: boolean; error?: string; building_name?: string; status?: string; already?: boolean }
+  if (!r.ok) {
+    return {
+      ok: false,
+      error: r.error === "invalid_code" ? "That building code wasn't found — check with your management." : "Couldn't link to that building.",
+    }
+  }
+  return { ok: true, buildingName: r.building_name, status: r.status, already: r.already }
+}
+
+export function useMyBuildingLink(): LiveResult<BuildingLink | null> {
+  const [data, setData] = useState<BuildingLink | null>(null)
+  const [isLoading, setLoading] = useState(ENABLED)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    if (!ENABLED) {
+      setLoading(false)
+      return
+    }
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setData(null)
+      setLoading(false)
+      return
+    }
+    const { data: json, error: err } = await supabase.rpc("my_building_link")
+    if (err) {
+      setError(err.message)
+      setData(null)
+    } else if (json) {
+      const j = json as {
+        link_id: string
+        building_id: string
+        building_name: string
+        status: ResidentLinkStatus
+        unit: string | null
+        requested_at: string
+      }
+      setData({
+        linkId: j.link_id,
+        buildingId: j.building_id,
+        buildingName: j.building_name,
+        status: j.status,
+        unit: j.unit,
+        requestedAt: j.requested_at,
+      })
+    } else {
+      setData(null)
+    }
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+export async function leaveBuilding(): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase.rpc("leave_my_building_link")
+  return { error: error?.message ?? null }
+}
+
+/* -------------------- manager: resident link queue ---------------------- */
+
+export function useBuildingResidents(): LiveResult<ResidentLinkRow[]> {
+  const [data, setData] = useState<ResidentLinkRow[]>([])
+  const [isLoading, setLoading] = useState(ENABLED)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    if (!ENABLED) {
+      setLoading(false)
+      return
+    }
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    const { data: rows, error: err } = await supabase
+      .from("resident_links")
+      .select("id, profile_id, status, requested_at, units(unit_number), profiles!profile_id(full_name, email)")
+      .in("status", ["pending", "approved"])
+      .is("left_at", null)
+      .order("requested_at", { ascending: false })
+    if (err) {
+      setError(err.message)
+      setData([])
+    } else {
+      setData(
+        (rows ?? []).map((r) => {
+          const prof = r.profiles as { full_name: string | null; email: string | null } | null
+          const unit = r.units as { unit_number: string } | null
+          return {
+            linkId: r.id,
+            profileId: r.profile_id,
+            status: r.status as ResidentLinkStatus,
+            unit: unit?.unit_number ?? null,
+            requestedAt: r.requested_at,
+            residentName: prof?.full_name || prof?.email || "Resident",
+            residentEmail: prof?.email ?? null,
+          }
+        }),
+      )
+      setError(null)
+    }
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+async function decideLink(linkId: string, status: ResidentLinkStatus, left: boolean): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const patch: Database["public"]["Tables"]["resident_links"]["Update"] = {
+    status,
+    decided_at: new Date().toISOString(),
+    decided_by: user?.id ?? null,
+  }
+  if (left) patch.left_at = new Date().toISOString()
+  const { error } = await supabase.from("resident_links").update(patch).eq("id", linkId)
+  return { error: error?.message ?? null }
+}
+
+export function approveResidentLink(linkId: string) {
+  return decideLink(linkId, "approved", false)
+}
+export function denyResidentLink(linkId: string) {
+  return decideLink(linkId, "denied", false)
+}
+export function removeResident(linkId: string) {
+  return decideLink(linkId, "left", true)
 }

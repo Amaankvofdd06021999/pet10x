@@ -1896,6 +1896,7 @@ export type Database = {
           is_super_admin: boolean
           locale: string | null
           member_since: string | null
+          onboarded: boolean
           phone: string | null
           plan_label: string | null
           role: Database["public"]["Enums"]["user_role"]
@@ -1910,6 +1911,7 @@ export type Database = {
           is_super_admin?: boolean
           locale?: string | null
           member_since?: string | null
+          onboarded?: boolean
           phone?: string | null
           plan_label?: string | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -1924,6 +1926,7 @@ export type Database = {
           is_super_admin?: boolean
           locale?: string | null
           member_since?: string | null
+          onboarded?: boolean
           phone?: string | null
           plan_label?: string | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -2470,7 +2473,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_premium: { Args: { p_user: string }; Returns: boolean }
       is_resident_of: { Args: { b: string }; Returns: boolean }
+      leave_my_building_link: { Args: never; Returns: undefined }
       manages_building: { Args: { b: string }; Returns: boolean }
+      my_building_link: { Args: never; Returns: Json }
+      request_building_link: { Args: { p_code: string }; Returns: Json }
       resolve_entitlement: {
         Args: { p_user: string }
         Returns: Database["public"]["Enums"]["entitlement_source"]

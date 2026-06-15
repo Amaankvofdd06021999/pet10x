@@ -1,7 +1,7 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
-import { usePets, useHomeAlerts, useBuilding } from "@/lib/data"
+import { usePets, useHomeAlerts, useMyBuildingLink } from "@/lib/data"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
@@ -15,8 +15,9 @@ import {
   Dog,
   Cat,
   Plus,
+  Building2,
+  Clock,
 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 
 const STATUS_CONFIG = {
@@ -47,11 +48,9 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const { user } = useAuth()
   const { data: pets } = usePets()
   const { data: alerts } = useHomeAlerts()
-  const { data: building } = useBuilding()
-  const stats = building.stats
+  const { data: buildingLink } = useMyBuildingLink()
   const greeting = getGreeting()
   const primaryPet = pets[0]
-  const careCount = primaryPet?.careRoutine?.length ?? 0
 
   const handleQuickAction = (label: string) => {
     if (label.includes("Rules")) toast("Building pet rules", { description: "One dog or one cat · leashed in common areas." })
@@ -75,31 +74,60 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         {/* Greeting */}
         <section className="mb-5">
           <p className="text-[15px] text-muted-foreground">{greeting}, {user?.name?.split(" ")[0]}</p>
-          <div className="mt-0.5 flex items-center gap-1.5">
-            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[13px] text-muted-foreground">{user?.building}, Unit {user?.unit}</span>
-          </div>
+          {buildingLink?.status === "approved" ? (
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[13px] text-muted-foreground">
+                {buildingLink.buildingName}
+                {buildingLink.unit ? ` · Unit ${buildingLink.unit}` : ""}
+              </span>
+            </div>
+          ) : (
+            <span className="mt-0.5 block text-[13px] text-muted-foreground">Pet parent</span>
+          )}
         </section>
 
-        {/* Compliance Card */}
+        {/* Building membership */}
         <section className="mb-5">
-          <div className="rounded-2xl bg-primary p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[12px] font-medium text-primary-foreground/80">Building Compliance</p>
-                <p className="mt-0.5 text-[32px] font-bold leading-tight text-primary-foreground">{stats.ownerComplianceScore}%</p>
+          {buildingLink?.status === "approved" ? (
+            <button
+              onClick={() => onNavigate?.("link-building")}
+              className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-transform active:scale-[0.98]"
+            >
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-info/10">
+                <Building2 className="h-5 w-5 text-info" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-semibold text-foreground">{buildingLink.buildingName}</p>
+                <p className="text-[12px] text-muted-foreground">Linked{buildingLink.unit ? ` · Unit ${buildingLink.unit}` : ""}</p>
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-foreground/20">
-                <Shield className="h-6 w-6 text-primary-foreground" />
+              <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+            </button>
+          ) : buildingLink?.status === "pending" ? (
+            <div className="flex w-full items-center gap-3 rounded-2xl border border-warning/30 bg-[#FFF9E6] p-4">
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-warning/15">
+                <Clock className="h-5 w-5 text-[#B38F00]" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-semibold text-foreground">Membership pending</p>
+                <p className="text-[12px] text-muted-foreground">{buildingLink.buildingName} will review your request</p>
               </div>
             </div>
-            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-primary-foreground/20">
-              <div className="h-full rounded-full bg-primary-foreground transition-all" style={{ width: `${stats.ownerComplianceScore}%` }} />
-            </div>
-            <p className="mt-2 text-[11px] text-primary-foreground/70">
-              All documents up to date. 1 item needs attention.
-            </p>
-          </div>
+          ) : (
+            <button
+              onClick={() => onNavigate?.("link-building")}
+              className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-info/30 bg-info/5 p-4 text-left transition-transform active:scale-[0.98]"
+            >
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-info/10">
+                <Building2 className="h-5 w-5 text-info" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-semibold text-foreground">Link your building</p>
+                <p className="text-[12px] text-muted-foreground">Moved into a managed building? Add your code.</p>
+              </div>
+              <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+            </button>
+          )}
         </section>
 
         {/* Today's Care */}
@@ -114,7 +142,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-semibold text-foreground">Today&apos;s Care</p>
               <p className="text-[12px] text-muted-foreground">
-                {primaryPet?.name ?? "Your pet"} · {careCount} care tasks today
+                {primaryPet?.name ?? "Your pet"} · Food, medicine &amp; treats
               </p>
             </div>
             <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
@@ -230,35 +258,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           </div>
         </section>
 
-        {/* Building Stats */}
-        <section className="mb-5">
-          <h2 className="mb-2.5 text-[17px] font-semibold text-foreground">Building Stats</h2>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-[10px] font-medium text-muted-foreground">Total Pets</p>
-              <p className="mt-0.5 text-[20px] font-bold text-foreground">{stats.totalPets}</p>
-              <div className="mt-1 flex items-center gap-1">
-                <Badge variant="secondary" className="text-[9px] bg-success/10 text-success border-0">{stats.dogs} Dogs</Badge>
-                <Badge variant="secondary" className="text-[9px] bg-accent/10 text-accent border-0">{stats.cats} Cats</Badge>
-              </div>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-[10px] font-medium text-muted-foreground">Risk Score</p>
-              <p className="mt-0.5 text-[20px] font-bold text-success">Low</p>
-              <p className="mt-1 text-[10px] text-muted-foreground">Score: {stats.riskScore}/100</p>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-[10px] font-medium text-muted-foreground">Open Incidents</p>
-              <p className="mt-0.5 text-[20px] font-bold text-foreground">2</p>
-              <p className="mt-1 text-[10px] text-muted-foreground">Avg resolve: 2.4 days</p>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-[10px] font-medium text-muted-foreground">Upcoming Events</p>
-              <p className="mt-0.5 text-[20px] font-bold text-foreground">3</p>
-              <p className="mt-1 text-[10px] text-muted-foreground">Next: Dog Walk Sat</p>
-            </div>
-          </div>
-        </section>
       </main>
     </div>
   )
