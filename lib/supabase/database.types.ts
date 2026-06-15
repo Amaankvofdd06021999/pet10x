@@ -1894,7 +1894,11 @@ export type Database = {
           full_name: string | null
           id: string
           is_super_admin: boolean
+          latitude: number | null
           locale: string | null
+          location_label: string | null
+          location_source: string | null
+          longitude: number | null
           member_since: string | null
           onboarded: boolean
           phone: string | null
@@ -1909,7 +1913,11 @@ export type Database = {
           full_name?: string | null
           id: string
           is_super_admin?: boolean
+          latitude?: number | null
           locale?: string | null
+          location_label?: string | null
+          location_source?: string | null
+          longitude?: number | null
           member_since?: string | null
           onboarded?: boolean
           phone?: string | null
@@ -1924,7 +1932,11 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_super_admin?: boolean
+          latitude?: number | null
           locale?: string | null
+          location_label?: string | null
+          location_source?: string | null
+          longitude?: number | null
           member_since?: string | null
           onboarded?: boolean
           phone?: string | null
