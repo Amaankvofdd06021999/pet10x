@@ -21,7 +21,6 @@ import {
   LOST_FOUND,
   MANAGER_RECENT_ACTIVITY,
   NOTIFICATIONS,
-  PETS,
   REGISTRATIONS,
   RESIDENTS,
   RESOLVED_VIOLATIONS,
@@ -40,7 +39,6 @@ import type {
   HomeAlert,
   LostFoundItem,
   ManagerActivityEntry,
-  Pet,
   Registration,
   Resident,
   ResolvedViolation,
@@ -61,16 +59,7 @@ function resolved<T>(data: T): QueryResult<T> {
   return { data, isLoading: false, error: null }
 }
 
-/* ------------------------------- Pets ----------------------------- */
-
-export function usePets(): QueryResult<Pet[]> {
-  return resolved(PETS)
-}
-
-/** A single pet by id — defaults to the owner's primary pet (Max). */
-export function usePet(id = 1): QueryResult<Pet | undefined> {
-  return resolved(PETS.find((p) => p.id === id))
-}
+/* Pets + care live in ./live (real Supabase, dual-mode). */
 
 /* ----------------------------- Community -------------------------- */
 

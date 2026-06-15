@@ -151,8 +151,29 @@ export interface Medication {
   reminder: boolean
 }
 
+/* ---- Care logging (food / medicine / treat trackers) ---- */
+
+export type CareEntryKind = "food" | "medicine" | "treat" | "water" | "walk" | "weight" | "potty" | "other"
+
+export interface CareEntry {
+  id: string
+  petId: string
+  kind: CareEntryKind
+  label?: string
+  amount?: number | null
+  unit?: string | null
+  note?: string | null
+  loggedAt: string
+}
+
+export interface CareTarget {
+  kind: CareEntryKind
+  targetAmount?: number | null
+  unit?: string | null
+}
+
 export interface Pet {
-  id: number
+  id: string
   ownerId: string
   name: string
   species: Species

@@ -91,9 +91,9 @@ function AppContent() {
           {currentScreen === "pet-detail" ? (
             <PetDetailScreen onBack={handleBack} />
           ) : currentScreen === "add-pet" ? (
-            <AddPetScreen onBack={handleBack} />
+            <AddPetScreen onBack={handleBack} onNavigate={handleNavigate} />
           ) : currentScreen === "pet-care" ? (
-            <PetCareScreen onBack={handleBack} />
+            <PetCareScreen onBack={handleBack} onNavigate={handleNavigate} />
           ) : isManager ? (
             <>
               {currentScreen === "dashboard" && <ManagerDashboardScreen onNavigate={handleNavigate} />}

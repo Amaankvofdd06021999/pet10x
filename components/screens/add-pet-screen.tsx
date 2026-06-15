@@ -2,8 +2,9 @@
 
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { addPet } from "@/lib/data"
 import { toast } from "sonner"
-import { ArrowLeft, ImagePlus, Dog, Cat, PawPrint, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, ImagePlus, Dog, Cat, PawPrint, CheckCircle2, Loader2 } from "lucide-react"
 
 type Species = "dog" | "cat" | "other"
 
@@ -15,11 +16,13 @@ const SPECIES: { id: Species; label: string; icon: typeof Dog }[] = [
 
 interface AddPetScreenProps {
   onBack: () => void
+  onNavigate?: (screen: string) => void
 }
 
 export function AddPetScreen({ onBack }: AddPetScreenProps) {
   const { user } = useAuth()
   const [submitted, setSubmitted] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [name, setName] = useState("")
   const [species, setSpecies] = useState<Species | null>(null)
   const [breed, setBreed] = useState("")
@@ -33,9 +36,27 @@ export function AddPetScreen({ onBack }: AddPetScreenProps) {
 
   const canSubmit = name.trim().length > 0 && species !== null
 
-  const handleSubmit = () => {
-    if (!canSubmit) return
-    toast.success(`${name} registered`, { description: "Submitted to building management for approval." })
+  const handleSubmit = async () => {
+    if (!canSubmit || saving || !species) return
+    setSaving(true)
+    const weightKg = weight ? parseFloat(weight.replace(/[^\d.]/g, "")) : undefined
+    const { error } = await addPet({
+      name: name.trim(),
+      species,
+      breed: breed.trim() || undefined,
+      dob: dob || undefined,
+      sex: gender === "Male" ? "male" : gender === "Female" ? "female" : undefined,
+      weightKg: weightKg && !Number.isNaN(weightKg) ? weightKg : undefined,
+      color: color.trim() || undefined,
+      microchip: microchip.trim() || undefined,
+      neutered,
+    })
+    setSaving(false)
+    if (error) {
+      toast.error("Couldn't add pet", { description: error })
+      return
+    }
+    toast.success(`${name} added`, { description: "Saved to your account." })
     setSubmitted(true)
   }
 
@@ -86,10 +107,10 @@ export function AddPetScreen({ onBack }: AddPetScreenProps) {
           <h1 className="text-[17px] font-semibold text-foreground">Add Pet</h1>
           <button
             onClick={handleSubmit}
-            disabled={!canSubmit}
-            className={`text-[17px] font-semibold ${canSubmit ? "text-primary" : "text-muted-foreground/50"}`}
+            disabled={!canSubmit || saving}
+            className={`text-[17px] font-semibold ${canSubmit && !saving ? "text-primary" : "text-muted-foreground/50"}`}
           >
-            Save
+            {saving ? "Saving…" : "Save"}
           </button>
         </div>
       </header>
@@ -134,7 +155,12 @@ export function AddPetScreen({ onBack }: AddPetScreenProps) {
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Date of birth">
-            <Input value={dob} onChange={setDob} placeholder="MM / YYYY" />
+            <input
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
           </Field>
           <Field label="Weight">
             <Input value={weight} onChange={setWeight} placeholder="e.g. 32 kg" />
@@ -187,12 +213,13 @@ export function AddPetScreen({ onBack }: AddPetScreenProps) {
 
         <button
           onClick={handleSubmit}
-          disabled={!canSubmit}
-          className={`w-full rounded-lg py-3.5 text-[16px] font-semibold transition-all active:scale-[0.98] ${
-            canSubmit ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+          disabled={!canSubmit || saving}
+          className={`flex w-full items-center justify-center gap-2 rounded-lg py-3.5 text-[16px] font-semibold transition-all active:scale-[0.98] ${
+            canSubmit && !saving ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
           }`}
         >
-          Register pet
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+          {saving ? "Saving…" : "Register pet"}
         </button>
         <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
           Your pet will be submitted to building management for approval before appearing as registered.

@@ -558,6 +558,102 @@ export type Database = {
           },
         ]
       }
+      care_entries: {
+        Row: {
+          amount: number | null
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["care_entry_kind"]
+          label: string | null
+          logged_at: string
+          logged_by: string | null
+          note: string | null
+          pet_id: string
+          unit: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["care_entry_kind"]
+          label?: string | null
+          logged_at?: string
+          logged_by?: string | null
+          note?: string | null
+          pet_id: string
+          unit?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["care_entry_kind"]
+          label?: string | null
+          logged_at?: string
+          logged_by?: string | null
+          note?: string | null
+          pet_id?: string
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "care_entries_logged_by_fkey"
+            columns: ["logged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "care_entries_logged_by_fkey"
+            columns: ["logged_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "care_entries_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      care_targets: {
+        Row: {
+          id: string
+          kind: Database["public"]["Enums"]["care_entry_kind"]
+          pet_id: string
+          target_amount: number | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          kind: Database["public"]["Enums"]["care_entry_kind"]
+          pet_id: string
+          target_amount?: number | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          kind?: Database["public"]["Enums"]["care_entry_kind"]
+          pet_id?: string
+          target_amount?: number | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "care_targets_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_posts: {
         Row: {
           author_id: string | null
@@ -2384,6 +2480,15 @@ export type Database = {
       accommodation_status: "pending" | "approved" | "denied" | "info_requested"
       accommodation_type: "esa" | "service_animal"
       business_listing_tier: "basic" | "featured" | "premium"
+      care_entry_kind:
+        | "food"
+        | "medicine"
+        | "treat"
+        | "water"
+        | "walk"
+        | "weight"
+        | "potty"
+        | "other"
       care_kind: "meal" | "medication" | "water" | "walk" | "grooming" | "other"
       doc_kind:
         | "vaccination"
@@ -2608,6 +2713,16 @@ export const Constants = {
       accommodation_status: ["pending", "approved", "denied", "info_requested"],
       accommodation_type: ["esa", "service_animal"],
       business_listing_tier: ["basic", "featured", "premium"],
+      care_entry_kind: [
+        "food",
+        "medicine",
+        "treat",
+        "water",
+        "walk",
+        "weight",
+        "potty",
+        "other",
+      ],
       care_kind: ["meal", "medication", "water", "walk", "grooming", "other"],
       doc_kind: [
         "vaccination",

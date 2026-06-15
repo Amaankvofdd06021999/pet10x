@@ -118,6 +118,14 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
         {/* Pet Quick View */}
         <section className="mb-5">
           <div className="flex gap-2.5">
+            {pets.length === 0 && (
+              <button
+                onClick={() => onNavigate?.("add-pet")}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border bg-card p-3.5 text-[13px] font-semibold text-muted-foreground transition-transform active:scale-[0.98]"
+              >
+                + Add a pet
+              </button>
+            )}
             {pets.map((pet) => {
               const SpeciesIcon = pet.species === "dog" ? Dog : Cat
               return (

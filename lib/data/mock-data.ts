@@ -111,7 +111,7 @@ export const BUILDINGS: Building[] = [
 
 export const PETS: Pet[] = [
   {
-    id: 1,
+    id: "1",
     ownerId: "u1",
     name: "Max",
     species: "dog",
@@ -176,7 +176,7 @@ export const PETS: Pet[] = [
     ],
   },
   {
-    id: 2,
+    id: "2",
     ownerId: "u1",
     name: "Luna",
     species: "cat",

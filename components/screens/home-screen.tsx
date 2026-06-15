@@ -134,7 +134,19 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             </button>
           </div>
           <div className="flex flex-col gap-2.5">
-            {pets.map((pet) => {
+            {pets.length === 0 && (
+              <button
+                onClick={() => onNavigate?.("add-pet")}
+                className="flex flex-col items-center gap-1.5 rounded-2xl border border-dashed border-border bg-card px-4 py-7 text-center transition-transform active:scale-[0.98]"
+              >
+                <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
+                  <Plus className="h-5 w-5 text-primary" />
+                </div>
+                <p className="text-[14px] font-semibold text-foreground">Add your first pet</p>
+                <p className="text-[12px] text-muted-foreground">Register a pet to start tracking food, medicine &amp; treats.</p>
+              </button>
+            )}
+            {pets.map((pet, i) => {
               const statusInfo = STATUS_CONFIG[pet.status]
               const SpeciesIcon = pet.species === "dog" ? Dog : Cat
               return (
@@ -149,7 +161,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                       alt={pet.name}
                       fill
                       className="object-cover"
-                      priority={pet.id === 1}
+                      priority={i === 0}
                     />
                   </div>
                   <div className="flex flex-1 flex-col">
