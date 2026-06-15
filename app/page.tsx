@@ -147,7 +147,7 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.035)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:radial-gradient(ellipse_72%_55%_at_50%_0%,#000_20%,transparent_72%)]" />
         </div>
 
-        <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-12">
           <div className="max-w-2xl">
             <Reveal>
               <span className="inline-flex items-center gap-2 rounded-md border border-border/70 bg-card px-3 py-1 text-[12px] font-medium text-muted-foreground">
@@ -194,7 +194,7 @@ export default function LandingPage() {
 
           <Reveal delay={200} className="relative">
             <Image
-              src="/hero-image.png"
+              src="/hero-image.jpg"
               alt="Pet10x — pet governance app preview"
               width={1448}
               height={1086}

@@ -29,10 +29,10 @@ const NOTIFICATION_ICONS: Record<NotificationIconKey, typeof Syringe> = {
 }
 
 const SEVERITY_STYLES = {
-  warning: { bg: "bg-[#FFF9E6]", border: "border-l-warning", iconColor: "text-[#FFCC00]" },
-  error: { bg: "bg-[#FFEFEE]", border: "border-l-destructive", iconColor: "text-destructive" },
-  info: { bg: "bg-[#E6F2FF]", border: "border-l-info", iconColor: "text-info" },
-  success: { bg: "bg-[#E8F8ED]", border: "border-l-success", iconColor: "text-success" },
+  warning: { bg: "bg-[#FFF6E0]", iconColor: "text-[#B8860B]" },
+  error: { bg: "bg-destructive/10", iconColor: "text-destructive" },
+  info: { bg: "bg-info/10", iconColor: "text-info" },
+  success: { bg: "bg-success/10", iconColor: "text-success" },
 }
 
 const TABS: { id: AlertTab; label: string }[] = [
@@ -116,9 +116,7 @@ export function AlertsScreen() {
             return (
               <div
                 key={alert.id}
-                className={`rounded-xl border-l-4 p-3 transition-transform active:scale-[0.99] ${style.border} ${
-                  alert.read ? "bg-card" : style.bg
-                }`}
+                className="rounded-2xl border border-border bg-card p-3.5 transition-transform active:scale-[0.99]"
               >
                 <div className="flex gap-3">
                   <div className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${style.bg}`}>

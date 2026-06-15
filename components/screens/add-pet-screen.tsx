@@ -4,7 +4,7 @@ import { useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { addPet, setPetPhoto } from "@/lib/data"
 import { toast } from "sonner"
-import { ArrowLeft, ImagePlus, Dog, Cat, PawPrint, CheckCircle2, Loader2 } from "lucide-react"
+import { ArrowLeft, ImagePlus, Dog, Cat, PawPrint, CheckCircle2, Loader2, Utensils } from "lucide-react"
 
 type Species = "dog" | "cat" | "other"
 
@@ -19,7 +19,7 @@ interface AddPetScreenProps {
   onNavigate?: (screen: string) => void
 }
 
-export function AddPetScreen({ onBack }: AddPetScreenProps) {
+export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
   const { user } = useAuth()
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -75,26 +75,30 @@ export function AddPetScreen({ onBack }: AddPetScreenProps) {
           <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
             <CheckCircle2 className="h-10 w-10 text-success" />
           </div>
-          <h1 className="text-[24px] font-semibold text-foreground">{name} added</h1>
+          <h1 className="text-[24px] font-semibold text-foreground">{name} is all set! 🐾</h1>
           <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground">
-            {name}&apos;s profile was submitted to{" "}
-            <span className="font-semibold text-foreground">{user?.building}</span> management for approval.
-            You&apos;ll be notified once it&apos;s reviewed.
+            {user?.building
+              ? `Saved to your account — and shared with ${user.building} for approval. Let's set up their daily care.`
+              : `Saved to your account. Let's set up ${name}'s food, medicine and treats.`}
           </p>
           <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
+            <button
+              onClick={() => onNavigate?.("pet-care")}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[16px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+            >
+              <Utensils className="h-5 w-5" /> Set up food &amp; care
+            </button>
             <button
               onClick={() => {
                 setSubmitted(false)
                 setName(""); setSpecies(null); setBreed(""); setDob(""); setGender(""); setWeight(""); setColor(""); setMicrochip(""); setNeutered(false)
+                setPhotoFile(null); setPhotoPreview(null)
               }}
-              className="w-full rounded-lg bg-primary py-3.5 text-[16px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+              className="w-full rounded-xl border border-border py-3.5 text-[16px] font-semibold text-foreground transition-transform active:scale-[0.98]"
             >
               Add another pet
             </button>
-            <button
-              onClick={onBack}
-              className="w-full rounded-lg border border-border py-3.5 text-[16px] font-semibold text-foreground transition-transform active:scale-[0.98]"
-            >
+            <button onClick={onBack} className="w-full py-2 text-[15px] font-semibold text-muted-foreground">
               Done
             </button>
           </div>

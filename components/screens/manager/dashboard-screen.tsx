@@ -144,11 +144,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
                 <button
                   key={item.id}
                   onClick={() => onNavigate?.("violations")}
-                  className={`w-full rounded-xl border-l-4 p-3 text-left transition-transform active:scale-[0.99] ${
-                    item.severity === "critical"
-                      ? "border-l-destructive bg-destructive/5"
-                      : "border-l-warning bg-warning/5"
-                  }`}
+                  className="w-full rounded-2xl border border-border bg-card p-3.5 text-left transition-transform active:scale-[0.99]"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="text-[14px] font-semibold text-foreground">{item.title}</h3>

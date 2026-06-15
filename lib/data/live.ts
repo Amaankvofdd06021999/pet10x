@@ -11,7 +11,7 @@
  * navigation, so cross-screen freshness comes "for free" — no global cache.
  */
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useReducer, useState } from "react"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client"
 import { petFileSignedUrls, isStoragePath, uploadPetFile, deletePetFile } from "@/lib/supabase/storage"
 import type { Database } from "@/lib/supabase/database.types"
@@ -197,57 +197,97 @@ function mapCareEntry(r: CareEntryRow): CareEntry {
 
 /* -------------------------------- pets ---------------------------------- */
 
-export function usePets(): LiveResult<Pet[]> {
-  const [data, setData] = useState<Pet[]>(ENABLED ? [] : MOCK_PETS)
-  const [isLoading, setLoading] = useState(ENABLED)
-  const [error, setError] = useState<string | null>(null)
+/**
+ * Shared pets cache — pets are read by Home, Profile, Pet Detail and Trackers.
+ * The app shell remounts screens on navigation, so without a cache each tab
+ * switch re-fetched pets AND re-signed photo URLs (visible lag). We fetch once,
+ * share via a module-level store, and only re-fetch on an explicit refresh
+ * (mutations) or after sign-out.
+ */
+let petsCache: Pet[] | null = null
+let petsError: string | null = null
+let petsInFlight: Promise<void> | null = null
+const petsSubs = new Set<() => void>()
 
-  const refetch = useCallback(async () => {
-    if (!ENABLED) return
-    const supabase = getSupabaseBrowserClient()
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      setData([])
-      setLoading(false)
-      return
-    }
-    const { data: rows, error: err } = await supabase
-      .from("pets")
-      .select("*")
-      .eq("owner_id", user.id)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true })
-    if (err) {
-      setError(err.message)
-      setData([])
-    } else {
-      const mapped = (rows ?? []).map(mapPet)
-      // pet-media is private — swap storage paths for short-lived signed URLs
-      const paths = mapped.filter((p) => isStoragePath(p.image)).map((p) => p.image)
-      if (paths.length) {
-        const urls = await petFileSignedUrls(paths)
-        for (const p of mapped) {
-          if (isStoragePath(p.image)) p.image = urls[p.image] ?? "/placeholder.svg"
-        }
+function notifyPets() {
+  petsSubs.forEach((fn) => fn())
+}
+
+async function loadPetsInto(): Promise<void> {
+  if (!ENABLED) {
+    petsCache = MOCK_PETS
+    notifyPets()
+    return
+  }
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) {
+    petsCache = []
+    notifyPets()
+    return
+  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    petsCache = []
+    petsError = null
+    notifyPets()
+    return
+  }
+  const { data: rows, error } = await supabase
+    .from("pets")
+    .select("*")
+    .eq("owner_id", user.id)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+  if (error) {
+    petsError = error.message
+    petsCache = []
+  } else {
+    const mapped = (rows ?? []).map(mapPet)
+    const paths = mapped.filter((p) => isStoragePath(p.image)).map((p) => p.image)
+    if (paths.length) {
+      const urls = await petFileSignedUrls(paths)
+      for (const p of mapped) {
+        if (isStoragePath(p.image)) p.image = urls[p.image] ?? "/placeholder.svg"
       }
-      setData(mapped)
-      setError(null)
     }
-    setLoading(false)
-  }, [])
+    petsCache = mapped
+    petsError = null
+  }
+  notifyPets()
+}
 
+/** Force-refresh the shared pets cache (called after mutations). */
+export function refreshPets(): Promise<void> {
+  petsInFlight = loadPetsInto().finally(() => {
+    petsInFlight = null
+  })
+  return petsInFlight
+}
+
+/** Clear the cache (call on sign-out so the next user doesn't see stale pets). */
+export function clearPetsCache() {
+  petsCache = null
+  petsError = null
+  notifyPets()
+}
+
+export function usePets(): LiveResult<Pet[]> {
+  const [, force] = useReducer((c: number) => c + 1, 0)
   useEffect(() => {
-    void refetch()
-  }, [refetch])
-
-  return { data, isLoading, error, refetch }
+    petsSubs.add(force)
+    if (petsCache === null && !petsInFlight) void refreshPets()
+    return () => {
+      petsSubs.delete(force)
+    }
+  }, [])
+  return {
+    data: petsCache ?? (ENABLED ? [] : MOCK_PETS),
+    isLoading: ENABLED && petsCache === null,
+    error: petsError,
+    refetch: refreshPets,
+  }
 }
 
 /** A single pet by id — defaults to the owner's first pet. */
@@ -293,6 +333,7 @@ export async function addPet(input: AddPetInput): Promise<{ error: string | null
     .select()
     .single()
   if (error) return { error: error.message }
+  await refreshPets()
   return { error: null, pet: mapPet(data) }
 }
 
@@ -345,6 +386,7 @@ export async function updatePet(
     db.status = rev[patch.status]
   }
   const { error } = await supabase.from("pets").update(db).eq("id", petId)
+  if (!error) await refreshPets()
   return { error: error?.message ?? null }
 }
 
@@ -354,6 +396,7 @@ export async function setPetPhoto(petId: string, file: File): Promise<{ error: s
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error: uerr } = await supabase.from("pets").update({ image_url: path }).eq("id", petId)
+  if (!uerr) await refreshPets()
   return { error: uerr?.message ?? null }
 }
 

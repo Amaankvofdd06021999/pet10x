@@ -7,6 +7,7 @@ import {
   MOCK_USERS,
   VALID_BUILDING_CODES,
   resolveBuildingCode,
+  clearPetsCache,
   type AppUser,
   type DemoRole,
   type GuestSession,
@@ -280,6 +281,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     const supabase = getSupabaseBrowserClient()
     if (supabase) await supabase.auth.signOut().catch(() => {})
+    clearPetsCache()
     setUser(null)
     setAuthUser(null)
     setGuestSession(null)

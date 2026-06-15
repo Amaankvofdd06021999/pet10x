@@ -34,10 +34,10 @@ const QUICK_ACTIONS = [
   { icon: Heart, label: "Lost &\nFound", color: "bg-accent/10 text-accent" },
 ]
 
-const ALERT_STYLES = {
-  warning: "border-l-warning bg-[#FFF9E6]",
-  info: "border-l-info bg-[#E6F2FF]",
-  success: "border-l-success bg-[#E8F8ED]",
+const ALERT_DOT = {
+  warning: "bg-[#B8860B]",
+  info: "bg-info",
+  success: "bg-success",
 } as const
 
 interface HomeScreenProps {
@@ -234,29 +234,31 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         </section>
 
         {/* Recent Activity */}
-        <section className="mb-5">
-          <div className="mb-2.5 flex items-center justify-between">
-            <h2 className="text-[17px] font-semibold text-foreground">Recent Activity</h2>
-            <button onClick={() => onNavigate?.("alerts")} className="flex items-center gap-0.5 text-[13px] font-medium text-primary">
-              See All
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="flex flex-col gap-2">
-            {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className={`rounded-xl border-l-4 p-3 ${ALERT_STYLES[alert.type]}`}
-              >
-                <div className="flex items-start justify-between">
-                  <h3 className="text-[14px] font-semibold text-foreground">{alert.title}</h3>
-                  <span className="text-[11px] text-muted-foreground">{alert.time}</span>
+        {alerts.length > 0 && (
+          <section className="mb-5">
+            <div className="mb-2.5 flex items-center justify-between">
+              <h2 className="text-[17px] font-semibold text-foreground">Recent Activity</h2>
+              <button onClick={() => onNavigate?.("alerts")} className="flex items-center gap-0.5 text-[13px] font-medium text-primary">
+                See All
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              {alerts.map((alert) => (
+                <div key={alert.id} className="rounded-2xl border border-border bg-card p-3.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 flex-shrink-0 rounded-full ${ALERT_DOT[alert.type]}`} />
+                      <h3 className="text-[14px] font-semibold text-foreground">{alert.title}</h3>
+                    </div>
+                    <span className="flex-shrink-0 text-[11px] text-muted-foreground">{alert.time}</span>
+                  </div>
+                  <p className="mt-1 pl-4 text-[12px] text-muted-foreground">{alert.body}</p>
                 </div>
-                <p className="mt-0.5 text-[12px] text-secondary-foreground">{alert.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        )}
 
       </main>
     </div>
