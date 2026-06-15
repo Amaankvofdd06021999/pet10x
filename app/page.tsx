@@ -199,7 +199,7 @@ export default function LandingPage() {
               width={1448}
               height={1086}
               priority
-              className="h-auto w-full rounded-2xl border border-border/70 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.18)]"
+              className="h-auto w-full"
             />
           </Reveal>
         </div>
