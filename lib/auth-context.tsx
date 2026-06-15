@@ -242,7 +242,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resetPassword = useCallback(async (email: string) => {
     const supabase = getSupabaseBrowserClient()
     if (!supabase) return { error: "Auth not configured." }
-    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/auth/set-password` : undefined
+    // Route through the server callback: PKCE recovery codes are exchanged there
+    // (the code-verifier lives in an httpOnly cookie the browser can't read),
+    // which then forwards to the set-password page with an active session.
+    const redirectTo =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/set-password")}`
+        : undefined
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
     return { error: error ? sanitizeAuthError(error.message) : null }
   }, [])
