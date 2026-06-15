@@ -31,7 +31,7 @@ export function LandingNav() {
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
         <Link href="/" className="flex items-center gap-2" aria-label="Pet10x home">
-          <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary shadow-sm shadow-primary/30">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm shadow-primary/30">
             <PawPrint className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
           </span>
           <span className="text-[17px] font-semibold tracking-tight text-foreground">Pet10x</span>
@@ -52,13 +52,13 @@ export function LandingNav() {
         <div className="hidden items-center gap-2 md:flex">
           <Link
             href="/app"
-            className="rounded-full px-4 py-2 text-[14px] font-semibold text-foreground transition-colors hover:bg-muted"
+            className="rounded-lg px-4 py-2 text-[14px] font-semibold text-foreground transition-colors hover:bg-muted"
           >
             Sign in
           </Link>
           <Link
             href="/app"
-            className="rounded-full bg-primary px-4 py-2 text-[14px] font-semibold text-primary-foreground shadow-sm shadow-primary/30 transition-all hover:scale-[1.03] hover:bg-primary/90 active:scale-[0.98]"
+            className="rounded-lg bg-primary px-4 py-2 text-[14px] font-semibold text-primary-foreground shadow-sm shadow-primary/30 transition-all hover:scale-[1.03] hover:bg-primary/90 active:scale-[0.98]"
           >
             Get started
           </Link>
@@ -91,13 +91,13 @@ export function LandingNav() {
             <div className="mt-2 flex flex-col gap-2">
               <Link
                 href="/app"
-                className="rounded-full border border-border px-4 py-2.5 text-center text-[15px] font-semibold text-foreground"
+                className="rounded-lg border border-border px-4 py-2.5 text-center text-[15px] font-semibold text-foreground"
               >
                 Sign in
               </Link>
               <Link
                 href="/app"
-                className="rounded-full bg-primary px-4 py-2.5 text-center text-[15px] font-semibold text-primary-foreground"
+                className="rounded-lg bg-primary px-4 py-2.5 text-center text-[15px] font-semibold text-primary-foreground"
               >
                 Get started
               </Link>

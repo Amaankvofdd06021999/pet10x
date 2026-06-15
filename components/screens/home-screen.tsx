@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/auth-context"
 import { usePets, useHomeAlerts, useBuilding } from "@/lib/data"
+import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
   Bell,
@@ -49,13 +50,21 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const { data: building } = useBuilding()
   const stats = building.stats
   const greeting = getGreeting()
+  const primaryPet = pets[0]
+  const careCount = primaryPet?.careRoutine?.length ?? 0
+
+  const handleQuickAction = (label: string) => {
+    if (label.includes("Rules")) toast("Building pet rules", { description: "One dog or one cat · leashed in common areas." })
+    else if (label.includes("Report")) toast("Report an incident", { description: "Pet incident reporting is coming soon." })
+    else if (label.includes("Events") || label.includes("Lost")) onNavigate?.("community")
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Pet10x"
         rightAction={
-          <button className="relative p-2" aria-label="Notifications">
+          <button onClick={() => onNavigate?.("alerts")} className="relative p-2" aria-label="Notifications">
             <Bell className="h-5 w-5 text-foreground" />
             <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
           </button>
@@ -91,6 +100,25 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               All documents up to date. 1 item needs attention.
             </p>
           </div>
+        </section>
+
+        {/* Today's Care */}
+        <section className="mb-5">
+          <button
+            onClick={() => onNavigate?.("pet-care")}
+            className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-transform active:scale-[0.98]"
+          >
+            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
+              <Heart className="h-5 w-5 text-accent" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-semibold text-foreground">Today&apos;s Care</p>
+              <p className="text-[12px] text-muted-foreground">
+                {primaryPet?.name ?? "Your pet"} · {careCount} care tasks today
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+          </button>
         </section>
 
         {/* My Pets */}
@@ -159,6 +187,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               return (
                 <button
                   key={action.label}
+                  onClick={() => handleQuickAction(action.label)}
                   className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card p-2.5 transition-transform active:scale-[0.97]"
                 >
                   <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${action.color}`}>
@@ -177,7 +206,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         <section className="mb-5">
           <div className="mb-2.5 flex items-center justify-between">
             <h2 className="text-[17px] font-semibold text-foreground">Recent Activity</h2>
-            <button className="flex items-center gap-0.5 text-[13px] font-medium text-primary">
+            <button onClick={() => onNavigate?.("alerts")} className="flex items-center gap-0.5 text-[13px] font-medium text-primary">
               See All
               <ChevronRight className="h-4 w-4" />
             </button>

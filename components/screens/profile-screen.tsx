@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/auth-context"
 import { usePets } from "@/lib/data"
+import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
   ChevronRight,
@@ -63,16 +64,29 @@ const MENU_SECTIONS = [
   },
 ]
 
-export function ProfileScreen() {
+interface ProfileScreenProps {
+  onNavigate?: (screen: string) => void
+}
+
+export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const { user, signOut } = useAuth()
   const { data: pets } = usePets()
+
+  const handleItem = (label: string) => {
+    if (label.includes("Pet Profiles")) onNavigate?.("home")
+    else if (label.includes("Documents")) onNavigate?.("pet-detail")
+    else if (label.includes("Favorite Services")) onNavigate?.("services")
+    else if (label.includes("Compliance")) toast("Compliance status", { description: "96% compliant · 1 item needs attention." })
+    else if (label.includes("Subscription")) toast("Pet Plus", { description: "Your premium plan is active." })
+    else toast(label, { description: "Coming soon." })
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Profile"
         rightAction={
-          <button className="p-2" aria-label="Settings">
+          <button onClick={() => toast("Settings — coming soon")} className="p-2" aria-label="Settings">
             <Settings className="h-5 w-5 text-foreground" />
           </button>
         }
@@ -144,6 +158,7 @@ export function ProfileScreen() {
                 return (
                   <button
                     key={item.label}
+                    onClick={() => handleItem(item.label)}
                     className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors active:bg-muted ${
                       idx < section.items.length - 1 ? "border-b border-border" : ""
                     }`}

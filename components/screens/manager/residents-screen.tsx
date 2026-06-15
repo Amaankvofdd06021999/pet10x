@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useResidents } from "@/lib/data"
+import { toast } from "sonner"
 import {
   Search,
   Dog,
@@ -61,7 +62,7 @@ export function ManagerResidentsScreen() {
       <IOSNavBar
         title="Residents"
         rightAction={
-          <button className="p-2" aria-label="Filter">
+          <button onClick={() => toast("Filters — coming soon")} className="p-2" aria-label="Filter">
             <Filter className="h-5 w-5 text-foreground" />
           </button>
         }
@@ -230,11 +231,11 @@ export function ManagerResidentsScreen() {
 
                     {/* Actions */}
                     <div className="mt-3 flex gap-2">
-                      <button className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                      <button onClick={() => toast("Contacting resident…")} className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
                         Contact Resident
                       </button>
                       {resident.status === "non-compliant" && (
-                        <button className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
+                        <button onClick={() => toast.success("Warning issued")} className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
                           Issue Warning
                         </button>
                       )}

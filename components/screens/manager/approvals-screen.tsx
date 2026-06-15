@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useRegistrations, useAccommodations, useDocumentsReview } from "@/lib/data"
+import { toast } from "sonner"
 import {
   Dog,
   Cat,
@@ -117,13 +118,13 @@ export function ManagerApprovalsScreen() {
 
                       {/* Actions */}
                       <div className="flex gap-2">
-                        <button className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
+                        <button onClick={() => toast.success("Approved")} className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
                           Approve
                         </button>
-                        <button className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
+                        <button onClick={() => toast("Request denied")} className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
                           Deny
                         </button>
-                        <button className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                        <button onClick={() => toast("Info requested from resident")} className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
                           Request Info
                         </button>
                       </div>
@@ -191,13 +192,13 @@ export function ManagerApprovalsScreen() {
 
                       {/* Actions */}
                       <div className="flex gap-2">
-                        <button className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
+                        <button onClick={() => toast.success("Approved")} className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
                           Approve
                         </button>
-                        <button className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
+                        <button onClick={() => toast("Request denied")} className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
                           Deny
                         </button>
-                        <button className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                        <button onClick={() => toast.success("Documents verified")} className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
                           Verify Docs
                         </button>
                       </div>

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useCommunityPosts, useLostFound, useEvents } from "@/lib/data"
+import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
   Heart,
@@ -58,7 +59,7 @@ export function CommunityScreen() {
       <IOSNavBar
         title="Community"
         rightAction={
-          <button className="flex h-8 w-8 items-center justify-center rounded-full bg-primary" aria-label="New post">
+          <button onClick={() => toast("New post — coming soon")} className="flex h-8 w-8 items-center justify-center rounded-full bg-primary" aria-label="New post">
             <Plus className="h-4 w-4 text-primary-foreground" />
           </button>
         }
@@ -95,7 +96,7 @@ export function CommunityScreen() {
           <div className="flex flex-col gap-4">
             {/* Manager announcement CTA */}
             {isManager && (
-              <button className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-info/30 bg-info/5 p-4 transition-transform active:scale-[0.98]">
+              <button onClick={() => toast("Post an announcement — coming soon")} className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-info/30 bg-info/5 p-4 transition-transform active:scale-[0.98]">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info/10">
                   <Megaphone className="h-5 w-5 text-info" />
                 </div>
@@ -127,12 +128,12 @@ export function CommunityScreen() {
                       </span>
                     </div>
                     {isManager ? (
-                      <button className="flex items-center gap-1 rounded-full bg-info/10 px-2.5 py-1 text-[11px] font-semibold text-info" aria-label="Pin post">
+                      <button onClick={() => toast.success("Post pinned")} className="flex items-center gap-1 rounded-full bg-info/10 px-2.5 py-1 text-[11px] font-semibold text-info" aria-label="Pin post">
                         <Pin className="h-3 w-3" />
                         Pin
                       </button>
                     ) : (
-                      <button className="p-1" aria-label="More options">
+                      <button onClick={() => toast("More options — coming soon")} className="p-1" aria-label="More options">
                         <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
                       </button>
                     )}
@@ -158,11 +159,11 @@ export function CommunityScreen() {
                       {post.likes + (likedPosts.has(post.id) && !post.liked ? 1 : 0) - (!likedPosts.has(post.id) && post.liked ? 1 : 0)}
                     </span>
                   </button>
-                  <button className="flex items-center gap-1.5">
+                  <button onClick={() => toast("Comments — coming soon")} className="flex items-center gap-1.5">
                     <MessageCircle className="h-5 w-5 text-muted-foreground" />
                     <span className="text-[13px] text-muted-foreground">{post.comments}</span>
                   </button>
-                  <button className="ml-auto">
+                  <button onClick={() => toast.success("Link copied")} className="ml-auto">
                     <Share2 className="h-5 w-5 text-muted-foreground" />
                   </button>
                 </div>
@@ -264,7 +265,7 @@ export function CommunityScreen() {
                       {event.attendees}/{event.maxAttendees} going
                     </span>
                   </div>
-                  <button className="rounded-full bg-primary px-4 py-1.5 text-[13px] font-semibold text-primary-foreground transition-transform active:scale-[0.97]">
+                  <button onClick={() => toast.success("RSVP confirmed")} className="rounded-full bg-primary px-4 py-1.5 text-[13px] font-semibold text-primary-foreground transition-transform active:scale-[0.97]">
                     RSVP
                   </button>
                 </div>

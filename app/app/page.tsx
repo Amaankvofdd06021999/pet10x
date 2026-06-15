@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { IOSTabBar } from "@/components/ios-tab-bar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { Toaster } from "@/components/ui/sonner"
 import { SignInScreen } from "@/components/screens/sign-in-screen"
 import { GuestReportScreen } from "@/components/screens/guest-report-screen"
 import { HomeScreen } from "@/components/screens/home-screen"
@@ -12,6 +13,8 @@ import { ServicesScreen } from "@/components/screens/services-screen"
 import { AlertsScreen } from "@/components/screens/alerts-screen"
 import { ProfileScreen } from "@/components/screens/profile-screen"
 import { PetDetailScreen } from "@/components/screens/pet-detail-screen"
+import { AddPetScreen } from "@/components/screens/add-pet-screen"
+import { PetCareScreen } from "@/components/screens/pet-care-screen"
 import { ManagerDashboardScreen } from "@/components/screens/manager/dashboard-screen"
 import { ManagerResidentsScreen } from "@/components/screens/manager/residents-screen"
 import { ManagerViolationsScreen } from "@/components/screens/manager/violations-screen"
@@ -26,6 +29,8 @@ const CONTENT_MAX: Record<string, string> = {
   alerts: "max-w-2xl",
   profile: "max-w-2xl",
   "pet-detail": "max-w-3xl",
+  "add-pet": "max-w-2xl",
+  "pet-care": "max-w-2xl",
   dashboard: "max-w-5xl",
   residents: "max-w-5xl",
   violations: "max-w-5xl",
@@ -85,13 +90,17 @@ function AppContent() {
         <div className={`mx-auto w-full ${contentMax}`}>
           {currentScreen === "pet-detail" ? (
             <PetDetailScreen onBack={handleBack} />
+          ) : currentScreen === "add-pet" ? (
+            <AddPetScreen onBack={handleBack} />
+          ) : currentScreen === "pet-care" ? (
+            <PetCareScreen onBack={handleBack} />
           ) : isManager ? (
             <>
               {currentScreen === "dashboard" && <ManagerDashboardScreen onNavigate={handleNavigate} />}
               {currentScreen === "residents" && <ManagerResidentsScreen />}
               {currentScreen === "violations" && <ManagerViolationsScreen />}
               {currentScreen === "approvals" && <ManagerApprovalsScreen />}
-              {currentScreen === "settings" && <ManagerSettingsScreen onNavigate={handleNavigate} />}
+              {currentScreen === "settings" && <ManagerSettingsScreen />}
             </>
           ) : (
             <>
@@ -99,7 +108,7 @@ function AppContent() {
               {currentScreen === "community" && <CommunityScreen />}
               {currentScreen === "services" && <ServicesScreen />}
               {currentScreen === "alerts" && <AlertsScreen />}
-              {currentScreen === "profile" && <ProfileScreen />}
+              {currentScreen === "profile" && <ProfileScreen onNavigate={handleNavigate} />}
             </>
           )}
         </div>
@@ -114,6 +123,7 @@ export default function Pet10xApp() {
   return (
     <AuthProvider>
       <AppContent />
+      <Toaster position="top-center" />
     </AuthProvider>
   )
 }

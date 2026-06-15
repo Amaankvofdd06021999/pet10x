@@ -123,6 +123,34 @@ export interface PetMedicalInfo {
   vetDistance: string
 }
 
+export type CareKind = "meal" | "medication" | "water" | "walk" | "grooming" | "other"
+
+/** A recurring daily care task (checked off in the Care tracker). */
+export interface CareTask {
+  id: string
+  label: string
+  detail?: string
+  time: string
+  kind: CareKind
+}
+
+export interface FeedingMeal {
+  id: string
+  name: string
+  time: string
+  portion: string
+  food: string
+}
+
+export interface Medication {
+  id: string
+  name: string
+  dosage: string
+  frequency: string
+  nextDue: string
+  reminder: boolean
+}
+
 export interface Pet {
   id: number
   ownerId: string
@@ -145,6 +173,9 @@ export interface Pet {
   emergencyContacts?: EmergencyContact[]
   documents?: PetDocument[]
   activity?: PetActivityEntry[]
+  careRoutine?: CareTask[]
+  feeding?: FeedingMeal[]
+  medications?: Medication[]
 }
 
 /* ------------------------------------------------------------------ */

@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 import { usePet, type PetDocumentIconKey } from "@/lib/data"
+import { toast } from "sonner"
 
 type DetailTab = "overview" | "medical" | "documents" | "activity"
 
@@ -65,10 +66,10 @@ export function PetDetailScreen({ onBack }: PetDetailScreenProps) {
             <span className="text-[17px]">Back</span>
           </button>
           <div className="flex items-center gap-2">
-            <button className="p-2" aria-label="Edit pet">
+            <button onClick={() => toast("Edit pet — coming soon")} className="p-2" aria-label="Edit pet">
               <Edit3 className="h-5 w-5 text-primary" />
             </button>
-            <button className="p-2" aria-label="More options">
+            <button onClick={() => toast("More options — coming soon")} className="p-2" aria-label="More options">
               <MoreHorizontal className="h-5 w-5 text-foreground" />
             </button>
           </div>
@@ -150,6 +151,7 @@ export function PetDetailScreen({ onBack }: PetDetailScreenProps) {
                   {["Home", "Away", "At Vet", "Vacation"].map((status) => (
                     <button
                       key={status}
+                      onClick={() => toast(`Status set to ${status}`)}
                       className={`flex-1 rounded-xl py-2 text-[12px] font-semibold transition-all ${
                         status === "Home"
                           ? "bg-success text-success-foreground"
@@ -195,7 +197,7 @@ export function PetDetailScreen({ onBack }: PetDetailScreenProps) {
               <div className="rounded-2xl border border-border bg-card overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                   <h3 className="text-[15px] font-semibold text-foreground">Vaccinations</h3>
-                  <button className="text-[13px] font-medium text-primary">Add Record</button>
+                  <button onClick={() => toast("Add vaccination record — coming soon")} className="text-[13px] font-medium text-primary">Add Record</button>
                 </div>
                 {vaccinations.map((vax, idx) => {
                   const statusStyle = VAX_STATUS_STYLES[vax.status]
@@ -275,6 +277,7 @@ export function PetDetailScreen({ onBack }: PetDetailScreenProps) {
                 return (
                   <button
                     key={doc.name}
+                    onClick={() => toast(doc.name, { description: `Expires ${doc.expiry}` })}
                     className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-transform active:scale-[0.98]"
                   >
                     <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${isExpiring ? "bg-[#FFF9E6]" : "bg-success/10"}`}>

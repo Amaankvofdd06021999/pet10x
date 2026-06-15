@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useServiceProviders } from "@/lib/data"
+import { toast } from "sonner"
 import {
   Search,
   Star,
@@ -76,7 +77,8 @@ export function ServicesScreen() {
             {featured.map((provider) => (
               <div
                 key={provider.id}
-                className="rounded-2xl border border-border bg-card overflow-hidden transition-transform active:scale-[0.98]"
+                onClick={() => toast(provider.name, { description: "Provider details coming soon." })}
+                className="cursor-pointer rounded-2xl border border-border bg-card overflow-hidden transition-transform active:scale-[0.98]"
               >
                 <div className="relative h-28 w-full bg-muted">
                   <Image src={provider.image} alt={provider.name} fill className="object-cover" />
@@ -114,6 +116,7 @@ export function ServicesScreen() {
             {nearby.map((provider) => (
               <button
                 key={provider.id}
+                onClick={() => toast(provider.name, { description: "Provider details coming soon." })}
                 className="flex flex-col rounded-2xl border border-border bg-card overflow-hidden text-left transition-transform active:scale-[0.98]"
               >
                 <div className="relative h-28 w-full bg-muted">

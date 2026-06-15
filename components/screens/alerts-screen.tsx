@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useNotifications, type NotificationIconKey } from "@/lib/data"
+import { toast } from "sonner"
 import {
   AlertTriangle,
   Calendar,
@@ -60,10 +61,10 @@ export function AlertsScreen() {
         title="Alerts"
         rightAction={
           <div className="flex items-center gap-2">
-            <button className="p-2" aria-label="Report incident">
+            <button onClick={() => toast("Report an incident", { description: "Coming soon." })} className="p-2" aria-label="Report incident">
               <Plus className="h-5 w-5 text-primary" />
             </button>
-            <button className="p-2" aria-label="Filter">
+            <button onClick={() => toast("Filters — coming soon")} className="p-2" aria-label="Filter">
               <Filter className="h-5 w-5 text-foreground" />
             </button>
           </div>
@@ -96,7 +97,7 @@ export function AlertsScreen() {
 
       <main className="ios-scroll flex-1 px-4 pb-24">
         {/* Report CTA */}
-        <button className="mb-4 flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-destructive/30 bg-destructive/5 p-3 transition-transform active:scale-[0.98]">
+        <button onClick={() => toast("Report an incident", { description: "Pet incident reporting is coming soon." })} className="mb-4 flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-destructive/30 bg-destructive/5 p-3 transition-transform active:scale-[0.98]">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10">
             <AlertTriangle className="h-4.5 w-4.5 text-destructive" />
           </div>
@@ -137,7 +138,7 @@ export function AlertsScreen() {
                       {alert.body}
                     </p>
                     {alert.actionLabel && (
-                      <button className="mt-1.5 text-[12px] font-semibold text-primary">
+                      <button onClick={() => toast.success(alert.actionLabel ?? "Done")} className="mt-1.5 text-[12px] font-semibold text-primary">
                         {alert.actionLabel}
                       </button>
                     )}

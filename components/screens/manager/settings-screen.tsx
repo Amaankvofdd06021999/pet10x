@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
+import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
   Building2,
@@ -59,12 +60,14 @@ const MENU_SECTIONS = [
   },
 ]
 
-interface SettingsScreenProps {
-  onNavigate?: (screen: string) => void
-}
-
-export function ManagerSettingsScreen({ onNavigate }: SettingsScreenProps) {
+export function ManagerSettingsScreen() {
   const { user, signOut } = useAuth()
+
+  const handleItem = (label: string) => {
+    if (label.includes("Emergency QR")) toast.success("Emergency QR generated", { description: "Valid for 4 hours." })
+    else if (label.includes("Compliance Report")) toast.success("Compliance report generating…")
+    else toast(label, { description: "Coming soon." })
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -120,7 +123,7 @@ export function ManagerSettingsScreen({ onNavigate }: SettingsScreenProps) {
                 return (
                   <button
                     key={item.label}
-                    onClick={item.label.includes("Emergency QR") ? () => onNavigate?.("emergency-qr") : undefined}
+                    onClick={() => handleItem(item.label)}
                     className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors active:bg-muted ${
                       idx < section.items.length - 1 ? "border-b border-border" : ""
                     }`}

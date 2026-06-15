@@ -159,6 +159,21 @@ export const PETS: Pet[] = [
       { type: "document", text: "License document uploaded", time: "3d ago" },
       { type: "compliance", text: "Annual wellness check completed", time: "1w ago" },
     ],
+    careRoutine: [
+      { id: "max-c1", label: "Morning meal", detail: "1.5 cups kibble", time: "7:30 AM", kind: "meal" },
+      { id: "max-c2", label: "Heartworm tablet", detail: "1 tablet · monthly", time: "8:00 AM", kind: "medication" },
+      { id: "max-c3", label: "Fresh water", detail: "Refill bowl", time: "All day", kind: "water" },
+      { id: "max-c4", label: "Afternoon walk", detail: "30 minutes", time: "5:30 PM", kind: "walk" },
+      { id: "max-c5", label: "Evening meal", detail: "1.5 cups kibble", time: "6:30 PM", kind: "meal" },
+    ],
+    feeding: [
+      { id: "max-f1", name: "Breakfast", time: "7:30 AM", portion: "1.5 cups", food: "Royal Canin Adult" },
+      { id: "max-f2", name: "Dinner", time: "6:30 PM", portion: "1.5 cups", food: "Royal Canin Adult" },
+    ],
+    medications: [
+      { id: "max-m1", name: "Heartworm Prevention", dosage: "1 tablet", frequency: "Monthly", nextDue: "Mar 1, 2026", reminder: true },
+      { id: "max-m2", name: "Joint Supplement", dosage: "1 chew", frequency: "Daily", nextDue: "Today", reminder: true },
+    ],
   },
   {
     id: 2,
@@ -202,6 +217,17 @@ export const PETS: Pet[] = [
       { type: "status", text: "Status changed to At Vet", time: "4h ago" },
       { type: "compliance", text: "Municipal license renewed until March 2027", time: "2d ago" },
     ],
+    careRoutine: [
+      { id: "luna-c1", label: "Morning meal", detail: "1/2 cup wet food", time: "8:00 AM", kind: "meal" },
+      { id: "luna-c2", label: "Fresh water", detail: "Refill fountain", time: "All day", kind: "water" },
+      { id: "luna-c3", label: "Litter check", detail: "Scoop & refresh", time: "Twice daily", kind: "other" },
+      { id: "luna-c4", label: "Evening meal", detail: "1/2 cup wet food", time: "6:00 PM", kind: "meal" },
+    ],
+    feeding: [
+      { id: "luna-f1", name: "Breakfast", time: "8:00 AM", portion: "1/2 cup", food: "Fancy Feast Wet" },
+      { id: "luna-f2", name: "Dinner", time: "6:00 PM", portion: "1/2 cup", food: "Fancy Feast Wet" },
+    ],
+    medications: [],
   },
 ]
 

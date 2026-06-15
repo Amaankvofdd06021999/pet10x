@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useViolations, useResolvedViolations } from "@/lib/data"
+import { toast } from "sonner"
 import {
   Gavel,
   AlertTriangle,
@@ -53,10 +54,10 @@ export function ManagerViolationsScreen() {
         title="Violations"
         rightAction={
           <div className="flex items-center gap-1">
-            <button className="p-2" aria-label="Export">
+            <button onClick={() => toast.success("Violations exported")} className="p-2" aria-label="Export">
               <Download className="h-5 w-5 text-foreground" />
             </button>
-            <button className="p-2" aria-label="New violation">
+            <button onClick={() => toast("Log a violation — coming soon")} className="p-2" aria-label="New violation">
               <Plus className="h-5 w-5 text-info" />
             </button>
           </div>
@@ -161,35 +162,35 @@ export function ManagerViolationsScreen() {
                     <div className="mt-2.5 flex gap-2">
                       {violation.stage === "investigation" && (
                         <>
-                          <button className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                          <button onClick={() => toast("Investigation started")} className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
                             Investigate
                           </button>
-                          <button className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
+                          <button onClick={() => toast.success("Warning issued")} className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
                             Issue Warning
                           </button>
                         </>
                       )}
                       {violation.stage === "pending-review" && (
-                        <button className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                        <button onClick={() => toast("Reviewing case")} className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
                           Review Case
                         </button>
                       )}
                       {(violation.stage === "verbal-warning" || violation.stage === "written-warning") && (
                         <>
-                          <button className="flex-1 rounded-lg bg-warning/10 py-2 text-[12px] font-semibold text-[#B8860B] active:scale-[0.97] transition-transform">
+                          <button onClick={() => toast("Escalated to next stage")} className="flex-1 rounded-lg bg-warning/10 py-2 text-[12px] font-semibold text-[#B8860B] active:scale-[0.97] transition-transform">
                             Escalate
                           </button>
-                          <button className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
+                          <button onClick={() => toast.success("Marked resolved")} className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
                             Resolve
                           </button>
                         </>
                       )}
                       {violation.stage === "fine-issued" && (
                         <>
-                          <button className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                          <button onClick={() => toast.success("Reminder sent")} className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
                             Send Reminder
                           </button>
-                          <button className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
+                          <button onClick={() => toast("Escalated to CRT")} className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
                             Escalate to CRT
                           </button>
                         </>
@@ -218,7 +219,7 @@ export function ManagerViolationsScreen() {
 
         {/* Export CRT Button */}
         <div className="mt-4">
-          <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-3 active:scale-[0.98] transition-transform">
+          <button onClick={() => toast.success("CRT evidence package exported")} className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-3 active:scale-[0.98] transition-transform">
             <Download className="h-4 w-4 text-info" />
             <span className="text-[13px] font-semibold text-info">Export CRT Evidence Package</span>
           </button>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
+import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
   useUrgentItems,
@@ -60,12 +61,19 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
   const { data: recentActivity } = useManagerActivity()
   const stats = building.stats
 
+  const handleQuickAction = (label: string) => {
+    if (label.includes("QR")) toast.success("Emergency QR generated", { description: "Valid for 4 hours." })
+    else if (label.includes("Warning")) onNavigate?.("violations")
+    else if (label.includes("Registration")) onNavigate?.("approvals")
+    else if (label.includes("Report")) toast.success("Report generating…")
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Dashboard"
         rightAction={
-          <button className="relative p-2" aria-label="Notifications">
+          <button onClick={() => toast("No new notifications")} className="relative p-2" aria-label="Notifications">
             <Bell className="h-5 w-5 text-foreground" />
             <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
           </button>
@@ -135,6 +143,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
               {urgentItems.map((item) => (
                 <button
                   key={item.id}
+                  onClick={() => onNavigate?.("violations")}
                   className={`w-full rounded-xl border-l-4 p-3 text-left transition-transform active:scale-[0.99] ${
                     item.severity === "critical"
                       ? "border-l-destructive bg-destructive/5"
@@ -171,7 +180,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
               return (
                 <button
                   key={action.label}
-                  onClick={action.label.includes("QR") ? () => onNavigate?.("emergency-qr") : undefined}
+                  onClick={() => handleQuickAction(action.label)}
                   className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card p-2.5 transition-transform active:scale-[0.97]"
                 >
                   <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${action.color}`}>
@@ -190,7 +199,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
         <section className="mb-5">
           <div className="mb-2.5 flex items-center justify-between">
             <h2 className="text-[15px] font-semibold text-foreground">Recent Activity</h2>
-            <button className="text-[13px] font-medium text-info">View All</button>
+            <button onClick={() => toast("Activity log — coming soon")} className="text-[13px] font-medium text-info">View All</button>
           </div>
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
             {recentActivity.map((item, idx) => {
