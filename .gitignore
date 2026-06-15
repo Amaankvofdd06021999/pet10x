@@ -21,3 +21,4 @@ next-env.d.ts
 
 # Env files (never commit secrets)
 .env
+.env*

@@ -1,0 +1,47 @@
+# Supabase local config. See https://supabase.com/docs/guides/cli/config
+project_id = "pet10x"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+# Set to your production app URL when deploying.
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/app"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false   # set true in production
+
+# Social providers — fill in secrets via env before enabling.
+[auth.external.apple]
+enabled = false
+[auth.external.google]
+enabled = false
+
+[analytics]
+enabled = false
