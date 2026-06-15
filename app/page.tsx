@@ -20,6 +20,10 @@ import {
   MessageCircle,
   MapPin,
   ShieldCheck,
+  Utensils,
+  Syringe,
+  ListChecks,
+  Siren,
 } from "lucide-react"
 import { LandingNav } from "@/components/landing/landing-nav"
 import { Reveal } from "@/components/landing/reveal"
@@ -56,6 +60,44 @@ const FEATURES = [
     title: "Accommodation and risk, handled with care.",
     body: "A structured workflow for ESA and service-animal requests with in-app legal guidance and encrypted documents — never adjudicating the disability, only verifying the paperwork. Building risk scoring turns into insurance-ready reports.",
     points: ["ESA / service-animal review", "Encrypted, access-logged docs", "Insurance-ready risk reports"],
+  },
+]
+
+const OWNER_FEATURES = [
+  {
+    icon: Utensils,
+    title: "Food, medicine & treats",
+    body: "Log every meal, dose, and treat against daily targets — with a full history you can show your vet.",
+  },
+  {
+    icon: Syringe,
+    title: "Vaccinations & documents",
+    body: "Store vaccination records, licenses, and microchip details — with reminders before anything expires.",
+  },
+  {
+    icon: QrCode,
+    title: "One-tap building registration",
+    body: "Enter your building code to register your pet in seconds and stay in good standing automatically.",
+  },
+  {
+    icon: ListChecks,
+    title: "Care reminders & checklist",
+    body: "A daily checklist and smart reminders so walks, feeds, and meds never slip through the cracks.",
+  },
+  {
+    icon: Users,
+    title: "Resident community",
+    body: "Connect with neighbours through posts, lost & found, and building events — RSVP and reminders included.",
+  },
+  {
+    icon: MapPin,
+    title: "Nearby pet services",
+    body: "Discover vets, groomers, walkers, and trainers near you, ranked by location and rating.",
+  },
+  {
+    icon: Siren,
+    title: "Emergency pet info",
+    body: "Keep a time-limited summary that first responders can access for critical context when it matters most.",
   },
 ]
 
@@ -152,7 +194,7 @@ export default function LandingPage() {
             <Reveal>
               <span className="inline-flex items-center gap-2 rounded-md border border-border/70 bg-card px-3 py-1 text-[12px] font-medium text-muted-foreground">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
-                Built for Canadian strata &amp; condo operations
+                For pet owners &amp; the buildings they live in
               </span>
             </Reveal>
             <Reveal delay={80}>
@@ -162,9 +204,9 @@ export default function LandingPage() {
             </Reveal>
             <Reveal delay={160}>
               <p className="mt-6 max-w-xl text-pretty text-[17px] leading-relaxed text-muted-foreground sm:text-[19px]">
-                Pet10x replaces spreadsheets and email threads with digital bylaw enforcement,
-                accommodation workflows, risk scoring, and a resident community — so councils cut
-                liability and owners stay in good standing.
+                One app for pet owners to track care, store vaccinations, and connect with their
+                community — and for buildings to handle bylaw enforcement, accommodation, and risk.
+                So pets stay healthy, owners stay in good standing, and councils cut liability.
               </p>
             </Reveal>
             <Reveal delay={240}>
@@ -217,11 +259,54 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== Features ===================== */}
-      <section id="product" className="scroll-mt-16 px-5 py-20 sm:px-8 sm:py-28">
+      {/* ===================== For pet owners ===================== */}
+      <section id="pet-owners" className="scroll-mt-16 px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-7xl">
           <Reveal className="max-w-2xl">
-            <p className={EYEBROW}>The platform</p>
+            <p className={EYEBROW}>For pet owners</p>
+            <h2 className={`mt-3 ${H2}`}>Everything your pet needs, in one app.</h2>
+            <p className={`mt-4 ${LEAD}`}>
+              Track daily care, keep documents in order, and stay connected to the building you call
+              home — without spreadsheets, sticky notes, or guesswork.
+            </p>
+          </Reveal>
+
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {OWNER_FEATURES.map((f, i) => (
+              <Reveal key={f.title} delay={(i % 3) * 70}>
+                <div className="group h-full rounded-2xl border border-border bg-card p-6 transition-colors hover:bg-muted/40">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <f.icon className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-5 text-[17px] font-semibold tracking-tight">{f.title}</h3>
+                  <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">{f.body}</p>
+                </div>
+              </Reveal>
+            ))}
+            <Reveal delay={70}>
+              <div className="flex h-full flex-col justify-center rounded-2xl border border-primary/40 bg-primary/[0.03] p-6">
+                <p className="text-[15px] font-semibold tracking-tight">Free to start.</p>
+                <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
+                  Set up your pet&apos;s profile in minutes — upgrade only when you&apos;re ready.
+                </p>
+                <Link
+                  href="/app"
+                  className="group mt-5 inline-flex items-center gap-2 text-[14px] font-semibold text-primary"
+                >
+                  Get the app
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================== Features ===================== */}
+      <section id="product" className="scroll-mt-16 border-t border-border/60 px-5 py-20 sm:px-8 sm:py-28">
+        <div className="mx-auto max-w-7xl">
+          <Reveal className="max-w-2xl">
+            <p className={EYEBROW}>For buildings</p>
             <h2 className={`mt-3 ${H2}`}>The operational backbone for pets in your building.</h2>
             <p className={`mt-4 ${LEAD}`}>
               Every workflow a strata already handles — done digitally, consistently, and defensibly.

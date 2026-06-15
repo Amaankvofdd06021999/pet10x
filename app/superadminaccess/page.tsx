@@ -82,15 +82,16 @@ function AdminLogin() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-[#0e0f12] px-6">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
-            <ShieldCheck className="h-7 w-7 text-primary-foreground" />
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-[#0e0f12] px-6 py-10 [background-image:radial-gradient(55rem_38rem_at_50%_-10%,rgba(253,147,64,0.12),transparent)]">
+      <div className="w-full max-w-sm sm:max-w-md">
+        <div className="mb-6 flex flex-col items-center text-center sm:mb-8">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20 sm:h-16 sm:w-16">
+            <ShieldCheck className="h-7 w-7 text-primary-foreground sm:h-8 sm:w-8" />
           </div>
-          <h1 className="mt-4 text-[22px] font-semibold text-white">Pet10x Admin</h1>
-          <p className="mt-1 text-[13px] text-white/50">Super-admin access only</p>
+          <h1 className="mt-4 text-[22px] font-semibold text-white sm:text-[26px]">Pet10x Admin</h1>
+          <p className="mt-1 text-[13px] text-white/50 sm:text-[14px]">Super-admin access only</p>
         </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 shadow-xl shadow-black/20 sm:p-7">
         <div className="flex flex-col gap-3">
           <input
             type="email"
@@ -117,6 +118,7 @@ function AdminLogin() {
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Sign in
           </button>
+        </div>
         </div>
       </div>
     </div>

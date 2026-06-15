@@ -61,19 +61,20 @@ function ManagerLogin() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-6">
-      <div className="w-full max-w-sm">
-        <Link href="/app" className="mb-6 flex w-fit items-center gap-1 text-[14px] text-primary">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10 [background-image:radial-gradient(60rem_40rem_at_50%_-10%,var(--color-info)/8%,transparent)]">
+      <div className="w-full max-w-sm sm:max-w-md">
+        <Link href="/app" className="mb-6 flex w-fit items-center gap-1 text-[14px] text-primary transition-colors hover:text-primary/80">
           <ArrowLeft className="h-4 w-4" /> Pet owner? Sign in here
         </Link>
-        <div className="mb-6 flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-info/10">
-            <Building2 className="h-7 w-7 text-info" />
+        <div className="mb-6 flex flex-col items-center text-center sm:mb-8">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-info/10 sm:h-16 sm:w-16">
+            <Building2 className="h-7 w-7 text-info sm:h-8 sm:w-8" />
           </div>
-          <h1 className="mt-4 text-[22px] font-semibold text-foreground">Building Manager</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">Sign in to manage your building</p>
+          <h1 className="mt-4 text-[22px] font-semibold text-foreground sm:text-[26px]">Building Manager</h1>
+          <p className="mt-1 text-[13px] text-muted-foreground sm:text-[14px]">Sign in to manage your building</p>
         </div>
 
+        <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm sm:p-7">
         <div className="flex flex-col gap-3">
           <div className="relative">
             <Mail className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
@@ -107,9 +108,10 @@ function ManagerLogin() {
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Sign in
           </button>
-          <button onClick={forgot} className="text-center text-[13px] font-medium text-primary">
+          <button onClick={forgot} className="text-center text-[13px] font-medium text-primary transition-colors hover:text-primary/80">
             Forgot password?
           </button>
+        </div>
         </div>
         <p className="mt-6 text-center text-[12px] leading-relaxed text-muted-foreground">
           Managers are added by invitation. Ask your Pet10x admin if you don&apos;t have an account.

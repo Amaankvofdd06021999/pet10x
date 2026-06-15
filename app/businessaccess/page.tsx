@@ -92,16 +92,17 @@ function BusinessAuth() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-6 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent">
-            <Store className="h-7 w-7 text-white" />
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10 [background-image:radial-gradient(60rem_40rem_at_50%_-10%,var(--color-accent)/8%,transparent)]">
+      <div className="w-full max-w-sm sm:max-w-md">
+        <div className="mb-6 flex flex-col items-center text-center sm:mb-8">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent shadow-sm sm:h-16 sm:w-16">
+            <Store className="h-7 w-7 text-white sm:h-8 sm:w-8" />
           </div>
-          <h1 className="mt-4 text-[22px] font-semibold text-foreground">Pet10x for Business</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">Reach pet owners in nearby buildings</p>
+          <h1 className="mt-4 text-[22px] font-semibold text-foreground sm:text-[26px]">Pet10x for Business</h1>
+          <p className="mt-1 text-[13px] text-muted-foreground sm:text-[14px]">Reach pet owners in nearby buildings</p>
         </div>
 
+        <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm sm:p-7">
         <div className="mb-4 flex rounded-xl bg-muted p-1">
           {(["signin", "signup"] as const).map((m) => (
             <button
@@ -153,7 +154,8 @@ function BusinessAuth() {
             {mode === "signin" ? "Sign in" : "Create business account"}
           </button>
         </div>
-        <p className="mt-5 text-center text-[12px] text-muted-foreground">
+        </div>
+        <p className="mt-5 text-center text-[12px] text-muted-foreground sm:mt-6">
           New businesses are reviewed before appearing in the directory.
         </p>
       </div>

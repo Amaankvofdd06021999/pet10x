@@ -101,7 +101,7 @@ export function SignInScreen() {
           <h1 className="text-[17px] font-semibold text-foreground">Report an Incident</h1>
         </div>
 
-        <div className="flex-1 px-5 pt-6">
+        <div className="flex-1 px-5 pt-6 sm:flex sm:flex-none sm:flex-col sm:justify-center sm:pt-10">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10">
             <AlertTriangle className="h-8 w-8 text-destructive" />
           </div>
@@ -154,16 +154,16 @@ export function SignInScreen() {
 
   /* ── Main Sign-In View ── */
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
-      <div className="flex flex-col items-center px-5 pt-[env(safe-area-inset-top,48px)] pb-5">
+    <div className="flex min-h-dvh flex-col bg-background sm:justify-center sm:py-8">
+      <div className="flex flex-col items-center px-5 pt-[env(safe-area-inset-top,48px)] pb-5 sm:pt-2">
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary shadow-lg shadow-primary/20">
           <PawPrint className="h-8 w-8 text-primary-foreground" strokeWidth={2.5} />
         </div>
-        <h1 className="text-[24px] font-semibold text-foreground">Welcome to Pet10x</h1>
+        <h1 className="text-[24px] font-semibold text-foreground sm:text-[26px]">Welcome to Pet10x</h1>
         <p className="mt-1 text-center text-[14px] text-muted-foreground">Pet governance &amp; community for your building</p>
       </div>
 
-      <div className="flex-1 px-5">
+      <div className="flex-1 px-5 sm:flex-none">
         {supabaseEnabled ? (
           <>
             {/* Sign in / Sign up toggle */}
@@ -295,7 +295,7 @@ export function SignInScreen() {
         </button>
       </div>
 
-      <div className="px-5 pb-[env(safe-area-inset-bottom,24px)] pt-4">
+      <div className="px-5 pb-[env(safe-area-inset-bottom,24px)] pt-4 sm:pb-2">
         <Link
           href="/manager"
           className="block rounded-xl border border-border bg-card py-2.5 text-center text-[13px] font-semibold text-info transition-colors active:bg-muted"

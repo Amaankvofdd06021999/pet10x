@@ -72,10 +72,12 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
       <main className="ios-scroll flex-1 px-4 pb-24">
         {/* Greeting */}
-        <section className="mb-5">
-          <p className="text-[15px] text-muted-foreground">{greeting}, {user?.name?.split(" ")[0]}</p>
+        <section className="mb-5 mt-1">
+          <h1 className="text-[26px] font-semibold leading-tight text-foreground">
+            {greeting}, {user?.name?.split(" ")[0]} <span className="inline-block">🐾</span>
+          </h1>
           {buildingLink?.status === "approved" ? (
-            <div className="mt-0.5 flex items-center gap-1.5">
+            <div className="mt-1.5 flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-[13px] text-muted-foreground">
                 {buildingLink.buildingName}
@@ -83,8 +85,34 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               </span>
             </div>
           ) : (
-            <span className="mt-0.5 block text-[13px] text-muted-foreground">Pet parent</span>
+            <p className="mt-1.5 text-[14px] text-muted-foreground">
+              {primaryPet ? `${primaryPet.name} is lucky to have you.` : "Welcome to your pet family."}
+            </p>
           )}
+        </section>
+
+        {/* Today's Care */}
+        <section className="mb-5">
+          <button
+            onClick={() => onNavigate?.("pet-care")}
+            className="group flex w-full items-center gap-3.5 rounded-2xl border border-border bg-primary/5 p-4 text-left transition-transform active:scale-[0.98]"
+          >
+            <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+              <Heart className="h-6 w-6" fill="currentColor" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[16px] font-semibold text-foreground">Today&apos;s Care</p>
+                <span className="text-[14px]">🍖</span>
+              </div>
+              <p className="text-[12px] text-muted-foreground">
+                Track {primaryPet?.name ? `${primaryPet.name}'s` : "your pet's"} food, medicine &amp; treats
+              </p>
+            </div>
+            <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 transition-transform group-active:translate-x-0.5">
+              <ChevronRight className="h-5 w-5 text-primary" />
+            </span>
+          </button>
         </section>
 
         {/* Building membership */}
@@ -130,25 +158,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           )}
         </section>
 
-        {/* Today's Care */}
-        <section className="mb-5">
-          <button
-            onClick={() => onNavigate?.("pet-care")}
-            className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-transform active:scale-[0.98]"
-          >
-            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
-              <Heart className="h-5 w-5 text-accent" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-semibold text-foreground">Today&apos;s Care</p>
-              <p className="text-[12px] text-muted-foreground">
-                {primaryPet?.name ?? "Your pet"} · Food, medicine &amp; treats
-              </p>
-            </div>
-            <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-          </button>
-        </section>
-
         {/* My Pets */}
         <section className="mb-5">
           <div className="mb-2.5 flex items-center justify-between">
@@ -165,13 +174,13 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             {pets.length === 0 && (
               <button
                 onClick={() => onNavigate?.("add-pet")}
-                className="flex flex-col items-center gap-1.5 rounded-2xl border border-dashed border-border bg-card px-4 py-7 text-center transition-transform active:scale-[0.98]"
+                className="flex flex-col items-center gap-1.5 rounded-2xl border border-dashed border-primary/30 bg-primary/5 px-4 py-8 text-center transition-transform active:scale-[0.98]"
               >
-                <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
-                  <Plus className="h-5 w-5 text-primary" />
+                <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-[22px]">
+                  🐶
                 </div>
                 <p className="text-[14px] font-semibold text-foreground">Add your first pet</p>
-                <p className="text-[12px] text-muted-foreground">Register a pet to start tracking food, medicine &amp; treats.</p>
+                <p className="text-[12px] text-muted-foreground">Register a furry friend to start tracking food, medicine &amp; treats.</p>
               </button>
             )}
             {pets.map((pet, i) => {
@@ -181,9 +190,9 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 <button
                   key={pet.id}
                   onClick={() => onNavigate?.("pet-detail", pet.id)}
-                  className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left transition-transform active:scale-[0.98]"
+                  className="flex items-center gap-3.5 rounded-2xl border border-border bg-card p-3 text-left transition-transform active:scale-[0.98]"
                 >
-                  <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-muted">
+                  <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl bg-muted">
                     <Image
                       src={pet.image}
                       alt={pet.name}
@@ -192,17 +201,20 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                       priority={i === 0}
                     />
                   </div>
-                  <div className="flex flex-1 flex-col">
-                    <div className="flex items-center gap-1.5">
-                      <SpeciesIcon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-[15px] font-semibold text-foreground">{pet.name}</span>
-                      <span className={`ml-auto flex items-center gap-1 rounded-full ${statusInfo.color} px-2 py-0.5`}>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-[16px] font-semibold text-foreground">{pet.name}</span>
+                      <span className={`ml-auto flex flex-shrink-0 items-center gap-1 rounded-full ${statusInfo.color} px-2 py-0.5`}>
                         <span className="h-1.5 w-1.5 rounded-full bg-card" />
                         <span className="text-[10px] font-medium text-card">{statusInfo.label}</span>
                       </span>
                     </div>
-                    <span className="mt-0.5 text-[12px] text-muted-foreground">{pet.breed || "Pet"}</span>
+                    <span className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                      <SpeciesIcon className="h-3.5 w-3.5" />
+                      {pet.breed || "Pet"}
+                    </span>
                   </div>
+                  <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
                 </button>
               )
             })}

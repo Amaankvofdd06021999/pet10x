@@ -20,6 +20,8 @@ import {
   ExternalLink,
   Check,
   X,
+  Dog,
+  Cat,
 } from "lucide-react"
 import {
   usePet,
@@ -132,6 +134,8 @@ export function PetDetailScreen({ onBack, petId }: PetDetailScreenProps) {
     }
   }
 
+  const SpeciesIcon = pet.species === "dog" ? Dog : Cat
+
   return (
     <Shell
       onBack={onBack}
@@ -145,9 +149,9 @@ export function PetDetailScreen({ onBack, petId }: PetDetailScreenProps) {
     >
       <main className="ios-scroll flex-1 pb-24">
         {/* Hero */}
-        <div className="relative h-60 w-full bg-muted">
+        <div className="relative h-64 w-full bg-muted">
           <Image src={pet.image} alt={pet.name} fill className="object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
           <button
             onClick={() => photoInput.current?.click()}
             disabled={uploadingPhoto}
@@ -158,14 +162,25 @@ export function PetDetailScreen({ onBack, petId }: PetDetailScreenProps) {
           </button>
           <input ref={photoInput} type="file" accept="image/*" onChange={onPhotoPick} className="hidden" />
           <div className="absolute bottom-4 left-4 right-4">
-            <h1 className="text-[32px] font-bold text-foreground">{pet.name}</h1>
-            <p className="text-[15px] text-muted-foreground">{pet.breed || "Pet"}</p>
+            <h1 className="text-[30px] font-semibold leading-tight text-foreground">{pet.name}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-card/80 px-2.5 py-1 text-[12px] font-medium text-foreground backdrop-blur-sm">
+                <SpeciesIcon className="h-3.5 w-3.5 text-primary" />
+                {pet.breed || (pet.species === "dog" ? "Dog" : "Cat")}
+              </span>
+              {pet.age && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-card/80 px-2.5 py-1 text-[12px] font-medium text-foreground backdrop-blur-sm">
+                  <Calendar className="h-3.5 w-3.5 text-primary" />
+                  {pet.age}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="sticky top-[44px] z-30 bg-background px-4 py-3">
-          <div className="flex rounded-xl bg-muted p-1">
+        <div className="sticky top-[44px] z-30 bg-background px-4 pb-3 pt-3">
+          <div className="flex gap-1 rounded-2xl border border-border bg-muted/60 p-1">
             {(["overview", "vaccinations", "documents", "contacts"] as DetailTab[]).map((tab) => (
               <button
                 key={tab}
@@ -173,8 +188,8 @@ export function PetDetailScreen({ onBack, petId }: PetDetailScreenProps) {
                   setActiveTab(tab)
                   setEditing(false)
                 }}
-                className={`flex-1 rounded-lg py-2 text-[12px] font-semibold capitalize transition-all ${
-                  activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+                className={`flex-1 rounded-xl py-2 text-[12px] font-semibold capitalize transition-all ${
+                  activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground active:text-foreground"
                 }`}
               >
                 {tab}
@@ -224,12 +239,14 @@ function OverviewTab({ pet, onStatus }: { pet: ReturnType<typeof usePet>["data"]
         {info.map((item) => {
           const Icon = item.icon
           return (
-            <div key={item.label} className="rounded-2xl border border-border bg-card p-3">
+            <div key={item.label} className="rounded-2xl border border-border bg-card p-3.5">
               <div className="flex items-center gap-2">
-                <Icon className="h-4 w-4 text-primary" />
+                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <Icon className="h-4 w-4 text-primary" />
+                </span>
                 <span className="text-[12px] font-medium text-muted-foreground">{item.label}</span>
               </div>
-              <p className="mt-1 text-[13px] font-semibold text-foreground">{item.value}</p>
+              <p className="mt-2 text-[14px] font-semibold text-foreground">{item.value}</p>
             </div>
           )
         })}
@@ -468,7 +485,7 @@ function VaccinationsTab({ petId }: { petId: string }) {
       {isLoading ? (
         <Spinner />
       ) : vax.length === 0 ? (
-        <Empty icon={Syringe} text="No vaccinations recorded" />
+        <Empty icon={Syringe} text="No vaccinations yet" hint="Add a shot to keep records handy at the vet." />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           {vax.map((v, i) => (
@@ -582,7 +599,7 @@ function DocumentsTab({ petId }: { petId: string }) {
       {isLoading ? (
         <Spinner />
       ) : docs.length === 0 ? (
-        <Empty icon={FileText} text="No documents uploaded" />
+        <Empty icon={FileText} text="No documents yet" hint="Keep licenses and insurance in one safe place." />
       ) : (
         <div className="flex flex-col gap-2.5">
           {docs.map((doc) => (
@@ -655,7 +672,7 @@ function ContactsTab({ petId }: { petId: string }) {
       {isLoading ? (
         <Spinner />
       ) : contacts.length === 0 ? (
-        <Empty icon={Phone} text="No emergency contacts" />
+        <Empty icon={Phone} text="No contacts yet" hint="Add a vet or sitter for peace of mind." />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           {contacts.map((c, i) => (
@@ -787,11 +804,14 @@ function Spinner() {
   )
 }
 
-function Empty({ icon: Icon, text }: { icon: typeof Syringe; text: string }) {
+function Empty({ icon: Icon, text, hint }: { icon: typeof Syringe; text: string; hint?: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-card p-7 text-center">
-      <Icon className="mx-auto h-6 w-6 text-muted-foreground" />
-      <p className="mt-2 text-[13px] text-muted-foreground">{text}</p>
+    <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-8 text-center">
+      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+        <Icon className="h-5 w-5 text-primary" />
+      </span>
+      <p className="mt-2.5 text-[14px] font-semibold text-foreground">{text}</p>
+      {hint && <p className="mt-0.5 text-[12px] text-muted-foreground">{hint}</p>}
     </div>
   )
 }
