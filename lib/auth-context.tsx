@@ -136,6 +136,8 @@ interface AuthContextValue {
   ) => Promise<{ error: string | null; needsConfirmation?: boolean }>
   resetPassword: (email: string) => Promise<{ error: string | null }>
   markOnboarded: () => Promise<void>
+  /** Patch the locally-cached user after a profile write elsewhere (e.g. account.ts). */
+  updateLocalUser: (patch: Partial<AppUser>) => void
   signInGuest: (code: string) => string | null
   signOut: () => Promise<void>
 }
@@ -153,6 +155,7 @@ const AuthContext = createContext<AuthContextValue>({
   signUp: async () => ({ error: "Auth not configured." }),
   resetPassword: async () => ({ error: "Auth not configured." }),
   markOnboarded: async () => {},
+  updateLocalUser: () => {},
   signInGuest: () => null,
   signOut: async () => {},
 })
@@ -254,6 +257,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? sanitizeAuthError(error.message) : null }
   }, [])
 
+  const updateLocalUser = useCallback((patch: Partial<AppUser>) => {
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev))
+  }, [])
+
   const markOnboarded = useCallback(async () => {
     const supabase = getSupabaseBrowserClient()
     if (supabase) {
@@ -299,6 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         resetPassword,
         markOnboarded,
+        updateLocalUser,
         signInGuest,
         signOut,
       }}

@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { usePets } from "@/lib/data"
-import { exportMyData, deleteMyAccount } from "@/lib/data/account"
+import { exportMyData, deleteMyAccount, updateMyProfile } from "@/lib/data/account"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
@@ -27,6 +27,7 @@ import {
   Download,
   Trash2,
   Loader2,
+  Camera,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
@@ -74,10 +75,44 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
-  const { user, signOut } = useAuth()
+  const { user, signOut, updateLocalUser } = useAuth()
   const { data: pets } = usePets()
   const [busy, setBusy] = useState<"export" | "delete" | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState(user?.name ?? "")
+  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null)
+  const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const avatarInput = useRef<HTMLInputElement>(null)
+
+  function openEdit() {
+    setEditName(user?.name ?? "")
+    setEditAvatarFile(null)
+    setEditAvatarPreview(null)
+    setEditing(true)
+  }
+
+  function handleAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setEditAvatarFile(file)
+    setEditAvatarPreview(URL.createObjectURL(file))
+  }
+
+  async function handleSaveProfile() {
+    if (!editName.trim()) return toast.error("Name can't be empty")
+    setSavingProfile(true)
+    const { error, avatarUrl } = await updateMyProfile({
+      fullName: editName.trim() !== user?.name ? editName.trim() : undefined,
+      avatarFile: editAvatarFile ?? undefined,
+    })
+    setSavingProfile(false)
+    if (error) return toast.error("Couldn't update profile", { description: error })
+    updateLocalUser({ name: editName.trim(), ...(avatarUrl ? { avatar: avatarUrl } : {}) })
+    toast.success("Profile updated")
+    setEditing(false)
+  }
 
   async function handleExport() {
     setBusy("export")
@@ -128,7 +163,10 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
       <main className="ios-scroll flex-1 px-4 pb-24">
         {/* Profile Card */}
         <section className="mb-5">
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <button
+            onClick={openEdit}
+            className="w-full rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+          >
             <div className="flex items-center gap-3">
               <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted flex-shrink-0">
                 <Image src={user?.avatar ?? ""} alt={user?.name ?? ""} fill className="object-cover" />
@@ -145,7 +183,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
               </div>
               <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
             </div>
-          </div>
+          </button>
         </section>
 
         {/* Pet Quick View */}
@@ -238,6 +276,72 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             </button>
           </div>
         </section>
+
+        {editing && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6"
+            onClick={() => !savingProfile && setEditing(false)}
+          >
+            <div className="w-full max-w-sm rounded-2xl bg-card p-5" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-[17px] font-semibold text-foreground">Edit profile</h3>
+
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={() => avatarInput.current?.click()}
+                  className="group relative h-20 w-20 overflow-hidden rounded-full bg-muted"
+                  aria-label="Change photo"
+                >
+                  <Image
+                    src={editAvatarPreview ?? user?.avatar ?? ""}
+                    alt={user?.name ?? ""}
+                    fill
+                    className="object-cover"
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
+                    <Camera className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                  </span>
+                </button>
+                <input
+                  ref={avatarInput}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarPick}
+                  className="hidden"
+                />
+              </div>
+
+              <div className="mt-4">
+                <label htmlFor="edit-name" className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Name
+                </label>
+                <input
+                  id="edit-name"
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-card px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              <div className="mt-5 flex gap-2">
+                <button
+                  onClick={() => setEditing(false)}
+                  disabled={savingProfile}
+                  className="flex-1 rounded-xl border border-border py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={savingProfile}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+                >
+                  {savingProfile && <Loader2 className="h-4 w-4 animate-spin" />} Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {confirmDelete && (
           <div

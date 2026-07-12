@@ -37,6 +37,40 @@ export async function exportMyData(): Promise<Record<string, unknown> | null> {
   }
 }
 
+export async function updateMyProfile(patch: {
+  fullName?: string
+  avatarFile?: File
+}): Promise<{ error: string | null; avatarUrl?: string }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "You must be signed in." }
+
+  let avatarUrl: string | undefined
+  if (patch.avatarFile) {
+    const ext = patch.avatarFile.name.split(".").pop()?.toLowerCase() || "jpg"
+    const path = `${user.id}/avatar-${Date.now()}.${ext}`
+    const { error: upErr } = await supabase.storage
+      .from("avatars")
+      .upload(path, patch.avatarFile, { upsert: true, cacheControl: "3600" })
+    if (upErr) return { error: upErr.message }
+    avatarUrl = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl
+  }
+
+  const update: { full_name?: string; avatar_url?: string } = {}
+  if (patch.fullName !== undefined) update.full_name = patch.fullName
+  if (avatarUrl) update.avatar_url = avatarUrl
+
+  if (Object.keys(update).length > 0) {
+    const { error } = await supabase.from("profiles").update(update).eq("id", user.id)
+    if (error) return { error: error.message }
+  }
+
+  return { error: null, avatarUrl }
+}
+
 export async function deleteMyAccount(): Promise<{ error: string | null }> {
   try {
     const res = await fetch("/api/account/delete", { method: "POST" })
