@@ -2,7 +2,16 @@
 
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { useCommunityPosts, useLostFound, useEvents } from "@/lib/data"
+import {
+  useCommunityPosts,
+  useLostFound,
+  useEvents,
+  createCommunityPost,
+  togglePostLike,
+  fetchPostComments,
+  addPostComment,
+  type PostComment,
+} from "@/lib/data"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
@@ -22,6 +31,8 @@ import {
   Shield,
   Users,
   CalendarDays,
+  Loader2,
+  Send,
   type LucideIcon,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -65,19 +76,59 @@ function EmptyState({
 export function CommunityScreen() {
   const { user } = useAuth()
   const isManager = user?.role === "building-manager"
-  const { data: posts } = useCommunityPosts()
+  const { data: posts, isLoading: postsLoading, refetch: refetchPosts } = useCommunityPosts()
   const { data: lostFound } = useLostFound()
   const { data: events } = useEvents()
   const [activeTab, setActiveTab] = useState<FeedTab>("feed")
-  const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set([1]))
+  const [likingId, setLikingId] = useState<string | null>(null)
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [composerContent, setComposerContent] = useState("")
+  const [posting, setPosting] = useState(false)
+  const [commentsFor, setCommentsFor] = useState<string | null>(null)
+  const [comments, setComments] = useState<PostComment[]>([])
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [newComment, setNewComment] = useState("")
+  const [commenting, setCommenting] = useState(false)
 
-  const toggleLike = (postId: number) => {
-    setLikedPosts((prev) => {
-      const next = new Set(prev)
-      if (next.has(postId)) next.delete(postId)
-      else next.add(postId)
-      return next
-    })
+  const toggleLike = async (postId: string, liked: boolean) => {
+    if (likingId) return
+    setLikingId(postId)
+    const { error } = await togglePostLike(postId, liked)
+    setLikingId(null)
+    if (error) return toast.error("Couldn't update like", { description: error })
+    refetchPosts()
+  }
+
+  const handleCreatePost = async () => {
+    if (!composerContent.trim()) return
+    setPosting(true)
+    const { error } = await createCommunityPost({ content: composerContent.trim(), category: "General" })
+    setPosting(false)
+    if (error) return toast.error("Couldn't post", { description: error })
+    toast.success("Posted to your building")
+    setComposerContent("")
+    setComposerOpen(false)
+    refetchPosts()
+  }
+
+  const openComments = async (postId: string) => {
+    setCommentsFor(postId)
+    setCommentsLoading(true)
+    const rows = await fetchPostComments(postId)
+    setComments(rows)
+    setCommentsLoading(false)
+  }
+
+  const handleAddComment = async () => {
+    if (!commentsFor || !newComment.trim()) return
+    setCommenting(true)
+    const { error } = await addPostComment(commentsFor, newComment.trim())
+    setCommenting(false)
+    if (error) return toast.error("Couldn't add comment", { description: error })
+    setNewComment("")
+    const rows = await fetchPostComments(commentsFor)
+    setComments(rows)
+    refetchPosts()
   }
 
   return (
@@ -85,7 +136,7 @@ export function CommunityScreen() {
       <IOSNavBar
         title="Community"
         rightAction={
-          <button onClick={() => toast("New post — coming soon")} className="flex h-8 w-8 items-center justify-center rounded-full bg-primary" aria-label="New post">
+          <button onClick={() => setComposerOpen(true)} className="flex h-8 w-8 items-center justify-center rounded-full bg-primary" aria-label="New post">
             <Plus className="h-4 w-4 text-primary-foreground" />
           </button>
         }
@@ -122,7 +173,7 @@ export function CommunityScreen() {
           <div className="flex flex-col gap-4">
             {/* Manager announcement CTA */}
             {isManager && (
-              <button onClick={() => toast("Post an announcement — coming soon")} className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-info/30 bg-info/5 p-4 transition-transform active:scale-[0.98]">
+              <button onClick={() => setComposerOpen(true)} className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-info/30 bg-info/5 p-4 transition-transform active:scale-[0.98]">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info/10">
                   <Megaphone className="h-5 w-5 text-info" />
                 </div>
@@ -132,7 +183,7 @@ export function CommunityScreen() {
                 </div>
               </button>
             )}
-            {posts.length === 0 && (
+            {!postsLoading && posts.length === 0 && (
               <EmptyState
                 icon={Users}
                 title="No posts yet"
@@ -181,19 +232,18 @@ export function CommunityScreen() {
                 )}
                 <div className="flex items-center gap-6 px-4 py-3 border-t border-border">
                   <button
-                    onClick={() => toggleLike(post.id)}
-                    className="flex items-center gap-1.5"
+                    onClick={() => toggleLike(post.id, post.liked)}
+                    disabled={likingId === post.id}
+                    className="flex items-center gap-1.5 disabled:opacity-60"
                   >
                     <Heart
                       className={`h-5 w-5 transition-colors ${
-                        likedPosts.has(post.id) ? "fill-destructive text-destructive" : "text-muted-foreground"
+                        post.liked ? "fill-destructive text-destructive" : "text-muted-foreground"
                       }`}
                     />
-                    <span className="text-[13px] text-muted-foreground">
-                      {post.likes + (likedPosts.has(post.id) && !post.liked ? 1 : 0) - (!likedPosts.has(post.id) && post.liked ? 1 : 0)}
-                    </span>
+                    <span className="text-[13px] text-muted-foreground">{post.likes}</span>
                   </button>
-                  <button onClick={() => toast("Comments — coming soon")} className="flex items-center gap-1.5">
+                  <button onClick={() => openComments(post.id)} className="flex items-center gap-1.5">
                     <MessageCircle className="h-5 w-5 text-muted-foreground" />
                     <span className="text-[13px] text-muted-foreground">{post.comments}</span>
                   </button>
@@ -324,6 +374,109 @@ export function CommunityScreen() {
           </div>
         )}
       </main>
+
+      {composerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:px-6"
+          onClick={() => !posting && setComposerOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-t-2xl bg-card p-5 sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[17px] font-semibold text-foreground">
+              {isManager ? "Post an announcement" : "New post"}
+            </h3>
+            <textarea
+              value={composerContent}
+              onChange={(e) => setComposerContent(e.target.value)}
+              placeholder="Share an update, a tip, or a hello with your neighbours..."
+              rows={4}
+              className="mt-3 w-full resize-none rounded-xl border border-border bg-card px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setComposerOpen(false)}
+                disabled={posting}
+                className="flex-1 rounded-xl border border-border py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreatePost}
+                disabled={posting || !composerContent.trim()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {posting && <Loader2 className="h-4 w-4 animate-spin" />} Post
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {commentsFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:px-6"
+          onClick={() => setCommentsFor(null)}
+        >
+          <div
+            className="flex max-h-[70vh] w-full max-w-sm flex-col rounded-t-2xl bg-card sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-border p-4">
+              <h3 className="text-[17px] font-semibold text-foreground">Comments</h3>
+            </div>
+            <div className="ios-scroll flex-1 overflow-y-auto p-4">
+              {commentsLoading && (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {!commentsLoading && comments.length === 0 && (
+                <p className="py-6 text-center text-[13px] text-muted-foreground">No comments yet — say something!</p>
+              )}
+              <div className="flex flex-col gap-3">
+                {comments.map((c) => (
+                  <div key={c.id} className="flex gap-2.5">
+                    <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-muted">
+                      <Image src={c.avatar} alt={c.author} fill className="object-cover" />
+                    </div>
+                    <div className="flex-1 rounded-xl bg-muted px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-semibold text-foreground">{c.author}</span>
+                        <span className="text-[11px] text-muted-foreground">{c.time}</span>
+                      </div>
+                      <p className="mt-0.5 text-[13px] text-foreground">{c.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 border-t border-border p-3">
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddComment()}
+                placeholder="Add a comment..."
+                className="flex-1 rounded-full border border-border bg-card px-3.5 py-2 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <button
+                onClick={handleAddComment}
+                disabled={commenting || !newComment.trim()}
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary disabled:opacity-60"
+                aria-label="Send comment"
+              >
+                {commenting ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
+                ) : (
+                  <Send className="h-4 w-4 text-primary-foreground" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

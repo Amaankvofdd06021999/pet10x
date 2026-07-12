@@ -281,7 +281,7 @@ export interface Pet {
 /* ------------------------------------------------------------------ */
 
 export interface CommunityPost {
-  id: number
+  id: string
   author: string
   avatar: string
   unit: string
@@ -351,7 +351,7 @@ export type NotificationIconKey =
   | "shield"
 
 export interface AppNotification {
-  id: number
+  id: string
   category: NotificationCategory
   severity: NotificationSeverity
   title: string

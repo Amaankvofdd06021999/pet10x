@@ -17,10 +17,12 @@ import { petFileSignedUrls, isStoragePath, uploadPetFile, deletePetFile } from "
 import type { Database } from "@/lib/supabase/database.types"
 import { PETS as MOCK_PETS } from "./mock-data"
 import type {
+  AppNotification,
   BuildingLink,
   CareEntry,
   CareEntryKind,
   CareTarget,
+  CommunityPost,
   ManagerPet,
   Pet,
   PetContact,
@@ -115,6 +117,18 @@ export function useBuildingPets(): LiveResult<ManagerPet[]> {
 }
 
 const ENABLED = isSupabaseConfigured()
+
+function timeAgo(iso: string): string {
+  const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
+  if (seconds < 60) return "just now"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
 
 type PetRow = Database["public"]["Tables"]["pets"]["Row"]
 type CareEntryRow = Database["public"]["Tables"]["care_entries"]["Row"]
@@ -890,4 +904,323 @@ export function denyResidentLink(linkId: string) {
 }
 export function removeResident(linkId: string) {
   return decideLink(linkId, "left", true)
+}
+
+/* ----------------------------- notifications ------------------------------ */
+
+const NOTIF_ICON: Record<string, AppNotification["iconKey"]> = {
+  compliance: "shield",
+  incident: "alert",
+  building: "calendar",
+  billing: "file",
+  community: "check",
+  system: "alert",
+}
+
+function mapNotification(row: {
+  id: string
+  kind: string
+  severity: string
+  title: string
+  body: string | null
+  action_label: string | null
+  read_at: string | null
+  created_at: string
+}): AppNotification {
+  const severity: AppNotification["severity"] = (["warning", "error", "info", "success"] as const).includes(
+    row.severity as AppNotification["severity"],
+  )
+    ? (row.severity as AppNotification["severity"])
+    : "info"
+  const category: AppNotification["category"] = (["compliance", "incident", "building"] as const).includes(
+    row.kind as AppNotification["category"],
+  )
+    ? (row.kind as AppNotification["category"])
+    : "building"
+  return {
+    id: row.id,
+    category,
+    severity,
+    title: row.title,
+    body: row.body ?? "",
+    time: timeAgo(row.created_at),
+    read: !!row.read_at,
+    actionLabel: row.action_label ?? undefined,
+    iconKey: NOTIF_ICON[row.kind] ?? "alert",
+  }
+}
+
+export function useNotifications(): LiveResult<AppNotification[]> {
+  const [data, setData] = useState<AppNotification[]>([])
+  const [isLoading, setLoading] = useState(ENABLED)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    if (!ENABLED) {
+      setLoading(false)
+      return
+    }
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    const { data: rows, error: err } = await supabase
+      .from("notifications")
+      .select("id, kind, severity, title, body, action_label, read_at, created_at")
+      .order("created_at", { ascending: false })
+      .limit(100)
+    if (err) {
+      setError(err.message)
+      setData([])
+    } else {
+      setData((rows ?? []).map(mapNotification))
+      setError(null)
+    }
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+export function useUnreadNotificationCount(): number {
+  const { data } = useNotifications()
+  return data.filter((n) => !n.read).length
+}
+
+export async function markNotificationRead(id: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("read_at", null)
+  return { error: error?.message ?? null }
+}
+
+/* ----------------------------- community feed ------------------------------ */
+
+interface PostRow {
+  id: string
+  author_id: string | null
+  category: string
+  content: string
+  image_url: string | null
+  is_pinned: boolean
+  like_count: number
+  comment_count: number
+  created_at: string
+  profiles: { full_name: string | null; avatar_url: string | null } | null
+}
+
+function mapPost(row: PostRow, myUnit: string, liked: boolean): CommunityPost {
+  return {
+    id: row.id,
+    author: row.profiles?.full_name ?? "Resident",
+    avatar: row.profiles?.avatar_url ?? "",
+    unit: myUnit,
+    time: timeAgo(row.created_at),
+    category: row.category,
+    content: row.content,
+    image: row.image_url ?? undefined,
+    likes: row.like_count,
+    comments: row.comment_count,
+    liked,
+  }
+}
+
+async function currentBuildingId(supabase: ReturnType<typeof getSupabaseBrowserClient>): Promise<string | null> {
+  if (!supabase) return null
+  const { data } = await supabase.rpc("my_building_link")
+  const j = data as { building_id?: string; status?: string } | null
+  return j && j.status === "approved" ? (j.building_id ?? null) : null
+}
+
+export function useCommunityPosts(): LiveResult<CommunityPost[]> {
+  const [data, setData] = useState<CommunityPost[]>([])
+  const [isLoading, setLoading] = useState(ENABLED)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    if (!ENABLED) {
+      setLoading(false)
+      return
+    }
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setData([])
+      setLoading(false)
+      return
+    }
+    const buildingId = await currentBuildingId(supabase)
+    if (!buildingId) {
+      setData([])
+      setLoading(false)
+      return
+    }
+    const { data: rows, error: err } = await supabase
+      .from("community_posts")
+      .select(
+        "id, author_id, category, content, image_url, is_pinned, like_count, comment_count, created_at, profiles!community_posts_author_id_fkey(full_name, avatar_url)",
+      )
+      .eq("building_id", buildingId)
+      .is("deleted_at", null)
+      .order("is_pinned", { ascending: false })
+      .order("created_at", { ascending: false })
+    if (err) {
+      setError(err.message)
+      setData([])
+      setLoading(false)
+      return
+    }
+    const ids = (rows ?? []).map((r) => r.id)
+    let likedIds = new Set<string>()
+    if (ids.length) {
+      const { data: reactions } = await supabase
+        .from("post_reactions")
+        .select("post_id")
+        .eq("profile_id", user.id)
+        .in("post_id", ids)
+      likedIds = new Set((reactions ?? []).map((r) => r.post_id))
+    }
+    setData((rows ?? []).map((r) => mapPost(r as unknown as PostRow, "", likedIds.has(r.id))))
+    setError(null)
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+export async function createCommunityPost(input: {
+  content: string
+  category: string
+  imageFile?: File
+}): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "You must be signed in." }
+  const buildingId = await currentBuildingId(supabase)
+  if (!buildingId) return { error: "Link your building before posting to the community." }
+
+  let imageUrl: string | undefined
+  if (input.imageFile) {
+    const ext = input.imageFile.name.split(".").pop()?.toLowerCase() || "jpg"
+    const path = `${buildingId}/${user.id}/${Date.now()}.${ext}`
+    const { error: upErr } = await supabase.storage
+      .from("community-media")
+      .upload(path, input.imageFile, { upsert: true, cacheControl: "3600" })
+    if (upErr) return { error: upErr.message }
+    const { data: signed } = await supabase.storage.from("community-media").createSignedUrl(path, 60 * 60 * 24 * 365)
+    imageUrl = signed?.signedUrl
+  }
+
+  const { error } = await supabase.from("community_posts").insert({
+    building_id: buildingId,
+    author_id: user.id,
+    category: input.category,
+    content: input.content,
+    image_url: imageUrl ?? null,
+  })
+  if (error) {
+    if (/row-level security/i.test(error.message)) {
+      return { error: "Posting to the community requires an active Pet10x plan." }
+    }
+    return { error: error.message }
+  }
+  return { error: null }
+}
+
+export async function togglePostLike(postId: string, currentlyLiked: boolean): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "You must be signed in." }
+
+  if (currentlyLiked) {
+    const { error: delErr } = await supabase
+      .from("post_reactions")
+      .delete()
+      .eq("post_id", postId)
+      .eq("profile_id", user.id)
+    if (delErr) return { error: delErr.message }
+    const { data: post } = await supabase.from("community_posts").select("like_count").eq("id", postId).maybeSingle()
+    await supabase
+      .from("community_posts")
+      .update({ like_count: Math.max(0, (post?.like_count ?? 1) - 1) })
+      .eq("id", postId)
+  } else {
+    const { error: insErr } = await supabase.from("post_reactions").insert({ post_id: postId, profile_id: user.id })
+    if (insErr) return { error: insErr.message }
+    const { data: post } = await supabase.from("community_posts").select("like_count").eq("id", postId).maybeSingle()
+    await supabase
+      .from("community_posts")
+      .update({ like_count: (post?.like_count ?? 0) + 1 })
+      .eq("id", postId)
+  }
+  return { error: null }
+}
+
+export interface PostComment {
+  id: string
+  author: string
+  avatar: string
+  content: string
+  time: string
+}
+
+export async function fetchPostComments(postId: string): Promise<PostComment[]> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return []
+  const { data } = await supabase
+    .from("post_comments")
+    .select("id, content, created_at, profiles!post_comments_author_id_fkey(full_name, avatar_url)")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true })
+  return (data ?? []).map((r) => {
+    const p = r as unknown as {
+      id: string
+      content: string
+      created_at: string
+      profiles: { full_name: string | null; avatar_url: string | null } | null
+    }
+    return {
+      id: p.id,
+      author: p.profiles?.full_name ?? "Resident",
+      avatar: p.profiles?.avatar_url ?? "",
+      content: p.content,
+      time: timeAgo(p.created_at),
+    }
+  })
+}
+
+export async function addPostComment(postId: string, content: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "You must be signed in." }
+  const { error } = await supabase.from("post_comments").insert({ post_id: postId, author_id: user.id, content })
+  if (error) return { error: error.message }
+  const { data: post } = await supabase.from("community_posts").select("comment_count").eq("id", postId).maybeSingle()
+  await supabase
+    .from("community_posts")
+    .update({ comment_count: (post?.comment_count ?? 0) + 1 })
+    .eq("id", postId)
+  return { error: null }
 }

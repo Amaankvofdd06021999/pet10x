@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
+import { useUnreadNotificationCount } from "@/lib/data"
 import {
   Home,
   Users,
@@ -25,15 +26,15 @@ const ownerTabs = [
   { id: "home", label: "Home", icon: Home },
   { id: "community", label: "Community", icon: Users },
   { id: "services", label: "Services", icon: ShoppingBag },
-  { id: "alerts", label: "Alerts", icon: Bell, badge: 3 },
+  { id: "alerts", label: "Alerts", icon: Bell },
   { id: "profile", label: "Profile", icon: User },
 ]
 
 const managerTabs = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "residents", label: "Residents", icon: Users },
-  { id: "violations", label: "Violations", icon: Gavel, badge: 5 },
-  { id: "approvals", label: "Approvals", icon: UserCheck, badge: 3 },
+  { id: "violations", label: "Violations", icon: Gavel },
+  { id: "approvals", label: "Approvals", icon: UserCheck },
   { id: "settings", label: "Settings", icon: Settings },
 ]
 
@@ -44,6 +45,8 @@ const managerTabs = [
 export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
   const { user, signOut } = useAuth()
   const isManager = user?.role === "building-manager"
+  const unreadCount = useUnreadNotificationCount()
+  const badges: Record<string, number> = { alerts: unreadCount }
   const tabs = isManager ? managerTabs : ownerTabs
   const activeColor = isManager ? "text-info" : "text-primary"
 
@@ -75,9 +78,9 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
             >
               <Icon className="h-5 w-5" strokeWidth={isActive ? 2.4 : 1.8} />
               <span className="flex-1 text-left">{tab.label}</span>
-              {"badge" in tab && tab.badge ? (
+              {badges[tab.id] > 0 ? (
                 <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-destructive-foreground">
-                  {tab.badge}
+                  {badges[tab.id]}
                 </span>
               ) : null}
             </button>

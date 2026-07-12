@@ -11,10 +11,8 @@
 
 import type {
   AccommodationRequest,
-  AppNotification,
   Building,
   CommunityEvent,
-  CommunityPost,
   DocumentReviewItem,
   EmergencyBuildingDirectory,
   HomeAlert,
@@ -75,10 +73,7 @@ const EMPTY_DIRECTORY: EmergencyBuildingDirectory = {
 /* Pets + care live in ./live · businesses in ./business · admin in ./admin. */
 
 /* ----------------------------- Community -------------------------- */
-
-export function useCommunityPosts(): QueryResult<CommunityPost[]> {
-  return resolved([])
-}
+/* useCommunityPosts is now LIVE — see ./live. */
 
 export function useLostFound(): QueryResult<LostFoundItem[]> {
   return resolved([])
@@ -96,10 +91,7 @@ export function useServiceProviders(): QueryResult<ServiceProvider[]> {
 }
 
 /* --------------------------- Notifications ------------------------ */
-
-export function useNotifications(): QueryResult<AppNotification[]> {
-  return resolved([])
-}
+/* useNotifications is now LIVE — see ./live. */
 
 export function useHomeAlerts(): QueryResult<HomeAlert[]> {
   return resolved([])

@@ -269,7 +269,8 @@ export const HOME_RECENT_ALERTS: HomeAlert[] = [
 
 export const COMMUNITY_POSTS: CommunityPost[] = [
   {
-    id: 1,
+    id: "1",
+
     author: "Sarah Chen",
     avatar: "/avatars/sarah.jpg",
     unit: "2104",
@@ -283,7 +284,8 @@ export const COMMUNITY_POSTS: CommunityPost[] = [
     liked: true,
   },
   {
-    id: 2,
+    id: "2",
+
     author: "Mike Johnson",
     avatar: "/avatars/mike.jpg",
     unit: "1508",
@@ -296,7 +298,8 @@ export const COMMUNITY_POSTS: CommunityPost[] = [
     liked: false,
   },
   {
-    id: 3,
+    id: "3",
+
     author: "Building Management",
     avatar: "/avatars/building.jpg",
     unit: "Office",
@@ -458,7 +461,8 @@ export const SERVICE_PROVIDERS: ServiceProvider[] = [
 
 export const NOTIFICATIONS: AppNotification[] = [
   {
-    id: 1,
+    id: "1",
+
     category: "compliance",
     severity: "warning",
     title: "Vaccination Expiring Soon",
@@ -469,7 +473,8 @@ export const NOTIFICATIONS: AppNotification[] = [
     iconKey: "syringe",
   },
   {
-    id: 2,
+    id: "2",
+
     category: "incident",
     severity: "error",
     title: "New Incident Report Filed",
@@ -480,7 +485,8 @@ export const NOTIFICATIONS: AppNotification[] = [
     iconKey: "alert",
   },
   {
-    id: 3,
+    id: "3",
+
     category: "building",
     severity: "info",
     title: "Bylaw Update: Common Area Rules",
@@ -491,7 +497,8 @@ export const NOTIFICATIONS: AppNotification[] = [
     iconKey: "file",
   },
   {
-    id: 4,
+    id: "4",
+
     category: "compliance",
     severity: "success",
     title: "License Renewed Successfully",
@@ -501,7 +508,8 @@ export const NOTIFICATIONS: AppNotification[] = [
     iconKey: "check",
   },
   {
-    id: 5,
+    id: "5",
+
     category: "building",
     severity: "info",
     title: "Community Dog Walk This Saturday",
@@ -512,7 +520,8 @@ export const NOTIFICATIONS: AppNotification[] = [
     iconKey: "calendar",
   },
   {
-    id: 6,
+    id: "6",
+
     category: "incident",
     severity: "success",
     title: "Incident Resolved",
