@@ -51,7 +51,7 @@ export function LandingNav() {
 
         <div className="hidden items-center gap-2 md:flex">
           <Link
-            href="/app"
+            href="/login"
             className="rounded-lg px-4 py-2 text-[14px] font-semibold text-foreground transition-colors hover:bg-muted"
           >
             Sign in
@@ -90,7 +90,7 @@ export function LandingNav() {
             ))}
             <div className="mt-2 flex flex-col gap-2">
               <Link
-                href="/app"
+                href="/login"
                 className="rounded-lg border border-border px-4 py-2.5 text-center text-[15px] font-semibold text-foreground"
               >
                 Sign in

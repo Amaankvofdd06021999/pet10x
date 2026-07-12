@@ -54,31 +54,33 @@ function sanitizeAuthError(message: string): string {
 /** Build the app-facing user object from the Supabase auth user + profile + links. */
 async function loadAppUser(authUser: User): Promise<AppUser> {
   const supabase = getSupabaseBrowserClient()!
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, full_name, email, avatar_url, member_since, plan_label, onboarded, is_super_admin")
-    .eq("id", authUser.id)
-    .maybeSingle()
+
+  const [{ data: profile }, { data: link }, { count }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("role, full_name, email, avatar_url, member_since, plan_label, onboarded, is_super_admin")
+      .eq("id", authUser.id)
+      .maybeSingle(),
+    supabase
+      .from("resident_links")
+      .select("building_id, unit_id")
+      .eq("profile_id", authUser.id)
+      .eq("status", "approved")
+      .limit(1)
+      .maybeSingle(),
+    supabase.from("pets").select("id", { count: "exact", head: true }).eq("owner_id", authUser.id),
+  ])
 
   const appRole = DB_ROLE_TO_APP[profile?.role ?? "pet_owner"] ?? "pet-owner"
+  const petCount = count ?? 0
 
   let building = ""
   let unit = ""
-  let buildingId: string | null = null
+  let buildingId: string | null = link?.building_id ?? null
 
-  const { data: link } = await supabase
-    .from("resident_links")
-    .select("building_id, unit_id")
-    .eq("profile_id", authUser.id)
-    .eq("status", "approved")
-    .limit(1)
-    .maybeSingle()
-  if (link) {
-    buildingId = link.building_id
-    if (link.unit_id) {
-      const { data: u } = await supabase.from("units").select("unit_number").eq("id", link.unit_id).maybeSingle()
-      unit = u?.unit_number ?? ""
-    }
+  if (buildingId && link?.unit_id) {
+    const { data: u } = await supabase.from("units").select("unit_number").eq("id", link.unit_id).maybeSingle()
+    unit = u?.unit_number ?? ""
   }
 
   if (!buildingId && (appRole === "building-manager" || appRole === "super-admin")) {
@@ -96,12 +98,6 @@ async function loadAppUser(authUser: User): Promise<AppUser> {
     const { data: b } = await supabase.from("buildings").select("name").eq("id", buildingId).maybeSingle()
     building = b?.name ?? ""
   }
-
-  const { count } = await supabase
-    .from("pets")
-    .select("id", { count: "exact", head: true })
-    .eq("owner_id", authUser.id)
-  const petCount = count ?? 0
 
   return {
     id: authUser.id,

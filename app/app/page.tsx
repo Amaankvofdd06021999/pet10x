@@ -22,6 +22,7 @@ import { ManagerResidentsScreen } from "@/components/screens/manager/residents-s
 import { ManagerViolationsScreen } from "@/components/screens/manager/violations-screen"
 import { ManagerApprovalsScreen } from "@/components/screens/manager/approvals-screen"
 import { ManagerSettingsScreen } from "@/components/screens/manager/settings-screen"
+import { Loader2, PawPrint } from "lucide-react"
 
 /** Desktop content max-width per screen — owner/overview read as a column, data screens go wide. */
 const CONTENT_MAX: Record<string, string> = {
@@ -42,7 +43,7 @@ const CONTENT_MAX: Record<string, string> = {
 }
 
 function AppContent() {
-  const { isAuthenticated, isGuest, user } = useAuth()
+  const { isAuthenticated, isGuest, isLoading, user } = useAuth()
   const isManager = user?.role === "building-manager"
   const [activeTab, setActiveTab] = useState("home")
   const [currentScreen, setCurrentScreen] = useState("home")
@@ -55,17 +56,29 @@ function AppContent() {
     setCurrentScreen(tab)
   }, [isManager])
 
+  // Session still resolving — avoid flashing the sign-in screen before we know.
+  if (isLoading) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
+          <PawPrint className="h-6 w-6 text-primary-foreground" strokeWidth={2.5} />
+        </span>
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
   // Unauthenticated / guest flows — centered on desktop, full-screen on mobile.
   if (!isAuthenticated) {
     return (
-      <div className="mx-auto w-full max-w-md">
+      <div key="sign-in" className="mx-auto w-full max-w-md animate-in fade-in duration-300">
         <SignInScreen />
       </div>
     )
   }
   if (isGuest) {
     return (
-      <div className="mx-auto w-full max-w-md">
+      <div key="guest" className="mx-auto w-full max-w-md animate-in fade-in duration-300">
         <GuestReportScreen />
       </div>
     )
@@ -73,7 +86,7 @@ function AppContent() {
   // New pet owners answer one onboarding question before entering the app.
   if (user && user.role === "pet-owner" && !user.onboarded) {
     return (
-      <div className="mx-auto w-full max-w-md">
+      <div key="onboarding" className="mx-auto w-full max-w-md animate-in fade-in duration-300">
         <OnboardingFlow />
       </div>
     )
@@ -100,7 +113,7 @@ function AppContent() {
       <AppSidebar activeTab={activeTab} onTabChange={handleTabChange} />
 
       <div className="flex-1 md:min-w-0">
-        <div className={`mx-auto w-full ${contentMax}`}>
+        <div key={currentScreen} className={`mx-auto w-full ${contentMax} animate-in fade-in duration-200`}>
           {currentScreen === "pet-detail" ? (
             <PetDetailScreen onBack={handleBack} petId={selectedPetId} />
           ) : currentScreen === "add-pet" ? (

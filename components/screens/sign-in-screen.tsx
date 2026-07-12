@@ -63,9 +63,12 @@ export function SignInScreen() {
     setLoading(true)
     if (mode === "signin") {
       const { error: e } = await signInWithPassword(email.trim(), password)
-      setLoading(false)
-      if (e) setError(e)
-      // success → AuthProvider flips the app to the authed view automatically
+      if (e) {
+        setLoading(false)
+        setError(e)
+      }
+      // success → keep the spinner running; AuthProvider is now loading the
+      // profile in the background and will swap to the authed view when ready.
     } else {
       const { error: e, needsConfirmation } = await signUp(email.trim(), password, fullName.trim() || undefined)
       setLoading(false)
