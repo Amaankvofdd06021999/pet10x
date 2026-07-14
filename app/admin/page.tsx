@@ -55,7 +55,7 @@ function Gate() {
     )
   }
   if (!isAuthenticated) return <AdminLogin />
-  if (!canAccessRoute("/superadminaccess", { role: user?.role ?? null, isSuperAdmin: user?.isSuperAdmin ?? false })) {
+  if (!canAccessRoute("/admin", { role: user?.role ?? null, isSuperAdmin: user?.isSuperAdmin ?? false })) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#0e0f12] px-6 text-center">
         <Lock className="h-10 w-10 text-white/40" />

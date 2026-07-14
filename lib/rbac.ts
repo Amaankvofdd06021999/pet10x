@@ -24,7 +24,7 @@ export interface RoleRoute {
  * specific (longest) prefix that matches a given path.
  */
 export const ROLE_ROUTES: RoleRoute[] = [
-  { prefix: "/superadminaccess", requireSuperAdmin: true },
+  { prefix: "/admin", requireSuperAdmin: true },
   { prefix: "/businessaccess", roles: ["business"] },
   // /app is shared by pet-owner and building-manager; role branching happens
   // inside the page (owner vs manager tabs). Any authenticated non-business,
@@ -62,7 +62,7 @@ export function canAccessRoute(pathname: string, subject: RoleCheckSubject): boo
 
 /** Where to send an authenticated user whose role doesn't belong on the current route. */
 export function getHomeRouteForRole(subject: RoleCheckSubject): string {
-  if (subject.isSuperAdmin) return "/superadminaccess"
+  if (subject.isSuperAdmin) return "/admin"
   switch (subject.role) {
     case "business":
       return "/businessaccess"
