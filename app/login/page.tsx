@@ -1,19 +1,42 @@
 "use client"
 
-import { Suspense } from "react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { SignInScreen } from "@/components/screens/sign-in-screen"
-import { redirect, useSearchParams } from "next/navigation"
 import { getHomeRouteForRole, canAccessRoute } from "@/lib/rbac"
 import { Loader2, PawPrint, Ban } from "lucide-react"
 
 function LoginContent() {
   const { user, isAuthenticated, isLoading } = useAuth()
-  const searchParams = useSearchParams()
-  const suspended = searchParams.get("suspended") === "1"
-  const next = searchParams.get("next")
+  const router = useRouter()
 
-  if (isLoading) {
+  // Read the query string after mount rather than with useSearchParams(). The
+  // hook forces a server/client divergence on first paint (the server has no
+  // search params to render with), which React reports as a hydration mismatch.
+  // Starting both sides at `null` and filling it in an effect keeps the first
+  // render identical on both.
+  const [params, setParams] = useState<URLSearchParams | null>(null)
+  useEffect(() => {
+    setParams(new URLSearchParams(window.location.search))
+  }, [])
+
+  const suspended = params?.get("suspended") === "1"
+  const next = params?.get("next") ?? null
+
+  // Send each role to its own home (super admin → /admin, business →
+  // /businessaccess, owner/manager → /app), honouring ?next= when the user was
+  // bounced here from a page they're actually allowed to see. Redirecting from
+  // an effect, not during render, so it can't fire mid-hydration.
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || !user || suspended) return
+    const subject = { role: user.role, isSuperAdmin: user.isSuperAdmin, isSuspended: user.isSuspended }
+    router.replace(next && canAccessRoute(next, subject) ? next : getHomeRouteForRole(subject))
+  }, [isLoading, isAuthenticated, user, suspended, next, router])
+
+  // Hold the spinner while the session resolves, and while an authenticated user
+  // is being bounced to their own home — otherwise the sign-in form flashes.
+  if (isLoading || (isAuthenticated && user && !suspended)) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
@@ -22,14 +45,6 @@ function LoginContent() {
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     )
-  }
-
-  // Send each role to its own home (super admin → /admin, business →
-  // /businessaccess, owner/manager → /app), honouring ?next= when the user was
-  // bounced here from a page they're actually allowed to see.
-  if (isAuthenticated && !suspended && user) {
-    const subject = { role: user.role, isSuperAdmin: user.isSuperAdmin, isSuspended: user.isSuspended }
-    redirect(next && canAccessRoute(next, subject) ? next : getHomeRouteForRole(subject))
   }
 
   return (
@@ -48,9 +63,7 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <AuthProvider>
-      <Suspense fallback={null}>
-        <LoginContent />
-      </Suspense>
+      <LoginContent />
     </AuthProvider>
   )
 }
