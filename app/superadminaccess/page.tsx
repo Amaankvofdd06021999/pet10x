@@ -12,7 +12,10 @@ import {
   inviteManager,
   useAdminBusinesses,
   verifyBusiness,
+  useAdminManagers,
+  setManagerSuspended,
   type AdminBuilding,
+  type AdminManager,
   type PetRules,
 } from "@/lib/data/admin"
 import {
@@ -26,6 +29,10 @@ import {
   BadgeCheck,
   ChevronDown,
   Lock,
+  Users,
+  Ban,
+  RotateCcw,
+  MapPin,
 } from "lucide-react"
 
 export default function SuperAdminAccessPage() {
@@ -128,7 +135,7 @@ function AdminLogin() {
 
 function Portal() {
   const { user, signOut } = useAuth()
-  const [tab, setTab] = useState<"buildings" | "businesses">("buildings")
+  const [tab, setTab] = useState<"buildings" | "managers" | "businesses">("buildings")
 
   return (
     <div className="min-h-dvh bg-[#0e0f12] text-white">
@@ -147,7 +154,7 @@ function Portal() {
 
       <div className="mx-auto max-w-3xl px-5 py-6">
         <div className="mb-6 flex gap-1 rounded-xl bg-white/5 p-1">
-          {(["buildings", "businesses"] as const).map((t) => (
+          {(["buildings", "managers", "businesses"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -155,11 +162,11 @@ function Portal() {
                 tab === t ? "bg-white/10 text-white" : "text-white/50"
               }`}
             >
-              {t === "buildings" ? <Building2 className="h-4 w-4" /> : <Store className="h-4 w-4" />} {t}
+              {t === "buildings" ? <Building2 className="h-4 w-4" /> : t === "managers" ? <Users className="h-4 w-4" /> : <Store className="h-4 w-4" />} {t}
             </button>
           ))}
         </div>
-        {tab === "buildings" ? <Buildings /> : <Businesses />}
+        {tab === "buildings" ? <Buildings /> : tab === "managers" ? <Managers /> : <Businesses />}
       </div>
     </div>
   )
@@ -315,6 +322,133 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
               Save rules
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Managers() {
+  const [city, setCity] = useState("")
+  const [region, setRegion] = useState("")
+  const { data: managers, isLoading, refetch } = useAdminManagers({
+    city: city.trim() || undefined,
+    region: region.trim() || undefined,
+  })
+  const [busy, setBusy] = useState<string | null>(null)
+
+  const cityOptions = Array.from(new Set(managers.map((m) => m.building.city).filter((c): c is string => !!c))).sort()
+  const regionOptions = Array.from(new Set(managers.map((m) => m.building.region).filter((r): r is string => !!r))).sort()
+
+  async function toggleSuspend(m: AdminManager) {
+    setBusy(m.id)
+    const { error } = await setManagerSuspended(m.id, !m.isSuspended)
+    setBusy(null)
+    if (error) return toast.error("Action failed", { description: error })
+    toast.success(m.isSuspended ? "Manager access restored" : "Manager suspended", {
+      description: m.isSuspended ? `${m.name} can sign in again.` : `${m.name} is locked out of every building and dashboard.`,
+    })
+    refetch()
+  }
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3.5 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-white/40">
+          <MapPin className="h-3.5 w-3.5" /> Filter by location
+        </div>
+        <select
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[13px] text-white focus:border-primary focus:outline-none"
+        >
+          <option value="">All cities</option>
+          {cityOptions.map((c) => (
+            <option key={c} value={c} className="bg-[#171a21]">
+              {c}
+            </option>
+          ))}
+        </select>
+        <select
+          value={region}
+          onChange={(e) => setRegion(e.target.value)}
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[13px] text-white focus:border-primary focus:outline-none"
+        >
+          <option value="">All regions</option>
+          {regionOptions.map((r) => (
+            <option key={r} value={r} className="bg-[#171a21]">
+              {r}
+            </option>
+          ))}
+        </select>
+        {(city || region) && (
+          <button
+            onClick={() => {
+              setCity("")
+              setRegion("")
+            }}
+            className="text-[12px] font-semibold text-primary"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-white/50" />
+        </div>
+      ) : managers.length === 0 ? (
+        <p className="py-8 text-center text-[14px] text-white/40">No managers match this filter.</p>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {managers.map((m) => (
+            <div key={`${m.id}-${m.building.id}`} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3.5">
+              <div
+                className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${
+                  m.isSuspended ? "bg-destructive/15" : "bg-primary/15"
+                }`}
+              >
+                <Users className={`h-5 w-5 ${m.isSuspended ? "text-destructive" : "text-primary"}`} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-[15px] font-semibold">{m.name}</p>
+                  {m.isPrimary && (
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">
+                      Primary
+                    </span>
+                  )}
+                  {m.isSuspended && (
+                    <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
+                      Suspended
+                    </span>
+                  )}
+                </div>
+                <p className="truncate text-[12px] text-white/40">{m.email}</p>
+                <p className="truncate text-[12px] text-white/40">
+                  {m.building.name} · {m.building.code}
+                  {m.building.city ? ` · ${m.building.city}` : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => toggleSuspend(m)}
+                disabled={busy === m.id}
+                className={`flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60 ${
+                  m.isSuspended ? "bg-white/10 text-white" : "bg-destructive/15 text-destructive"
+                }`}
+              >
+                {busy === m.id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : m.isSuspended ? (
+                  <RotateCcw className="h-3.5 w-3.5" />
+                ) : (
+                  <Ban className="h-3.5 w-3.5" />
+                )}
+                {m.isSuspended ? "Restore" : "Freeze"}
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

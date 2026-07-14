@@ -46,10 +46,12 @@ export function findRouteRule(pathname: string): RoleRoute | null {
 export interface RoleCheckSubject {
   role: UserRole | null
   isSuperAdmin: boolean
+  isSuspended?: boolean
 }
 
 /** True if the given subject may access pathname. Unmatched paths are public. */
 export function canAccessRoute(pathname: string, subject: RoleCheckSubject): boolean {
+  if (subject.isSuspended) return false // suspended accounts lose every scope, on every route
   const rule = findRouteRule(pathname)
   if (!rule) return true
   if (subject.isSuperAdmin) return true // super-admin transcends every scope, per is_admin()

@@ -54,13 +54,22 @@ export async function updateSession(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, is_super_admin")
+    .select("role, is_super_admin, is_suspended")
     .eq("id", user.id)
     .maybeSingle()
 
   const subject = {
     role: profile ? (DB_ROLE_TO_APP[profile.role] ?? null) : null,
     isSuperAdmin: profile?.is_super_admin ?? false,
+    isSuspended: profile?.is_suspended ?? false,
+  }
+
+  if (subject.isSuspended) {
+    await supabase.auth.signOut()
+    const url = request.nextUrl.clone()
+    url.pathname = "/login"
+    url.searchParams.set("suspended", "1")
+    return NextResponse.redirect(url)
   }
 
   if (!canAccessRoute(pathname, subject)) {

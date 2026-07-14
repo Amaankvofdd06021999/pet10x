@@ -31,6 +31,7 @@ export interface AdminBuilding {
   code: string
   address: string | null
   city: string | null
+  region: string | null
   rules: PetRules
   createdAt: string
 }
@@ -52,6 +53,7 @@ function mapBuilding(r: BuildingRow): AdminBuilding {
     code: r.building_code,
     address: r.address,
     city: r.city,
+    region: r.region,
     rules: (r.pet_rules as PetRules) ?? {},
     createdAt: r.created_at,
   }
@@ -189,5 +191,118 @@ export async function verifyBusiness(id: string, verified: boolean): Promise<{ e
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("businesses").update({ is_verified: verified }).eq("id", id)
+  return { error: error?.message ?? null }
+}
+
+/* ------------------------------------------------------------------ */
+/* Managers — master view across every building, with freeze/unfreeze  */
+/* ------------------------------------------------------------------ */
+
+export interface AdminManager {
+  id: string // profile id
+  name: string
+  email: string
+  isPrimary: boolean
+  isSuspended: boolean
+  suspendedAt: string | null
+  joinedAt: string // building_managers.created_at
+  building: { id: string; name: string; code: string; city: string | null; region: string | null }
+}
+
+export interface ManagerLocationFilter {
+  city?: string
+  region?: string
+}
+
+/** Every building_managers row, joined to the manager's profile and building — the master roster. */
+export function useAdminManagers(filter?: ManagerLocationFilter) {
+  const [data, setData] = useState<AdminManager[]>([])
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    let query = supabase
+      .from("building_managers")
+      .select(
+        `id, is_primary, created_at,
+         profile:profiles!building_managers_profile_id_fkey ( id, full_name, email, is_suspended, suspended_at ),
+         building:buildings!building_managers_building_id_fkey ( id, name, building_code, city, region )`,
+      )
+      .order("created_at", { ascending: false })
+
+    if (filter?.city) query = query.eq("building.city", filter.city)
+    if (filter?.region) query = query.eq("building.region", filter.region)
+
+    const { data: rows, error: err } = await query
+    if (err) {
+      setError(err.message)
+      setData([])
+      setLoading(false)
+      return
+    }
+
+    type JoinedRow = {
+      id: string
+      is_primary: boolean
+      created_at: string
+      profile: { id: string; full_name: string | null; email: string | null; is_suspended: boolean; suspended_at: string | null } | null
+      building: { id: string; name: string; building_code: string; city: string | null; region: string | null } | null
+    }
+
+    const mapped = ((rows ?? []) as unknown as JoinedRow[])
+      .filter((r) => r.profile && r.building)
+      .map((r) => ({
+        id: r.profile!.id,
+        name: r.profile!.full_name || r.profile!.email || "Unknown",
+        email: r.profile!.email ?? "",
+        isPrimary: r.is_primary,
+        isSuspended: r.profile!.is_suspended,
+        suspendedAt: r.profile!.suspended_at,
+        joinedAt: r.created_at,
+        building: {
+          id: r.building!.id,
+          name: r.building!.name,
+          code: r.building!.building_code,
+          city: r.building!.city,
+          region: r.building!.region,
+        },
+      }))
+      // client-side filter fallback in case the embedded-resource .eq() above isn't supported by the PostgREST version
+      .filter((m) => (filter?.city ? m.building.city === filter.city : true))
+      .filter((m) => (filter?.region ? m.building.region === filter.region : true))
+
+    setData(mapped)
+    setError(null)
+    setLoading(false)
+  }, [filter?.city, filter?.region])
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+
+  return { data, isLoading, error, refetch }
+}
+
+/** Suspend or unsuspend a manager's whole account — blocks login/RLS scope everywhere, not just this building. */
+export async function setManagerSuspended(profileId: string, suspended: boolean): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      is_suspended: suspended,
+      suspended_at: suspended ? new Date().toISOString() : null,
+      suspended_by: suspended ? (user?.id ?? null) : null,
+    })
+    .eq("id", profileId)
   return { error: error?.message ?? null }
 }

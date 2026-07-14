@@ -71,6 +71,7 @@ export interface AppUser {
   petCount: number
   onboarded: boolean
   isSuperAdmin: boolean
+  isSuspended: boolean
 }
 
 export interface GuestSession {

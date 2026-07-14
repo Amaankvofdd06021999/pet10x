@@ -1894,6 +1894,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_super_admin: boolean
+          is_suspended: boolean
           latitude: number | null
           locale: string | null
           location_label: string | null
@@ -1904,6 +1905,8 @@ export type Database = {
           phone: string | null
           plan_label: string | null
           role: Database["public"]["Enums"]["user_role"]
+          suspended_at: string | null
+          suspended_by: string | null
           updated_at: string
         }
         Insert: {
@@ -1913,6 +1916,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_super_admin?: boolean
+          is_suspended?: boolean
           latitude?: number | null
           locale?: string | null
           location_label?: string | null
@@ -1923,6 +1927,8 @@ export type Database = {
           phone?: string | null
           plan_label?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          suspended_at?: string | null
+          suspended_by?: string | null
           updated_at?: string
         }
         Update: {
@@ -1932,6 +1938,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_super_admin?: boolean
+          is_suspended?: boolean
           latitude?: number | null
           locale?: string | null
           location_label?: string | null
@@ -1942,9 +1949,26 @@ export type Database = {
           phone?: string | null
           plan_label?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          suspended_at?: string | null
+          suspended_by?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_suspended_by_fkey"
+            columns: ["suspended_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_suspended_by_fkey"
+            columns: ["suspended_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
       }
       push_tokens: {
         Row: {
@@ -2850,4 +2874,3 @@ export const Constants = {
     },
   },
 } as const
-
