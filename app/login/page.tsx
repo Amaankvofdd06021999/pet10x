@@ -4,12 +4,14 @@ import { Suspense } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { SignInScreen } from "@/components/screens/sign-in-screen"
 import { redirect, useSearchParams } from "next/navigation"
+import { getHomeRouteForRole, canAccessRoute } from "@/lib/rbac"
 import { Loader2, PawPrint, Ban } from "lucide-react"
 
 function LoginContent() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { user, isAuthenticated, isLoading } = useAuth()
   const searchParams = useSearchParams()
   const suspended = searchParams.get("suspended") === "1"
+  const next = searchParams.get("next")
 
   if (isLoading) {
     return (
@@ -22,8 +24,12 @@ function LoginContent() {
     )
   }
 
-  if (isAuthenticated && !suspended) {
-    redirect("/app")
+  // Send each role to its own home (super admin → /admin, business →
+  // /businessaccess, owner/manager → /app), honouring ?next= when the user was
+  // bounced here from a page they're actually allowed to see.
+  if (isAuthenticated && !suspended && user) {
+    const subject = { role: user.role, isSuperAdmin: user.isSuperAdmin, isSuspended: user.isSuspended }
+    redirect(next && canAccessRoute(next, subject) ? next : getHomeRouteForRole(subject))
   }
 
   return (

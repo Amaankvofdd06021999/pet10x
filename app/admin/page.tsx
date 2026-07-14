@@ -49,19 +49,19 @@ function Gate() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#0e0f12]">
-        <Loader2 className="h-6 w-6 animate-spin text-white/60" />
+      <div className="flex min-h-dvh items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
   if (!isAuthenticated) return <AdminLogin />
   if (!canAccessRoute("/admin", { role: user?.role ?? null, isSuperAdmin: user?.isSuperAdmin ?? false })) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#0e0f12] px-6 text-center">
-        <Lock className="h-10 w-10 text-white/40" />
-        <p className="text-[16px] font-semibold text-white">Not authorized</p>
-        <p className="max-w-xs text-[13px] text-white/50">This account doesn&apos;t have super-admin access.</p>
-        <button onClick={() => signOut()} className="mt-2 rounded-lg bg-white/10 px-4 py-2 text-[14px] font-semibold text-white">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+        <Lock className="h-10 w-10 text-muted-foreground" />
+        <p className="text-[16px] font-semibold text-foreground">Not authorized</p>
+        <p className="max-w-xs text-[13px] text-muted-foreground">This account doesn&apos;t have super-admin access.</p>
+        <button onClick={() => signOut()} className="mt-2 rounded-lg bg-muted px-4 py-2 text-[14px] font-semibold text-foreground">
           Sign out
         </button>
       </div>
@@ -90,16 +90,16 @@ function AdminLogin() {
   }
 
   return (
-    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-[#0e0f12] px-6 py-10 [background-image:radial-gradient(55rem_38rem_at_50%_-10%,rgba(253,147,64,0.12),transparent)]">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10 [background-image:radial-gradient(55rem_38rem_at_50%_-10%,var(--color-primary)/10%,transparent)]">
       <div className="w-full max-w-sm sm:max-w-md">
         <div className="mb-6 flex flex-col items-center text-center sm:mb-8">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20 sm:h-16 sm:w-16">
             <ShieldCheck className="h-7 w-7 text-primary-foreground sm:h-8 sm:w-8" />
           </div>
-          <h1 className="mt-4 text-[22px] font-semibold text-white sm:text-[26px]">Pet10x Admin</h1>
-          <p className="mt-1 text-[13px] text-white/50 sm:text-[14px]">Super-admin access only</p>
+          <h1 className="mt-4 text-[22px] font-semibold text-foreground sm:text-[26px]">Pet10x Admin</h1>
+          <p className="mt-1 text-[13px] text-muted-foreground sm:text-[14px]">Super-admin access only</p>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 shadow-xl shadow-black/20 sm:p-7">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-xl shadow-foreground/5 sm:p-7">
         <div className="flex flex-col gap-3">
           <input
             type="email"
@@ -107,7 +107,7 @@ function AdminLogin() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
             autoCapitalize="none"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:border-primary focus:outline-none"
+            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
           <input
             type="password"
@@ -115,7 +115,7 @@ function AdminLogin() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             onKeyDown={(e) => e.key === "Enter" && submit()}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:border-primary focus:outline-none"
+            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
           {error && <p className="text-[13px] text-destructive">{error}</p>}
           <button
@@ -138,28 +138,28 @@ function Portal() {
   const [tab, setTab] = useState<"buildings" | "managers" | "businesses">("buildings")
 
   return (
-    <div className="min-h-dvh bg-[#0e0f12] text-white">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-[#0e0f12]/90 px-5 py-3 backdrop-blur">
+    <div className="min-h-dvh bg-background text-foreground">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/90 px-5 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
           <span className="text-[15px] font-semibold">Pet10x Admin</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="hidden text-[12px] text-white/40 sm:block">{user?.email}</span>
-          <button onClick={() => signOut()} className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-[13px] font-semibold">
+          <span className="hidden text-[12px] text-muted-foreground sm:block">{user?.email}</span>
+          <button onClick={() => signOut()} className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold">
             <LogOut className="h-3.5 w-3.5" /> Sign out
           </button>
         </div>
       </header>
 
       <div className="mx-auto max-w-3xl px-5 py-6">
-        <div className="mb-6 flex gap-1 rounded-xl bg-white/5 p-1">
+        <div className="mb-6 flex gap-1 rounded-xl bg-muted p-1">
           {(["buildings", "managers", "businesses"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-semibold capitalize transition-colors ${
-                tab === t ? "bg-white/10 text-white" : "text-white/50"
+                tab === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
               {t === "buildings" ? <Building2 className="h-4 w-4" /> : t === "managers" ? <Users className="h-4 w-4" /> : <Store className="h-4 w-4" />} {t}
@@ -208,13 +208,13 @@ function Buildings() {
     <div>
       <button
         onClick={() => setCreating((v) => !v)}
-        className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-3 text-[14px] font-semibold text-white/80"
+        className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-[14px] font-semibold text-foreground"
       >
         <Plus className="h-4 w-4" /> {creating ? "Close" : "Create building"}
       </button>
 
       {creating && (
-        <div className="mb-5 flex flex-col gap-2.5 rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="mb-5 flex flex-col gap-2.5 rounded-xl border border-border bg-card p-4">
           <AdminInput placeholder="Building name" value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} />
           <AdminInput
             placeholder="Building code (e.g. HVT2024)"
@@ -225,7 +225,7 @@ function Buildings() {
             <AdminInput placeholder="Address" value={form.address} onChange={(v) => setForm((p) => ({ ...p, address: v }))} />
             <AdminInput placeholder="City" value={form.city} onChange={(v) => setForm((p) => ({ ...p, city: v }))} />
           </div>
-          <p className="mt-1 text-[12px] font-semibold uppercase tracking-wide text-white/40">Pet rules</p>
+          <p className="mt-1 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Pet rules</p>
           {RULE_TOGGLES.map((r) => (
             <Toggle key={r.key} label={r.label} on={!!rules[r.key]} onToggle={() => setRules((p) => ({ ...p, [r.key]: !p[r.key] }))} />
           ))}
@@ -241,10 +241,10 @@ function Buildings() {
 
       {isLoading ? (
         <div className="flex justify-center py-10">
-          <Loader2 className="h-5 w-5 animate-spin text-white/50" />
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       ) : buildings.length === 0 ? (
-        <p className="py-8 text-center text-[14px] text-white/40">No buildings yet.</p>
+        <p className="py-8 text-center text-[14px] text-muted-foreground">No buildings yet.</p>
       ) : (
         <div className="flex flex-col gap-2.5">
           {buildings.map((b) => (
@@ -287,23 +287,23 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5">
+    <div className="rounded-xl border border-border bg-card">
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-3 p-3.5 text-left">
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/15">
           <Building2 className="h-5 w-5 text-primary" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold">{building.name}</p>
-          <p className="text-[12px] text-white/40">
+          <p className="text-[12px] text-muted-foreground">
             {building.code}
             {building.city ? ` · ${building.city}` : ""}
           </p>
         </div>
-        <ChevronDown className={`h-4 w-4 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="border-t border-white/10 p-3.5">
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-white/40">Invite a manager</p>
+        <div className="border-t border-border p-3.5">
+          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Invite a manager</p>
           <div className="flex flex-col gap-2">
             <AdminInput placeholder="Manager name (optional)" value={name} onChange={setName} />
             <div className="flex gap-2">
@@ -313,12 +313,12 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
               </button>
             </div>
           </div>
-          <p className="mb-2 mt-4 text-[12px] font-semibold uppercase tracking-wide text-white/40">Pet rules</p>
+          <p className="mb-2 mt-4 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Pet rules</p>
           <div className="flex flex-col gap-2">
             {RULE_TOGGLES.map((r) => (
               <Toggle key={r.key} label={r.label} on={!!rules[r.key]} onToggle={() => setRules((p) => ({ ...p, [r.key]: !p[r.key] }))} />
             ))}
-            <button onClick={saveRules} disabled={busy} className="mt-1 rounded-xl bg-white/10 py-2 text-[13px] font-semibold disabled:opacity-60">
+            <button onClick={saveRules} disabled={busy} className="mt-1 rounded-xl bg-muted py-2 text-[13px] font-semibold disabled:opacity-60">
               Save rules
             </button>
           </div>
@@ -353,18 +353,18 @@ function Managers() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3.5 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-white/40">
+      <div className="mb-4 flex flex-col gap-2 rounded-xl border border-border bg-card p-3.5 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" /> Filter by location
         </div>
         <select
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[13px] text-white focus:border-primary focus:outline-none"
+          className="rounded-lg border border-border bg-muted px-3 py-1.5 text-[13px] text-foreground focus:border-primary focus:outline-none"
         >
           <option value="">All cities</option>
           {cityOptions.map((c) => (
-            <option key={c} value={c} className="bg-[#171a21]">
+            <option key={c} value={c} className="bg-popover">
               {c}
             </option>
           ))}
@@ -372,11 +372,11 @@ function Managers() {
         <select
           value={region}
           onChange={(e) => setRegion(e.target.value)}
-          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[13px] text-white focus:border-primary focus:outline-none"
+          className="rounded-lg border border-border bg-muted px-3 py-1.5 text-[13px] text-foreground focus:border-primary focus:outline-none"
         >
           <option value="">All regions</option>
           {regionOptions.map((r) => (
-            <option key={r} value={r} className="bg-[#171a21]">
+            <option key={r} value={r} className="bg-popover">
               {r}
             </option>
           ))}
@@ -396,14 +396,14 @@ function Managers() {
 
       {isLoading ? (
         <div className="flex justify-center py-10">
-          <Loader2 className="h-5 w-5 animate-spin text-white/50" />
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       ) : managers.length === 0 ? (
-        <p className="py-8 text-center text-[14px] text-white/40">No managers match this filter.</p>
+        <p className="py-8 text-center text-[14px] text-muted-foreground">No managers match this filter.</p>
       ) : (
         <div className="flex flex-col gap-2.5">
           {managers.map((m) => (
-            <div key={`${m.id}-${m.building.id}`} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3.5">
+            <div key={`${m.id}-${m.building.id}`} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
               <div
                 className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${
                   m.isSuspended ? "bg-destructive/15" : "bg-primary/15"
@@ -415,7 +415,7 @@ function Managers() {
                 <div className="flex items-center gap-2">
                   <p className="truncate text-[15px] font-semibold">{m.name}</p>
                   {m.isPrimary && (
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                       Primary
                     </span>
                   )}
@@ -425,8 +425,8 @@ function Managers() {
                     </span>
                   )}
                 </div>
-                <p className="truncate text-[12px] text-white/40">{m.email}</p>
-                <p className="truncate text-[12px] text-white/40">
+                <p className="truncate text-[12px] text-muted-foreground">{m.email}</p>
+                <p className="truncate text-[12px] text-muted-foreground">
                   {m.building.name} · {m.building.code}
                   {m.building.city ? ` · ${m.building.city}` : ""}
                 </p>
@@ -435,7 +435,7 @@ function Managers() {
                 onClick={() => toggleSuspend(m)}
                 disabled={busy === m.id}
                 className={`flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60 ${
-                  m.isSuspended ? "bg-white/10 text-white" : "bg-destructive/15 text-destructive"
+                  m.isSuspended ? "bg-muted text-foreground" : "bg-destructive/15 text-destructive"
                 }`}
               >
                 {busy === m.id ? (
@@ -471,21 +471,21 @@ function Businesses() {
   if (isLoading)
     return (
       <div className="flex justify-center py-10">
-        <Loader2 className="h-5 w-5 animate-spin text-white/50" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     )
-  if (businesses.length === 0) return <p className="py-8 text-center text-[14px] text-white/40">No businesses yet.</p>
+  if (businesses.length === 0) return <p className="py-8 text-center text-[14px] text-muted-foreground">No businesses yet.</p>
 
   return (
     <div className="flex flex-col gap-2.5">
       {businesses.map((b) => (
-        <div key={b.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3.5">
+        <div key={b.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent/15">
             <Store className="h-5 w-5 text-accent" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-semibold">{b.name}</p>
-            <p className="text-[12px] text-white/40">{b.category}</p>
+            <p className="text-[12px] text-muted-foreground">{b.category}</p>
           </div>
           {b.isVerified ? (
             <button
@@ -499,7 +499,7 @@ function Businesses() {
             <button
               onClick={() => toggle(b.id, true)}
               disabled={busy === b.id}
-              className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
             >
               {busy === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeCheck className="h-3.5 w-3.5" />} Verify
             </button>
@@ -517,17 +517,17 @@ function AdminInput({ placeholder, value, onChange }: { placeholder: string; val
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full min-w-0 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-[14px] text-white placeholder:text-white/40 focus:border-primary focus:outline-none"
+      className="w-full min-w-0 rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
     />
   )
 }
 
 function Toggle({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
   return (
-    <button onClick={onToggle} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-left">
-      <span className="text-[13px] text-white/80">{label}</span>
-      <span className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${on ? "bg-success" : "bg-white/15"}`}>
-        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
+    <button onClick={onToggle} className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-left">
+      <span className="text-[13px] text-foreground">{label}</span>
+      <span className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${on ? "bg-success" : "bg-border"}`}>
+        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
       </span>
     </button>
   )

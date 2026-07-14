@@ -84,7 +84,8 @@ function AppContent() {
     )
   }
   // New pet owners answer one onboarding question before entering the app.
-  if (user && user.role === "pet-owner" && !user.onboarded) {
+  // Super admins are Pet10x staff, never residents — they skip it entirely.
+  if (user && user.role === "pet-owner" && !user.onboarded && !user.isSuperAdmin) {
     return (
       <div key="onboarding" className="mx-auto w-full max-w-md animate-in fade-in duration-300">
         <OnboardingFlow />
