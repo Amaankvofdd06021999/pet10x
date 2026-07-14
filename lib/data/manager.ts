@@ -52,10 +52,13 @@ export function useManagerBuilding() {
       return
     }
 
+    // Order by is_primary so a manager who runs several buildings always lands
+    // on the same one, rather than whichever row Postgres happens to return.
     const { data: link } = await supabase
       .from("building_managers")
       .select("building_id")
       .eq("profile_id", user.id)
+      .order("is_primary", { ascending: false })
       .limit(1)
       .maybeSingle()
 

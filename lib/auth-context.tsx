@@ -55,7 +55,10 @@ function sanitizeAuthError(message: string): string {
 async function loadAppUser(authUser: User): Promise<AppUser> {
   const supabase = getSupabaseBrowserClient()!
 
-  const [{ data: profile }, { data: link }, { count }] = await Promise.all([
+  // One round trip each, all in parallel. The building/unit names are embedded
+  // rather than fetched in follow-up queries — on a high-latency link those
+  // sequential hops were costing the better part of a second on every load.
+  const [{ data: profile }, { data: link }, { count }, { data: managed }] = await Promise.all([
     supabase
       .from("profiles")
       .select("role, full_name, email, avatar_url, member_since, plan_label, onboarded, is_super_admin, is_suspended")
@@ -63,40 +66,38 @@ async function loadAppUser(authUser: User): Promise<AppUser> {
       .maybeSingle(),
     supabase
       .from("resident_links")
-      .select("building_id, unit_id")
+      .select("building_id, buildings(name), units(unit_number)")
       .eq("profile_id", authUser.id)
       .eq("status", "approved")
       .limit(1)
       .maybeSingle(),
     supabase.from("pets").select("id", { count: "exact", head: true }).eq("owner_id", authUser.id),
+    // Ordered by is_primary so a multi-building manager always lands on the same one.
+    supabase
+      .from("building_managers")
+      .select("building_id, buildings(name)")
+      .eq("profile_id", authUser.id)
+      .order("is_primary", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   const appRole = DB_ROLE_TO_APP[profile?.role ?? "pet_owner"] ?? "pet-owner"
   const petCount = count ?? 0
 
+  type Named = { name: string } | { name: string }[] | null
+  const one = (v: Named): string => (Array.isArray(v) ? (v[0]?.name ?? "") : (v?.name ?? ""))
+
   let building = ""
   let unit = ""
-  let buildingId: string | null = link?.building_id ?? null
 
-  if (buildingId && link?.unit_id) {
-    const { data: u } = await supabase.from("units").select("unit_number").eq("id", link.unit_id).maybeSingle()
-    unit = u?.unit_number ?? ""
-  }
-
-  if (!buildingId && (appRole === "building-manager" || appRole === "super-admin")) {
-    const { data: bm } = await supabase
-      .from("building_managers")
-      .select("building_id")
-      .eq("profile_id", authUser.id)
-      .limit(1)
-      .maybeSingle()
-    buildingId = bm?.building_id ?? null
+  if (link?.building_id) {
+    building = one(link.buildings as Named)
+    const u = link.units as { unit_number: string } | { unit_number: string }[] | null
+    unit = Array.isArray(u) ? (u[0]?.unit_number ?? "") : (u?.unit_number ?? "")
+  } else if (managed?.building_id) {
+    building = one(managed.buildings as Named)
     if (appRole === "building-manager") unit = "Office"
-  }
-
-  if (buildingId) {
-    const { data: b } = await supabase.from("buildings").select("name").eq("id", buildingId).maybeSingle()
-    building = b?.name ?? ""
   }
 
   return {

@@ -36,16 +36,18 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
-  // IMPORTANT: do not run code between createServerClient and getUser().
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // getClaims() verifies the JWT locally against the project's ES256 public key
+  // (cached JWKS) instead of calling the auth server on every request, which is
+  // a full network round trip. It's still a real signature check — unlike
+  // getSession(), which trusts the cookie unverified.
+  const { data: claims } = await supabase.auth.getClaims()
+  const userId = claims?.claims?.sub
 
   const pathname = request.nextUrl.pathname
   const rule = findRouteRule(pathname)
   if (!rule) return response // public route — no lookup needed
 
-  if (!user) {
+  if (!userId) {
     const url = request.nextUrl.clone()
     url.pathname = "/login"
     url.searchParams.set("next", pathname)
@@ -55,7 +57,7 @@ export async function updateSession(request: NextRequest) {
   const { data: profile } = await supabase
     .from("profiles")
     .select("role, is_super_admin, is_suspended")
-    .eq("id", user.id)
+    .eq("id", userId)
     .maybeSingle()
 
   const subject = {
