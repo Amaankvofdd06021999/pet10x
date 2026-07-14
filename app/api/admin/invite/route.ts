@@ -55,23 +55,45 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error?.message ?? "Failed to generate invite" }, { status: 400 })
   }
 
-  // elevate the freshly-created profile (trigger created it as pet_owner)
+  // Elevate the freshly-created profile (the auth trigger created it as
+  // pet_owner). A failure here leaves an invited user with the wrong role or
+  // no building link, so surface it rather than reporting success.
   const invitedId = link.user?.id
   if (invitedId) {
-    await admin.from("profiles").update({ role, full_name: body.fullName ?? null }).eq("id", invitedId)
+    const { error: roleErr } = await admin
+      .from("profiles")
+      .update({ role, full_name: body.fullName ?? null })
+      .eq("id", invitedId)
+    if (roleErr) {
+      return NextResponse.json({ error: `Invited, but role assignment failed: ${roleErr.message}` }, { status: 500 })
+    }
+
     if (role === "building_manager" && body.buildingId) {
-      await admin
+      const { error: linkErr } = await admin
         .from("building_managers")
         .insert({ building_id: body.buildingId, profile_id: invitedId, granted_by: user.id })
+      if (linkErr) {
+        return NextResponse.json(
+          { error: `Invited, but linking to the building failed: ${linkErr.message}` },
+          { status: 500 },
+        )
+      }
     }
   }
 
-  await sendManagerInviteEmail({
+  const sent = await sendManagerInviteEmail({
     to: body.email,
     inviteUrl: link.properties.action_link,
     buildingName: body.buildingName,
     inviterName: me.full_name ?? "A Pet10x admin",
   })
 
-  return NextResponse.json({ ok: true })
+  // Outside production the email is suppressed — hand the link back so an admin
+  // can still complete the invite by passing it on manually.
+  const suppressed = "suppressed" in sent && sent.suppressed
+  return NextResponse.json({
+    ok: true,
+    emailSent: !suppressed,
+    ...(suppressed ? { inviteUrl: link.properties.action_link } : {}),
+  })
 }

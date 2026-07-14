@@ -42,7 +42,6 @@ export interface AdminBusiness {
   category: string
   isVerified: boolean
   ownerId: string
-  city: string | null
   createdAt: string
 }
 
@@ -122,12 +121,54 @@ export async function updateBuildingRules(id: string, rules: PetRules): Promise<
   return { error: error?.message ?? null }
 }
 
+/** Edit a building's identity/location fields (name, code, address, city, region). */
+export async function updateBuildingDetails(
+  id: string,
+  input: { name: string; code: string; address?: string; city?: string; region?: string },
+): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase
+    .from("buildings")
+    .update({
+      name: input.name,
+      building_code: input.code.toUpperCase(),
+      address: input.address || null,
+      city: input.city || null,
+      region: input.region || null,
+    })
+    .eq("id", id)
+  return { error: error?.message ?? null }
+}
+
+/** Delete a building. Cascades to units, resident_links, building_managers rows. */
+export async function deleteBuilding(id: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase.from("buildings").delete().eq("id", id)
+  return { error: error?.message ?? null }
+}
+
+export async function deleteBusiness(id: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase.from("businesses").delete().eq("id", id)
+  return { error: error?.message ?? null }
+}
+
+export interface InviteResult {
+  error: string | null
+  /** False when the server suppressed the email (non-production) — inviteUrl is then set. */
+  emailSent?: boolean
+  inviteUrl?: string
+}
+
 export async function inviteManager(input: {
   buildingId: string
   buildingName: string
   email: string
   fullName?: string
-}): Promise<{ error: string | null }> {
+}): Promise<InviteResult> {
   try {
     const res = await fetch("/api/admin/invite", {
       method: "POST",
@@ -140,9 +181,14 @@ export async function inviteManager(input: {
         buildingName: input.buildingName,
       }),
     })
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean
+      error?: string
+      emailSent?: boolean
+      inviteUrl?: string
+    }
     if (!res.ok || !json.ok) return { error: json.error ?? "Invite failed." }
-    return { error: null }
+    return { error: null, emailSent: json.emailSent, inviteUrl: json.inviteUrl }
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Invite failed." }
   }
@@ -173,7 +219,6 @@ export function useAdminBusinesses() {
           category: r.category,
           isVerified: r.is_verified,
           ownerId: r.owner_id,
-          city: null,
           createdAt: r.created_at,
         })),
       )
@@ -199,6 +244,7 @@ export async function verifyBusiness(id: string, verified: boolean): Promise<{ e
 /* ------------------------------------------------------------------ */
 
 export interface AdminManager {
+  linkId: string // building_managers row id — the assignment, not the person
   id: string // profile id
   name: string
   email: string
@@ -209,13 +255,17 @@ export interface AdminManager {
   building: { id: string; name: string; code: string; city: string | null; region: string | null }
 }
 
-export interface ManagerLocationFilter {
-  city?: string
-  region?: string
-}
-
-/** Every building_managers row, joined to the manager's profile and building — the master roster. */
-export function useAdminManagers(filter?: ManagerLocationFilter) {
+/**
+ * The full manager roster across every building — one row per building_managers
+ * link, joined to the manager's profile and their building.
+ *
+ * Deliberately unfiltered: the admin roster is small, and returning the whole
+ * list lets the caller derive its filter options from a stable set (filtering
+ * server-side would collapse the dropdown options to whatever's already
+ * selected). PostgREST can't filter parent rows by an embedded resource without
+ * an !inner join anyway, so a `.eq("building.city", …)` here would be a no-op.
+ */
+export function useAdminManagers() {
   const [data, setData] = useState<AdminManager[]>([])
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -227,7 +277,7 @@ export function useAdminManagers(filter?: ManagerLocationFilter) {
       return
     }
     setLoading(true)
-    let query = supabase
+    const { data: rows, error: err } = await supabase
       .from("building_managers")
       .select(
         `id, is_primary, created_at,
@@ -236,10 +286,6 @@ export function useAdminManagers(filter?: ManagerLocationFilter) {
       )
       .order("created_at", { ascending: false })
 
-    if (filter?.city) query = query.eq("building.city", filter.city)
-    if (filter?.region) query = query.eq("building.region", filter.region)
-
-    const { data: rows, error: err } = await query
     if (err) {
       setError(err.message)
       setData([])
@@ -258,6 +304,7 @@ export function useAdminManagers(filter?: ManagerLocationFilter) {
     const mapped = ((rows ?? []) as unknown as JoinedRow[])
       .filter((r) => r.profile && r.building)
       .map((r) => ({
+        linkId: r.id,
         id: r.profile!.id,
         name: r.profile!.full_name || r.profile!.email || "Unknown",
         email: r.profile!.email ?? "",
@@ -273,20 +320,25 @@ export function useAdminManagers(filter?: ManagerLocationFilter) {
           region: r.building!.region,
         },
       }))
-      // client-side filter fallback in case the embedded-resource .eq() above isn't supported by the PostgREST version
-      .filter((m) => (filter?.city ? m.building.city === filter.city : true))
-      .filter((m) => (filter?.region ? m.building.region === filter.region : true))
 
     setData(mapped)
     setError(null)
     setLoading(false)
-  }, [filter?.city, filter?.region])
+  }, [])
 
   useEffect(() => {
     void refetch()
   }, [refetch])
 
   return { data, isLoading, error, refetch }
+}
+
+/** Remove a manager's assignment to one building (leaves their account intact). */
+export async function revokeManagerFromBuilding(linkId: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase.from("building_managers").delete().eq("id", linkId)
+  return { error: error?.message ?? null }
 }
 
 /** Suspend or unsuspend a manager's whole account — blocks login/RLS scope everywhere, not just this building. */

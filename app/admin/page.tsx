@@ -9,11 +9,15 @@ import {
   useAdminBuildings,
   createBuilding,
   updateBuildingRules,
+  updateBuildingDetails,
+  deleteBuilding,
   inviteManager,
   useAdminBusinesses,
   verifyBusiness,
+  deleteBusiness,
   useAdminManagers,
   setManagerSuspended,
+  revokeManagerFromBuilding,
   type AdminBuilding,
   type AdminManager,
   type PetRules,
@@ -33,6 +37,8 @@ import {
   Ban,
   RotateCcw,
   MapPin,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react"
 
 export default function SuperAdminAccessPage() {
@@ -181,10 +187,12 @@ const RULE_TOGGLES: { key: keyof PetRules; label: string }[] = [
   { key: "require_spay_neuter", label: "Spay/neuter required" },
 ]
 
+const EMPTY_FORM = { name: "", code: "", address: "", city: "", region: "" }
+
 function Buildings() {
-  const { data: buildings, isLoading, refetch } = useAdminBuildings()
+  const { data: buildings, isLoading, error, refetch } = useAdminBuildings()
   const [creating, setCreating] = useState(false)
-  const [form, setForm] = useState({ name: "", code: "", address: "", city: "" })
+  const [form, setForm] = useState(EMPTY_FORM)
   const [rules, setRules] = useState<PetRules>({ requires_registry: true })
   const [saving, setSaving] = useState(false)
 
@@ -194,11 +202,11 @@ function Buildings() {
       return
     }
     setSaving(true)
-    const { error } = await createBuilding({ ...form, rules })
+    const { error: err } = await createBuilding({ ...form, rules })
     setSaving(false)
-    if (error) return toast.error("Couldn't create", { description: error })
+    if (err) return toast.error("Couldn't create", { description: err })
     toast.success("Building created")
-    setForm({ name: "", code: "", address: "", city: "" })
+    setForm(EMPTY_FORM)
     setRules({ requires_registry: true })
     setCreating(false)
     refetch()
@@ -221,9 +229,10 @@ function Buildings() {
             value={form.code}
             onChange={(v) => setForm((p) => ({ ...p, code: v.toUpperCase() }))}
           />
+          <AdminInput placeholder="Address" value={form.address} onChange={(v) => setForm((p) => ({ ...p, address: v }))} />
           <div className="grid grid-cols-2 gap-2.5">
-            <AdminInput placeholder="Address" value={form.address} onChange={(v) => setForm((p) => ({ ...p, address: v }))} />
             <AdminInput placeholder="City" value={form.city} onChange={(v) => setForm((p) => ({ ...p, city: v }))} />
+            <AdminInput placeholder="Region (e.g. BC)" value={form.region} onChange={(v) => setForm((p) => ({ ...p, region: v }))} />
           </div>
           <p className="mt-1 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Pet rules</p>
           {RULE_TOGGLES.map((r) => (
@@ -243,6 +252,8 @@ function Buildings() {
         <div className="flex justify-center py-10">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
+      ) : error ? (
+        <LoadError message={error} onRetry={refetch} />
       ) : buildings.length === 0 ? (
         <p className="py-8 text-center text-[14px] text-muted-foreground">No buildings yet.</p>
       ) : (
@@ -261,6 +272,14 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
   const [rules, setRules] = useState<PetRules>(building.rules)
+  const [editing, setEditing] = useState(false)
+  const [details, setDetails] = useState({
+    name: building.name,
+    code: building.code,
+    address: building.address ?? "",
+    city: building.city ?? "",
+    region: building.region ?? "",
+  })
   const [busy, setBusy] = useState(false)
 
   async function invite() {
@@ -269,12 +288,29 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
       return
     }
     setBusy(true)
-    const { error } = await inviteManager({ buildingId: building.id, buildingName: building.name, email: email.trim(), fullName: name.trim() || undefined })
+    const res = await inviteManager({
+      buildingId: building.id,
+      buildingName: building.name,
+      email: email.trim(),
+      fullName: name.trim() || undefined,
+    })
     setBusy(false)
-    if (error) return toast.error("Invite failed", { description: error })
-    toast.success("Manager invited", { description: `Invite sent to ${email.trim()}` })
+    if (res.error) return toast.error("Invite failed", { description: res.error })
+
+    if (res.emailSent === false && res.inviteUrl) {
+      // Email is suppressed outside production — don't claim we sent one.
+      const url = res.inviteUrl
+      toast.success("Manager added — email not sent", {
+        description: "Email is disabled outside production. Copy the invite link to share it.",
+        duration: 15000,
+        action: { label: "Copy link", onClick: () => void navigator.clipboard.writeText(url) },
+      })
+    } else {
+      toast.success("Manager invited", { description: `Invite sent to ${email.trim()}` })
+    }
     setEmail("")
     setName("")
+    onChange()
   }
 
   async function saveRules() {
@@ -283,6 +319,30 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
     setBusy(false)
     if (error) return toast.error("Couldn't save rules", { description: error })
     toast.success("Rules updated")
+    onChange()
+  }
+
+  async function saveDetails() {
+    if (!details.name.trim() || !details.code.trim()) {
+      toast.error("Name and code are required.")
+      return
+    }
+    setBusy(true)
+    const { error } = await updateBuildingDetails(building.id, details)
+    setBusy(false)
+    if (error) return toast.error("Couldn't save", { description: error })
+    toast.success("Building updated")
+    setEditing(false)
+    onChange()
+  }
+
+  async function remove() {
+    if (!confirm(`Delete ${building.name}? This also removes its units, residents links, and manager assignments.`)) return
+    setBusy(true)
+    const { error } = await deleteBuilding(building.id)
+    setBusy(false)
+    if (error) return toast.error("Couldn't delete", { description: error })
+    toast.success("Building deleted")
     onChange()
   }
 
@@ -297,13 +357,49 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
           <p className="text-[12px] text-muted-foreground">
             {building.code}
             {building.city ? ` · ${building.city}` : ""}
+            {building.region ? `, ${building.region}` : ""}
           </p>
         </div>
         <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="border-t border-border p-3.5">
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Invite a manager</p>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Building details</p>
+            <button onClick={() => setEditing((v) => !v)} className="text-[12px] font-semibold text-primary">
+              {editing ? "Cancel" : "Edit"}
+            </button>
+          </div>
+          {editing ? (
+            <div className="flex flex-col gap-2">
+              <AdminInput placeholder="Building name" value={details.name} onChange={(v) => setDetails((p) => ({ ...p, name: v }))} />
+              <AdminInput
+                placeholder="Building code"
+                value={details.code}
+                onChange={(v) => setDetails((p) => ({ ...p, code: v.toUpperCase() }))}
+              />
+              <AdminInput placeholder="Address" value={details.address} onChange={(v) => setDetails((p) => ({ ...p, address: v }))} />
+              <div className="grid grid-cols-2 gap-2">
+                <AdminInput placeholder="City" value={details.city} onChange={(v) => setDetails((p) => ({ ...p, city: v }))} />
+                <AdminInput placeholder="Region" value={details.region} onChange={(v) => setDetails((p) => ({ ...p, region: v }))} />
+              </div>
+              <button
+                onClick={saveDetails}
+                disabled={busy}
+                className="mt-1 rounded-xl bg-primary py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                Save details
+              </button>
+            </div>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">
+              {building.address || "No address"}
+              {building.city ? ` · ${building.city}` : ""}
+              {building.region ? `, ${building.region}` : ""}
+            </p>
+          )}
+
+          <p className="mb-2 mt-4 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Invite a manager</p>
           <div className="flex flex-col gap-2">
             <AdminInput placeholder="Manager name (optional)" value={name} onChange={setName} />
             <div className="flex gap-2">
@@ -322,6 +418,14 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
               Save rules
             </button>
           </div>
+
+          <button
+            onClick={remove}
+            disabled={busy}
+            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-destructive/10 py-2 text-[13px] font-semibold text-destructive disabled:opacity-60"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete building
+          </button>
         </div>
       )}
     </div>
@@ -331,23 +435,36 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
 function Managers() {
   const [city, setCity] = useState("")
   const [region, setRegion] = useState("")
-  const { data: managers, isLoading, refetch } = useAdminManagers({
-    city: city.trim() || undefined,
-    region: region.trim() || undefined,
-  })
+  // Fetch the whole roster and filter here — options stay stable, so picking a
+  // city doesn't collapse the list of cities you can switch to.
+  const { data: allManagers, isLoading, error, refetch } = useAdminManagers()
   const [busy, setBusy] = useState<string | null>(null)
 
-  const cityOptions = Array.from(new Set(managers.map((m) => m.building.city).filter((c): c is string => !!c))).sort()
-  const regionOptions = Array.from(new Set(managers.map((m) => m.building.region).filter((r): r is string => !!r))).sort()
+  const cityOptions = Array.from(new Set(allManagers.map((m) => m.building.city).filter((c): c is string => !!c))).sort()
+  const regionOptions = Array.from(new Set(allManagers.map((m) => m.building.region).filter((r): r is string => !!r))).sort()
+
+  const managers = allManagers
+    .filter((m) => (city ? m.building.city === city : true))
+    .filter((m) => (region ? m.building.region === region : true))
 
   async function toggleSuspend(m: AdminManager) {
-    setBusy(m.id)
-    const { error } = await setManagerSuspended(m.id, !m.isSuspended)
+    setBusy(m.linkId)
+    const { error: err } = await setManagerSuspended(m.id, !m.isSuspended)
     setBusy(null)
-    if (error) return toast.error("Action failed", { description: error })
+    if (err) return toast.error("Action failed", { description: err })
     toast.success(m.isSuspended ? "Manager access restored" : "Manager suspended", {
       description: m.isSuspended ? `${m.name} can sign in again.` : `${m.name} is locked out of every building and dashboard.`,
     })
+    refetch()
+  }
+
+  async function revoke(m: AdminManager) {
+    if (!confirm(`Remove ${m.name} as a manager of ${m.building.name}? Their account stays active.`)) return
+    setBusy(m.linkId)
+    const { error: err } = await revokeManagerFromBuilding(m.linkId)
+    setBusy(null)
+    if (err) return toast.error("Couldn't revoke", { description: err })
+    toast.success("Manager removed from building")
     refetch()
   }
 
@@ -398,12 +515,16 @@ function Managers() {
         <div className="flex justify-center py-10">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
+      ) : error ? (
+        <LoadError message={error} onRetry={refetch} />
       ) : managers.length === 0 ? (
-        <p className="py-8 text-center text-[14px] text-muted-foreground">No managers match this filter.</p>
+        <p className="py-8 text-center text-[14px] text-muted-foreground">
+          {allManagers.length === 0 ? "No managers yet — invite one from a building." : "No managers match this filter."}
+        </p>
       ) : (
         <div className="flex flex-col gap-2.5">
           {managers.map((m) => (
-            <div key={`${m.id}-${m.building.id}`} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
+            <div key={m.linkId} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
               <div
                 className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${
                   m.isSuspended ? "bg-destructive/15" : "bg-primary/15"
@@ -429,24 +550,35 @@ function Managers() {
                 <p className="truncate text-[12px] text-muted-foreground">
                   {m.building.name} · {m.building.code}
                   {m.building.city ? ` · ${m.building.city}` : ""}
+                  {m.building.region ? `, ${m.building.region}` : ""}
                 </p>
               </div>
-              <button
-                onClick={() => toggleSuspend(m)}
-                disabled={busy === m.id}
-                className={`flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60 ${
-                  m.isSuspended ? "bg-muted text-foreground" : "bg-destructive/15 text-destructive"
-                }`}
-              >
-                {busy === m.id ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : m.isSuspended ? (
-                  <RotateCcw className="h-3.5 w-3.5" />
-                ) : (
-                  <Ban className="h-3.5 w-3.5" />
-                )}
-                {m.isSuspended ? "Restore" : "Freeze"}
-              </button>
+              <div className="flex flex-shrink-0 items-center gap-1.5">
+                <button
+                  onClick={() => toggleSuspend(m)}
+                  disabled={busy === m.linkId}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60 ${
+                    m.isSuspended ? "bg-muted text-foreground" : "bg-destructive/15 text-destructive"
+                  }`}
+                >
+                  {busy === m.linkId ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : m.isSuspended ? (
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  ) : (
+                    <Ban className="h-3.5 w-3.5" />
+                  )}
+                  {m.isSuspended ? "Restore" : "Freeze"}
+                </button>
+                <button
+                  onClick={() => revoke(m)}
+                  disabled={busy === m.linkId}
+                  title="Remove from this building"
+                  className="flex items-center rounded-lg bg-muted p-1.5 text-muted-foreground disabled:opacity-60"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -456,15 +588,25 @@ function Managers() {
 }
 
 function Businesses() {
-  const { data: businesses, isLoading, refetch } = useAdminBusinesses()
+  const { data: businesses, isLoading, error, refetch } = useAdminBusinesses()
   const [busy, setBusy] = useState<string | null>(null)
 
   async function toggle(id: string, verified: boolean) {
     setBusy(id)
-    const { error } = await verifyBusiness(id, verified)
+    const { error: err } = await verifyBusiness(id, verified)
     setBusy(null)
-    if (error) return toast.error("Action failed", { description: error })
+    if (err) return toast.error("Action failed", { description: err })
     toast.success(verified ? "Business verified" : "Verification removed")
+    refetch()
+  }
+
+  async function remove(id: string, name: string) {
+    if (!confirm(`Delete ${name}? This removes their listings and cannot be undone.`)) return
+    setBusy(id)
+    const { error: err } = await deleteBusiness(id)
+    setBusy(null)
+    if (err) return toast.error("Couldn't delete", { description: err })
+    toast.success("Business deleted")
     refetch()
   }
 
@@ -474,6 +616,7 @@ function Businesses() {
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     )
+  if (error) return <LoadError message={error} onRetry={refetch} />
   if (businesses.length === 0) return <p className="py-8 text-center text-[14px] text-muted-foreground">No businesses yet.</p>
 
   return (
@@ -487,25 +630,51 @@ function Businesses() {
             <p className="truncate text-[15px] font-semibold">{b.name}</p>
             <p className="text-[12px] text-muted-foreground">{b.category}</p>
           </div>
-          {b.isVerified ? (
+          <div className="flex flex-shrink-0 items-center gap-1.5">
+            {b.isVerified ? (
+              <button
+                onClick={() => toggle(b.id, false)}
+                disabled={busy === b.id}
+                className="flex items-center gap-1.5 rounded-lg bg-success/15 px-3 py-1.5 text-[12px] font-semibold text-success disabled:opacity-60"
+              >
+                {busy === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeCheck className="h-3.5 w-3.5" />} Verified
+              </button>
+            ) : (
+              <button
+                onClick={() => toggle(b.id, true)}
+                disabled={busy === b.id}
+                className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
+              >
+                {busy === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeCheck className="h-3.5 w-3.5" />} Verify
+              </button>
+            )}
             <button
-              onClick={() => toggle(b.id, false)}
+              onClick={() => remove(b.id, b.name)}
               disabled={busy === b.id}
-              className="flex items-center gap-1.5 rounded-lg bg-success/15 px-3 py-1.5 text-[12px] font-semibold text-success disabled:opacity-60"
+              title="Delete business"
+              className="flex items-center rounded-lg bg-muted p-1.5 text-muted-foreground disabled:opacity-60"
             >
-              {busy === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeCheck className="h-3.5 w-3.5" />} Verified
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
-          ) : (
-            <button
-              onClick={() => toggle(b.id, true)}
-              disabled={busy === b.id}
-              className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
-            >
-              {busy === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeCheck className="h-3.5 w-3.5" />} Verify
-            </button>
-          )}
+          </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+/** Shown when a Supabase read fails — otherwise a failed load looks like an empty list. */
+function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-6 py-8 text-center">
+      <AlertTriangle className="h-6 w-6 text-destructive" />
+      <div>
+        <p className="text-[14px] font-semibold text-foreground">Couldn&apos;t load</p>
+        <p className="mt-0.5 max-w-sm text-[12px] text-muted-foreground">{message}</p>
+      </div>
+      <button onClick={onRetry} className="rounded-lg bg-muted px-4 py-1.5 text-[13px] font-semibold text-foreground">
+        Retry
+      </button>
     </div>
   )
 }
