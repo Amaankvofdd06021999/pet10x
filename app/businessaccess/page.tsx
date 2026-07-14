@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
+import { canAccessRoute } from "@/lib/rbac"
 import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
 import { useMyBusiness, updateBusiness } from "@/lib/data/business"
@@ -28,7 +29,7 @@ function Gate() {
     )
   }
   if (!isAuthenticated) return <BusinessAuth />
-  if (user?.role !== "business") {
+  if (!canAccessRoute("/businessaccess", { role: user?.role ?? null, isSuperAdmin: user?.isSuperAdmin ?? false })) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
         <Store className="h-10 w-10 text-muted-foreground" />
