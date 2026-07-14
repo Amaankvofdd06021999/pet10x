@@ -2506,6 +2506,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      emergency_directory: { Args: { p_token: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_premium: { Args: { p_user: string }; Returns: boolean }
       is_resident_of: { Args: { b: string }; Returns: boolean }
