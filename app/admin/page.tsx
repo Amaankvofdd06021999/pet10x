@@ -225,7 +225,7 @@ function Buildings() {
         <div className="mb-5 flex flex-col gap-2.5 rounded-xl border border-border bg-card p-4">
           <AdminInput placeholder="Building name" value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} />
           <AdminInput
-            placeholder="Building code (e.g. HVT2024)"
+            placeholder="Building code (e.g. MCR2026)"
             value={form.code}
             onChange={(v) => setForm((p) => ({ ...p, code: v.toUpperCase() }))}
           />
@@ -670,7 +670,7 @@ function LoadError({ message, onRetry }: { message: string; onRetry: () => void 
       <AlertTriangle className="h-6 w-6 text-destructive" />
       <div>
         <p className="text-[14px] font-semibold text-foreground">Couldn&apos;t load</p>
-        <p className="mt-0.5 max-w-sm text-[12px] text-muted-foreground">{message}</p>
+        <p className="mt-0.5 w-full max-w-sm text-[12px] text-muted-foreground">{message}</p>
       </div>
       <button onClick={onRetry} className="rounded-lg bg-muted px-4 py-1.5 text-[13px] font-semibold text-foreground">
         Retry

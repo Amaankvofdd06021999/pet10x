@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import type { User } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client"
+import { resolveBuildingCodeLive } from "@/lib/data/incidents"
 import {
   MOCK_USERS,
   VALID_BUILDING_CODES,
@@ -140,7 +141,7 @@ interface AuthContextValue {
   markOnboarded: () => Promise<void>
   /** Patch the locally-cached user after a profile write elsewhere (e.g. account.ts). */
   updateLocalUser: (patch: Partial<AppUser>) => void
-  signInGuest: (code: string) => string | null
+  signInGuest: (code: string) => Promise<string | null>
   signOut: () => Promise<void>
 }
 
@@ -158,7 +159,7 @@ const AuthContext = createContext<AuthContextValue>({
   resetPassword: async () => ({ error: "Auth not configured." }),
   markOnboarded: async () => {},
   updateLocalUser: () => {},
-  signInGuest: () => null,
+  signInGuest: async () => null,
   signOut: async () => {},
 })
 
@@ -274,9 +275,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => (prev ? { ...prev, onboarded: true } : prev))
   }, [])
 
-  const signInGuest = useCallback((code: string): string | null => {
-    const building = resolveBuildingCode(code)
-    if (!building) return "Invalid building code. Please check with your building management."
+  const signInGuest = useCallback(async (code: string): Promise<string | null> => {
+    // Resolve against the real buildings table. (Before Supabase is configured
+    // we fall back to the mock list so the demo still runs offline.)
+    const building = SUPABASE_ENABLED
+      ? (await resolveBuildingCodeLive(code)).name ?? null
+      : resolveBuildingCode(code)
+
+    if (!building) return "That building code isn't recognised. Check with your building management."
     setUser(null)
     setGuestSession({ buildingCode: code.trim().toUpperCase(), buildingName: building })
     setAuthMode("guest")

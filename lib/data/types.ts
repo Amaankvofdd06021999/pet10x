@@ -413,7 +413,7 @@ export interface RegistrationDocuments {
 }
 
 export interface Registration {
-  id: number
+  id: string
   unit: string
   resident: string
   species: Species
@@ -435,7 +435,7 @@ export interface AccommodationDocuments {
 }
 
 export interface AccommodationRequest {
-  id: number
+  id: string
   unit: string
   resident: string
   type: AccommodationType
@@ -447,7 +447,7 @@ export interface AccommodationRequest {
 }
 
 export interface DocumentReviewItem {
-  id: number
+  id: string
   unit: string
   resident: string
   pet: string
@@ -462,7 +462,7 @@ export interface ViolationHistoryStep {
 }
 
 export interface Violation {
-  id: number
+  id: string
   unit: string
   resident: string
   pet: string
@@ -477,7 +477,7 @@ export interface Violation {
 }
 
 export interface ResolvedViolation {
-  id: number
+  id: string
   unit: string
   type: string
   resolved: string
@@ -489,7 +489,7 @@ export interface ResolvedViolation {
 /* ------------------------------------------------------------------ */
 
 export interface UrgentItem {
-  id: number
+  id: string
   title: string
   body: string
   severity: "critical" | "high"

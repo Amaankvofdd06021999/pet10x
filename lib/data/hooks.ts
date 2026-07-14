@@ -106,27 +106,16 @@ export function useResidents(): QueryResult<Resident[]> {
 
 /* ------------------------- Manager: approvals --------------------- */
 
-export function useRegistrations(): QueryResult<Registration[]> {
-  return resolved([])
-}
-
-export function useAccommodations(): QueryResult<AccommodationRequest[]> {
-  return resolved([])
-}
-
-export function useDocumentsReview(): QueryResult<DocumentReviewItem[]> {
-  return resolved([])
-}
+/* These are now backed by real rows — see `./manager-queues`. They were stubs
+ * returning [] while the screens displayed invented counts. */
+export { useRegistrationsLive as useRegistrations } from "./manager-queues"
+export { useAccommodationsLive as useAccommodations } from "./manager-queues"
+export { useDocumentsReviewLive as useDocumentsReview } from "./manager-queues"
 
 /* ------------------------- Manager: violations -------------------- */
 
-export function useViolations(): QueryResult<Violation[]> {
-  return resolved([])
-}
-
-export function useResolvedViolations(): QueryResult<ResolvedViolation[]> {
-  return resolved([])
-}
+export { useViolationsLive as useViolations } from "./manager-queues"
+export { useResolvedViolationsLive as useResolvedViolations } from "./manager-queues"
 
 /* ------------------------- Manager: dashboard --------------------- */
 

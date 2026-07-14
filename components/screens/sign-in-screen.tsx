@@ -40,12 +40,15 @@ export function SignInScreen() {
   const [info, setInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleGuestSignIn = () => {
+  const handleGuestSignIn = async () => {
     if (!buildingCode.trim()) {
       setCodeError("Please enter your building code.")
       return
     }
-    const err = signInGuest(buildingCode)
+    setCodeError(null)
+    setLoading(true)
+    const err = await signInGuest(buildingCode)
+    setLoading(false)
     if (err) setCodeError(err)
   }
 
@@ -124,7 +127,7 @@ export function SignInScreen() {
                 type="text"
                 value={buildingCode}
                 onChange={(e) => { setBuildingCode(e.target.value.toUpperCase()); setCodeError(null) }}
-                placeholder="e.g. HVT2024"
+                placeholder="e.g. MCR2026"
                 autoCapitalize="characters"
                 autoComplete="off"
                 maxLength={10}
@@ -148,7 +151,7 @@ export function SignInScreen() {
             </p>
           </div>
           <p className="mt-3 text-center text-[11px] text-muted-foreground">
-            Demo: use code <span className="font-mono font-semibold text-foreground">HVT2024</span>
+            Demo: use code <span className="font-mono font-semibold text-foreground">MCR2026</span>
           </p>
         </div>
       </div>

@@ -2507,6 +2507,11 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       emergency_directory: { Args: { p_token: string }; Returns: Json }
+      escalate_incident_to_violation: {
+        Args: { p_incident: string; p_type?: string }
+        Returns: Json
+      }
+      incident_status_by_reference: { Args: { p_ref: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_premium: { Args: { p_user: string }; Returns: boolean }
       is_resident_of: { Args: { b: string }; Returns: boolean }
@@ -2514,9 +2519,21 @@ export type Database = {
       manages_building: { Args: { b: string }; Returns: boolean }
       my_building_link: { Args: never; Returns: Json }
       request_building_link: { Args: { p_code: string }; Returns: Json }
+      resolve_building_code: { Args: { p_code: string }; Returns: Json }
       resolve_entitlement: {
         Args: { p_user: string }
         Returns: Database["public"]["Enums"]["entitlement_source"]
+      }
+      submit_incident_report: {
+        Args: {
+          p_anonymous?: boolean
+          p_building_code: string
+          p_description: string
+          p_location?: string
+          p_type: string
+          p_unit?: string
+        }
+        Returns: Json
       }
     }
     Enums: {

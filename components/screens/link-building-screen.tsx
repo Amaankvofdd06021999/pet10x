@@ -108,7 +108,7 @@ export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
                     setCode(e.target.value.toUpperCase())
                     setError(null)
                   }}
-                  placeholder="e.g. HVT2024"
+                  placeholder="e.g. MCR2026"
                   autoCapitalize="characters"
                   autoComplete="off"
                   maxLength={12}

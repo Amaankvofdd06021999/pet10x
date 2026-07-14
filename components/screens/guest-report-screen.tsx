@@ -1,7 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
+import { submitIncident, type IncidentType as DbIncidentType } from "@/lib/data/incidents"
 import {
   ArrowLeft,
   Camera,
@@ -22,6 +24,16 @@ import {
 type IncidentType = "noise" | "aggressive" | "off-leash" | "waste" | "damage" | "other"
 type ReportStep = "type" | "details" | "evidence" | "submitted"
 
+/** The screen uses hyphenated ids; the DB enum uses underscores. */
+const TYPE_TO_DB: Record<IncidentType, DbIncidentType> = {
+  noise: "noise",
+  aggressive: "aggressive",
+  "off-leash": "off_leash",
+  waste: "waste",
+  damage: "damage",
+  other: "other",
+}
+
 const INCIDENT_TYPES: { id: IncidentType; label: string; icon: typeof AlertTriangle; color: string }[] = [
   { id: "noise", label: "Noise Complaint", icon: Volume2, color: "bg-warning/10 text-[#FFCC00]" },
   { id: "aggressive", label: "Aggressive Behaviour", icon: ShieldAlert, color: "bg-destructive/10 text-destructive" },
@@ -40,13 +52,31 @@ export function GuestReportScreen() {
   const [unitNumber, setUnitNumber] = useState("")
   const [photos, setPhotos] = useState<string[]>([])
   const [isAnonymous, setIsAnonymous] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [reference, setReference] = useState<string | null>(null)
 
   const handlePhotoAdd = () => {
     // Simulate adding a photo
     setPhotos((prev) => [...prev, `/pets/dog1.jpg`])
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!selectedType || !guestSession?.buildingCode) return
+    setSubmitting(true)
+    const res = await submitIncident({
+      buildingCode: guestSession.buildingCode,
+      type: TYPE_TO_DB[selectedType],
+      description: description.trim(),
+      location: location.trim() || undefined,
+      unit: unitNumber.trim() || undefined,
+      anonymous: isAnonymous,
+    })
+    setSubmitting(false)
+    if (!res.ok) {
+      toast.error("Couldn't file the report", { description: res.error })
+      return
+    }
+    setReference(res.reference ?? null)
     setStep("submitted")
   }
 
@@ -64,7 +94,9 @@ export function GuestReportScreen() {
             management. They will investigate and follow up as needed.
           </p>
           <p className="mt-2 text-center text-[13px] text-muted-foreground">
-            Reference #: INC-{Date.now().toString(36).toUpperCase().slice(-6)}
+            Reference #: <span className="font-mono font-semibold text-foreground">{reference}</span>
+            <br />
+            <span className="text-[12px]">Keep this — you can use it to check the status of your report.</span>
           </p>
 
           <div className="mt-8 flex w-full flex-col gap-3">
@@ -76,6 +108,7 @@ export function GuestReportScreen() {
                 setLocation("")
                 setUnitNumber("")
                 setPhotos([])
+                setReference(null)
               }}
               className="w-full rounded-xl bg-primary py-3.5 text-[17px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
             >
@@ -349,9 +382,10 @@ export function GuestReportScreen() {
 
             <button
               onClick={handleSubmit}
-              className="w-full rounded-xl bg-destructive py-3.5 text-[17px] font-semibold text-destructive-foreground transition-transform active:scale-[0.98]"
+              disabled={submitting}
+              className="w-full rounded-xl bg-destructive py-3.5 text-[17px] font-semibold text-destructive-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
             >
-              Submit Report
+              {submitting ? "Filing report…" : "Submit Report"}
             </button>
 
             <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">

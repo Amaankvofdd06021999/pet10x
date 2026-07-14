@@ -3,6 +3,21 @@
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useRegistrations, useAccommodations, useDocumentsReview } from "@/lib/data"
+import {
+  useRegistrationsLive,
+  useAccommodationsLive,
+  decideRegistration,
+  decideAccommodation,
+} from "@/lib/data/manager-queues"
+import {
+  useIncidents,
+  setIncidentStatus,
+  escalateIncident,
+  isOpenIncident,
+  INCIDENT_TYPE_LABEL,
+  INCIDENT_STATUS_LABEL,
+  type ManagerIncident,
+} from "@/lib/data/incidents"
 import { toast } from "sonner"
 import {
   Dog,
@@ -20,12 +35,15 @@ import {
   ChevronUp,
   AlertTriangle,
   Inbox,
+  Gavel,
+  Loader2,
+  UserX,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-type ApprovalTab = "registrations" | "accommodations" | "documents"
+type ApprovalTab = "incidents" | "registrations" | "accommodations" | "documents"
 
-const TABS: { id: ApprovalTab; label: string; count: number }[] = [
+const STATIC_TABS: { id: ApprovalTab; label: string; count: number }[] = [
   { id: "registrations", label: "Registrations", count: 3 },
   { id: "accommodations", label: "Accommodations", count: 2 },
   { id: "documents", label: "Documents", count: 4 },
@@ -44,12 +62,16 @@ function ApprovalsEmptyState({ title, subtext }: { title: string; subtext: strin
 }
 
 export function ManagerApprovalsScreen() {
-  const [activeTab, setActiveTab] = useState<ApprovalTab>("registrations")
-  const [expandedReg, setExpandedReg] = useState<number | null>(1)
-  const [expandedAcc, setExpandedAcc] = useState<number | null>(1)
-  const { data: registrations } = useRegistrations()
-  const { data: accommodations } = useAccommodations()
+  const [activeTab, setActiveTab] = useState<ApprovalTab>("incidents")
+  const [expandedReg, setExpandedReg] = useState<string | null>(null)
+  const [expandedAcc, setExpandedAcc] = useState<string | null>(null)
+  const { data: registrations, refetch: refetchRegs } = useRegistrationsLive()
+  const { data: accommodations, refetch: refetchAcc } = useAccommodationsLive()
   const { data: documentsReview } = useDocumentsReview()
+  const { data: incidents, isLoading: incidentsLoading, refetch: refetchIncidents } = useIncidents()
+
+  const openIncidents = incidents.filter((i) => isOpenIncident(i.status))
+  const TABS = [{ id: "incidents" as ApprovalTab, label: "Incidents", count: openIncidents.length }, ...STATIC_TABS]
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -76,6 +98,28 @@ export function ManagerApprovalsScreen() {
       </div>
 
       <main className="ios-scroll flex-1 px-4 pb-24">
+        {/* Incidents — where guest and resident reports land for triage. */}
+        {activeTab === "incidents" && (
+          <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
+            {incidentsLoading ? (
+              <div className="flex justify-center py-10 lg:col-span-2">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : incidents.length === 0 ? (
+              <div className="lg:col-span-2">
+                <ApprovalsEmptyState
+                  title="No incidents reported"
+                  subtext="Reports filed by residents or guests using your building code will appear here for triage."
+                />
+              </div>
+            ) : (
+              incidents.map((incident) => (
+                <IncidentCard key={incident.id} incident={incident} onChange={refetchIncidents} />
+              ))
+            )}
+          </div>
+        )}
+
         {/* Registrations Tab */}
         {activeTab === "registrations" && (
           <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
@@ -139,13 +183,29 @@ export function ManagerApprovalsScreen() {
 
                       {/* Actions */}
                       <div className="flex gap-2">
-                        <button onClick={() => toast.success("Approved")} className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
+                        <button
+                          onClick={async () => {
+                            const { error } = await decideRegistration(reg.id, true)
+                            if (error) return toast.error("Couldn't approve", { description: error })
+                            toast.success(`${reg.name} approved`)
+                            refetchRegs()
+                          }}
+                          className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
                           Approve
                         </button>
-                        <button onClick={() => toast("Request denied")} className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
+                        <button
+                          onClick={async () => {
+                            const { error } = await decideRegistration(reg.id, false)
+                            if (error) return toast.error("Couldn't deny", { description: error })
+                            toast(`${reg.name} denied`)
+                            refetchRegs()
+                          }}
+                          className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
                           Deny
                         </button>
-                        <button onClick={() => toast("Info requested from resident")} className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                        <button
+                          onClick={() => toast("Info requested", { description: "Messaging the resident isn't built yet." })}
+                          className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
                           Request Info
                         </button>
                       </div>
@@ -221,13 +281,34 @@ export function ManagerApprovalsScreen() {
 
                       {/* Actions */}
                       <div className="flex gap-2">
-                        <button onClick={() => toast.success("Approved")} className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
+                        <button
+                          onClick={async () => {
+                            const { error } = await decideAccommodation(acc.id, "approved")
+                            if (error) return toast.error("Couldn't approve", { description: error })
+                            toast.success("Accommodation approved", { description: "Decision logged for the audit trail." })
+                            refetchAcc()
+                          }}
+                          className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
                           Approve
                         </button>
-                        <button onClick={() => toast("Request denied")} className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
+                        <button
+                          onClick={async () => {
+                            const { error } = await decideAccommodation(acc.id, "denied")
+                            if (error) return toast.error("Couldn't deny", { description: error })
+                            toast("Accommodation denied", { description: "Document your reasoning — this is CRT-relevant." })
+                            refetchAcc()
+                          }}
+                          className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
                           Deny
                         </button>
-                        <button onClick={() => toast.success("Documents verified")} className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                        <button
+                          onClick={async () => {
+                            const { error } = await decideAccommodation(acc.id, "info_requested")
+                            if (error) return toast.error("Couldn't update", { description: error })
+                            toast("More information requested")
+                            refetchAcc()
+                          }}
+                          className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
                           Verify Docs
                         </button>
                       </div>
@@ -282,6 +363,119 @@ export function ManagerApprovalsScreen() {
           </div>
         )}
       </main>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Incident triage — the manager's half of the reporting loop.         */
+/* ------------------------------------------------------------------ */
+
+const INCIDENT_STATUS_STYLE: Record<string, string> = {
+  submitted: "bg-destructive/10 text-destructive",
+  triaged: "bg-info/10 text-info",
+  investigating: "bg-warning/10 text-[#B8860B]",
+  linked_to_violation: "bg-primary/10 text-primary",
+  dismissed: "bg-muted text-muted-foreground",
+  resolved: "bg-success/10 text-success",
+}
+
+function IncidentCard({ incident, onChange }: { incident: ManagerIncident; onChange: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const open = isOpenIncident(incident.status)
+
+  async function move(status: Parameters<typeof setIncidentStatus>[1], label: string) {
+    setBusy(true)
+    const { error } = await setIncidentStatus(incident.id, status)
+    setBusy(false)
+    if (error) return toast.error("Couldn't update", { description: error })
+    toast.success(label)
+    onChange()
+  }
+
+  async function escalate() {
+    setBusy(true)
+    const { error } = await escalateIncident(incident.id)
+    setBusy(false)
+    if (error) return toast.error("Couldn't escalate", { description: error })
+    toast.success("Escalated to a violation", {
+      description: "A violation was opened and linked to this report.",
+    })
+    onChange()
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-[15px] font-semibold text-foreground">
+              {INCIDENT_TYPE_LABEL[incident.type]}
+            </h3>
+            <Badge className={`border-0 text-[10px] ${INCIDENT_STATUS_STYLE[incident.status] ?? "bg-muted"}`}>
+              {INCIDENT_STATUS_LABEL[incident.status]}
+            </Badge>
+            {incident.isAnonymous && (
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <UserX className="h-3 w-3" /> Anonymous
+              </span>
+            )}
+          </div>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{incident.description}</p>
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            {incident.reference && <span className="font-mono">{incident.reference}</span>}
+            {incident.location && <> &middot; {incident.location}</>}
+            {incident.unitInvolved && <> &middot; Unit {incident.unitInvolved}</>}
+            {" · "}
+            {new Date(incident.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+
+      {open && (
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+          {incident.status === "submitted" && (
+            <button
+              onClick={() => move("triaged", "Acknowledged")}
+              disabled={busy}
+              className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
+            >
+              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              Acknowledge
+            </button>
+          )}
+          {incident.status !== "investigating" && (
+            <button
+              onClick={() => move("investigating", "Marked as investigating")}
+              disabled={busy}
+              className="flex items-center gap-1.5 rounded-lg bg-warning/10 px-3 py-1.5 text-[12px] font-semibold text-[#B8860B] disabled:opacity-60"
+            >
+              <Clock className="h-3.5 w-3.5" /> Investigate
+            </button>
+          )}
+          <button
+            onClick={escalate}
+            disabled={busy}
+            className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-60"
+          >
+            <Gavel className="h-3.5 w-3.5" /> Escalate to violation
+          </button>
+          <button
+            onClick={() => move("resolved", "Marked resolved")}
+            disabled={busy}
+            className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-[12px] font-semibold text-success disabled:opacity-60"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" /> Resolve
+          </button>
+          <button
+            onClick={() => move("dismissed", "Dismissed")}
+            disabled={busy}
+            className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-muted-foreground disabled:opacity-60"
+          >
+            <XCircle className="h-3.5 w-3.5" /> Dismiss
+          </button>
+        </div>
+      )}
     </div>
   )
 }

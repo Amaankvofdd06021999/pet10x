@@ -82,7 +82,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
   if (state === "denied" || !data) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background p-6">
-        <div className="max-w-sm text-center">
+        <div className="w-full max-w-sm text-center">
           <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10">
             <Ban className="h-6 w-6 text-destructive" />
           </span>

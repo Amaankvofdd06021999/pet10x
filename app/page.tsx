@@ -542,7 +542,7 @@ function FeatureVisual({ index }: { index: number }) {
     const steps = ["Verbal warning", "Written warning", "Fine — $150"]
     return (
       <Panel>
-        <PanelHeader title="Off-leash violation" subtitle="Unit 2104 · Rocky" badge="Fine issued" badgeTone="destructive" />
+        <PanelHeader title="Off-leash violation" subtitle="Unit 804 · Pepper" badge="Fine issued" badgeTone="destructive" />
         <div className="mt-5 flex items-center gap-2">
           {steps.map((s, i) => (
             <div key={s} className="flex flex-1 items-center gap-2">
@@ -566,8 +566,8 @@ function FeatureVisual({ index }: { index: number }) {
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary"><PawPrint className="h-5 w-5" /></span>
           <div>
-            <p className="text-[15px] font-semibold">Max · Golden Retriever</p>
-            <p className="text-[12px] text-muted-foreground">Harbour View Tower · Unit 2104</p>
+            <p className="text-[15px] font-semibold">Luna · Golden Retriever</p>
+            <p className="text-[12px] text-muted-foreground">Maple Court Residences · Unit 302</p>
           </div>
           <span className="ml-auto rounded-md bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">92%</span>
         </div>
@@ -588,7 +588,7 @@ function FeatureVisual({ index }: { index: number }) {
   }
   return (
     <Panel>
-      <PanelHeader title="ESA accommodation" subtitle="Unit 1402 · Miniature Pig" badge="Council review" badgeTone="info" />
+      <PanelHeader title="ESA accommodation" subtitle="Unit 1102 · Maine Coon" badge="Council review" badgeTone="info" />
       <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-info/[0.07] p-3.5">
         <Scale className="mt-0.5 h-4 w-4 flex-shrink-0 text-info" />
         <p className="text-[12px] leading-relaxed text-foreground">
@@ -616,7 +616,7 @@ function HeroMock() {
         <div className="mb-4 flex items-center justify-between px-1">
           <div>
             <p className="text-[11px] text-muted-foreground">Building</p>
-            <p className="text-[14px] font-semibold tracking-tight">Harbour View Tower</p>
+            <p className="text-[14px] font-semibold tracking-tight">Maple Court Residences</p>
           </div>
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-info/10"><Building2 className="h-4.5 w-4.5 text-info" /></span>
         </div>
@@ -631,9 +631,9 @@ function HeroMock() {
 
         <div className="mt-3 grid grid-cols-3 gap-2">
           {[
-            { v: "47", l: "Pets" },
-            { v: "5", l: "Violations" },
-            { v: "3", l: "Approvals" },
+            { v: "7", l: "Pets" },
+            { v: "2", l: "Violations" },
+            { v: "1", l: "Approvals" },
           ].map((s) => (
             <div key={s.l} className="rounded-lg border border-border/70 bg-card p-2.5 text-center">
               <p className="text-[16px] font-semibold">{s.v}</p>
@@ -646,7 +646,7 @@ function HeroMock() {
           <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card p-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><PawPrint className="h-4.5 w-4.5" /></span>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold">Max · Golden Retriever</p>
+              <p className="text-[13px] font-semibold">Luna · Golden Retriever</p>
               <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full w-[92%] rounded-full bg-success" /></div>
             </div>
             <span className="rounded-md bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">Home</span>
@@ -658,14 +658,14 @@ function HeroMock() {
         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-success/10"><Check className="h-4 w-4 text-success" /></span>
         <div>
           <p className="text-[11px] font-semibold leading-tight">Registration approved</p>
-          <p className="text-[10px] text-muted-foreground">Unit 310 · Cat</p>
+          <p className="text-[10px] text-muted-foreground">Unit 511 · Cat</p>
         </div>
       </div>
       <div className="absolute -right-4 top-10 hidden rotate-[6deg] items-center gap-2 rounded-lg border border-border/70 bg-card px-3.5 py-2.5 shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)] sm:flex">
         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-accent/10"><Heart className="h-4 w-4 text-accent" /></span>
         <div>
           <p className="text-[11px] font-semibold leading-tight">Service animal</p>
-          <p className="text-[10px] text-muted-foreground">Verified · Unit 820</p>
+          <p className="text-[10px] text-muted-foreground">Verified · Unit 708</p>
         </div>
       </div>
     </div>
