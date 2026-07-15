@@ -19,6 +19,8 @@ import {
   ImagePlus,
   X,
   LogOut,
+  LocateFixed,
+  Loader2,
 } from "lucide-react"
 
 type IncidentType = "noise" | "aggressive" | "off-leash" | "waste" | "damage" | "other"
@@ -54,6 +56,37 @@ export function GuestReportScreen() {
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [reference, setReference] = useState<string | null>(null)
+  const [locating, setLocating] = useState(false)
+  const [geoError, setGeoError] = useState<string | null>(null)
+
+  // Fill the location field from the device GPS. The manual field stays the
+  // source of truth — this just autofills the exact coordinates, which the
+  // manager can open straight on a map (a precise pin, no third-party geocoder
+  // and no API key involved). The reporter can still edit or clear it.
+  const handleUseLocation = () => {
+    setGeoError(null)
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setGeoError("Location isn't available on this device — type it above.")
+      return
+    }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords
+        setLocation(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`)
+        setLocating(false)
+      },
+      (err) => {
+        setLocating(false)
+        setGeoError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission denied — type it above instead."
+            : "Couldn't get your location — type it above instead.",
+        )
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    )
+  }
 
   const handlePhotoAdd = () => {
     // Simulate adding a photo
@@ -248,11 +281,25 @@ export function GuestReportScreen() {
                     id="loc"
                     type="text"
                     value={location}
-                    onChange={(e) => setLocation(e.target.value)}
+                    onChange={(e) => { setLocation(e.target.value); setGeoError(null) }}
                     placeholder="e.g. Lobby, Floor 12, Parking B2"
                     className="w-full rounded-xl border border-border bg-card py-3 pl-10 pr-4 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={handleUseLocation}
+                  disabled={locating}
+                  className="mt-2 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-[13px] font-semibold text-primary transition-transform active:scale-[0.98] disabled:opacity-60"
+                >
+                  {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
+                  {locating ? "Locating…" : "Use my current location"}
+                </button>
+                {geoError ? (
+                  <p className="mt-1.5 text-[12px] text-destructive">{geoError}</p>
+                ) : (
+                  <p className="mt-1.5 text-[12px] text-muted-foreground">Autofill your GPS position, or type the spot above.</p>
+                )}
               </div>
 
               {/* Unit */}

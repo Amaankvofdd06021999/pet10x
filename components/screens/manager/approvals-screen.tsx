@@ -38,10 +38,26 @@ import {
   Gavel,
   Loader2,
   UserX,
+  MapPin,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 type ApprovalTab = "incidents" | "registrations" | "accommodations" | "documents"
+
+/** A "lat, lng" pair anywhere in a location string (reporters may send raw GPS). */
+const COORD_RE = /(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/
+
+/** Google Maps deep link — a precise pin when we have coordinates, a search otherwise. */
+function mapUrl(location: string): string {
+  const m = location.match(COORD_RE)
+  const query = m ? `${m[1]},${m[2]}` : location
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+}
+
+/** Show the human part; a trailing "(lat, lng)" is for the map link, not the eye. */
+function locationLabel(location: string): string {
+  return location.replace(/\s*\(-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+\)\s*$/, "").trim() || location
+}
 
 const STATIC_TABS: { id: ApprovalTab; label: string; count: number }[] = [
   { id: "registrations", label: "Registrations", count: 3 },
@@ -424,7 +440,21 @@ function IncidentCard({ incident, onChange }: { incident: ManagerIncident; onCha
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{incident.description}</p>
           <p className="mt-1.5 text-[11px] text-muted-foreground">
             {incident.reference && <span className="font-mono">{incident.reference}</span>}
-            {incident.location && <> &middot; {incident.location}</>}
+            {incident.location && (
+              <>
+                {" · "}
+                <a
+                  href={mapUrl(incident.location)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 text-primary underline decoration-dotted underline-offset-2"
+                  title="Open in Google Maps"
+                >
+                  <MapPin className="h-3 w-3" />
+                  {locationLabel(incident.location)}
+                </a>
+              </>
+            )}
             {incident.unitInvolved && <> &middot; Unit {incident.unitInvolved}</>}
             {" · "}
             {new Date(incident.createdAt).toLocaleDateString()}
