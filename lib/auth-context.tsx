@@ -121,6 +121,18 @@ async function loadAppUser(authUser: User): Promise<AppUser> {
   }
 }
 
+/**
+ * Last successfully-resolved app user, held at module scope so it outlives an
+ * AuthProvider remount. Each route mounts its own provider, so the redirect
+ * after sign-in (/login → /app, → /admin, → /businessaccess) used to re-run
+ * loadAppUser's four queries from scratch and flash a full-screen spinner.
+ * With this, the second mount paints instantly and revalidates in the
+ * background. Cleared on sign-out; kept in step with local user edits.
+ * Module scope is per-tab and reset on a hard reload, so it never leaks
+ * across users or survives a real logout.
+ */
+let cachedAppUser: AppUser | null = null
+
 interface AuthContextValue {
   user: AppUser | null
   guestSession: GuestSession | null
@@ -189,6 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthUser(session?.user ?? null)
       if (!session) {
+        cachedAppUser = null
         setUser(null)
         setAuthMode((m) => (m === "guest" ? m : null))
         setIsLoading(false)
@@ -205,9 +218,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!SUPABASE_ENABLED) return
     if (!authUser) return
     let active = true
+
+    // Same user we already resolved on a prior mount → paint from cache now and
+    // revalidate below, instead of blocking the screen on the profile queries.
+    if (cachedAppUser && cachedAppUser.id === authUser.id) {
+      setUser(cachedAppUser)
+      setAuthMode("full")
+      setIsLoading(false)
+    }
+
     loadAppUser(authUser)
       .then((u) => {
         if (!active) return
+        cachedAppUser = u
         setUser(u)
         setAuthMode("full")
       })
@@ -261,7 +284,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateLocalUser = useCallback((patch: Partial<AppUser>) => {
-    setUser((prev) => (prev ? { ...prev, ...patch } : prev))
+    setUser((prev) => {
+      if (!prev) return prev
+      const next = { ...prev, ...patch }
+      if (cachedAppUser?.id === next.id) cachedAppUser = next
+      return next
+    })
   }, [])
 
   const markOnboarded = useCallback(async () => {
@@ -272,7 +300,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } = await supabase.auth.getUser()
       if (au) await supabase.from("profiles").update({ onboarded: true }).eq("id", au.id)
     }
-    setUser((prev) => (prev ? { ...prev, onboarded: true } : prev))
+    setUser((prev) => {
+      if (!prev) return prev
+      const next = { ...prev, onboarded: true }
+      if (cachedAppUser?.id === next.id) cachedAppUser = next
+      return next
+    })
   }, [])
 
   const signInGuest = useCallback(async (code: string): Promise<string | null> => {
@@ -293,6 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabaseBrowserClient()
     if (supabase) await supabase.auth.signOut().catch(() => {})
     clearPetsCache()
+    cachedAppUser = null
     setUser(null)
     setAuthUser(null)
     setGuestSession(null)

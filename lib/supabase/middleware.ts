@@ -44,6 +44,25 @@ export async function updateSession(request: NextRequest) {
   const userId = claims?.claims?.sub
 
   const pathname = request.nextUrl.pathname
+
+  // Already-signed-in visitor landing on the sign-in page → send them on to
+  // where they were headed, server-side, right here. Without this the /login
+  // page still renders: it mounts, shows a spinner, re-resolves the profile
+  // over the network, and only THEN client-redirects — which is the
+  // several-hundred-ms "stuck on /login?next=…" stall. Limited to a safe
+  // in-app `next` (never /login itself) so it can't open-redirect or loop;
+  // the destination's own middleware pass still enforces role access. Guests
+  // have no Supabase session (userId is null), so they're untouched.
+  if (userId && pathname === "/login") {
+    const next = request.nextUrl.searchParams.get("next")
+    if (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login")) {
+      const url = request.nextUrl.clone()
+      url.search = ""
+      url.pathname = next
+      return NextResponse.redirect(url)
+    }
+  }
+
   const rule = findRouteRule(pathname)
   if (!rule) return response // public route — no lookup needed
 
