@@ -67,6 +67,9 @@ export async function updateSession(request: NextRequest) {
   if (!rule) return response // public route — no lookup needed
 
   if (!userId) {
+    // Routes with their own branded sign-in shell (e.g. the strata portal) render
+    // it themselves instead of bouncing to the generic /login page.
+    if (rule.ownLogin) return response
     const url = request.nextUrl.clone()
     url.pathname = "/login"
     url.searchParams.set("next", pathname)

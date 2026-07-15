@@ -2514,8 +2514,13 @@ export type Database = {
       incident_status_by_reference: { Args: { p_ref: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_premium: { Args: { p_user: string }; Returns: boolean }
+      is_primary_manager: { Args: { b: string }; Returns: boolean }
       is_resident_of: { Args: { b: string }; Returns: boolean }
       leave_my_building_link: { Args: never; Returns: undefined }
+      manager_decide_registration: {
+        Args: { p_approve: boolean; p_pet: string }
+        Returns: undefined
+      }
       manages_building: { Args: { b: string }; Returns: boolean }
       my_building_link: { Args: never; Returns: Json }
       request_building_link: { Args: { p_code: string }; Returns: Json }
@@ -2524,6 +2529,7 @@ export type Database = {
         Args: { p_user: string }
         Returns: Database["public"]["Enums"]["entitlement_source"]
       }
+      shares_managed_building_with: { Args: { p: string }; Returns: boolean }
       submit_incident_report: {
         Args: {
           p_anonymous?: boolean

@@ -149,6 +149,7 @@ export async function lookupIncident(reference: string): Promise<IncidentStatusR
 
 export interface ManagerIncident {
   id: string
+  buildingId: string | null
   type: IncidentType
   status: IncidentStatus
   description: string
@@ -174,7 +175,7 @@ export function useIncidents() {
     setLoading(true)
     const { data: rows, error: err } = await supabase
       .from("incident_reports")
-      .select("id, type, status, description, location_text, unit_involved, is_anonymous, reference_code, created_at")
+      .select("id, building_id, type, status, description, location_text, unit_involved, is_anonymous, reference_code, created_at")
       .order("created_at", { ascending: false })
 
     if (err) {
@@ -184,6 +185,7 @@ export function useIncidents() {
       setData(
         (rows ?? []).map((r) => ({
           id: r.id,
+          buildingId: r.building_id,
           type: r.type as IncidentType,
           status: r.status as IncidentStatus,
           description: r.description,

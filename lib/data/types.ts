@@ -232,6 +232,7 @@ export interface BuildingLink {
 export interface ResidentLinkRow {
   linkId: string
   profileId: string
+  buildingId: string | null
   status: ResidentLinkStatus
   unit: string | null
   requestedAt: string
@@ -414,6 +415,7 @@ export interface RegistrationDocuments {
 
 export interface Registration {
   id: string
+  buildingId: string | null
   unit: string
   resident: string
   species: Species
@@ -422,6 +424,8 @@ export interface Registration {
   weight: string
   age: string
   submitted: string
+  /** Raw ISO created_at — used for queue urgency/aging. */
+  createdAt: string
   status: ApprovalStatus
   flags: string[]
   documents: RegistrationDocuments
@@ -436,11 +440,14 @@ export interface AccommodationDocuments {
 
 export interface AccommodationRequest {
   id: string
+  buildingId: string | null
   unit: string
   resident: string
   type: AccommodationType
   animal: string
   submitted: string
+  /** Raw ISO created_at — used for queue urgency/aging. */
+  createdAt: string
   status: ApprovalStatus
   documents: AccommodationDocuments
   legalNote: string
@@ -448,11 +455,14 @@ export interface AccommodationRequest {
 
 export interface DocumentReviewItem {
   id: string
+  buildingId: string | null
   unit: string
   resident: string
   pet: string
   type: string
   expiring: string
+  /** Raw ISO expires_on — used for queue urgency/aging. */
+  expiresOn: string | null
   status: "expiring" | "current"
 }
 
@@ -463,6 +473,7 @@ export interface ViolationHistoryStep {
 
 export interface Violation {
   id: string
+  buildingId: string | null
   unit: string
   resident: string
   pet: string
@@ -478,6 +489,7 @@ export interface Violation {
 
 export interface ResolvedViolation {
   id: string
+  buildingId: string | null
   unit: string
   type: string
   resolved: string

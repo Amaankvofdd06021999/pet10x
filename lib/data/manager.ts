@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import type { PetRules } from "@/lib/data/admin"
+import { computeCompliance } from "@/lib/data/live"
 
 export type { PetRules }
 
@@ -130,15 +131,6 @@ export function useBuildingStats(buildingId?: string) {
     const { data: b } = await supabase.from("buildings").select("pet_rules").eq("id", buildingId).maybeSingle()
     const rules = ((b?.pet_rules as PetRules) ?? {}) as PetRules
 
-    // Mirror the compliance rules the manager roster already applies: a pet is
-    // compliant when it satisfies whatever its building actually requires.
-    const required: ((p: PetRow) => boolean)[] = []
-    if (rules.require_rabies) required.push((p) => p.vax.some((v) => /rabies/i.test(v.name) && v.status === "valid"))
-    if (rules.require_core_vaccines) required.push((p) => p.vax.some((v) => v.status === "valid"))
-    if (rules.require_license) required.push((p) => p.docs.some((d) => d.kind === "license"))
-    if (rules.require_insurance) required.push((p) => p.docs.some((d) => d.kind === "liability_insurance"))
-    if (rules.require_spay_neuter) required.push((p) => p.neutered === true)
-
     type PetRow = { neutered: boolean | null; vax: { name: string; status: string }[]; docs: { kind: string }[] }
     const rows: PetRow[] = (pets ?? []).map((r) => ({
       neutered: r.neutered,
@@ -146,11 +138,11 @@ export function useBuildingStats(buildingId?: string) {
       docs: ((r.pet_documents as { kind: string }[] | null) ?? []),
     }))
 
-    let compliancePct = 100
-    if (rows.length && required.length) {
-      const total = rows.reduce((sum, p) => sum + required.filter((check) => check(p)).length / required.length, 0)
-      compliancePct = Math.round((total / rows.length) * 100)
-    }
+    // Reuse the canonical compliance calc (lib/data/live.ts) so the single-building
+    // dashboard and the strata portfolio can never disagree.
+    const compliancePct = rows.length
+      ? Math.round(rows.reduce((sum, p) => sum + computeCompliance(p, rules).pct, 0) / rows.length)
+      : 100
 
     setData({ pets: rows.length, compliancePct, openIssues: openCount ?? 0 })
     setLoading(false)

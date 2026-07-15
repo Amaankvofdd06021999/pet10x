@@ -35,7 +35,7 @@ import type {
   Species,
 } from "./types"
 
-interface BuildingRules {
+export interface BuildingRules {
   require_rabies?: boolean
   require_core_vaccines?: boolean
   require_license?: boolean
@@ -43,7 +43,13 @@ interface BuildingRules {
   require_spay_neuter?: boolean
 }
 
-function computeCompliance(
+/**
+ * Canonical compliance calculation — the single source of truth reused by the
+ * manager dashboard, the strata portfolio overview, and the bylaws impact
+ * preview. A vaccination counts unless its status is expired/missing/rejected;
+ * license/insurance are matched by document kind; spay_neuter by the flag.
+ */
+export function computeCompliance(
   pet: { neutered: boolean | null; vax: { name: string; status: string }[]; docs: { kind: string }[] },
   rules: BuildingRules,
 ): { pct: number; missing: string[] } {
@@ -847,7 +853,7 @@ export function useBuildingResidents(): LiveResult<ResidentLinkRow[]> {
     }
     const { data: rows, error: err } = await supabase
       .from("resident_links")
-      .select("id, profile_id, status, requested_at, units(unit_number), profiles!profile_id(full_name, email)")
+      .select("id, profile_id, building_id, status, requested_at, units(unit_number), profiles!profile_id(full_name, email)")
       .in("status", ["pending", "approved"])
       .is("left_at", null)
       .order("requested_at", { ascending: false })
@@ -862,6 +868,7 @@ export function useBuildingResidents(): LiveResult<ResidentLinkRow[]> {
           return {
             linkId: r.id,
             profileId: r.profile_id,
+            buildingId: r.building_id,
             status: r.status as ResidentLinkStatus,
             unit: unit?.unit_number ?? null,
             requestedAt: r.requested_at,

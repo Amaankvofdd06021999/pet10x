@@ -17,6 +17,13 @@ export interface RoleRoute {
   roles?: UserRole[]
   /** Require profiles.is_super_admin = true (super-admin role alone isn't sufficient). */
   requireSuperAdmin?: boolean
+  /**
+   * When true, an *unauthenticated* visitor is NOT bounced to /login — the page
+   * renders its own sign-in shell instead. Role enforcement still applies once a
+   * user IS signed in (wrong role → redirected). Used by portals with a branded
+   * login (e.g. the strata portal's blue gate).
+   */
+  ownLogin?: boolean
 }
 
 /**
@@ -26,6 +33,10 @@ export interface RoleRoute {
 export const ROLE_ROUTES: RoleRoute[] = [
   { prefix: "/admin", requireSuperAdmin: true },
   { prefix: "/businessaccess", roles: ["business"] },
+  // The strata portfolio layer — a building_manager who runs many buildings.
+  // Same role as /app, different surface; super-admin transcends via canAccessRoute.
+  // ownLogin: logged-out visitors see the portal's own blue login, not /login.
+  { prefix: "/strata-portal", roles: ["building-manager"], ownLogin: true },
   // /app is shared by pet-owner and building-manager; role branching happens
   // inside the page (owner vs manager tabs). Any authenticated non-business,
   // non-bare-super-admin account may enter.

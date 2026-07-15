@@ -56,7 +56,7 @@ export function useRegistrationsLive(): Result<Registration[]> {
     const { data: rows, error: err } = await supabase
       .from("pets")
       .select(
-        `id, name, species, breed, dob, weight_grams, created_at, registration_status,
+        `id, building_id, name, species, breed, dob, weight_grams, created_at, registration_status,
          owner:profiles!pets_owner_id_fkey ( full_name ),
          unit:units ( unit_number ),
          pet_documents ( kind ),
@@ -74,6 +74,7 @@ export function useRegistrationsLive(): Result<Registration[]> {
 
     type Row = {
       id: string
+      building_id: string | null
       name: string
       species: string
       breed: string | null
@@ -102,6 +103,7 @@ export function useRegistrationsLive(): Result<Registration[]> {
 
         return {
           id: r.id,
+          buildingId: r.building_id,
           unit: first(r.unit)?.unit_number ?? "—",
           resident: first(r.owner)?.full_name ?? "Unknown",
           species: r.species as Species,
@@ -110,6 +112,7 @@ export function useRegistrationsLive(): Result<Registration[]> {
           weight: r.weight_grams ? `${(r.weight_grams / 1000).toFixed(1)} kg` : "—",
           age: ageFrom(r.dob),
           submitted: shortDate(r.created_at),
+          createdAt: r.created_at,
           status: "pending" as const,
           flags,
           documents: { vaccination: hasVax, license: hasLicense, insurance: hasInsurance },
@@ -133,10 +136,10 @@ export async function decideRegistration(
 ): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
-  const { error } = await supabase
-    .from("pets")
-    .update({ registration_status: approve ? "approved" : "denied" })
-    .eq("id", petId)
+  // Managers have no RLS UPDATE on pets — go through the SECURITY DEFINER RPC,
+  // which authorises via manages_building() and performs the write. A plain
+  // .update() here would silently match zero rows for a non-admin manager.
+  const { error } = await supabase.rpc("manager_decide_registration", { p_pet: petId, p_approve: approve })
   return { error: error?.message ?? null }
 }
 
@@ -157,7 +160,7 @@ export function useAccommodationsLive(): Result<AccommodationRequest[]> {
     const { data: rows, error: err } = await supabase
       .from("accommodation_requests")
       .select(
-        `id, type, status, animal_desc, legal_note, created_at,
+        `id, building_id, type, status, animal_desc, legal_note, created_at,
          resident:profiles!accommodation_requests_resident_id_fkey ( full_name ),
          unit:units ( unit_number ),
          pet:pets ( name, breed )`,
@@ -173,6 +176,7 @@ export function useAccommodationsLive(): Result<AccommodationRequest[]> {
 
     type Row = {
       id: string
+      building_id: string | null
       type: string
       status: string
       animal_desc: string | null
@@ -189,11 +193,13 @@ export function useAccommodationsLive(): Result<AccommodationRequest[]> {
         const pet = first(r.pet)
         return {
           id: r.id,
+          buildingId: r.building_id,
           unit: first(r.unit)?.unit_number ?? "—",
           resident: first(r.resident)?.full_name ?? "Unknown",
           type: r.type === "service_animal" ? ("Service Animal" as const) : ("ESA" as const),
           animal: pet ? `${pet.name}${pet.breed ? ` (${pet.breed})` : ""}` : (r.animal_desc ?? "—"),
           submitted: shortDate(r.created_at),
+          createdAt: r.created_at,
           status: (r.status === "approved" ? "approved" : r.status === "denied" ? "denied" : "pending") as
             | "approved"
             | "denied"
@@ -254,7 +260,7 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
       .from("pet_documents")
       .select(
         `id, kind, name, status, expires_on,
-         pet:pets ( name, unit:units ( unit_number ), owner:profiles!pets_owner_id_fkey ( full_name ) )`,
+         pet:pets ( name, building_id, unit:units ( unit_number ), owner:profiles!pets_owner_id_fkey ( full_name ) )`,
       )
       .in("status", ["expiring", "expired", "missing", "rejected"])
       .order("expires_on", { ascending: true })
@@ -275,6 +281,7 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
       pet:
         | {
             name: string
+            building_id: string | null
             unit: { unit_number: string } | { unit_number: string }[] | null
             owner: { full_name: string | null } | { full_name: string | null }[] | null
           }
@@ -287,11 +294,13 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
         .filter((r) => r.pet)
         .map((r) => ({
           id: r.id,
+          buildingId: r.pet!.building_id,
           unit: first(r.pet!.unit)?.unit_number ?? "—",
           resident: first(r.pet!.owner)?.full_name ?? "Unknown",
           pet: r.pet!.name,
           type: r.name ?? r.kind.replace(/_/g, " "),
           expiring: r.expires_on ? shortDate(r.expires_on) : "—",
+          expiresOn: r.expires_on,
           status: (r.status === "expired" ? "expiring" : "expiring") as "expiring" | "current",
         })),
     )
@@ -344,7 +353,7 @@ export function useViolationsLive(): Result<Violation[]> {
     const { data: rows, error: err } = await supabase
       .from("violations")
       .select(
-        `id, type, stage, created_at,
+        `id, building_id, type, stage, created_at,
          resident:profiles!violations_resident_id_fkey ( full_name ),
          unit:units ( unit_number ),
          pet:pets ( name ),
@@ -362,6 +371,7 @@ export function useViolationsLive(): Result<Violation[]> {
 
     type Row = {
       id: string
+      building_id: string | null
       type: string
       stage: string
       created_at: string
@@ -381,6 +391,7 @@ export function useViolationsLive(): Result<Violation[]> {
 
         return {
           id: r.id,
+          buildingId: r.building_id,
           unit: first(r.unit)?.unit_number ?? "—",
           resident: first(r.resident)?.full_name ?? "Unassigned",
           pet: first(r.pet)?.name ?? "—",
@@ -417,7 +428,7 @@ export function useResolvedViolationsLive(): Result<ResolvedViolation[]> {
 
     const { data: rows, error: err } = await supabase
       .from("violations")
-      .select(`id, type, resolved_at, resolution_outcome, unit:units ( unit_number )`)
+      .select(`id, building_id, type, resolved_at, resolution_outcome, unit:units ( unit_number )`)
       .not("resolved_at", "is", null)
       .order("resolved_at", { ascending: false })
 
@@ -430,6 +441,7 @@ export function useResolvedViolationsLive(): Result<ResolvedViolation[]> {
 
     type Row = {
       id: string
+      building_id: string | null
       type: string
       resolved_at: string | null
       resolution_outcome: string | null
@@ -440,6 +452,7 @@ export function useResolvedViolationsLive(): Result<ResolvedViolation[]> {
     setData(
       ((rows ?? []) as unknown as Row[]).map((r) => ({
         id: r.id,
+        buildingId: r.building_id,
         unit: first(r.unit)?.unit_number ?? "—",
         type: r.type.replace(/_/g, " "),
         resolved: shortDate(r.resolved_at),

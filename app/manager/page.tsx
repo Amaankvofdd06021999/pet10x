@@ -116,6 +116,12 @@ function ManagerLogin() {
         <p className="mt-6 text-center text-[12px] leading-relaxed text-muted-foreground">
           Managers are added by invitation. Ask your Pet10x admin if you don&apos;t have an account.
         </p>
+        <Link
+          href="/strata-portal"
+          className="mx-auto mt-4 flex w-fit items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-[12.5px] font-medium text-info transition-colors hover:border-info/50"
+        >
+          <Building2 className="h-3.5 w-3.5" /> Manage multiple buildings? Open the Strata Portal
+        </Link>
       </div>
     </div>
   )
