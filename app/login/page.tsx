@@ -4,11 +4,12 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { SignInScreen } from "@/components/screens/sign-in-screen"
+import { GuestReportScreen } from "@/components/screens/guest-report-screen"
 import { getHomeRouteForRole, canAccessRoute } from "@/lib/rbac"
 import { Loader2, PawPrint, Ban } from "lucide-react"
 
 function LoginContent() {
-  const { user, isAuthenticated, isLoading } = useAuth()
+  const { user, isAuthenticated, isGuest, isLoading } = useAuth()
   const router = useRouter()
 
   // Read the query string after mount rather than with useSearchParams(). The
@@ -43,6 +44,18 @@ function LoginContent() {
           <PawPrint className="h-6 w-6 text-primary-foreground" strokeWidth={2.5} />
         </span>
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  // A signed-out guest who entered a building code has an in-memory guest
+  // session (no `user`), so the user-redirect above never fires for them.
+  // Render the incident report right here — routing to /app would drop the
+  // session, which lives only in this AuthProvider's state.
+  if (isGuest) {
+    return (
+      <div className="mx-auto w-full max-w-md animate-in fade-in duration-300">
+        <GuestReportScreen />
       </div>
     )
   }

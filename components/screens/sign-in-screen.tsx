@@ -127,6 +127,7 @@ export function SignInScreen() {
                 type="text"
                 value={buildingCode}
                 onChange={(e) => { setBuildingCode(e.target.value.toUpperCase()); setCodeError(null) }}
+                onKeyDown={(e) => e.key === "Enter" && handleGuestSignIn()}
                 placeholder="e.g. MCR2026"
                 autoCapitalize="characters"
                 autoComplete="off"
@@ -139,9 +140,11 @@ export function SignInScreen() {
 
           <button
             onClick={handleGuestSignIn}
-            className="mt-5 w-full rounded-xl bg-destructive py-3 text-[15px] font-semibold text-destructive-foreground transition-transform active:scale-[0.98]"
+            disabled={loading}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-destructive py-3 text-[15px] font-semibold text-destructive-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
           >
-            Continue to Report
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {loading ? "Checking code…" : "Continue to Report"}
           </button>
 
           <div className="mt-6 rounded-xl bg-muted/60 p-3.5">
