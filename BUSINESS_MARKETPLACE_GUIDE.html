@@ -107,9 +107,10 @@
     <a href="#test">3 · Test it <span>10-minute click-through</span></a>
     <a href="#business">4 · Business side <span>Six tabs, explained</span></a>
     <a href="#owner">5 · Pet owner side <span>Discover → book → review</span></a>
-    <a href="#data">6 · Seeded data <span>What's already there</span></a>
-    <a href="#security">7 · Boundaries <span>What a business can't see</span></a>
-    <a href="#schema">8 · What changed <span>Migrations &amp; fixes</span></a>
+    <a href="#location">6 · Location &amp; GPS <span>Finding businesses nearby</span></a>
+    <a href="#data">7 · Seeded data <span>What's already there</span></a>
+    <a href="#security">8 · Boundaries <span>What a business can't see</span></a>
+    <a href="#schema">9 · What changed <span>Migrations &amp; fixes</span></a>
   </nav>
 
   <!-- ============================================ -->
@@ -317,8 +318,57 @@ stateDiagram-v2
   </section>
 
   <!-- ============================================ -->
+  <section id="location">
+    <h2>6 · Location &amp; GPS Discovery</h2>
+    <p class="lead">Residents find businesses by where they actually are, and a business controls how far it will travel.</p>
+
+    <h3>How a resident's location is decided</h3>
+    <ol class="steps">
+      <li><b>Their saved location</b> — set with the <b>Use GPS</b> button on the Services screen, which stores real coordinates on their profile.</li>
+      <li><b>Otherwise, their building</b> — an approved resident automatically inherits their building's coordinates, so distances work even before they touch GPS.</li>
+      <li><b>Otherwise, no distance</b> — businesses still list, just without a distance. Nothing is hidden because we can't locate you.</li>
+    </ol>
+
+    <h3>What the resident gets</h3>
+    <table>
+      <thead><tr><th>Feature</th><th>Behaviour</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Sorted by distance</strong></td><td>Nearest verified business first; unknown distances sort last, never dropped.</td></tr>
+        <tr><td><strong>Distance filter</strong></td><td>Chips for Any / 2 / 5 / 10 / 25 km, shown once we know where they are.</td></tr>
+        <tr><td><strong>“Serves my area”</strong></td><td>Filters to businesses whose own service radius actually reaches the resident.</td></tr>
+        <tr><td><strong>Per-card badge</strong></td><td>“Serves your area” or “Outside their service area”, plus the street address.</td></tr>
+        <tr><td><strong>Address &amp; directions</strong></td><td>The storefront shows the full address, the service radius, and a <b>Directions</b> link that opens Maps.</td></tr>
+        <tr><td><strong>Honest empty state</strong></td><td>If filters exclude everything, it says how many were excluded and offers <b>Clear filters</b> — it never pretends there are no businesses.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>What the business controls</h3>
+    <p style="color:var(--muted);font-size:13.5px">In <b>Storefront</b>: street address, city, region and postal code, plus
+      coordinates (with a <b>Use current location</b> GPS button) and a <b>service radius in km</b>. The radius is what
+      decides whether a resident sees “Serves your area”, so the form says so explicitly.</p>
+
+    <h4>Try it — the filter genuinely excludes someone</h4>
+    <table>
+      <thead><tr><th>Signed in as</th><th>Happy Paws (15 km)</th><th>Westside Vet (20 km)</th><th>City Paws (6 km)</th></tr></thead>
+      <tbody>
+        <tr><td><code>sofia.nguyen@pet10x.com</code><br/><span style="color:var(--muted);font-size:12px">Cedar Grove, Burnaby</span></td>
+          <td>10.7 km · <span style="color:#3ecf3e">Serves</span></td>
+          <td>12.4 km · <span style="color:#3ecf3e">Serves</span></td>
+          <td>11.3 km · <span style="color:var(--muted)">out of range</span></td></tr>
+        <tr><td><code>ava.petrova@pet10x.com</code><br/><span style="color:var(--muted);font-size:12px">Harbour View, Vancouver</span></td>
+          <td>0.4 km · <span style="color:#3ecf3e">Serves</span></td>
+          <td>3.1 km · <span style="color:#3ecf3e">Serves</span></td>
+          <td>1.3 km · <span style="color:#3ecf3e">Serves</span></td></tr>
+      </tbody>
+    </table>
+    <div class="note"><strong>The clean demonstration:</strong> sign in as <code>sofia.nguyen@pet10x.com</code>, open
+      Services and tap <b>Serves my area</b> — City Paws Dog Walking drops out, because its 6 km radius doesn't reach
+      Burnaby. Sign in as <code>ava.petrova@pet10x.com</code> and all three remain. Same data, different location.</div>
+  </section>
+
+  <!-- ============================================ -->
   <section id="data">
-    <h2>6 · What's Already Seeded</h2>
+    <h2>7 · What's Already Seeded</h2>
     <p class="lead">So every screen has real content the moment you log in.</p>
     <table>
       <thead><tr><th>Business</th><th>Owner login</th><th>Services</th><th>Bookings</th><th>Rating</th><th>Tier</th></tr></thead>
@@ -336,7 +386,7 @@ stateDiagram-v2
 
   <!-- ============================================ -->
   <section id="security">
-    <h2>7 · Hard Boundaries</h2>
+    <h2>8 · Hard Boundaries</h2>
     <p class="lead">A business sees its own commercial surface and aggregate market data — never a person it hasn't been introduced to by a booking. All of this is enforced by row-level security and verified by an automated test.</p>
     <table>
       <thead><tr><th>Boundary</th><th>How it's enforced</th><th>Verified</th></tr></thead>
@@ -357,7 +407,7 @@ stateDiagram-v2
 
   <!-- ============================================ -->
   <section id="schema">
-    <h2>8 · What Changed Under the Hood</h2>
+    <h2>9 · What Changed Under the Hood</h2>
     <p class="lead">Four migrations, all applied to the live project and checked into <code>supabase/migrations/</code>.</p>
     <table>
       <thead><tr><th>Change</th><th>Why it was needed</th></tr></thead>

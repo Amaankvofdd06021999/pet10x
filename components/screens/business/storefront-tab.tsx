@@ -36,6 +36,10 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
     longitude: business.longitude != null ? String(business.longitude) : "",
     radiusKm: business.serviceRadiusM ? String(Math.round(business.serviceRadiusM / 1000)) : "",
     tags: business.tags.join(", "),
+    address: business.address ?? "",
+    city: business.city ?? "",
+    region: business.region ?? "",
+    postalCode: business.postalCode ?? "",
   })
   const [hours, setHours] = useState<BusinessHours>(
     business.hours ?? Object.fromEntries(DAY_KEYS.map((d) => [d, { open: "09:00", close: "17:00" }])),
@@ -56,6 +60,10 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
       serviceRadiusM: km != null && !Number.isNaN(km) ? Math.round(km * 1000) : null,
       tags: f.tags.split(",").map((t) => t.trim()).filter(Boolean),
       hours,
+      address: f.address.trim() || null,
+      city: f.city.trim() || null,
+      region: f.region.trim() || null,
+      postalCode: f.postalCode.trim() || null,
     })
     setSaving(false)
     if (error) return toast.error("Couldn't save", { description: error })
@@ -113,6 +121,12 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
                 {f.category}
                 {f.priceRange ? ` · ${f.priceRange}` : ""}
               </p>
+              {(f.address || f.city) && (
+                <p className="mt-0.5 inline-flex items-center gap-1 text-[12px] text-muted-foreground">
+                  <MapPin className="h-3 w-3" />
+                  {[f.address, f.city, f.region].filter(Boolean).join(", ")}
+                </p>
+              )}
               <div className="mt-0.5 flex items-center gap-1.5">
                 <Stars rating={business.ratingAvg} />
                 <span className="text-[11.5px] text-muted-foreground">
@@ -171,11 +185,29 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
           <Field label="Tags (comma separated)">
             <TextInput value={f.tags} onChange={(v) => setF((p) => ({ ...p, tags: v }))} placeholder="Cat-friendly, Mobile, 24h" />
           </Field>
-          <Field label="Location (drives nearby search)">
+          <Field label="Street address">
+            <TextInput value={f.address} onChange={(v) => setF((p) => ({ ...p, address: v }))} placeholder="1487 W Broadway" />
+          </Field>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="City">
+              <TextInput value={f.city} onChange={(v) => setF((p) => ({ ...p, city: v }))} placeholder="Vancouver" />
+            </Field>
+            <Field label="Region">
+              <TextInput value={f.region} onChange={(v) => setF((p) => ({ ...p, region: v }))} placeholder="BC" />
+            </Field>
+            <Field label="Postal code">
+              <TextInput value={f.postalCode} onChange={(v) => setF((p) => ({ ...p, postalCode: v }))} placeholder="V6H 1H6" />
+            </Field>
+          </div>
+
+          <Field label="Coordinates (drives distance & nearby search)">
             <div className="flex gap-2">
               <TextInput value={f.latitude} onChange={(v) => setF((p) => ({ ...p, latitude: v }))} placeholder="Latitude" />
               <TextInput value={f.longitude} onChange={(v) => setF((p) => ({ ...p, longitude: v }))} placeholder="Longitude" />
             </div>
+            <p className="mt-1.5 text-[11.5px] text-muted-foreground">
+              Residents outside your {f.radiusKm || "—"} km service radius can filter you out, so keep both accurate.
+            </p>
             <button
               onClick={useGps}
               disabled={gps}

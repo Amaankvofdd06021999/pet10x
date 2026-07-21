@@ -11,13 +11,24 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
   const { data: businesses, isLoading, refetch } = useNearbyBusinesses(origin ? { lat: origin.lat, lng: origin.lng } : null)
   const [search, setSearch] = useState("")
   const [gps, setGps] = useState(false)
+  const [maxKm, setMaxKm] = useState<number | null>(null)
+  const [onlyServing, setOnlyServing] = useState(false)
 
-  const filtered = businesses.filter(
-    (b) =>
-      search === "" ||
-      b.name.toLowerCase().includes(search.toLowerCase()) ||
-      b.category.toLowerCase().includes(search.toLowerCase()),
-  )
+  const matchesSearch = (b: (typeof businesses)[number]) =>
+    search === "" ||
+    b.name.toLowerCase().includes(search.toLowerCase()) ||
+    b.category.toLowerCase().includes(search.toLowerCase()) ||
+    (b.city ?? "").toLowerCase().includes(search.toLowerCase()) ||
+    b.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()))
+
+  const filtered = businesses.filter((b) => {
+    if (!matchesSearch(b)) return false
+    // Unknown distance is never hidden — we just can't prove it's far away.
+    if (maxKm != null && b.distanceKm != null && b.distanceKm > maxKm) return false
+    if (onlyServing && b.servesMe === false) return false
+    return true
+  })
+  const hiddenByFilters = businesses.filter(matchesSearch).length - filtered.length
 
   function useGps() {
     if (typeof navigator === "undefined" || !navigator.geolocation) return toast.error("Location not available")
@@ -85,6 +96,31 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
           </div>
         </div>
 
+        {/* Distance filters — only meaningful once we know where the resident is */}
+        {origin && (
+          <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3">
+            {([null, 2, 5, 10, 25] as const).map((km) => (
+              <button
+                key={km ?? "any"}
+                onClick={() => setMaxKm(km)}
+                className={`rounded-lg border px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+                  maxKm === km ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
+                }`}
+              >
+                {km == null ? "Any distance" : `${km} km`}
+              </button>
+            ))}
+            <button
+              onClick={() => setOnlyServing((v) => !v)}
+              className={`rounded-lg border px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+                onlyServing ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
+              }`}
+            >
+              Serves my area
+            </button>
+          </div>
+        )}
+
         <section className="px-4">
           <h2 className="mb-3 text-[17px] font-semibold text-foreground">{origin ? "Near you" : "Pet services"}</h2>
           {isLoading ? (
@@ -94,10 +130,31 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
           ) : filtered.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
               <Store className="mx-auto h-7 w-7 text-muted-foreground" />
-              <p className="mt-2 text-[14px] font-semibold text-foreground">No services yet</p>
-              <p className="mt-1 text-[12px] text-muted-foreground">
-                Verified pet businesses near you will appear here.
-              </p>
+              {hiddenByFilters > 0 ? (
+                <>
+                  <p className="mt-2 text-[14px] font-semibold text-foreground">Nothing within that range</p>
+                  <p className="mt-1 text-[12px] text-muted-foreground">
+                    {hiddenByFilters} business{hiddenByFilters === 1 ? " is" : "es are"} further away or outside their
+                    service area.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setMaxKm(null)
+                      setOnlyServing(false)
+                    }}
+                    className="mt-3 rounded-lg bg-muted px-3.5 py-1.5 text-[12.5px] font-semibold text-foreground"
+                  >
+                    Clear filters
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="mt-2 text-[14px] font-semibold text-foreground">No services yet</p>
+                  <p className="mt-1 text-[12px] text-muted-foreground">
+                    Verified pet businesses near you will appear here.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -122,6 +179,21 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
                       </span>
                     </div>
                     <p className="mt-0.5 text-[12px] text-muted-foreground">{b.category}</p>
+                    {(b.address || b.city) && (
+                      <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">
+                        {[b.address, b.city].filter(Boolean).join(", ")}
+                      </p>
+                    )}
+                    {b.servesMe === true && (
+                      <span className="mt-1 inline-block rounded-md bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success">
+                        Serves your area
+                      </span>
+                    )}
+                    {b.servesMe === false && (
+                      <span className="mt-1 inline-block rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        Outside their service area
+                      </span>
+                    )}
                     <div className="mt-1.5 flex items-center gap-2.5">
                       {b.ratingCount > 0 && (
                         <span className="flex items-center gap-1 text-[12px] text-foreground">

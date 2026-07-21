@@ -594,7 +594,10 @@ export type Database = {
       }
       businesses: {
         Row: {
+          address: string | null
           category: string
+          city: string | null
+          country: string | null
           created_at: string
           description: string | null
           hours: Json | null
@@ -607,15 +610,20 @@ export type Database = {
           longitude: number | null
           name: string
           owner_id: string
+          postal_code: string | null
           price_range: string | null
           rating_avg: number
           rating_count: number
+          region: string | null
           service_radius_m: number | null
           tags: string[]
           updated_at: string
         }
         Insert: {
+          address?: string | null
           category: string
+          city?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
           hours?: Json | null
@@ -628,15 +636,20 @@ export type Database = {
           longitude?: number | null
           name: string
           owner_id: string
+          postal_code?: string | null
           price_range?: string | null
           rating_avg?: number
           rating_count?: number
+          region?: string | null
           service_radius_m?: number | null
           tags?: string[]
           updated_at?: string
         }
         Update: {
+          address?: string | null
           category?: string
+          city?: string | null
+          country?: string | null
           created_at?: string
           description?: string | null
           hours?: Json | null
@@ -649,9 +662,11 @@ export type Database = {
           longitude?: number | null
           name?: string
           owner_id?: string
+          postal_code?: string | null
           price_range?: string | null
           rating_avg?: number
           rating_count?: number
+          region?: string | null
           service_radius_m?: number | null
           tags?: string[]
           updated_at?: string

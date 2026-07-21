@@ -55,6 +55,29 @@ export interface MyBusiness {
   ratingAvg: number
   ratingCount: number
   listingTier: string
+  address: string | null
+  city: string | null
+  region: string | null
+  postalCode: string | null
+}
+
+/** One-line street address, or null when nothing has been filled in. */
+export function formatAddress(b: {
+  address?: string | null
+  city?: string | null
+  region?: string | null
+  postalCode?: string | null
+}): string | null {
+  const parts = [b.address, b.city, b.region].filter(Boolean)
+  if (!parts.length) return null
+  return parts.join(", ") + (b.postalCode ? ` ${b.postalCode}` : "")
+}
+
+/** Directions link — mirrors the convention already used for incident reports. */
+export function mapsUrl(opts: { address?: string | null; latitude?: number | null; longitude?: number | null }): string {
+  const query =
+    opts.latitude != null && opts.longitude != null ? `${opts.latitude},${opts.longitude}` : (opts.address ?? "")
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
 }
 
 function mapMine(r: BizRow): MyBusiness {
@@ -75,6 +98,10 @@ function mapMine(r: BizRow): MyBusiness {
     ratingAvg: r.rating_avg,
     ratingCount: r.rating_count,
     listingTier: r.listing_tier,
+    address: r.address,
+    city: r.city,
+    region: r.region,
+    postalCode: r.postal_code,
   }
 }
 
@@ -155,6 +182,10 @@ export async function updateBusiness(
     logoUrl: string | null
     hours: BusinessHours | null
     tags: string[]
+    address: string | null
+    city: string | null
+    region: string | null
+    postalCode: string | null
   }>,
 ): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
@@ -170,6 +201,10 @@ export async function updateBusiness(
   if (patch.serviceRadiusM !== undefined) db.service_radius_m = patch.serviceRadiusM
   if (patch.logoUrl !== undefined) db.logo_url = patch.logoUrl
   if (patch.tags !== undefined) db.tags = patch.tags
+  if (patch.address !== undefined) db.address = patch.address
+  if (patch.city !== undefined) db.city = patch.city
+  if (patch.region !== undefined) db.region = patch.region
+  if (patch.postalCode !== undefined) db.postal_code = patch.postalCode
   if (patch.hours !== undefined) {
     db.hours = patch.hours as Database["public"]["Tables"]["businesses"]["Update"]["hours"]
   }
@@ -204,6 +239,24 @@ export interface NearbyBusiness {
   hours: BusinessHours | null
   /** Derived from `hours` when present, else falls back to the manual is_open flag. */
   openNow: boolean
+  address: string | null
+  city: string | null
+  region: string | null
+  postalCode: string | null
+  latitude: number | null
+  longitude: number | null
+  serviceRadiusM: number | null
+  /**
+   * True when the resident's location falls inside the business's stated service
+   * radius. Null when either side has no coordinates — unknown, so never hidden.
+   */
+  servesMe: boolean | null
+}
+
+/** Does this business's service radius cover the given distance? */
+export function servesDistance(distanceKm: number | null, serviceRadiusM: number | null): boolean | null {
+  if (distanceKm == null || serviceRadiusM == null || serviceRadiusM <= 0) return null
+  return distanceKm * 1000 <= serviceRadiusM
 }
 
 export function useNearbyBusinesses(origin: { lat: number; lng: number } | null) {
@@ -221,7 +274,7 @@ export function useNearbyBusinesses(origin: { lat: number; lng: number } | null)
     const { data: rows, error: err } = await supabase
       .from("businesses")
       .select(
-        "id, name, category, description, price_range, is_open, rating_avg, rating_count, latitude, longitude, tags, hours",
+        "id, name, category, description, price_range, is_open, rating_avg, rating_count, latitude, longitude, tags, hours, address, city, region, postal_code, service_radius_m",
       )
       .eq("is_verified", true)
     if (err) {
@@ -233,6 +286,10 @@ export function useNearbyBusinesses(origin: { lat: number; lng: number } | null)
     const mapped: NearbyBusiness[] = (rows ?? []).map((r) => {
       const hours = (r.hours as BusinessHours) ?? null
       const derived = isOpenNow(hours)
+      const distanceKm =
+        lat != null && lng != null && r.latitude != null && r.longitude != null
+          ? haversineKm({ lat, lng }, { lat: r.latitude, lng: r.longitude })
+          : null
       return {
         id: r.id,
         name: r.name,
@@ -242,14 +299,19 @@ export function useNearbyBusinesses(origin: { lat: number; lng: number } | null)
         isOpen: r.is_open,
         ratingAvg: r.rating_avg,
         ratingCount: r.rating_count,
-        distanceKm:
-          lat != null && lng != null && r.latitude != null && r.longitude != null
-            ? haversineKm({ lat, lng }, { lat: r.latitude, lng: r.longitude })
-            : null,
+        distanceKm,
         tags: r.tags ?? [],
         hours,
         // Hours are authoritative when set; the manual switch is the fallback.
         openNow: derived === null ? r.is_open : derived && r.is_open,
+        address: r.address,
+        city: r.city,
+        region: r.region,
+        postalCode: r.postal_code,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        serviceRadiusM: r.service_radius_m,
+        servesMe: servesDistance(distanceKm, r.service_radius_m),
       }
     })
     mapped.sort((a, b) => {
@@ -284,7 +346,7 @@ export function usePublicBusiness(businessId?: string) {
     const { data: r, error: err } = await supabase
       .from("businesses")
       .select(
-        "id, name, category, description, price_range, is_open, rating_avg, rating_count, latitude, longitude, tags, hours",
+        "id, name, category, description, price_range, is_open, rating_avg, rating_count, latitude, longitude, tags, hours, address, city, region, postal_code, service_radius_m",
       )
       .eq("id", businessId)
       .maybeSingle()
@@ -307,6 +369,14 @@ export function usePublicBusiness(businessId?: string) {
         tags: r.tags ?? [],
         hours,
         openNow: derived === null ? r.is_open : derived && r.is_open,
+        address: r.address,
+        city: r.city,
+        region: r.region,
+        postalCode: r.postal_code,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        serviceRadiusM: r.service_radius_m,
+        servesMe: null,
       })
       setError(null)
     }

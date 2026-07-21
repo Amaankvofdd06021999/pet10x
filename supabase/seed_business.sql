@@ -40,12 +40,12 @@ insert into public.businesses (id, owner_id, name, category, description, logo_u
   service_radius_m, price_range, hours, is_verified, is_open, listing_tier, tags) values
   ('f5000000-0000-4000-8000-000000000001','e5000000-0000-4000-8000-000000000001','Happy Paws Grooming','Grooming',
    'Full-service grooming for dogs and cats — gentle handling, low-stress environment, and a free nail trim with every full groom. Mobile van available for seniors and anxious pets.',
-   null, 49.2830, -123.1180, 8000, '$$',
+   null, 49.2830, -123.1180, 15000, '$$',
    '{"mon":{"open":"09:00","close":"17:00"},"tue":{"open":"09:00","close":"17:00"},"wed":{"open":"09:00","close":"17:00"},"thu":{"open":"09:00","close":"19:00"},"fri":{"open":"09:00","close":"19:00"},"sat":{"open":"10:00","close":"16:00"},"sun":null}'::jsonb,
    true, true, 'featured', array['Cat-friendly','Mobile','Senior pets']),
   ('f5000000-0000-4000-8000-000000000002','e5000000-0000-4000-8000-000000000002','Westside Veterinary Clinic','Veterinary',
    'Neighbourhood vet clinic offering wellness exams, vaccinations, dental care and same-day sick visits. Fear-Free certified team.',
-   null, 49.2650, -123.1500, 12000, '$$$',
+   null, 49.2650, -123.1500, 20000, '$$$',
    '{"mon":{"open":"08:00","close":"18:00"},"tue":{"open":"08:00","close":"18:00"},"wed":{"open":"08:00","close":"18:00"},"thu":{"open":"08:00","close":"18:00"},"fri":{"open":"08:00","close":"17:00"},"sat":{"open":"09:00","close":"13:00"},"sun":null}'::jsonb,
    true, true, 'premium', array['Emergency','Fear-Free','Dentistry']),
   ('f5000000-0000-4000-8000-000000000003','e5000000-0000-4000-8000-000000000003','City Paws Dog Walking','Dog walking',
@@ -54,6 +54,16 @@ insert into public.businesses (id, owner_id, name, category, description, logo_u
    '{"mon":{"open":"07:00","close":"19:00"},"tue":{"open":"07:00","close":"19:00"},"wed":{"open":"07:00","close":"19:00"},"thu":{"open":"07:00","close":"19:00"},"fri":{"open":"07:00","close":"19:00"},"sat":{"open":"08:00","close":"16:00"},"sun":{"open":"08:00","close":"16:00"}}'::jsonb,
    true, true, 'basic', array['GPS-tracked','Small groups','Puppy-friendly'])
 on conflict (id) do nothing;
+
+-- Street addresses (drive the storefront location card + directions link).
+-- Radii are deliberately mixed: from Cedar Grove (Burnaby) the groomer and vet
+-- reach you, but the 6 km walker does not — so "Serves my area" visibly filters.
+update public.businesses set address='1487 W Broadway', city='Vancouver', region='BC', postal_code='V6H 1H6'
+ where id='f5000000-0000-4000-8000-000000000001';
+update public.businesses set address='2905 W 4th Ave', city='Vancouver', region='BC', postal_code='V6K 1R2'
+ where id='f5000000-0000-4000-8000-000000000002';
+update public.businesses set address='855 Davie St', city='Vancouver', region='BC', postal_code='V6Z 2S1'
+ where id='f5000000-0000-4000-8000-000000000003';
 
 -- Buildings need coordinates for the "nearby" distance sort
 update public.buildings set latitude=49.2488, longitude=-122.9805 where id='b5000000-0000-4000-8000-000000000001';

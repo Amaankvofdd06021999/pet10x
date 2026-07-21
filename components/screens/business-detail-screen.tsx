@@ -3,10 +3,10 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
-import { usePublicBusiness, isOpenNow, DAY_KEYS, DAY_LABEL } from "@/lib/data/business"
+import { usePublicBusiness, DAY_KEYS, DAY_LABEL, formatAddress, mapsUrl } from "@/lib/data/business"
 import { useBusinessServices, useBusinessReviews, createBooking, type ServiceItem } from "@/lib/data/bookings"
 import { usePets } from "@/lib/data"
-import { ArrowLeft, Store, Star, Clock, Loader2, CalendarDays, Check, MessageSquare } from "lucide-react"
+import { ArrowLeft, Store, Star, Clock, Loader2, CalendarDays, Check, MessageSquare, MapPin, Navigation } from "lucide-react"
 
 /** Default the booking to tomorrow at 10:00 — a sane, always-valid slot. */
 function defaultSlot(): string {
@@ -74,6 +74,31 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
             </div>
           </div>
         </div>
+
+        {/* Location + directions */}
+        {(formatAddress(biz) || biz.latitude != null) && (
+          <a
+            href={mapsUrl({ address: formatAddress(biz), latitude: biz.latitude, longitude: biz.longitude })}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-3 flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 transition-colors hover:border-accent/50"
+          >
+            <MapPin className="h-4.5 w-4.5 flex-shrink-0 text-accent" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13.5px] font-medium text-foreground">
+                {formatAddress(biz) ?? "View on map"}
+              </span>
+              {biz.serviceRadiusM ? (
+                <span className="block text-[11.5px] text-muted-foreground">
+                  Serves up to {Math.round(biz.serviceRadiusM / 1000)} km from here
+                </span>
+              ) : null}
+            </span>
+            <span className="flex flex-shrink-0 items-center gap-1 text-[12px] font-semibold text-accent">
+              <Navigation className="h-3.5 w-3.5" /> Directions
+            </span>
+          </a>
+        )}
 
         {biz.description && <p className="pb-3 text-[13.5px] leading-relaxed text-foreground">{biz.description}</p>}
 
