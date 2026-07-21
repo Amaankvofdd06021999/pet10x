@@ -40,7 +40,7 @@ insert into public.businesses (id, owner_id, name, category, description, logo_u
   service_radius_m, price_range, hours, is_verified, is_open, listing_tier, tags) values
   ('f5000000-0000-4000-8000-000000000001','e5000000-0000-4000-8000-000000000001','Happy Paws Grooming','Grooming',
    'Full-service grooming for dogs and cats — gentle handling, low-stress environment, and a free nail trim with every full groom. Mobile van available for seniors and anxious pets.',
-   null, 49.2830, -123.1180, 15000, '$$',
+   null, 49.2634, -123.1398, 15000, '$$',
    '{"mon":{"open":"09:00","close":"17:00"},"tue":{"open":"09:00","close":"17:00"},"wed":{"open":"09:00","close":"17:00"},"thu":{"open":"09:00","close":"19:00"},"fri":{"open":"09:00","close":"19:00"},"sat":{"open":"10:00","close":"16:00"},"sun":null}'::jsonb,
    true, true, 'featured', array['Cat-friendly','Mobile','Senior pets']),
   ('f5000000-0000-4000-8000-000000000002','e5000000-0000-4000-8000-000000000002','Westside Veterinary Clinic','Veterinary',
@@ -195,4 +195,41 @@ insert into public.business_services (id, business_id, name, description, price_
  ('65000000-0000-4000-8000-000000000030','f5000000-0000-4000-8000-000000000014','30-min Walk','One-on-one walk with a photo update.',25000,'inr',30,1),
  ('65000000-0000-4000-8000-000000000031','f5000000-0000-4000-8000-000000000014','60-min Walk','Longer park outing, solo or small group.',45000,'inr',60,2),
  ('65000000-0000-4000-8000-000000000032','f5000000-0000-4000-8000-000000000014','Weekly Pack (6 walks)','Six 30-minute walks, Mon–Sat.',140000,'inr',180,3)
+on conflict (id) do nothing;
+
+-- ===========================================================================
+-- 9. Fourth Vancouver business — East Van, and the one category the directory
+--    was missing (Boarding). Gives the Vancouver client four to test against.
+-- ===========================================================================
+do $$
+begin
+  if not exists (select 1 from auth.users where id = 'e5000000-0000-4000-8000-000000000004') then
+    insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, recovery_token, email_change_token_new, email_change)
+    values ('00000000-0000-0000-0000-000000000000','e5000000-0000-4000-8000-000000000004','authenticated','authenticated',
+      'eastside@pet10x.com', crypt('12345678', gen_salt('bf')), now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      '{"full_name":"Grace Lam"}'::jsonb, now(), now(), '', '', '', '');
+    insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (gen_random_uuid(),'e5000000-0000-4000-8000-000000000004','eastside@pet10x.com',
+      '{"sub":"e5000000-0000-4000-8000-000000000004","email":"eastside@pet10x.com"}'::jsonb,'email',now(),now(),now());
+  end if;
+end $$;
+update public.profiles set role='business' where id='e5000000-0000-4000-8000-000000000004';
+
+insert into public.businesses (id, owner_id, name, category, description, latitude, longitude,
+  address, city, region, postal_code, country, service_radius_m, price_range, hours,
+  is_verified, is_open, listing_tier, tags) values
+ ('f5000000-0000-4000-8000-000000000004','e5000000-0000-4000-8000-000000000004','Eastside Pet Boarding & Daycare','Boarding',
+  'Cage-free boarding and daycare on Commercial Drive. Webcam access, a large outdoor yard, and separate small-dog rooms. Overnight staff on site.',
+  49.2700, -123.0700, '1855 Commercial Dr','Vancouver','BC','V5N 4A6','CA', 10000, '$$',
+  '{"mon":{"open":"07:00","close":"19:00"},"tue":{"open":"07:00","close":"19:00"},"wed":{"open":"07:00","close":"19:00"},"thu":{"open":"07:00","close":"19:00"},"fri":{"open":"07:00","close":"19:00"},"sat":{"open":"08:00","close":"18:00"},"sun":{"open":"08:00","close":"18:00"}}'::jsonb,
+  true, true, 'featured', array['Cage-free','Webcam access','Overnight staff'])
+on conflict (id) do nothing;
+
+insert into public.business_services (id, business_id, name, description, price_cents, currency, duration_min, sort_order) values
+ ('65000000-0000-4000-8000-000000000012','f5000000-0000-4000-8000-000000000004','Overnight Boarding','Cage-free overnight stay with evening walk and webcam access.',6500,'cad',1440,1),
+ ('65000000-0000-4000-8000-000000000013','f5000000-0000-4000-8000-000000000004','Doggy Daycare (full day)','Supervised play 7am-7pm, grouped by size and temperament.',4200,'cad',480,2),
+ ('65000000-0000-4000-8000-000000000014','f5000000-0000-4000-8000-000000000004','Puppy Socialisation Class','Small-group class for puppies 8-20 weeks.',3500,'cad',60,3)
 on conflict (id) do nothing;
