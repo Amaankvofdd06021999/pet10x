@@ -52,54 +52,50 @@ function sanitizeAuthError(message: string): string {
   return "Something went wrong. Please try again."
 }
 
-/** Build the app-facing user object from the Supabase auth user + profile + links. */
+/**
+ * Build the app-facing user object from the Supabase auth user.
+ *
+ * This used to fan out into four PostgREST queries. They ran in parallel, but
+ * each one was still a chance to stall on a slow link, and users can be a long
+ * way from the database region. `my_app_user()` returns the whole thing —
+ * profile, building/unit, pet count — in a single round trip, still RLS-scoped.
+ */
 async function loadAppUser(authUser: User): Promise<AppUser> {
   const supabase = getSupabaseBrowserClient()!
 
-  // One round trip each, all in parallel. The building/unit names are embedded
-  // rather than fetched in follow-up queries — on a high-latency link those
-  // sequential hops were costing the better part of a second on every load.
-  const [{ data: profile }, { data: link }, { count }, { data: managed }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("role, full_name, email, avatar_url, member_since, plan_label, onboarded, is_super_admin, is_suspended")
-      .eq("id", authUser.id)
-      .maybeSingle(),
-    supabase
-      .from("resident_links")
-      .select("building_id, buildings(name), units(unit_number)")
-      .eq("profile_id", authUser.id)
-      .eq("status", "approved")
-      .limit(1)
-      .maybeSingle(),
-    supabase.from("pets").select("id", { count: "exact", head: true }).eq("owner_id", authUser.id),
-    // Ordered by is_primary so a multi-building manager always lands on the same one.
-    supabase
-      .from("building_managers")
-      .select("building_id, buildings(name)")
-      .eq("profile_id", authUser.id)
-      .order("is_primary", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ])
-
-  const appRole = DB_ROLE_TO_APP[profile?.role ?? "pet_owner"] ?? "pet-owner"
-  const petCount = count ?? 0
-
-  type Named = { name: string } | { name: string }[] | null
-  const one = (v: Named): string => (Array.isArray(v) ? (v[0]?.name ?? "") : (v?.name ?? ""))
-
-  let building = ""
-  let unit = ""
-
-  if (link?.building_id) {
-    building = one(link.buildings as Named)
-    const u = link.units as { unit_number: string } | { unit_number: string }[] | null
-    unit = Array.isArray(u) ? (u[0]?.unit_number ?? "") : (u?.unit_number ?? "")
-  } else if (managed?.building_id) {
-    building = one(managed.buildings as Named)
-    if (appRole === "building-manager") unit = "Office"
+  const { data } = await supabase.rpc("my_app_user")
+  const j = (data ?? {}) as {
+    role?: string
+    full_name?: string | null
+    email?: string | null
+    avatar_url?: string | null
+    member_since?: string | null
+    plan_label?: string | null
+    onboarded?: boolean
+    is_super_admin?: boolean
+    is_suspended?: boolean
+    pet_count?: number
+    building?: { name?: string | null; unit?: string | null } | null
   }
+
+  const profile = {
+    role: j.role,
+    full_name: j.full_name,
+    email: j.email,
+    avatar_url: j.avatar_url,
+    member_since: j.member_since,
+    plan_label: j.plan_label,
+    onboarded: j.onboarded,
+    is_super_admin: j.is_super_admin,
+    is_suspended: j.is_suspended,
+  }
+  const appRole = DB_ROLE_TO_APP[profile.role ?? "pet_owner"] ?? "pet-owner"
+  const petCount = j.pet_count ?? 0
+
+  const building = j.building?.name ?? ""
+  let unit = j.building?.unit ?? ""
+  // A manager's "unit" is their office, not a home.
+  if (!unit && building && appRole === "building-manager") unit = "Office"
 
   return {
     id: authUser.id,
@@ -124,14 +120,42 @@ async function loadAppUser(authUser: User): Promise<AppUser> {
 /**
  * Last successfully-resolved app user, held at module scope so it outlives an
  * AuthProvider remount. Each route mounts its own provider, so the redirect
- * after sign-in (/login → /app, → /admin, → /businessaccess) used to re-run
- * loadAppUser's four queries from scratch and flash a full-screen spinner.
+ * after sign-in (/login → /app, → /admin, → /businessaccess) used to re-resolve
+ * the profile from scratch and flash a full-screen spinner.
  * With this, the second mount paints instantly and revalidates in the
  * background. Cleared on sign-out; kept in step with local user edits.
- * Module scope is per-tab and reset on a hard reload, so it never leaks
- * across users or survives a real logout.
+ * Module scope is per-tab; the localStorage mirror below survives reloads.
  */
 let cachedAppUser: AppUser | null = null
+
+/**
+ * ...and mirrored into localStorage so a hard reload paints from cache too.
+ * This is a rendering cache only: it decides which tabs to draw first, never
+ * what data you may read. Every real permission is still enforced by RLS and by
+ * the server-side middleware, and the cache is revalidated on every mount and
+ * dropped on sign-out.
+ */
+const USER_CACHE_KEY = "pet10x.appUser.v1"
+
+function readPersistedUser(): AppUser | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = window.localStorage.getItem(USER_CACHE_KEY)
+    return raw ? (JSON.parse(raw) as AppUser) : null
+  } catch {
+    return null
+  }
+}
+
+function persistUser(u: AppUser | null): void {
+  if (typeof window === "undefined") return
+  try {
+    if (u) window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(u))
+    else window.localStorage.removeItem(USER_CACHE_KEY)
+  } catch {
+    /* private mode / quota — the cache is optional */
+  }
+}
 
 interface AuthContextValue {
   user: AppUser | null
@@ -202,6 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthUser(session?.user ?? null)
       if (!session) {
         cachedAppUser = null
+        persistUser(null)
         setUser(null)
         setAuthMode((m) => (m === "guest" ? m : null))
         setIsLoading(false)
@@ -219,8 +244,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!authUser) return
     let active = true
 
-    // Same user we already resolved on a prior mount → paint from cache now and
-    // revalidate below, instead of blocking the screen on the profile queries.
+    // Same user we already resolved before → paint from cache now and revalidate
+    // below, instead of blocking the screen on a cross-region round trip.
+    if (!cachedAppUser) cachedAppUser = readPersistedUser()
     if (cachedAppUser && cachedAppUser.id === authUser.id) {
       setUser(cachedAppUser)
       setAuthMode("full")
@@ -231,6 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((u) => {
         if (!active) return
         cachedAppUser = u
+        persistUser(u)
         setUser(u)
         setAuthMode("full")
       })
@@ -287,7 +314,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => {
       if (!prev) return prev
       const next = { ...prev, ...patch }
-      if (cachedAppUser?.id === next.id) cachedAppUser = next
+      if (cachedAppUser?.id === next.id) {
+        cachedAppUser = next
+        persistUser(next)
+      }
       return next
     })
   }, [])
@@ -303,7 +333,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => {
       if (!prev) return prev
       const next = { ...prev, onboarded: true }
-      if (cachedAppUser?.id === next.id) cachedAppUser = next
+      if (cachedAppUser?.id === next.id) {
+        cachedAppUser = next
+        persistUser(next)
+      }
       return next
     })
   }, [])
@@ -327,6 +360,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (supabase) await supabase.auth.signOut().catch(() => {})
     clearPetsCache()
     cachedAppUser = null
+    persistUser(null)
     setUser(null)
     setAuthUser(null)
     setGuestSession(null)

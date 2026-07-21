@@ -2693,6 +2693,7 @@ export type Database = {
         Returns: undefined
       }
       manages_building: { Args: { b: string }; Returns: boolean }
+      my_app_user: { Args: never; Returns: Json }
       my_building_link: { Args: never; Returns: Json }
       request_building_link: { Args: { p_code: string }; Returns: Json }
       resolve_building_code: { Args: { p_code: string }; Returns: Json }
