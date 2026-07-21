@@ -31,7 +31,9 @@ export interface RoleRoute {
  * specific (longest) prefix that matches a given path.
  */
 export const ROLE_ROUTES: RoleRoute[] = [
-  { prefix: "/admin", requireSuperAdmin: true },
+  // ownLogin: the page renders its own super-admin sign-in; a signed-in
+  // non-super-admin is still redirected away by canAccessRoute below.
+  { prefix: "/admin", requireSuperAdmin: true, ownLogin: true },
   // ownLogin: logged-out visitors get the branded business sign-in/sign-up page,
   // not the generic /login (which would also hide business sign-up entirely).
   { prefix: "/businessaccess", roles: ["business"], ownLogin: true },
