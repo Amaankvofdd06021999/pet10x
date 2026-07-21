@@ -361,6 +361,20 @@ stateDiagram-v2
           <td>1.3 km · <span style="color:#3ecf3e">Serves</span></td></tr>
       </tbody>
     </table>
+    <h4>Hyderabad test set (for testing on a real phone in India)</h4>
+    <table>
+      <thead><tr><th>Business</th><th>Area</th><th>Radius</th><th>Owner login</th></tr></thead>
+      <tbody>
+        <tr><td>Pawsome Grooming Studio</td><td>Madhapur · Hitech City</td><td>10 km</td><td><code>pawsome@pet10x.com</code></td></tr>
+        <tr><td>VetCare Animal Hospital</td><td>Gachibowli · Hitech City</td><td>12 km</td><td><code>vetcare@pet10x.com</code></td></tr>
+        <tr><td>Happy Tails Pet Clinic</td><td>West Marredpally · Secunderabad</td><td>8 km</td><td><code>happytails@pet10x.com</code></td></tr>
+        <tr><td>Walk N Wag Pet Services</td><td>Begumpet · Secunderabad</td><td>6 km</td><td><code>walknwag@pet10x.com</code></td></tr>
+      </tbody>
+    </table>
+    <p style="color:var(--muted);font-size:13.5px">All four use password <code>12345678</code> and are priced in ₹.
+      Standing in Hitech City, the first two say <b>Serves your area</b> and the Secunderabad two don't; in Secunderabad
+      it flips. The Vancouver businesses are ~12,300 km away, so they sort last and disappear under any distance chip.</p>
+
     <div class="note"><strong>The clean demonstration:</strong> sign in as <code>sofia.nguyen@pet10x.com</code>, open
       Services and tap <b>Serves my area</b> — City Paws Dog Walking drops out, because its 6 km radius doesn't reach
       Burnaby. Sign in as <code>ava.petrova@pet10x.com</code> and all three remain. Same data, different location.</div>

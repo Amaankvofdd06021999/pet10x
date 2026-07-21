@@ -51,6 +51,7 @@ export interface ServiceItem {
   name: string
   description: string | null
   priceCents: number
+  currency: string
   durationMin: number | null
   active: boolean
   sortOrder: number
@@ -67,7 +68,7 @@ export function useBusinessServices(businessId?: string): LiveResult<ServiceItem
     setLoading(true)
     const { data: rows, error: err } = await supabase
       .from("business_services")
-      .select("id, business_id, name, description, price_cents, duration_min, active, sort_order")
+      .select("id, business_id, name, description, price_cents, currency, duration_min, active, sort_order")
       .eq("business_id", businessId)
       .order("sort_order", { ascending: true })
     if (err) {
@@ -81,6 +82,7 @@ export function useBusinessServices(businessId?: string): LiveResult<ServiceItem
           name: r.name,
           description: r.description,
           priceCents: r.price_cents,
+          currency: r.currency,
           durationMin: r.duration_min,
           active: r.active,
           sortOrder: r.sort_order,
@@ -150,6 +152,7 @@ export interface OwnerBooking {
   amount: number
   commission: number
   net: number
+  currency: string
   customerName: string
   petName: string | null
   petSpecies: string | null
@@ -172,7 +175,7 @@ export function useOwnerBookings(businessId?: string): LiveResult<OwnerBooking[]
     const { data: rows, error: err } = await supabase
       .from("service_bookings")
       .select(
-        `id, status, scheduled_for, created_at, responded_at, amount_cents, commission_cents,
+        `id, status, scheduled_for, created_at, responded_at, amount_cents, commission_cents, currency,
          customer_note, declined_reason,
          customer:profiles!service_bookings_customer_id_fkey ( full_name ),
          pet:pets!service_bookings_pet_id_fkey ( name, species, breed ),
@@ -196,6 +199,7 @@ export function useOwnerBookings(businessId?: string): LiveResult<OwnerBooking[]
       responded_at: string | null
       amount_cents: number
       commission_cents: number
+      currency: string
       customer_note: string | null
       declined_reason: string | null
       customer: { full_name: string | null } | { full_name: string | null }[] | null
@@ -218,6 +222,7 @@ export function useOwnerBookings(businessId?: string): LiveResult<OwnerBooking[]
           amount,
           commission,
           net: amount - commission,
+          currency: r.currency,
           customerName: first(r.customer)?.full_name ?? "Customer",
           petName: pet?.name ?? null,
           petSpecies: pet?.species ?? null,
@@ -276,6 +281,7 @@ export interface CustomerBooking {
   scheduledFor: string | null
   createdAt: string
   amount: number
+  currency: string
   businessId: string
   businessName: string
   businessCategory: string
@@ -306,7 +312,7 @@ export function useMyBookings(): LiveResult<CustomerBooking[]> {
     const { data: rows, error: err } = await supabase
       .from("service_bookings")
       .select(
-        `id, status, scheduled_for, created_at, amount_cents, business_id, declined_reason,
+        `id, status, scheduled_for, created_at, amount_cents, currency, business_id, declined_reason,
          business:businesses!service_bookings_business_id_fkey ( name, category ),
          service:business_services!service_bookings_service_id_fkey ( name ),
          pet:pets!service_bookings_pet_id_fkey ( name ),
@@ -328,6 +334,7 @@ export function useMyBookings(): LiveResult<CustomerBooking[]> {
       scheduled_for: string | null
       created_at: string
       amount_cents: number
+      currency: string
       business_id: string
       declined_reason: string | null
       business: { name: string; category: string } | { name: string }[] | null
@@ -346,6 +353,7 @@ export function useMyBookings(): LiveResult<CustomerBooking[]> {
           scheduledFor: r.scheduled_for,
           createdAt: r.created_at,
           amount: (r.amount_cents ?? 0) / 100,
+          currency: r.currency,
           businessId: r.business_id,
           businessName: biz?.name ?? "Business",
           businessCategory: biz?.category ?? "",
@@ -372,6 +380,7 @@ export async function createBooking(input: {
   businessId: string
   serviceId: string
   priceCents: number
+  currency?: string
   petId?: string | null
   scheduledFor: string
   note?: string
@@ -390,6 +399,7 @@ export async function createBooking(input: {
     pet_id: input.petId ?? null,
     amount_cents: input.priceCents,
     commission_cents: Math.round(input.priceCents * COMMISSION_RATE),
+    currency: input.currency ?? "cad",
     status: "requested",
     scheduled_for: input.scheduledFor,
     customer_note: input.note || null,

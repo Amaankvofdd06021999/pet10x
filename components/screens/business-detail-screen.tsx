@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
-import { usePublicBusiness, DAY_KEYS, DAY_LABEL, formatAddress, mapsUrl } from "@/lib/data/business"
+import { usePublicBusiness, DAY_KEYS, DAY_LABEL, formatAddress, mapsUrl, formatPrice } from "@/lib/data/business"
 import { useBusinessServices, useBusinessReviews, createBooking, type ServiceItem } from "@/lib/data/bookings"
 import { usePets } from "@/lib/data"
 import { ArrowLeft, Store, Star, Clock, Loader2, CalendarDays, Check, MessageSquare, MapPin, Navigation } from "lucide-react"
@@ -132,7 +132,7 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
                   ) : null}
                 </div>
                 <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
-                  <span className="text-[16px] font-bold text-foreground">${(s.priceCents / 100).toFixed(2)}</span>
+                  <span className="text-[16px] font-bold text-foreground">{formatPrice(s.priceCents, s.currency)}</span>
                   <button
                     onClick={() => setBooking(s)}
                     className="rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white"
@@ -241,6 +241,7 @@ function BookSheet({
       businessId,
       serviceId: service.id,
       priceCents: service.priceCents,
+      currency: service.currency,
       petId: petId || null,
       scheduledFor: new Date(slot).toISOString(),
       note,
@@ -274,7 +275,7 @@ function BookSheet({
           <>
             <h3 className="text-[17px] font-semibold text-foreground">Book {service.name}</h3>
             <p className="mt-0.5 text-[13px] text-muted-foreground">
-              {business} · ${(service.priceCents / 100).toFixed(2)}
+              {business} · {formatPrice(service.priceCents, service.currency)}
               {service.durationMin ? ` · ${service.durationMin} min` : ""}
             </p>
 
@@ -322,7 +323,7 @@ function BookSheet({
 
               <div className="flex items-center justify-between rounded-xl bg-muted/60 px-3.5 py-2.5">
                 <span className="text-[13px] text-muted-foreground">Total</span>
-                <span className="text-[16px] font-bold text-foreground">${(service.priceCents / 100).toFixed(2)}</span>
+                <span className="text-[16px] font-bold text-foreground">{formatPrice(service.priceCents, service.currency)}</span>
               </div>
 
               <div className="flex gap-2">

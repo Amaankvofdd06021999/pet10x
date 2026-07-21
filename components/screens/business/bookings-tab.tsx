@@ -10,6 +10,7 @@ import {
   type BookingStatus,
   type OwnerBooking,
 } from "@/lib/data/bookings"
+import { formatPrice } from "@/lib/data/business"
 import { SectionCard, EmptyState, Spinner, LoadError, TextInput } from "./business-ui"
 import { Inbox, Check, X, Play, CircleCheck, DollarSign, Clock, Dog, Loader2, CalendarDays } from "lucide-react"
 
@@ -187,11 +188,11 @@ function BookingCard({
 
         {/* Net-of-fee, always visible before accepting */}
         <div className="text-right">
-          <p className="text-[16px] font-bold text-foreground">${b.amount.toFixed(2)}</p>
+          <p className="text-[16px] font-bold text-foreground">{formatPrice(b.amount * 100, b.currency)}</p>
           <p className="text-[11px] text-muted-foreground">
-            −${b.commission.toFixed(2)} fee
+            −{formatPrice(b.commission * 100, b.currency)} fee
           </p>
-          <p className="text-[12px] font-semibold text-success">${b.net.toFixed(2)} net</p>
+          <p className="text-[12px] font-semibold text-success">{formatPrice(b.net * 100, b.currency)} net</p>
         </div>
       </div>
 

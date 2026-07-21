@@ -2,12 +2,12 @@
 
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
-import { useNearbyBusinesses, useMyLocation, setMyLocation } from "@/lib/data/business"
+import { useNearbyBusinesses, useMyLocation, captureDeviceLocation } from "@/lib/data/business"
 import { toast } from "sonner"
 import { Search, Star, MapPin, Navigation, Loader2, Store, CalendarCheck } from "lucide-react"
 
 export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, id?: string) => void }) {
-  const { origin, isLoading: locLoading, refetch: refetchLoc } = useMyLocation()
+  const { origin, isLoading: locLoading, permission, refetch: refetchLoc } = useMyLocation()
   const { data: businesses, isLoading, refetch } = useNearbyBusinesses(origin ? { lat: origin.lat, lng: origin.lng } : null)
   const [search, setSearch] = useState("")
   const [gps, setGps] = useState(false)
@@ -30,23 +30,15 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
   })
   const hiddenByFilters = businesses.filter(matchesSearch).length - filtered.length
 
-  function useGps() {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return toast.error("Location not available")
+  async function useGps() {
     setGps(true)
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { error } = await setMyLocation(pos.coords.latitude, pos.coords.longitude, "Current location")
-        setGps(false)
-        if (error) return toast.error("Couldn't save location", { description: error })
-        toast.success("Location set")
-        refetchLoc()
-        refetch()
-      },
-      () => {
-        setGps(false)
-        toast.error("Couldn't get your location")
-      },
-    )
+    const { origin: fix, error } = await captureDeviceLocation()
+    setGps(false)
+    if (!fix) return toast.error("Couldn't get your location", { description: error ?? undefined })
+    if (error) toast.error("Located, but couldn't save it", { description: error })
+    else toast.success("Location updated")
+    refetchLoc()
+    refetch()
   }
 
   return (
@@ -64,22 +56,46 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
       />
 
       <main className="ios-scroll flex-1 pb-24">
-        {/* Location */}
+        {/* Location — device GPS only; we never guess from a building */}
         <div className="px-4 pb-2 pt-1">
-          <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5">
-            <MapPin className="h-4 w-4 flex-shrink-0 text-primary" />
-            <span className="flex-1 truncate text-[13px] text-foreground">
-              {locLoading ? "Locating…" : origin ? origin.label : "Set your location to see nearby"}
-            </span>
-            <button
-              onClick={useGps}
-              disabled={gps}
-              className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12px] font-semibold text-primary disabled:opacity-60"
-            >
-              {gps ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Navigation className="h-3.5 w-3.5" />}
-              {origin ? "Update" : "Use GPS"}
-            </button>
-          </div>
+          {origin ? (
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5">
+              <MapPin className="h-4 w-4 flex-shrink-0 text-primary" />
+              <span className="flex-1 truncate text-[13px] text-foreground">{origin.label}</span>
+              <button
+                onClick={useGps}
+                disabled={gps}
+                className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12px] font-semibold text-primary disabled:opacity-60"
+              >
+                {gps ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Navigation className="h-3.5 w-3.5" />}
+                Update
+              </button>
+            </div>
+          ) : locLoading ? (
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              <span className="text-[13px] text-muted-foreground">Locating…</span>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-3">
+              <p className="flex items-center gap-1.5 text-[13.5px] font-semibold text-foreground">
+                <MapPin className="h-4 w-4 text-primary" /> See what&apos;s near you
+              </p>
+              <p className="mt-0.5 text-[12px] text-muted-foreground">
+                {permission === "denied"
+                  ? "Location is blocked for this site. Enable it in your browser settings, then tap below."
+                  : "Turn on location to sort services by distance and see who covers your area."}
+              </p>
+              <button
+                onClick={useGps}
+                disabled={gps}
+                className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {gps ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+                Use my location
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Search */}

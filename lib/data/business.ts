@@ -61,6 +61,23 @@ export interface MyBusiness {
   postalCode: string | null
 }
 
+/**
+ * Format a minor-unit amount in its own currency. Businesses are not all in one
+ * country, so a hardcoded "$" would misprice every non-CAD listing.
+ */
+export function formatPrice(cents: number, currency?: string | null): string {
+  const code = (currency || "cad").toUpperCase()
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: code,
+      maximumFractionDigits: 2,
+    }).format((cents ?? 0) / 100)
+  } catch {
+    return `${((cents ?? 0) / 100).toFixed(2)} ${code}`
+  }
+}
+
 /** One-line street address, or null when nothing has been filled in. */
 export function formatAddress(b: {
   address?: string | null
@@ -395,70 +412,123 @@ export interface MyOrigin {
   lat: number
   lng: number
   label: string
+  /** "device" = real GPS fix · "manual" = typed/dropped pin. */
   source: string
 }
 
+export type LocationPermission = "granted" | "prompt" | "denied" | "unsupported" | "unknown"
+
+/** Read the geolocation permission WITHOUT triggering the browser prompt. */
+async function readPermission(): Promise<LocationPermission> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) return "unsupported"
+  if (!navigator.permissions?.query) return "unknown"
+  try {
+    const s = await navigator.permissions.query({ name: "geolocation" as PermissionName })
+    return s.state as LocationPermission
+  } catch {
+    return "unknown"
+  }
+}
+
+/** Promise wrapper around the one-shot geolocation call. */
+export function getDevicePosition(): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    )
+  })
+}
+
+/**
+ * The user's own location — device GPS first, then whatever they last saved.
+ *
+ * Deliberately does NOT fall back to their building: Pet10x is also a direct
+ * consumer app, so most people won't belong to a building at all, and reporting
+ * a building's coordinates as "your location" is simply wrong for anyone who
+ * isn't standing in it. No location just means no distance — never a guess.
+ */
 export function useMyLocation() {
   const [origin, setOrigin] = useState<MyOrigin | null>(null)
   const [isLoading, setLoading] = useState(ENABLED)
+  const [permission, setPermission] = useState<LocationPermission>("unknown")
+
   const refetch = useCallback(async () => {
+    const perm = await readPermission()
+    setPermission(perm)
+
     const supabase = getSupabaseBrowserClient()
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      setOrigin(null)
-      setLoading(false)
-      return
-    }
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("latitude, longitude, location_label")
-      .eq("id", user.id)
-      .maybeSingle()
-    if (prof?.latitude != null && prof?.longitude != null) {
-      setOrigin({ lat: prof.latitude, lng: prof.longitude, label: prof.location_label ?? "My location", source: "profile" })
-      setLoading(false)
-      return
-    }
-    // fall back to the user's approved building location
-    const { data: link } = await supabase.rpc("my_building_link")
-    const j = link as { building_id?: string; building_name?: string; status?: string } | null
-    if (j?.status === "approved" && j.building_id) {
-      const { data: b } = await supabase
-        .from("buildings")
-        .select("name, latitude, longitude")
-        .eq("id", j.building_id)
-        .maybeSingle()
-      if (b?.latitude != null && b?.longitude != null) {
-        setOrigin({ lat: b.latitude, lng: b.longitude, label: b.name ?? "My building", source: "building" })
-        setLoading(false)
-        return
+    let saved: MyOrigin | null = null
+    let userId: string | null = null
+
+    if (supabase) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      userId = user?.id ?? null
+      if (userId) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("latitude, longitude, location_label, location_source")
+          .eq("id", userId)
+          .maybeSingle()
+        if (prof?.latitude != null && prof?.longitude != null) {
+          saved = {
+            lat: prof.latitude,
+            lng: prof.longitude,
+            label: prof.location_label ?? "My location",
+            source: prof.location_source ?? "manual",
+          }
+          setOrigin(saved) // paint immediately, refine below
+        }
       }
     }
-    setOrigin(null)
     setLoading(false)
+
+    // Already-granted permission means we can get a real fix with no prompt.
+    if (perm === "granted") {
+      const pos = await getDevicePosition()
+      if (pos) {
+        setOrigin({ lat: pos.lat, lng: pos.lng, label: "Current location", source: "device" })
+        if (userId) void setMyLocation(pos.lat, pos.lng, "Current location", "device")
+      }
+    }
   }, [])
+
   useEffect(() => {
     void refetch()
   }, [refetch])
-  return { origin, isLoading, refetch }
+
+  return { origin, isLoading, permission, refetch }
 }
 
-export async function setMyLocation(lat: number, lng: number, label: string): Promise<{ error: string | null }> {
+/** Ask for GPS (may prompt), store it, and return the fix. */
+export async function captureDeviceLocation(): Promise<{ origin: MyOrigin | null; error: string | null }> {
+  const pos = await getDevicePosition()
+  if (!pos) return { origin: null, error: "Couldn't get your location. Check location permission for this site." }
+  const { error } = await setMyLocation(pos.lat, pos.lng, "Current location", "device")
+  return { origin: { lat: pos.lat, lng: pos.lng, label: "Current location", source: "device" }, error }
+}
+
+export async function setMyLocation(
+  lat: number,
+  lng: number,
+  label: string,
+  source: "device" | "manual" = "manual",
+): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { error: "Not signed in." }
+  // Signed-out visitors still get distances this session; there's just nowhere
+  // to persist the fix, which is fine.
+  if (!user) return { error: null }
   const { error } = await supabase
     .from("profiles")
-    .update({ latitude: lat, longitude: lng, location_label: label, location_source: "manual" })
+    .update({ latitude: lat, longitude: lng, location_label: label, location_source: source })
     .eq("id", user.id)
   return { error: error?.message ?? null }
 }

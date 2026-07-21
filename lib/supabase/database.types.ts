@@ -2236,6 +2236,7 @@ export type Database = {
           business_id: string
           commission_cents: number
           created_at: string
+          currency: string
           customer_id: string
           customer_note: string | null
           declined_reason: string | null
@@ -2253,6 +2254,7 @@ export type Database = {
           business_id: string
           commission_cents?: number
           created_at?: string
+          currency?: string
           customer_id: string
           customer_note?: string | null
           declined_reason?: string | null
@@ -2270,6 +2272,7 @@ export type Database = {
           business_id?: string
           commission_cents?: number
           created_at?: string
+          currency?: string
           customer_id?: string
           customer_note?: string | null
           declined_reason?: string | null

@@ -9,6 +9,7 @@ import {
   DAY_LABEL,
   type MyBusiness,
   type BusinessHours,
+  formatPrice,
 } from "@/lib/data/business"
 import {
   useBusinessServices,
@@ -384,7 +385,7 @@ function ServiceCatalog({
                 </div>
                 {s.description && <p className="truncate text-[12px] text-muted-foreground">{s.description}</p>}
               </div>
-              <p className="text-[15px] font-bold text-foreground">${(s.priceCents / 100).toFixed(2)}</p>
+              <p className="text-[15px] font-bold text-foreground">{formatPrice(s.priceCents, s.currency)}</p>
               <button
                 onClick={() => toggle(s)}
                 className={`rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold ${s.active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}

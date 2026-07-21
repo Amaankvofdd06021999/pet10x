@@ -123,3 +123,76 @@ insert into public.business_reviews (id, business_id, booking_id, author_id, rat
  ('95000000-0000-4000-8000-000000000003','f5000000-0000-4000-8000-000000000002','85000000-0000-4000-8000-000000000008','a5000000-0000-4000-8000-000000000013',4,'Thorough exam and a clear explanation of the bloodwork. Parking is tight.',null,null, now()-interval '9 days'),
  ('95000000-0000-4000-8000-000000000004','f5000000-0000-4000-8000-000000000003','85000000-0000-4000-8000-000000000010','a5000000-0000-4000-8000-000000000014',5,'GPS updates are great and Bella clearly loves Jordan.','Bella is a star! Thanks Noah.', now()-interval '1 day', now()-interval '2 days')
 on conflict (id) do nothing;
+
+-- ===========================================================================
+-- 8. Hyderabad set — for testing real device GPS in India.
+--    2 on the Hitech City side, 2 on the Secunderabad side. Radii are chosen so
+--    whichever side of the city you stand on, exactly those 2 "serve your area".
+-- ===========================================================================
+do $$
+declare u jsonb;
+  owners jsonb := '[
+    {"id":"e5000000-0000-4000-8000-000000000011","email":"pawsome@pet10x.com","name":"Ananya Rao"},
+    {"id":"e5000000-0000-4000-8000-000000000012","email":"vetcare@pet10x.com","name":"Dr. Rahul Verma"},
+    {"id":"e5000000-0000-4000-8000-000000000013","email":"happytails@pet10x.com","name":"Sneha Reddy"},
+    {"id":"e5000000-0000-4000-8000-000000000014","email":"walknwag@pet10x.com","name":"Arjun Mehta"}
+  ]'::jsonb;
+begin
+  for u in select * from jsonb_array_elements(owners)
+  loop
+    if not exists (select 1 from auth.users where id = (u->>'id')::uuid) then
+      insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+        raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+        confirmation_token, recovery_token, email_change_token_new, email_change)
+      values ('00000000-0000-0000-0000-000000000000', (u->>'id')::uuid, 'authenticated','authenticated',
+        u->>'email', crypt('12345678', gen_salt('bf')), now(),
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        jsonb_build_object('full_name', u->>'name'), now(), now(), '', '', '', '');
+      insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+      values (gen_random_uuid(), (u->>'id')::uuid, u->>'email',
+        jsonb_build_object('sub', u->>'id', 'email', u->>'email'), 'email', now(), now(), now());
+    end if;
+  end loop;
+end $$;
+
+update public.profiles set role='business' where id::text like 'e5000000-0000-4000-8000-0000000000%';
+
+insert into public.businesses (id, owner_id, name, category, description, latitude, longitude,
+  address, city, region, postal_code, country, service_radius_m, price_range, hours,
+  is_verified, is_open, listing_tier, tags) values
+ ('f5000000-0000-4000-8000-000000000011','e5000000-0000-4000-8000-000000000011','Pawsome Grooming Studio','Grooming',
+  'Air-conditioned grooming studio in Madhapur. Breed-specific cuts, tick treatment and de-shedding for Indian summers. Doorstep pickup across Hitech City.',
+  17.4485, 78.3908, 'Plot 42, Ayyappa Society, Madhapur','Hyderabad','TS','500081','IN', 10000, '₹₹',
+  '{"mon":{"open":"10:00","close":"20:00"},"tue":{"open":"10:00","close":"20:00"},"wed":{"open":"10:00","close":"20:00"},"thu":{"open":"10:00","close":"20:00"},"fri":{"open":"10:00","close":"20:00"},"sat":{"open":"09:00","close":"21:00"},"sun":{"open":"10:00","close":"18:00"}}'::jsonb,
+  true, true, 'featured', array['Doorstep pickup','Tick treatment','Cat-friendly']),
+ ('f5000000-0000-4000-8000-000000000012','e5000000-0000-4000-8000-000000000012','VetCare Animal Hospital','Veterinary',
+  'Multi-speciality pet hospital in Gachibowli with 24x7 emergency, digital X-ray and in-house lab. Walk-ins welcome.',
+  17.4401, 78.3489, 'Road No 2, Gachibowli','Hyderabad','TS','500032','IN', 12000, '₹₹₹',
+  '{"mon":{"open":"09:00","close":"21:00"},"tue":{"open":"09:00","close":"21:00"},"wed":{"open":"09:00","close":"21:00"},"thu":{"open":"09:00","close":"21:00"},"fri":{"open":"09:00","close":"21:00"},"sat":{"open":"09:00","close":"21:00"},"sun":{"open":"10:00","close":"14:00"}}'::jsonb,
+  true, true, 'premium', array['24x7 emergency','Digital X-ray','Surgery']),
+ ('f5000000-0000-4000-8000-000000000013','e5000000-0000-4000-8000-000000000013','Happy Tails Pet Clinic','Veterinary',
+  'Neighbourhood clinic in West Marredpally for vaccinations, deworming and routine check-ups. Home visits across Secunderabad.',
+  17.4478, 78.5030, 'SD Road, West Marredpally','Secunderabad','TS','500026','IN', 8000, '₹₹',
+  '{"mon":{"open":"09:30","close":"19:30"},"tue":{"open":"09:30","close":"19:30"},"wed":{"open":"09:30","close":"19:30"},"thu":{"open":"09:30","close":"19:30"},"fri":{"open":"09:30","close":"19:30"},"sat":{"open":"09:30","close":"17:00"},"sun":null}'::jsonb,
+  true, true, 'basic', array['Home visits','Vaccination','Puppy care']),
+ ('f5000000-0000-4000-8000-000000000014','e5000000-0000-4000-8000-000000000014','Walk N Wag Pet Services','Dog walking',
+  'Daily walks, pet sitting and boarding around Begumpet and Secunderabad. GPS-tracked walks with photo updates after every session.',
+  17.4437, 78.4678, 'Prakash Nagar, Begumpet','Secunderabad','TS','500016','IN', 6000, '₹',
+  '{"mon":{"open":"06:00","close":"20:00"},"tue":{"open":"06:00","close":"20:00"},"wed":{"open":"06:00","close":"20:00"},"thu":{"open":"06:00","close":"20:00"},"fri":{"open":"06:00","close":"20:00"},"sat":{"open":"06:00","close":"20:00"},"sun":{"open":"07:00","close":"18:00"}}'::jsonb,
+  true, true, 'basic', array['GPS-tracked','Pet sitting','Boarding'])
+on conflict (id) do nothing;
+
+insert into public.business_services (id, business_id, name, description, price_cents, currency, duration_min, sort_order) values
+ ('65000000-0000-4000-8000-000000000021','f5000000-0000-4000-8000-000000000011','Full Groom','Bath, breed-specific cut, blow-dry, ears and nails.',120000,'inr',90,1),
+ ('65000000-0000-4000-8000-000000000022','f5000000-0000-4000-8000-000000000011','Bath & Brush','Anti-tick shampoo, conditioner and full brush-out.',70000,'inr',45,2),
+ ('65000000-0000-4000-8000-000000000023','f5000000-0000-4000-8000-000000000011','Nail Trim & Ear Clean','Quick 15-minute tidy-up. Walk-ins welcome.',30000,'inr',15,3),
+ ('65000000-0000-4000-8000-000000000024','f5000000-0000-4000-8000-000000000012','Wellness Consultation','Full check-up with a senior vet.',80000,'inr',30,1),
+ ('65000000-0000-4000-8000-000000000025','f5000000-0000-4000-8000-000000000012','Vaccination (Anti-rabies)','Core shot with certificate for your society records.',150000,'inr',15,2),
+ ('65000000-0000-4000-8000-000000000026','f5000000-0000-4000-8000-000000000012','Dental Scaling','Scaling and polishing under anaesthesia.',450000,'inr',120,3),
+ ('65000000-0000-4000-8000-000000000027','f5000000-0000-4000-8000-000000000013','Vet Consultation','Routine check-up and prescription.',70000,'inr',30,1),
+ ('65000000-0000-4000-8000-000000000028','f5000000-0000-4000-8000-000000000013','Deworming','Age-appropriate deworming course.',50000,'inr',15,2),
+ ('65000000-0000-4000-8000-000000000029','f5000000-0000-4000-8000-000000000013','Home Visit','Vet visits you anywhere in Secunderabad.',90000,'inr',45,3),
+ ('65000000-0000-4000-8000-000000000030','f5000000-0000-4000-8000-000000000014','30-min Walk','One-on-one walk with a photo update.',25000,'inr',30,1),
+ ('65000000-0000-4000-8000-000000000031','f5000000-0000-4000-8000-000000000014','60-min Walk','Longer park outing, solo or small group.',45000,'inr',60,2),
+ ('65000000-0000-4000-8000-000000000032','f5000000-0000-4000-8000-000000000014','Weekly Pack (6 walks)','Six 30-minute walks, Mon–Sat.',140000,'inr',180,3)
+on conflict (id) do nothing;

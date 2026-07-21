@@ -11,6 +11,7 @@ import {
   type BookingStatus,
   type CustomerBooking,
 } from "@/lib/data/bookings"
+import { formatPrice } from "@/lib/data/business"
 import { ArrowLeft, CalendarDays, Loader2, Star, Store, Inbox } from "lucide-react"
 
 const STATUS_STYLE: Record<BookingStatus, string> = {
@@ -107,7 +108,7 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
                     )}
                     {b.declinedReason && <p className="mt-1 text-[12px] text-destructive">{b.declinedReason}</p>}
                   </div>
-                  <span className="flex-shrink-0 text-[15px] font-bold text-foreground">${b.amount.toFixed(2)}</span>
+                  <span className="flex-shrink-0 text-[15px] font-bold text-foreground">{formatPrice(b.amount * 100, b.currency)}</span>
                 </div>
 
                 <div className="mt-2.5 flex flex-wrap gap-1.5">
