@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pet10x — Business Marketplace: Features &amp; Test Guide</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg:#0f1115; --panel:#171a21; --panel-2:#1e222b; --border:#2a2f3a;
+    --text:#e6e8ec; --muted:#9aa2b1;
+    --accent:#2FBFB8; --accent-2:#FD9340; --blue:#0A84FF; --purple:#BF5AF2;
+    --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+    --seq-1:#b3ece8; --seq-2:#74d6d0; --seq-3:#35bdb6; --seq-4:#1e918b; --seq-5:#14625e;
+    --axis:#383835;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.55;font-size:15px}
+  .wrap{max-width:1120px;margin:0 auto;padding:32px 20px 120px}
+  header.hero{border:1px solid var(--border);border-radius:20px;padding:28px 30px;margin-bottom:26px;
+    background:radial-gradient(120% 120% at 0% 0%,rgba(47,191,184,.14),transparent 55%),
+               radial-gradient(120% 120% at 100% 0%,rgba(10,132,255,.12),transparent 55%),var(--panel)}
+  .hero h1{margin:0 0 6px;font-size:27px;letter-spacing:-.4px}
+  .hero p{margin:0;color:var(--muted);max-width:780px}
+  .badges{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+  .pill{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--muted);background:var(--panel-2)}
+
+  nav.toc{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:34px}
+  nav.toc a{display:block;text-decoration:none;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:11px 14px;background:var(--panel);transition:border-color .15s,transform .15s;font-size:14px}
+  nav.toc a:hover{border-color:var(--accent);transform:translateY(-1px)}
+  nav.toc a span{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+
+  section{margin:48px 0}
+  h2{font-size:21px;letter-spacing:-.3px;border-left:3px solid var(--accent);padding-left:12px;margin:0 0 6px}
+  h2+.lead{color:var(--muted);margin:0 0 20px}
+  h3{font-size:16px;margin:26px 0 10px}
+  h4{font-size:13px;margin:20px 0 9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{border:1px solid var(--border);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:var(--panel-2);font-weight:600}
+  tbody tr:nth-child(odd){background:rgba(255,255,255,.015)}
+  .num{font-variant-numeric:tabular-nums;text-align:right}
+
+  code{font-family:ui-monospace,SFMono-Regular,monospace;background:var(--panel-2);padding:1px 6px;border-radius:5px;font-size:12.5px;color:var(--accent)}
+  .tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;white-space:nowrap}
+  .t-live{background:rgba(12,163,12,.15);color:#3ecf3e}
+  .t-sim{background:rgba(250,178,25,.15);color:var(--warning)}
+  .t-admin{background:rgba(191,90,242,.15);color:#d69bf7}
+
+  .diagram{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;overflow-x:auto;margin:16px 0}
+  .mermaid{text-align:center}
+
+  .creds{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:18px 0}
+  .cred{border:1px solid var(--border);border-radius:14px;padding:16px 18px;background:var(--panel-2)}
+  .cred h4{margin:0 0 8px;color:var(--text);text-transform:none;letter-spacing:0;font-size:14px}
+  .cred .row{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:3px 0}
+  .cred .row span:first-child{color:var(--muted)}
+  .cred .row span:last-child{font-family:ui-monospace,monospace;color:var(--accent)}
+  .cred .where{margin-top:9px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--border);padding-top:8px}
+
+  .steps{counter-reset:step;list-style:none;padding:0;margin:14px 0}
+  .steps>li{counter-increment:step;position:relative;padding:14px 16px 14px 52px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2);margin-bottom:9px;font-size:14px}
+  .steps>li::before{content:counter(step);position:absolute;left:15px;top:13px;width:24px;height:24px;border-radius:50%;
+    background:var(--accent);color:#06201f;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .steps>li b{color:var(--text)}
+  .steps .expect{display:block;margin-top:5px;font-size:12.5px;color:var(--muted)}
+  .steps .expect::before{content:"✓ Expect: ";color:var(--good);font-weight:600}
+
+  .note{border:1px solid var(--border);border-left:3px solid var(--accent-2);background:var(--panel-2);border-radius:10px;padding:12px 16px;margin:16px 0;color:var(--muted);font-size:13.5px}
+  .note strong{color:var(--text)}
+  .note.win{border-left-color:var(--good)}
+  .note.gap{border-left-color:var(--critical)}
+  .note.warn{border-left-color:var(--warning)}
+
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:820px){.two{grid-template-columns:1fr}}
+  .card{border:1px solid var(--border);border-radius:14px;padding:16px 18px;background:var(--panel)}
+  .card h3{margin:0 0 10px;font-size:15px}
+  .card ul{margin:0;padding-left:18px;color:var(--muted);font-size:13.5px}
+  .card ul li{margin-bottom:5px}
+  .card ul li b{color:var(--text)}
+  footer{color:var(--muted);font-size:12px;text-align:center;border-top:1px solid var(--border);padding-top:20px;margin-top:60px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>Business Marketplace — Features &amp; Test Guide</h1>
+    <p>Both sides of the Pet10x services marketplace are now live and wired to the database: a business owner publishes a
+      priced service catalog and runs bookings through to payment, and a pet owner discovers that business, books a
+      service, and reviews it afterwards. This guide explains what was built and gives you a click-by-click script to
+      test the whole loop.</p>
+    <div class="badges">
+      <span class="pill">Business portal: <code>/businessaccess</code></span>
+      <span class="pill">Pet owner app: <code>/app</code> → Services</span>
+      <span class="pill">Commission: <strong>15%</strong></span>
+      <span class="pill">Verified end-to-end under real RLS</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#logins">1 · Logins <span>Who to sign in as</span></a>
+    <a href="#loop">2 · The loop <span>Booking lifecycle</span></a>
+    <a href="#test">3 · Test it <span>10-minute click-through</span></a>
+    <a href="#business">4 · Business side <span>Six tabs, explained</span></a>
+    <a href="#owner">5 · Pet owner side <span>Discover → book → review</span></a>
+    <a href="#data">6 · Seeded data <span>What's already there</span></a>
+    <a href="#security">7 · Boundaries <span>What a business can't see</span></a>
+    <a href="#schema">8 · What changed <span>Migrations &amp; fixes</span></a>
+  </nav>
+
+  <!-- ============================================ -->
+  <section id="logins">
+    <h2>1 · Logins</h2>
+    <p class="lead">Open the two sides in <strong>two different browsers</strong> (or one normal + one private window) so you can watch a booking move between them live.</p>
+
+    <div class="creds">
+      <div class="cred">
+        <h4>🏪 Business owner (main)</h4>
+        <div class="row"><span>Email</span><span>businessowner@pet10x.com</span></div>
+        <div class="row"><span>Password</span><span>12345678</span></div>
+        <div class="where">Go to <code>/businessaccess</code> · runs <strong>Happy Paws Grooming</strong> (verified, 5 services, 7 bookings)</div>
+      </div>
+      <div class="cred">
+        <h4>🐕 Pet owner (resident)</h4>
+        <div class="row"><span>Email</span><span>sofia.nguyen@pet10x.com</span></div>
+        <div class="row"><span>Password</span><span>Password123!</span></div>
+        <div class="where">Go to <code>/app</code> → <strong>Services</strong> tab · owns Biscuit &amp; Mochi, has existing bookings</div>
+      </div>
+      <div class="cred">
+        <h4>🏢 Strata manager (context)</h4>
+        <div class="row"><span>Email</span><span>stratamanager@pet10x.com</span></div>
+        <div class="row"><span>Password</span><span>12345678</span></div>
+        <div class="where">Go to <code>/strata-portal</code> · 5-building portfolio (separate module)</div>
+      </div>
+    </div>
+
+    <h4>Other accounts you can use</h4>
+    <table>
+      <thead><tr><th>Account</th><th>Password</th><th>Role</th><th>Why you'd use it</th></tr></thead>
+      <tbody>
+        <tr><td><code>vetowner@pet10x.com</code></td><td>12345678</td><td>Business</td><td>Westside Veterinary Clinic — a second storefront (3 services)</td></tr>
+        <tr><td><code>walkerowner@pet10x.com</code></td><td>12345678</td><td>Business</td><td>City Paws Dog Walking — a third storefront (3 services)</td></tr>
+        <tr><td><code>liam.okafor@pet10x.com</code></td><td>Password123!</td><td>Pet owner</td><td>Has a <em>declined</em> booking — see how that reads</td></tr>
+        <tr><td><code>olivia.haddad@pet10x.com</code></td><td>Password123!</td><td>Pet owner</td><td>Has a <em>completed</em> booking already reviewed</td></tr>
+        <tr><td><code>noah.kim@pet10x.com</code></td><td>Password123!</td><td>Pet owner</td><td>Has a <em>paid</em> walk booking</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="loop">
+    <h2>2 · The Booking Loop</h2>
+    <p class="lead">Every state below is a real row transition in <code>service_bookings</code>, guarded by row-level security. Nothing is faked.</p>
+    <div class="diagram">
+      <div class="mermaid">
+stateDiagram-v2
+    [*] --> requested: pet owner books a service
+    requested --> confirmed: owner accepts
+    requested --> declined: owner declines (with reason)
+    confirmed --> in_progress: owner starts the job
+    confirmed --> cancelled: either side cancels
+    requested --> cancelled: pet owner cancels
+    in_progress --> completed: owner marks done
+    completed --> paid: owner records payment<br/>(writes payments row, 15% commission)
+    completed --> [*]: pet owner can now review
+    paid --> [*]
+    declined --> [*]
+    cancelled --> [*]
+      </div>
+    </div>
+    <div class="note win"><strong>Who can do what.</strong> The pet owner can create a booking and cancel their own. The
+      business owner can accept, decline, start, complete and record payment — but only on bookings for
+      <em>their own</em> business. A review can only be written by the customer of a booking that actually reached
+      <code>completed</code> or <code>paid</code>. All of this is enforced in the database, not just the UI.</div>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="test">
+    <h2>3 · Test the Whole Loop</h2>
+    <p class="lead">About ten minutes. Keep both windows open side by side — refresh the other side after each step to watch the state move.</p>
+
+    <h3>Part A — Pet owner books</h3>
+    <ol class="steps">
+      <li><b>Sign in</b> at <code>/app</code> as <code>sofia.nguyen@pet10x.com</code> / <code>Password123!</code> and open the <b>Services</b> tab.
+        <span class="expect">Three verified businesses, each with a rating, an “Open/Closed” badge derived from real opening hours, and a distance if your location is set.</span></li>
+      <li><b>Tap “Happy Paws Grooming”.</b>
+        <span class="expect">A storefront with the description, tags, a priced service list (Full Groom $85, Bath &amp; Brush $45, Nail Trim $20, De-shedding $70, Puppy's First Groom $60), the weekly hours table with today in bold, and real customer reviews including the owner's reply.</span></li>
+      <li><b>Tap “Book”</b> on <b>Nail Trim</b>. Pick the pet <b>Biscuit</b>, choose a date/time, add a note like “nervous with clippers”, and hit <b>Request</b>.
+        <span class="expect">A green confirmation. The booking is now a real <code>requested</code> row — you are not charged.</span></li>
+      <li><b>Open “My bookings”</b> (button in the top-right of the Services screen).
+        <span class="expect">Your new booking at the top marked <b>Requested</b> — “Waiting for the business to confirm” — with a Cancel button.</span></li>
+    </ol>
+
+    <h3>Part B — Business owner runs the job</h3>
+    <ol class="steps">
+      <li><b>In the other browser</b>, sign in at <code>/businessaccess</code> as <code>businessowner@pet10x.com</code> / <code>12345678</code>.
+        <span class="expect">The Dashboard shows a “Verified &amp; listed” banner, a <b>New requests</b> tile that has gone up by one, and your request at the top of “Needs you now” with an SLA countdown.</span></li>
+      <li><b>Open the Bookings tab.</b> It defaults to <b>Requests</b>.
+        <span class="expect">Sofia's request, showing the pet (Biscuit, Golden Retriever), her note, and the money split — $20.00 gross, −$3.00 fee, <b>$17.00 net</b> — visible <em>before</em> you accept.</span></li>
+      <li><b>Press Accept.</b> Then follow it through: <b>Start job</b> → <b>Mark complete</b> → <b>Mark paid</b>.
+        <span class="expect">The card moves Requests → Upcoming → In progress → History, changing status each time. “Mark paid” writes a real payment row and splits the commission.</span></li>
+      <li><b>Open the Earnings tab.</b>
+        <span class="expect">Gross collected, platform fee and <b>Net to you</b> all increased by this booking, and it appears in the per-booking ledger. “Export CSV” downloads a real spreadsheet.</span></li>
+    </ol>
+
+    <h3>Part C — Pet owner reviews</h3>
+    <ol class="steps">
+      <li><b>Back in the pet owner window</b>, reload <b>My bookings</b>.
+        <span class="expect">The booking now reads <b>Paid</b>, and a <b>“Leave a review”</b> button has appeared (it only appears once a booking is completed or paid).</span></li>
+      <li><b>Leave a review</b> — pick a star rating, write a comment, post it.
+        <span class="expect">The row now shows “You rated N/5”. Go back to the Happy Paws storefront: your review is listed, and the business's headline rating has recalculated automatically.</span></li>
+      <li><b>In the business window, open the Reviews tab</b> and <b>reply</b> to your new review.
+        <span class="expect">Your reply appears under the review — and the pet owner can see it on the public storefront.</span></li>
+    </ol>
+
+    <h3>Part D — Prove the guardrails (optional but satisfying)</h3>
+    <ol class="steps">
+      <li><b>Storefront tab → edit anything</b> (description, tags, hours, add a new service) and save.
+        <span class="expect">The “What customers see” preview updates live, and your changes appear on the pet owner's storefront after a refresh. A new service is immediately bookable.</span></li>
+      <li><b>Try to un-verify yourself.</b> There is deliberately <em>no</em> UI switch for it — verification is admin-only, and the database rejects the write even if you call the API directly.
+        <span class="expect">An error: “Only Pet10x admins can change verification status.” A business can never mint its own trust badge.</span></li>
+      <li><b>Promotions tab → New campaign</b> → sponsor a building.
+        <span class="expect">Before you buy, the reach is shown as <b>aggregate counts only</b> — “N pet owners, N dogs, N cats”. There is no way to see who those residents are.</span></li>
+    </ol>
+
+    <div class="note warn"><strong>One thing that is intentionally simulated:</strong> “Mark paid” records the payment
+      in-app (a real <code>payments</code> row with the commission split) rather than charging a card — this project has
+      no Stripe keys. Everything else in the loop is a genuine database transition. Wiring Stripe Connect for real
+      payouts is a separate integration; the ledger is already the source of truth for what is owed.</div>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="business">
+    <h2>4 · The Business Owner Portal</h2>
+    <p class="lead">Six tabs at <code>/businessaccess</code>. Every button writes to the database — there are no placeholder actions.</p>
+
+    <div class="two">
+      <div class="card">
+        <h3>📊 Dashboard</h3>
+        <ul>
+          <li><b>Visibility banner</b> — verified, or a completeness meter that names the exact next blocker.</li>
+          <li><b>KPI row</b> — new requests, jobs today, booked in 30 days, rating.</li>
+          <li><b>Needs you now</b> — unanswered requests with an SLA clock, completed jobs awaiting payment, reviews without a reply.</li>
+          <li><b>Today's schedule</b> — the day sheet.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>📅 Bookings</h3>
+        <ul>
+          <li><b>Segmented inbox</b> — Requests · Upcoming · In progress · History, with live counts.</li>
+          <li><b>Net-of-fee preview</b> — gross, commission and net shown <em>before</em> accepting.</li>
+          <li><b>Full lifecycle</b> — accept, decline with a reason, start, complete, record payment.</li>
+          <li><b>Customer + pet card</b> — name, pet, breed and the note they chose to share. Nothing more.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🏪 Storefront</h3>
+        <ul>
+          <li><b>Live preview</b> of the exact card customers see, updating as you type.</li>
+          <li><b>Profile</b> — name, category, description, price range, tags, location + GPS, service radius.</li>
+          <li><b>Opening hours</b> — per day; these drive the “Open now” badge automatically.</li>
+          <li><b>Service catalog</b> — add/edit/hide/delete priced services. This is what residents book.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>📣 Promotions</h3>
+        <ul>
+          <li><b>Building-targeted campaigns</b> — sponsor a specific building's community feed.</li>
+          <li><b>Aggregate reach before purchase</b> — pet owners, dogs, cats. Never a resident list.</li>
+          <li><b>Directory featured / banner</b> with a radius, plus a run-length window.</li>
+          <li><b>Pause / resume / delete</b> any campaign.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>💰 Earnings</h3>
+        <ul>
+          <li><b>Gross · platform fee · net</b> — no surprises, 15% commission shown explicitly.</li>
+          <li><b>Pipeline</b> — value of confirmed and completed work not yet paid.</li>
+          <li><b>Per-booking ledger</b> with date, customer, service, and the split.</li>
+          <li><b>CSV export</b> for bookkeeping.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>⭐ Reviews</h3>
+        <ul>
+          <li><b>Every review</b> with stars, author and date.</li>
+          <li><b>Reply publicly</b> — replies show on the storefront.</li>
+          <li><b>Awaiting reply</b> counter to nudge reputation management.</li>
+          <li>Ratings are <b>computed from real reviews</b>, not a static number.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="owner">
+    <h2>5 · The Pet Owner Side</h2>
+    <p class="lead">Inside the resident app at <code>/app</code> — the Services tab is now a working marketplace.</p>
+    <table>
+      <thead><tr><th>Screen</th><th>What it does</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Services directory</strong></td><td>Only <em>verified</em> businesses, sorted by distance from your saved location or your building, with a live “Open now” badge from real hours, rating, price range and search.</td><td><span class="tag t-live">Live</span></td></tr>
+        <tr><td><strong>Business storefront</strong></td><td>Description, tags, full priced service catalog, weekly hours with today highlighted, and all reviews including owner replies.</td><td><span class="tag t-live">Live</span></td></tr>
+        <tr><td><strong>Booking sheet</strong></td><td>Choose the service, pick which of your pets it's for, set date &amp; time, add a note. Creates a real <code>requested</code> booking.</td><td><span class="tag t-live">Live</span></td></tr>
+        <tr><td><strong>My bookings</strong></td><td>Every booking with its live status and a plain-English hint, the amount, and the decline reason if there was one.</td><td><span class="tag t-live">Live</span></td></tr>
+        <tr><td><strong>Cancel</strong></td><td>Available while a booking is still requested or confirmed.</td><td><span class="tag t-live">Live</span></td></tr>
+        <tr><td><strong>Leave a review</strong></td><td>Unlocks only after the job is completed or paid. Star rating + comment; updates the business's public rating instantly.</td><td><span class="tag t-live">Live</span></td></tr>
+        <tr><td><strong>Payment</strong></td><td>Recorded by the business when the job is done; the resident is never charged in-app.</td><td><span class="tag t-sim">Simulated</span></td></tr>
+      </tbody>
+    </table>
+    <div class="note"><strong>Where to find it:</strong> Services tab → tap any business → tap <b>Book</b> on a service.
+      “My bookings” is the button in the top-right of the Services screen.</div>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="data">
+    <h2>6 · What's Already Seeded</h2>
+    <p class="lead">So every screen has real content the moment you log in.</p>
+    <table>
+      <thead><tr><th>Business</th><th>Owner login</th><th>Services</th><th>Bookings</th><th>Rating</th><th>Tier</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Happy Paws Grooming</strong></td><td><code>businessowner@pet10x.com</code></td><td class="num">5</td><td class="num">7</td><td>5.0 (2 reviews)</td><td>Featured</td></tr>
+        <tr><td>Westside Veterinary Clinic</td><td><code>vetowner@pet10x.com</code></td><td class="num">3</td><td class="num">2</td><td>4.0 (1 review)</td><td>Premium</td></tr>
+        <tr><td>City Paws Dog Walking</td><td><code>walkerowner@pet10x.com</code></td><td class="num">3</td><td class="num">2</td><td>5.0 (1 review)</td><td>Basic</td></tr>
+      </tbody>
+    </table>
+    <p style="color:var(--muted);font-size:13.5px">Happy Paws' seven bookings deliberately cover <em>every</em> state, so
+      each inbox segment has something in it: 2 requested (one 26 hours old, so it shows as overdue against the 4-hour
+      SLA), 1 confirmed, 1 in progress, 1 completed, 1 paid, and 1 declined with a reason. There are also three live
+      campaigns and four reviews across the businesses.</p>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="security">
+    <h2>7 · Hard Boundaries</h2>
+    <p class="lead">A business sees its own commercial surface and aggregate market data — never a person it hasn't been introduced to by a booking. All of this is enforced by row-level security and verified by an automated test.</p>
+    <table>
+      <thead><tr><th>Boundary</th><th>How it's enforced</th><th>Verified</th></tr></thead>
+      <tbody>
+        <tr><td>Cannot self-verify (mint the trust badge)</td><td>A database trigger rejects any change to <code>is_verified</code> by a non-admin, even via the API</td><td>✅ returns “Only Pet10x admins can change verification status”</td></tr>
+        <tr><td>Cannot read resident rosters or unit lists</td><td>No policy grants a business access to <code>resident_links</code></td><td>✅ returns 0 rows</td></tr>
+        <tr><td>Cannot read a pet it has no booking for</td><td>Pet access is scoped to pets on that business's own bookings</td><td>✅ returns 0 rows</td></tr>
+        <tr><td>Can see the customer + pet on its own booking</td><td>Narrow policies keyed to “has a booking with this person/pet”</td><td>✅ name, pet and breed all resolve</td></tr>
+        <tr><td>Cannot touch another business's bookings</td><td>Update policy requires <code>owner_id = auth.uid()</code> on the parent business</td><td>✅</td></tr>
+        <tr><td>Campaign targeting shows counts, not people</td><td>A dedicated function returns only aggregate totals per building</td><td>✅</td></tr>
+        <tr><td>A review requires a real completed booking</td><td>Insert policy checks the booking belongs to the author and reached completed/paid</td><td>✅</td></tr>
+      </tbody>
+    </table>
+    <div class="note gap"><strong>Fixed along the way:</strong> the business owner could previously have flipped their own
+      <code>is_verified</code> flag to <code>true</code> and appeared in the directory without review — the trust badge
+      was self-serve. That is now blocked at the database level.</div>
+  </section>
+
+  <!-- ============================================ -->
+  <section id="schema">
+    <h2>8 · What Changed Under the Hood</h2>
+    <p class="lead">Four migrations, all applied to the live project and checked into <code>supabase/migrations/</code>.</p>
+    <table>
+      <thead><tr><th>Change</th><th>Why it was needed</th></tr></thead>
+      <tbody>
+        <tr><td><strong>New <code>business_services</code> table</strong></td><td>There was no way to publish <em>what</em> a business offers or what it costs. Bookings now reference a real catalog item.</td></tr>
+        <tr><td><strong>Booking lifecycle</strong> — status became a proper enum; added service, pet, note, decline reason and response timestamp</td><td>Status was free text with no states, so there was no lifecycle to run and no way to measure response time.</td></tr>
+        <tr><td><strong>Booking write policies</strong> <span class="tag t-live">critical fix</span></td><td><code>service_bookings</code> had select and insert policies but <em>no update policy at all</em> — a business owner accepting or completing a booking would have silently done nothing. This is what made the inbox actually work.</td></tr>
+        <tr><td><strong><code>business_mark_booking_paid</code> function</strong></td><td>Recording payment also writes a <code>payments</code> row, which is service-role-only, so it runs through one authorised function that verifies ownership and splits the commission.</td></tr>
+        <tr><td><strong>New <code>business_reviews</code> table + rating trigger</strong></td><td><code>rating_avg</code> / <code>rating_count</code> were aggregates with nothing behind them. Ratings are now recomputed from real reviews on every insert, update and delete.</td></tr>
+        <tr><td><strong>Verification guard</strong></td><td>Closed the self-verification hole described above.</td></tr>
+        <tr><td><strong>Booking-scoped visibility</strong></td><td>A business could not see the customer's name or the booked pet at all. Now it can — for its own bookings only.</td></tr>
+        <tr><td><strong>Aggregate reach function</strong></td><td>Lets a business size a building's audience for campaign targeting without exposing any resident identity.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>
+    Pet10x — Business Marketplace guide · Park10x Services Inc.<br/>
+    Portal: <code>app/businessaccess</code> · Resident flow: <code>components/screens/business-detail-screen.tsx</code>,
+    <code>my-bookings-screen.tsx</code> · Data: <code>lib/data/bookings.ts</code>, <code>lib/data/business.ts</code>
+  </footer>
+
+</div>
+<script>
+  mermaid.initialize({
+    startOnLoad:true, theme:"dark",
+    themeVariables:{background:"#171a21",primaryColor:"#1e222b",primaryTextColor:"#e6e8ec",
+      primaryBorderColor:"#2a2f3a",lineColor:"#5b6472",
+      fontFamily:"system-ui, -apple-system, Segoe UI, Roboto, sans-serif"},
+    flowchart:{curve:"basis"}
+  });
+</script>
+</body>
+</html>

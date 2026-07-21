@@ -13,6 +13,31 @@ import type { Database } from "@/lib/supabase/database.types"
 const ENABLED = isSupabaseConfigured()
 type BizRow = Database["public"]["Tables"]["businesses"]["Row"]
 
+/** Per-day opening hours; a null day means closed. */
+export type BusinessHours = Record<string, { open: string; close: string } | null>
+export const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const
+export const DAY_LABEL: Record<string, string> = {
+  mon: "Monday",
+  tue: "Tuesday",
+  wed: "Wednesday",
+  thu: "Thursday",
+  fri: "Friday",
+  sat: "Saturday",
+  sun: "Sunday",
+}
+
+/** Derive "open now" from the hours table rather than a hand-flipped switch. */
+export function isOpenNow(hours: BusinessHours | null | undefined, now = new Date()): boolean | null {
+  if (!hours || Object.keys(hours).length === 0) return null
+  const key = DAY_KEYS[(now.getDay() + 6) % 7] // JS: 0=Sun → our week starts Monday
+  const today = hours[key]
+  if (!today) return false
+  const mins = now.getHours() * 60 + now.getMinutes()
+  const [oh, om] = today.open.split(":").map(Number)
+  const [ch, cm] = today.close.split(":").map(Number)
+  return mins >= oh * 60 + om && mins < ch * 60 + cm
+}
+
 export interface MyBusiness {
   id: string
   name: string
@@ -24,6 +49,12 @@ export interface MyBusiness {
   latitude: number | null
   longitude: number | null
   serviceRadiusM: number | null
+  logoUrl: string | null
+  hours: BusinessHours | null
+  tags: string[]
+  ratingAvg: number
+  ratingCount: number
+  listingTier: string
 }
 
 function mapMine(r: BizRow): MyBusiness {
@@ -38,6 +69,41 @@ function mapMine(r: BizRow): MyBusiness {
     latitude: r.latitude,
     longitude: r.longitude,
     serviceRadiusM: r.service_radius_m,
+    logoUrl: r.logo_url,
+    hours: (r.hours as BusinessHours) ?? null,
+    tags: r.tags ?? [],
+    ratingAvg: r.rating_avg,
+    ratingCount: r.rating_count,
+    listingTier: r.listing_tier,
+  }
+}
+
+/**
+ * Storefront completeness — names the exact blocker rather than a vague score,
+ * because an incomplete profile is what keeps a business invisible.
+ */
+export function profileCompleteness(
+  biz: MyBusiness | null,
+  serviceCount: number,
+): { pct: number; done: number; total: number; missing: string[] } {
+  const checks: { ok: boolean; label: string }[] = [
+    { ok: !!biz?.name?.trim(), label: "Business name" },
+    { ok: !!biz?.category?.trim(), label: "Category" },
+    { ok: (biz?.description?.trim().length ?? 0) >= 40, label: "Description (40+ characters)" },
+    { ok: !!biz?.priceRange?.trim(), label: "Price range" },
+    { ok: biz?.latitude != null && biz?.longitude != null, label: "Location" },
+    { ok: (biz?.serviceRadiusM ?? 0) > 0, label: "Service radius" },
+    { ok: !!biz?.hours && Object.keys(biz.hours).length > 0, label: "Business hours" },
+    { ok: (biz?.tags?.length ?? 0) > 0, label: "Tags" },
+    { ok: serviceCount > 0, label: "At least one service" },
+    { ok: !!biz?.isVerified, label: "Pet10x verification" },
+  ]
+  const done = checks.filter((c) => c.ok).length
+  return {
+    pct: Math.round((done / checks.length) * 100),
+    done,
+    total: checks.length,
+    missing: checks.filter((c) => !c.ok).map((c) => c.label),
   }
 }
 
@@ -86,6 +152,9 @@ export async function updateBusiness(
     latitude: number | null
     longitude: number | null
     serviceRadiusM: number | null
+    logoUrl: string | null
+    hours: BusinessHours | null
+    tags: string[]
   }>,
 ): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
@@ -99,6 +168,12 @@ export async function updateBusiness(
   if (patch.latitude !== undefined) db.latitude = patch.latitude
   if (patch.longitude !== undefined) db.longitude = patch.longitude
   if (patch.serviceRadiusM !== undefined) db.service_radius_m = patch.serviceRadiusM
+  if (patch.logoUrl !== undefined) db.logo_url = patch.logoUrl
+  if (patch.tags !== undefined) db.tags = patch.tags
+  if (patch.hours !== undefined) {
+    db.hours = patch.hours as Database["public"]["Tables"]["businesses"]["Update"]["hours"]
+  }
+  // is_verified is deliberately absent — a DB trigger blocks self-verification.
   const { error } = await supabase.from("businesses").update(db).eq("id", id)
   return { error: error?.message ?? null }
 }
@@ -125,6 +200,10 @@ export interface NearbyBusiness {
   ratingAvg: number
   ratingCount: number
   distanceKm: number | null
+  tags: string[]
+  hours: BusinessHours | null
+  /** Derived from `hours` when present, else falls back to the manual is_open flag. */
+  openNow: boolean
 }
 
 export function useNearbyBusinesses(origin: { lat: number; lng: number } | null) {
@@ -141,7 +220,9 @@ export function useNearbyBusinesses(origin: { lat: number; lng: number } | null)
     }
     const { data: rows, error: err } = await supabase
       .from("businesses")
-      .select("id, name, category, description, price_range, is_open, rating_avg, rating_count, latitude, longitude")
+      .select(
+        "id, name, category, description, price_range, is_open, rating_avg, rating_count, latitude, longitude, tags, hours",
+      )
       .eq("is_verified", true)
     if (err) {
       setError(err.message)
@@ -149,20 +230,28 @@ export function useNearbyBusinesses(origin: { lat: number; lng: number } | null)
       setLoading(false)
       return
     }
-    const mapped: NearbyBusiness[] = (rows ?? []).map((r) => ({
-      id: r.id,
-      name: r.name,
-      category: r.category,
-      description: r.description,
-      priceRange: r.price_range,
-      isOpen: r.is_open,
-      ratingAvg: r.rating_avg,
-      ratingCount: r.rating_count,
-      distanceKm:
-        lat != null && lng != null && r.latitude != null && r.longitude != null
-          ? haversineKm({ lat, lng }, { lat: r.latitude, lng: r.longitude })
-          : null,
-    }))
+    const mapped: NearbyBusiness[] = (rows ?? []).map((r) => {
+      const hours = (r.hours as BusinessHours) ?? null
+      const derived = isOpenNow(hours)
+      return {
+        id: r.id,
+        name: r.name,
+        category: r.category,
+        description: r.description,
+        priceRange: r.price_range,
+        isOpen: r.is_open,
+        ratingAvg: r.rating_avg,
+        ratingCount: r.rating_count,
+        distanceKm:
+          lat != null && lng != null && r.latitude != null && r.longitude != null
+            ? haversineKm({ lat, lng }, { lat: r.latitude, lng: r.longitude })
+            : null,
+        tags: r.tags ?? [],
+        hours,
+        // Hours are authoritative when set; the manual switch is the fallback.
+        openNow: derived === null ? r.is_open : derived && r.is_open,
+      }
+    })
     mapped.sort((a, b) => {
       if (a.distanceKm == null && b.distanceKm == null) return 0
       if (a.distanceKm == null) return 1
@@ -173,6 +262,57 @@ export function useNearbyBusinesses(origin: { lat: number; lng: number } | null)
     setError(null)
     setLoading(false)
   }, [lat, lng])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+/** A single verified business, for the resident-facing detail screen. */
+export function usePublicBusiness(businessId?: string) {
+  const [data, setData] = useState<NearbyBusiness | null>(null)
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase || !businessId) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    const { data: r, error: err } = await supabase
+      .from("businesses")
+      .select(
+        "id, name, category, description, price_range, is_open, rating_avg, rating_count, latitude, longitude, tags, hours",
+      )
+      .eq("id", businessId)
+      .maybeSingle()
+    if (err) {
+      setError(err.message)
+      setData(null)
+    } else if (r) {
+      const hours = (r.hours as BusinessHours) ?? null
+      const derived = isOpenNow(hours)
+      setData({
+        id: r.id,
+        name: r.name,
+        category: r.category,
+        description: r.description,
+        priceRange: r.price_range,
+        isOpen: r.is_open,
+        ratingAvg: r.rating_avg,
+        ratingCount: r.rating_count,
+        distanceKm: null,
+        tags: r.tags ?? [],
+        hours,
+        openNow: derived === null ? r.is_open : derived && r.is_open,
+      })
+      setError(null)
+    }
+    setLoading(false)
+  }, [businessId])
+
   useEffect(() => {
     void refetch()
   }, [refetch])

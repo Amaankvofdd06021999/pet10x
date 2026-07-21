@@ -4,11 +4,36 @@ import { useState } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { canAccessRoute } from "@/lib/rbac"
 import { Toaster } from "@/components/ui/sonner"
-import { toast } from "sonner"
-import { useMyBusiness, updateBusiness } from "@/lib/data/business"
-import { Store, Loader2, LogOut, BadgeCheck, Clock, Navigation } from "lucide-react"
+import { useMyBusiness } from "@/lib/data/business"
+import { DashboardTab } from "@/components/screens/business/dashboard-tab"
+import { BookingsTab } from "@/components/screens/business/bookings-tab"
+import { StorefrontTab } from "@/components/screens/business/storefront-tab"
+import { PromotionsTab } from "@/components/screens/business/promotions-tab"
+import { EarningsTab } from "@/components/screens/business/earnings-tab"
+import { ReviewsTab } from "@/components/screens/business/reviews-tab"
+import {
+  Store,
+  Loader2,
+  LogOut,
+  LayoutDashboard,
+  CalendarCheck,
+  Megaphone,
+  DollarSign,
+  MessageSquare,
+  BadgeCheck,
+} from "lucide-react"
 
 const CATEGORIES = ["Veterinary", "Grooming", "Boarding", "Dog walking", "Training", "Pet store", "Other"]
+
+const TABS = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "bookings", label: "Bookings", icon: CalendarCheck },
+  { id: "storefront", label: "Storefront", icon: Store },
+  { id: "promotions", label: "Promotions", icon: Megaphone },
+  { id: "earnings", label: "Earnings", icon: DollarSign },
+  { id: "reviews", label: "Reviews", icon: MessageSquare },
+] as const
+type TabId = (typeof TABS)[number]["id"]
 
 export default function BusinessAccessPage() {
   return (
@@ -104,57 +129,51 @@ function BusinessAuth() {
         </div>
 
         <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm sm:p-7">
-        <div className="mb-4 flex rounded-xl bg-muted p-1">
-          {(["signin", "signup"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => {
-                setMode(m)
-                setError(null)
-              }}
-              className={`flex-1 rounded-lg py-2 text-[14px] font-semibold transition-all ${
-                mode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-              }`}
-            >
-              {m === "signin" ? "Sign in" : "Sign up"}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {mode === "signup" && (
-            <>
-              <Input placeholder="Business name" value={f.businessName} onChange={(v) => set("businessName", v)} />
-              <select
-                value={f.category}
-                onChange={(e) => set("category", e.target.value)}
-                className="w-full rounded-xl border border-border bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none"
+          <div className="mb-4 flex rounded-xl bg-muted p-1">
+            {(["signin", "signup"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => {
+                  setMode(m)
+                  setError(null)
+                }}
+                className={`flex-1 rounded-lg py-2 text-[14px] font-semibold transition-all ${
+                  mode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+                }`}
               >
-                {CATEGORIES.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-              <Input placeholder="Your name" value={f.fullName} onChange={(v) => set("fullName", v)} />
-            </>
-          )}
-          <Input placeholder="Email" type="email" value={f.email} onChange={(v) => set("email", v)} />
-          <Input
-            placeholder="Password"
-            type="password"
-            value={f.password}
-            onChange={(v) => set("password", v)}
-            onEnter={submit}
-          />
-          {error && <p className="text-[13px] text-destructive">{error}</p>}
-          <button
-            onClick={submit}
-            disabled={loading}
-            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {mode === "signin" ? "Sign in" : "Create business account"}
-          </button>
-        </div>
+                {m === "signin" ? "Sign in" : "Sign up"}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {mode === "signup" && (
+              <>
+                <Input placeholder="Business name" value={f.businessName} onChange={(v) => set("businessName", v)} />
+                <select
+                  value={f.category}
+                  onChange={(e) => set("category", e.target.value)}
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+                <Input placeholder="Your name" value={f.fullName} onChange={(v) => set("fullName", v)} />
+              </>
+            )}
+            <Input placeholder="Email" type="email" value={f.email} onChange={(v) => set("email", v)} />
+            <Input placeholder="Password" type="password" value={f.password} onChange={(v) => set("password", v)} onEnter={submit} />
+            {error && <p className="text-[13px] text-destructive">{error}</p>}
+            <button
+              onClick={submit}
+              disabled={loading}
+              className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {mode === "signin" ? "Sign in" : "Create business account"}
+            </button>
+          </div>
         </div>
         <p className="mt-5 text-center text-[12px] text-muted-foreground sm:mt-6">
           New businesses are reviewed before appearing in the directory.
@@ -167,64 +186,7 @@ function BusinessAuth() {
 function Portal() {
   const { user, signOut } = useAuth()
   const { data: biz, isLoading, refetch } = useMyBusiness()
-  const [saving, setSaving] = useState(false)
-  const [gps, setGps] = useState(false)
-
-  const [f, setF] = useState({
-    name: "",
-    category: CATEGORIES[0],
-    description: "",
-    priceRange: "",
-    latitude: "",
-    longitude: "",
-  })
-  const [initialized, setInitialized] = useState(false)
-  if (biz && !initialized) {
-    setF({
-      name: biz.name,
-      category: biz.category,
-      description: biz.description ?? "",
-      priceRange: biz.priceRange ?? "",
-      latitude: biz.latitude != null ? String(biz.latitude) : "",
-      longitude: biz.longitude != null ? String(biz.longitude) : "",
-    })
-    setInitialized(true)
-  }
-
-  async function save() {
-    if (!biz) return
-    setSaving(true)
-    const lat = f.latitude ? parseFloat(f.latitude) : null
-    const lng = f.longitude ? parseFloat(f.longitude) : null
-    const { error } = await updateBusiness(biz.id, {
-      name: f.name.trim(),
-      category: f.category,
-      description: f.description.trim() || null,
-      priceRange: f.priceRange.trim() || null,
-      latitude: lat != null && !Number.isNaN(lat) ? lat : null,
-      longitude: lng != null && !Number.isNaN(lng) ? lng : null,
-    })
-    setSaving(false)
-    if (error) return toast.error("Couldn't save", { description: error })
-    toast.success("Saved")
-    refetch()
-  }
-
-  function useGps() {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return toast.error("Location not available")
-    setGps(true)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setF((p) => ({ ...p, latitude: pos.coords.latitude.toFixed(6), longitude: pos.coords.longitude.toFixed(6) }))
-        setGps(false)
-        toast.success("Location captured")
-      },
-      () => {
-        setGps(false)
-        toast.error("Couldn't get your location")
-      },
-    )
-  }
+  const [tab, setTab] = useState<TabId>("dashboard")
 
   if (isLoading) {
     return (
@@ -234,93 +196,65 @@ function Portal() {
     )
   }
 
+  if (!biz) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background px-6 text-center">
+        <Store className="h-10 w-10 text-muted-foreground" />
+        <p className="text-[16px] font-semibold text-foreground">No business on this account</p>
+        <p className="max-w-xs text-[13px] text-muted-foreground">
+          {user?.email} doesn&apos;t have a business record yet. Sign up again with your business details, or ask Pet10x
+          support to link one.
+        </p>
+        <button onClick={() => signOut()} className="mt-1 rounded-lg bg-muted px-4 py-2 text-[14px] font-semibold text-foreground">
+          Sign out
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-dvh bg-background">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/90 px-5 py-3 backdrop-blur">
-        <div className="flex items-center gap-2">
-          <Store className="h-5 w-5 text-accent" />
-          <span className="text-[15px] font-semibold text-foreground">Pet10x Business</span>
+      <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Store className="h-5 w-5 flex-shrink-0 text-accent" />
+            <span className="truncate text-[15px] font-semibold text-foreground">{biz.name}</span>
+            {biz.isVerified && <BadgeCheck className="h-4 w-4 flex-shrink-0 text-success" />}
+          </div>
+          <button
+            onClick={() => signOut()}
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold text-foreground"
+          >
+            <LogOut className="h-3.5 w-3.5" /> Sign out
+          </button>
         </div>
-        <button onClick={() => signOut()} className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold text-foreground">
-          <LogOut className="h-3.5 w-3.5" /> Sign out
-        </button>
+        <nav className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-3 pb-2">
+          {TABS.map((t) => {
+            const Icon = t.icon
+            const active = tab === t.id
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                  active ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Icon className="h-4 w-4" /> {t.label}
+              </button>
+            )
+          })}
+        </nav>
       </header>
 
-      <div className="mx-auto max-w-xl px-5 py-6">
-        {!biz ? (
-          <p className="py-10 text-center text-[14px] text-muted-foreground">No business found for {user?.email}.</p>
-        ) : (
-          <>
-            {/* Verification banner */}
-            <div
-              className={`mb-5 flex items-center gap-3 rounded-2xl p-3.5 ${
-                biz.isVerified ? "bg-success/10" : "bg-[#FFF9E6]"
-              }`}
-            >
-              {biz.isVerified ? <BadgeCheck className="h-5 w-5 text-success" /> : <Clock className="h-5 w-5 text-[#B38F00]" />}
-              <div>
-                <p className="text-[14px] font-semibold text-foreground">{biz.isVerified ? "Verified & listed" : "Pending review"}</p>
-                <p className="text-[12px] text-muted-foreground">
-                  {biz.isVerified
-                    ? "You appear in the nearby directory for pet owners."
-                    : "We'll review your business before it appears to pet owners."}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Field label="Business name">
-                <Input value={f.name} onChange={(v) => setF((p) => ({ ...p, name: v }))} />
-              </Field>
-              <Field label="Category">
-                <select
-                  value={f.category}
-                  onChange={(e) => setF((p) => ({ ...p, category: e.target.value }))}
-                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none"
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Description">
-                <textarea
-                  value={f.description}
-                  onChange={(e) => setF((p) => ({ ...p, description: e.target.value }))}
-                  rows={3}
-                  placeholder="What you offer, hours, specialties…"
-                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-[14px] text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </Field>
-              <Field label="Price range">
-                <Input value={f.priceRange} onChange={(v) => setF((p) => ({ ...p, priceRange: v }))} placeholder="$ · $$ · $$$" />
-              </Field>
-
-              <Field label="Location (for nearby search)">
-                <div className="flex gap-2">
-                  <Input value={f.latitude} onChange={(v) => setF((p) => ({ ...p, latitude: v }))} placeholder="Latitude" />
-                  <Input value={f.longitude} onChange={(v) => setF((p) => ({ ...p, longitude: v }))} placeholder="Longitude" />
-                </div>
-                <button
-                  onClick={useGps}
-                  disabled={gps}
-                  className="mt-2 flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-[13px] font-semibold text-foreground disabled:opacity-60"
-                >
-                  {gps ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />} Use current location
-                </button>
-              </Field>
-
-              <button
-                onClick={save}
-                disabled={saving}
-                className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
-              >
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save changes
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+      <main className="mx-auto max-w-3xl px-5 py-5">
+        {tab === "dashboard" && <DashboardTab business={biz} onOpenTab={setTab} />}
+        {tab === "bookings" && <BookingsTab businessId={biz.id} />}
+        {tab === "storefront" && <StorefrontTab business={biz} onSaved={refetch} />}
+        {tab === "promotions" && <PromotionsTab business={biz} />}
+        {tab === "earnings" && <EarningsTab businessId={biz.id} />}
+        {tab === "reviews" && <ReviewsTab business={biz} />}
+      </main>
     </div>
   )
 }
@@ -348,14 +282,5 @@ function Input({
       autoCapitalize={type === "email" ? "none" : undefined}
       className="w-full min-w-0 rounded-xl border border-border bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
     />
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      {children}
-    </div>
   )
 }

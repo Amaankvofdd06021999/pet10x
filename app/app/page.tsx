@@ -17,6 +17,8 @@ import { AddPetScreen } from "@/components/screens/add-pet-screen"
 import { PetCareScreen } from "@/components/screens/pet-care-screen"
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
 import { LinkBuildingScreen } from "@/components/screens/link-building-screen"
+import { BusinessDetailScreen } from "@/components/screens/business-detail-screen"
+import { MyBookingsScreen } from "@/components/screens/my-bookings-screen"
 import { ManagerDashboardScreen } from "@/components/screens/manager/dashboard-screen"
 import { ManagerResidentsScreen } from "@/components/screens/manager/residents-screen"
 import { ManagerViolationsScreen } from "@/components/screens/manager/violations-screen"
@@ -35,6 +37,8 @@ const CONTENT_MAX: Record<string, string> = {
   "add-pet": "max-w-2xl",
   "pet-care": "max-w-2xl",
   "link-building": "max-w-2xl",
+  "business-detail": "max-w-2xl",
+  "my-bookings": "max-w-2xl",
   dashboard: "max-w-5xl",
   residents: "max-w-5xl",
   violations: "max-w-5xl",
@@ -48,6 +52,7 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState("home")
   const [currentScreen, setCurrentScreen] = useState("home")
   const [selectedPetId, setSelectedPetId] = useState<string | undefined>(undefined)
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string | undefined>(undefined)
 
   // Reset tabs when user/role changes (e.g. after sign-in)
   useEffect(() => {
@@ -98,8 +103,10 @@ function AppContent() {
     setCurrentScreen(tab)
   }
 
-  const handleNavigate = (screen: string, petId?: string) => {
-    if (petId !== undefined) setSelectedPetId(petId)
+  // `id` is polymorphic: a business id for the services flow, otherwise a pet id.
+  const handleNavigate = (screen: string, id?: string) => {
+    if (screen === "business-detail") setSelectedBusinessId(id)
+    else if (id !== undefined) setSelectedPetId(id)
     setCurrentScreen(screen)
   }
 
@@ -123,6 +130,10 @@ function AppContent() {
             <PetCareScreen onBack={handleBack} onNavigate={handleNavigate} />
           ) : currentScreen === "link-building" ? (
             <LinkBuildingScreen onBack={handleBack} />
+          ) : currentScreen === "business-detail" ? (
+            <BusinessDetailScreen businessId={selectedBusinessId} onBack={handleBack} />
+          ) : currentScreen === "my-bookings" ? (
+            <MyBookingsScreen onBack={handleBack} />
           ) : isManager ? (
             <>
               {currentScreen === "dashboard" && <ManagerDashboardScreen onNavigate={handleNavigate} />}
@@ -135,7 +146,7 @@ function AppContent() {
             <>
               {currentScreen === "home" && <HomeScreen onNavigate={handleNavigate} />}
               {currentScreen === "community" && <CommunityScreen />}
-              {currentScreen === "services" && <ServicesScreen />}
+              {currentScreen === "services" && <ServicesScreen onNavigate={handleNavigate} />}
               {currentScreen === "alerts" && <AlertsScreen />}
               {currentScreen === "profile" && <ProfileScreen onNavigate={handleNavigate} />}
             </>

@@ -4,9 +4,9 @@ import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useNearbyBusinesses, useMyLocation, setMyLocation } from "@/lib/data/business"
 import { toast } from "sonner"
-import { Search, Star, MapPin, Navigation, Loader2, Store } from "lucide-react"
+import { Search, Star, MapPin, Navigation, Loader2, Store, CalendarCheck } from "lucide-react"
 
-export function ServicesScreen() {
+export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, id?: string) => void }) {
   const { origin, isLoading: locLoading, refetch: refetchLoc } = useMyLocation()
   const { data: businesses, isLoading, refetch } = useNearbyBusinesses(origin ? { lat: origin.lat, lng: origin.lng } : null)
   const [search, setSearch] = useState("")
@@ -40,7 +40,17 @@ export function ServicesScreen() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <IOSNavBar title="Services" />
+      <IOSNavBar
+        title="Services"
+        rightAction={
+          <button
+            onClick={() => onNavigate?.("my-bookings")}
+            className="flex items-center gap-1.5 rounded-lg bg-accent/10 px-2.5 py-1.5 text-[12.5px] font-semibold text-accent"
+          >
+            <CalendarCheck className="h-3.5 w-3.5" /> My bookings
+          </button>
+        }
+      />
 
       <main className="ios-scroll flex-1 pb-24">
         {/* Location */}
@@ -94,7 +104,7 @@ export function ServicesScreen() {
               {filtered.map((b) => (
                 <button
                   key={b.id}
-                  onClick={() => toast(b.name, { description: b.description ?? b.category })}
+                  onClick={() => onNavigate?.("business-detail", b.id)}
                   className="flex items-start gap-3 rounded-2xl border border-border bg-card p-3 text-left transition-transform active:scale-[0.98]"
                 >
                   <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
@@ -105,10 +115,10 @@ export function ServicesScreen() {
                       <h3 className="truncate text-[14px] font-semibold text-foreground">{b.name}</h3>
                       <span
                         className={`flex-shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
-                          b.isOpen ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+                          b.openNow ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
                         }`}
                       >
-                        {b.isOpen ? "Open" : "Closed"}
+                        {b.openNow ? "Open" : "Closed"}
                       </span>
                     </div>
                     <p className="mt-0.5 text-[12px] text-muted-foreground">{b.category}</p>

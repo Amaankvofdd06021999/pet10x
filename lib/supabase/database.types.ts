@@ -477,6 +477,121 @@ export type Database = {
           },
         ]
       }
+      business_reviews: {
+        Row: {
+          author_id: string
+          author_name: string | null
+          booking_id: string | null
+          business_id: string
+          comment: string | null
+          created_at: string
+          id: string
+          owner_reply: string | null
+          rating: number
+          replied_at: string | null
+        }
+        Insert: {
+          author_id: string
+          author_name?: string | null
+          booking_id?: string | null
+          business_id: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          owner_reply?: string | null
+          rating: number
+          replied_at?: string | null
+        }
+        Update: {
+          author_id?: string
+          author_name?: string | null
+          booking_id?: string | null
+          business_id?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          owner_reply?: string | null
+          rating?: number
+          replied_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_reviews_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_reviews_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "business_reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "service_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_reviews_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_services: {
+        Row: {
+          active: boolean
+          business_id: string
+          created_at: string
+          currency: string
+          description: string | null
+          duration_min: number | null
+          id: string
+          name: string
+          price_cents: number
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          duration_min?: number | null
+          id?: string
+          name: string
+          price_cents?: number
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          duration_min?: number | null
+          id?: string
+          name?: string
+          price_cents?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_services_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           category: string
@@ -2107,10 +2222,16 @@ export type Database = {
           commission_cents: number
           created_at: string
           customer_id: string
+          customer_note: string | null
+          declined_reason: string | null
           id: string
           payment_id: string | null
+          pet_id: string | null
+          responded_at: string | null
           scheduled_for: string | null
-          status: string
+          service_id: string | null
+          status: Database["public"]["Enums"]["booking_status"]
+          updated_at: string
         }
         Insert: {
           amount_cents?: number
@@ -2118,10 +2239,16 @@ export type Database = {
           commission_cents?: number
           created_at?: string
           customer_id: string
+          customer_note?: string | null
+          declined_reason?: string | null
           id?: string
           payment_id?: string | null
+          pet_id?: string | null
+          responded_at?: string | null
           scheduled_for?: string | null
-          status?: string
+          service_id?: string | null
+          status?: Database["public"]["Enums"]["booking_status"]
+          updated_at?: string
         }
         Update: {
           amount_cents?: number
@@ -2129,10 +2256,16 @@ export type Database = {
           commission_cents?: number
           created_at?: string
           customer_id?: string
+          customer_note?: string | null
+          declined_reason?: string | null
           id?: string
           payment_id?: string | null
+          pet_id?: string | null
+          responded_at?: string | null
           scheduled_for?: string | null
-          status?: string
+          service_id?: string | null
+          status?: Database["public"]["Enums"]["booking_status"]
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2161,6 +2294,20 @@ export type Database = {
             columns: ["payment_id"]
             isOneToOne: false
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_bookings_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_bookings_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "business_services"
             referencedColumns: ["id"]
           },
         ]
@@ -2506,11 +2653,17 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      business_mark_booking_paid: {
+        Args: { p_booking: string }
+        Returns: string
+      }
       emergency_directory: { Args: { p_token: string }; Returns: Json }
       escalate_incident_to_violation: {
         Args: { p_incident: string; p_type?: string }
         Returns: Json
       }
+      has_booking_for_pet: { Args: { p: string }; Returns: boolean }
+      has_booking_with: { Args: { p: string }; Returns: boolean }
       incident_status_by_reference: { Args: { p_ref: string }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_premium: { Args: { p_user: string }; Returns: boolean }
@@ -2541,10 +2694,29 @@ export type Database = {
         }
         Returns: Json
       }
+      targetable_buildings: {
+        Args: never
+        Returns: {
+          cats: number
+          city: string
+          dogs: number
+          id: string
+          name: string
+          pet_owners: number
+        }[]
+      }
     }
     Enums: {
       accommodation_status: "pending" | "approved" | "denied" | "info_requested"
       accommodation_type: "esa" | "service_animal"
+      booking_status:
+        | "requested"
+        | "confirmed"
+        | "in_progress"
+        | "completed"
+        | "paid"
+        | "declined"
+        | "cancelled"
       business_listing_tier: "basic" | "featured" | "premium"
       care_entry_kind:
         | "food"
@@ -2778,6 +2950,15 @@ export const Constants = {
     Enums: {
       accommodation_status: ["pending", "approved", "denied", "info_requested"],
       accommodation_type: ["esa", "service_animal"],
+      booking_status: [
+        "requested",
+        "confirmed",
+        "in_progress",
+        "completed",
+        "paid",
+        "declined",
+        "cancelled",
+      ],
       business_listing_tier: ["basic", "featured", "premium"],
       care_entry_kind: [
         "food",
