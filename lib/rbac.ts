@@ -32,7 +32,9 @@ export interface RoleRoute {
  */
 export const ROLE_ROUTES: RoleRoute[] = [
   { prefix: "/admin", requireSuperAdmin: true },
-  { prefix: "/businessaccess", roles: ["business"] },
+  // ownLogin: logged-out visitors get the branded business sign-in/sign-up page,
+  // not the generic /login (which would also hide business sign-up entirely).
+  { prefix: "/businessaccess", roles: ["business"], ownLogin: true },
   // The strata portfolio layer — a building_manager who runs many buildings.
   // Same role as /app, different surface; super-admin transcends via canAccessRoute.
   // ownLogin: logged-out visitors see the portal's own blue login, not /login.
