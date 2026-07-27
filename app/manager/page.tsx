@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { Toaster } from "@/components/ui/sonner"
@@ -18,10 +17,14 @@ export default function ManagerPage() {
 
 function Gate() {
   const { isAuthenticated, isLoading } = useAuth()
-  const router = useRouter()
   useEffect(() => {
-    if (isAuthenticated) router.replace("/app")
-  }, [isAuthenticated, router])
+    // A hard navigation, not router.replace: this page's own "Pet owner?
+    // Sign in here" link (below) prefetches /app while signed out, and the
+    // client Router Cache then serves that stale unauthenticated redirect
+    // back to /login forever after a real sign-in — only a full page load
+    // re-hits the server/middleware with the now-valid session.
+    if (isAuthenticated) window.location.href = "/app"
+  }, [isAuthenticated])
 
   if (isLoading || isAuthenticated) {
     return (

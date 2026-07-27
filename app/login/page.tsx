@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { SignInScreen } from "@/components/screens/sign-in-screen"
 import { GuestReportScreen } from "@/components/screens/guest-report-screen"
@@ -10,7 +9,6 @@ import { Loader2, PawPrint, Ban } from "lucide-react"
 
 function LoginContent() {
   const { user, isAuthenticated, isGuest, isLoading } = useAuth()
-  const router = useRouter()
 
   // Read the query string after mount rather than with useSearchParams(). The
   // hook forces a server/client divergence on first paint (the server has no
@@ -32,8 +30,13 @@ function LoginContent() {
   useEffect(() => {
     if (isLoading || !isAuthenticated || !user || suspended) return
     const subject = { role: user.role, isSuperAdmin: user.isSuperAdmin, isSuspended: user.isSuspended }
-    router.replace(next && canAccessRoute(next, subject) ? next : getHomeRouteForRole(subject))
-  }, [isLoading, isAuthenticated, user, suspended, next, router])
+    // A hard navigation, not router.replace: the marketing home page prefetches
+    // /app (and other role routes) while signed out, and the client Router
+    // Cache then serves that stale unauthenticated redirect back to /login
+    // forever after a real sign-in — only a full page load re-hits the
+    // server/middleware with the now-valid session.
+    window.location.href = next && canAccessRoute(next, subject) ? next : getHomeRouteForRole(subject)
+  }, [isLoading, isAuthenticated, user, suspended, next])
 
   // Hold the spinner while the session resolves, and while an authenticated user
   // is being bounced to their own home — otherwise the sign-in form flashes.
