@@ -60,10 +60,22 @@ function sanitizeAuthError(message: string): string {
  * way from the database region. `my_app_user()` returns the whole thing —
  * profile, building/unit, pet count — in a single round trip, still RLS-scoped.
  */
+/**
+ * Bounds the profile round trip so a stalled connection can never hold the
+ * sign-in spinner open forever — a slow/dropped request now falls through to
+ * the minimal-profile fallback below instead of hanging indefinitely.
+ */
+const LOAD_APP_USER_TIMEOUT_MS = 8000
+
 async function loadAppUser(authUser: User): Promise<AppUser> {
   const supabase = getSupabaseBrowserClient()!
 
-  const { data } = await supabase.rpc("my_app_user")
+  const { data } = await Promise.race([
+    supabase.rpc("my_app_user"),
+    new Promise<{ data: null }>((_, reject) =>
+      setTimeout(() => reject(new Error("Timed out loading profile.")), LOAD_APP_USER_TIMEOUT_MS),
+    ),
+  ])
   const j = (data ?? {}) as {
     role?: string
     full_name?: string | null
@@ -261,7 +273,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(u)
         setAuthMode("full")
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (!active) return
+        // The profile round trip failed or timed out. Fall through to a
+        // minimal profile built from the auth session rather than leaving
+        // `user` null forever — that would hold the sign-in spinner open
+        // indefinitely with no way out short of a manual reload.
+        console.error("loadAppUser failed, using minimal fallback profile:", err)
+        const fallback: AppUser = {
+          id: authUser.id,
+          name: authUser.email?.split("@")[0] || "User",
+          email: authUser.email || "",
+          avatar: "",
+          unit: "",
+          building: "",
+          role: "pet-owner",
+          roleLabel: ROLE_LABEL["pet-owner"],
+          description: ROLE_LABEL["pet-owner"],
+          memberSince: "",
+          plan: "Free",
+          petCount: 0,
+          onboarded: false,
+          isSuperAdmin: false,
+          isSuspended: false,
+        }
+        setUser(fallback)
+        setAuthMode("full")
+      })
       .finally(() => active && setIsLoading(false))
     return () => {
       active = false
