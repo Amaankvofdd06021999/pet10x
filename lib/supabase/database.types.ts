@@ -2848,6 +2848,13 @@ export type Database = {
       }
     }
     Functions: {
+      ai_expired_chat_media: {
+        Args: { p_days?: number; p_limit?: number }
+        Returns: {
+          path: string
+        }[]
+      }
+      ai_forget_chat_media: { Args: { p_paths: string[] }; Returns: number }
       auth_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]

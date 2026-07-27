@@ -1,20 +1,12 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import Image from "next/image"
-import { ImagePlus, X } from "lucide-react"
+import { ImagePlus, Loader2, X } from "lucide-react"
+import { PICKER_ACCEPT, prepareChatImage } from "@/lib/ai/image"
 
 /** Groq's vision model takes at most 5 images and 20MB per request. */
 const MAX_IMAGES = 5
-const MAX_BYTES = 4 * 1024 * 1024
-
-/**
- * Raster formats only, verified against the vision model rather than assumed.
- * JPEG, PNG and WebP are accepted; SVG comes back as "invalid image data", so
- * an `image/*` filter would let owners attach a file the assistant can only
- * fail to read — and the failure is silent, degrading to a text-only answer.
- */
-const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
 
 export interface PendingImage {
   id: string
@@ -32,25 +24,39 @@ interface PhotoAttachProps {
 /** The composer's attach button. Uploading happens on send, not on pick. */
 export function PhotoAttachButton({ images, onChange, onError, disabled }: PhotoAttachProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [preparing, setPreparing] = useState(false)
 
-  const handleFiles = (fileList: FileList | null) => {
+  /**
+   * Photos are normalised at pick time, not at send time — a 12MP HEIC becomes
+   * a right-sized JPEG here. Doing it now means the thumbnail renders even on
+   * browsers that can't display HEIC, and send stays fast.
+   */
+  const handleFiles = async (fileList: FileList | null) => {
     if (!fileList) return
-    const incoming: PendingImage[] = []
-    for (const file of Array.from(fileList)) {
-      if (images.length + incoming.length >= MAX_IMAGES) {
-        onError(`You can attach up to ${MAX_IMAGES} photos.`)
-        break
-      }
-      if (!ACCEPTED_TYPES.includes(file.type.toLowerCase())) {
-        onError(`${file.name} isn't a supported image — use a JPEG, PNG or WebP photo.`)
-        continue
-      }
-      if (file.size > MAX_BYTES) {
-        onError(`${file.name} is too large — 4MB max.`)
-        continue
-      }
-      incoming.push({ id: `${file.name}-${file.lastModified}-${Math.random()}`, file, previewUrl: URL.createObjectURL(file) })
+    const room = MAX_IMAGES - images.length
+    if (room <= 0) {
+      onError(`You can attach up to ${MAX_IMAGES} photos.`)
+      return
     }
+    const picked = Array.from(fileList)
+    if (picked.length > room) onError(`You can attach up to ${MAX_IMAGES} photos.`)
+
+    setPreparing(true)
+    const incoming: PendingImage[] = []
+    for (const original of picked.slice(0, room)) {
+      const { file, error } = await prepareChatImage(original)
+      if (error) {
+        onError(error)
+        continue
+      }
+      incoming.push({
+        id: `${file.name}-${file.lastModified}-${Math.random()}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      })
+    }
+    setPreparing(false)
+
     if (incoming.length > 0) onChange([...images, ...incoming])
     if (inputRef.current) inputRef.current.value = "" // let the same file be re-picked
   }
@@ -60,19 +66,20 @@ export function PhotoAttachButton({ images, onChange, onError, disabled }: Photo
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={PICKER_ACCEPT}
         multiple
         className="hidden"
-        onChange={(e) => handleFiles(e.target.files)}
+        onChange={(e) => void handleFiles(e.target.files)}
       />
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        disabled={disabled}
+        disabled={disabled || preparing}
         aria-label="Attach a photo"
+        aria-busy={preparing}
         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
       >
-        <ImagePlus className="h-5 w-5" />
+        {preparing ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
       </button>
     </>
   )

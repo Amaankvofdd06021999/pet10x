@@ -64,6 +64,33 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+  // Confirm ownership before touching anything — RLS would stop a foreign
+  // delete, but the storage removal below needs the paths first.
+  const { data: owned } = await supabase
+    .from("ai_conversations")
+    .select("id")
+    .eq("id", id)
+    .eq("profile_id", user.id)
+    .maybeSingle()
+  if (!owned) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+  // Delete the attached photos now rather than leaving them for the retention
+  // sweep. A chat the owner deleted should not keep their pet's photos sitting
+  // in storage for another week.
+  const { data: withImages } = await supabase
+    .from("ai_messages")
+    .select("image_paths")
+    .eq("conversation_id", id)
+    .not("image_paths", "eq", "{}")
+
+  const paths = [...new Set((withImages ?? []).flatMap((m) => m.image_paths ?? []))]
+  if (paths.length > 0) {
+    // Owner-scoped delete policy covers this; a failure is logged and the
+    // sweep will catch the leftovers rather than blocking the delete.
+    const { error: mediaError } = await supabase.storage.from("pet-media").remove(paths)
+    if (mediaError) console.error("[ai] couldn't remove chat media on delete", mediaError)
+  }
+
   const { error } = await supabase
     .from("ai_conversations")
     .update({ deleted_at: new Date().toISOString() })
@@ -71,5 +98,5 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     .eq("profile_id", user.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, mediaRemoved: paths.length })
 }
