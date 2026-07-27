@@ -254,6 +254,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!SUPABASE_ENABLED) return
     if (!authUser) return
+    const supabase = getSupabaseBrowserClient()!
     let active = true
 
     // Same user we already resolved before → paint from cache now and revalidate
@@ -273,13 +274,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(u)
         setAuthMode("full")
       })
-      .catch((err) => {
+      .catch(async (err) => {
         if (!active) return
-        // The profile round trip failed or timed out. Fall through to a
-        // minimal profile built from the auth session rather than leaving
-        // `user` null forever — that would hold the sign-in spinner open
-        // indefinitely with no way out short of a manual reload.
-        console.error("loadAppUser failed, using minimal fallback profile:", err)
+        // The profile round trip failed or timed out. Rather than leaving
+        // `user` null forever — which would hold the sign-in spinner open
+        // indefinitely with no way out short of a manual reload — fall
+        // through to a minimal profile. Try one cheap, single-table lookup
+        // for the real role first (the full RPC joins several tables and is
+        // more likely to be what stalled); only default to pet-owner if that
+        // also fails, so a manager account doesn't get silently misrouted.
+        console.error("loadAppUser failed, using fallback profile:", err)
+        let role: UserRole = "pet-owner"
+        try {
+          const { data: p } = await Promise.race([
+            supabase.from("profiles").select("role").eq("id", authUser.id).maybeSingle(),
+            new Promise<{ data: null }>((_, reject) =>
+              setTimeout(() => reject(new Error("fallback role lookup timed out")), 3000),
+            ),
+          ])
+          if (p?.role) role = DB_ROLE_TO_APP[p.role] ?? "pet-owner"
+        } catch {
+          /* keep the pet-owner default */
+        }
+        if (!active) return
         const fallback: AppUser = {
           id: authUser.id,
           name: authUser.email?.split("@")[0] || "User",
@@ -287,9 +304,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           avatar: "",
           unit: "",
           building: "",
-          role: "pet-owner",
-          roleLabel: ROLE_LABEL["pet-owner"],
-          description: ROLE_LABEL["pet-owner"],
+          role,
+          roleLabel: ROLE_LABEL[role],
+          description: ROLE_LABEL[role],
           memberSince: "",
           plan: "Free",
           petCount: 0,

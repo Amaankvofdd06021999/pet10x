@@ -76,11 +76,20 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, is_super_admin, is_suspended")
-    .eq("id", userId)
-    .maybeSingle()
+  // Bounded so a stalled connection can't hang the whole navigation here —
+  // fail open (let the request through) instead. RLS still protects the
+  // actual data, and the client-side AuthProvider (which has its own timeout)
+  // enforces role redirects once the profile loads.
+  let profile: { role: string; is_super_admin: boolean; is_suspended: boolean } | null = null
+  try {
+    const { data } = await Promise.race([
+      supabase.from("profiles").select("role, is_super_admin, is_suspended").eq("id", userId).maybeSingle(),
+      new Promise<{ data: null }>((_, reject) => setTimeout(() => reject(new Error("profile lookup timed out")), 4000)),
+    ])
+    profile = data
+  } catch {
+    return response
+  }
 
   const subject = {
     role: profile ? (DB_ROLE_TO_APP[profile.role] ?? null) : null,
