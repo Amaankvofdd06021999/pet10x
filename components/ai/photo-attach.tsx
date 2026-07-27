@@ -8,6 +8,14 @@ import { ImagePlus, X } from "lucide-react"
 const MAX_IMAGES = 5
 const MAX_BYTES = 4 * 1024 * 1024
 
+/**
+ * Raster formats only, verified against the vision model rather than assumed.
+ * JPEG, PNG and WebP are accepted; SVG comes back as "invalid image data", so
+ * an `image/*` filter would let owners attach a file the assistant can only
+ * fail to read — and the failure is silent, degrading to a text-only answer.
+ */
+const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+
 export interface PendingImage {
   id: string
   file: File
@@ -33,8 +41,8 @@ export function PhotoAttachButton({ images, onChange, onError, disabled }: Photo
         onError(`You can attach up to ${MAX_IMAGES} photos.`)
         break
       }
-      if (!file.type.startsWith("image/")) {
-        onError("Only image files can be attached.")
+      if (!ACCEPTED_TYPES.includes(file.type.toLowerCase())) {
+        onError(`${file.name} isn't a supported image — use a JPEG, PNG or WebP photo.`)
         continue
       }
       if (file.size > MAX_BYTES) {
@@ -52,7 +60,7 @@ export function PhotoAttachButton({ images, onChange, onError, disabled }: Photo
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         multiple
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
