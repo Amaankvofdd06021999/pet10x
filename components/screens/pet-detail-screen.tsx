@@ -22,6 +22,8 @@ import {
   X,
   Dog,
   Cat,
+  Sparkles,
+  ChevronRight,
 } from "lucide-react"
 import {
   usePet,
@@ -79,9 +81,10 @@ function statusBadge(status: string): string {
 interface PetDetailScreenProps {
   onBack: () => void
   petId?: string
+  onNavigate?: (screen: string, id?: string) => void
 }
 
-export function PetDetailScreen({ onBack, petId }: PetDetailScreenProps) {
+export function PetDetailScreen({ onBack, petId, onNavigate }: PetDetailScreenProps) {
   const [activeTab, setActiveTab] = useState<DetailTab>("overview")
   const { data: pet, isLoading, refetch } = usePet(petId)
   const photoInput = useRef<HTMLInputElement>(null)
@@ -177,6 +180,25 @@ export function PetDetailScreen({ onBack, petId }: PetDetailScreenProps) {
             </div>
           </div>
         </div>
+
+        {/* Ask the assistant, scoped to this pet's chart */}
+        {onNavigate && (
+          <div className="px-4 pt-3">
+            <button
+              onClick={() => onNavigate("ai-chat", pet.id)}
+              className="flex w-full items-center gap-3 rounded-2xl border border-accent/25 bg-accent/5 p-3 text-left transition-transform active:scale-[0.98]"
+            >
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                <Sparkles className="h-4.5 w-4.5" strokeWidth={2.2} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-semibold text-foreground">Ask about {pet.name}</p>
+                <p className="text-[11px] text-muted-foreground">The assistant reads this chart</p>
+              </div>
+              <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="sticky top-[44px] z-30 bg-background px-4 pb-3 pt-3">

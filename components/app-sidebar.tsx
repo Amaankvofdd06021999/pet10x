@@ -14,6 +14,7 @@ import {
   Settings,
   PawPrint,
   LogOut,
+  Sparkles,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -62,6 +63,22 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 py-3" aria-label="Primary">
+        {/* Desktop entry point to the assistant — the mobile equivalent is the FAB. */}
+        {!isManager && (
+          <button
+            onClick={() => onTabChange("ai-chat")}
+            aria-current={activeTab === "ai-chat" ? "page" : undefined}
+            className={`mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-colors ${
+              activeTab === "ai-chat"
+                ? "bg-accent/10 text-accent"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            }`}
+          >
+            <Sparkles className="h-5 w-5" strokeWidth={activeTab === "ai-chat" ? 2.4 : 1.8} />
+            <span className="flex-1 text-left">Ask Pet10x</span>
+          </button>
+        )}
+
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id
           const Icon = tab.icon

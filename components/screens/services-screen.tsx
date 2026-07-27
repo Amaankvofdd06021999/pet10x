@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useNearbyBusinesses, useMyLocation, captureDeviceLocation } from "@/lib/data/business"
 import { toast } from "sonner"
-import { Search, Star, MapPin, Navigation, Loader2, Store, CalendarCheck } from "lucide-react"
+import { Search, Star, MapPin, Navigation, Loader2, Store, CalendarCheck, Check } from "lucide-react"
 
 export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, id?: string) => void }) {
   const { origin, isLoading: locLoading, permission, refetch: refetchLoc } = useMyLocation()
@@ -30,16 +30,47 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
   })
   const hiddenByFilters = businesses.filter(matchesSearch).length - filtered.length
 
-  async function useGps() {
-    setGps(true)
-    const { origin: fix, error } = await captureDeviceLocation()
-    setGps(false)
-    if (!fix) return toast.error("Couldn't get your location", { description: error ?? undefined })
-    if (error) toast.error("Located, but couldn't save it", { description: error })
-    else toast.success("Location updated")
-    refetchLoc()
-    refetch()
-  }
+  /**
+   * `silent` is for the automatic ask on open: declining is a normal choice,
+   * not an error worth shouting about, and the page works fine without it.
+   * The manual button stays chatty because the owner explicitly asked.
+   */
+  const requestLocation = useCallback(
+    async (silent = false) => {
+      setGps(true)
+      const { origin: fix, error } = await captureDeviceLocation()
+      setGps(false)
+      if (!fix) {
+        if (!silent) toast.error("Couldn't get your location", { description: error ?? undefined })
+        // Re-read the permission so a fresh denial flips the card's copy from
+        // "turn on location" to "it's blocked, here's how to unblock it".
+        refetchLoc()
+        return
+      }
+      if (error) toast.error("Located, but couldn't save it", { description: error })
+      else if (!silent) toast.success("Location updated")
+      refetchLoc()
+      refetch()
+    },
+    [refetchLoc, refetch],
+  )
+
+  /**
+   * Ask on open rather than making the owner find a button — the whole screen
+   * is about what's nearby, so the prompt belongs at the start of the journey.
+   *
+   * Fires at most once per mount, and only when the browser has genuinely
+   * never been asked: a previous grant needs no prompt, and a previous denial
+   * cannot be re-prompted from script. Denying leaves every business listed,
+   * just without distances, so nothing is gated behind allowing it.
+   */
+  const askedForLocation = useRef(false)
+  useEffect(() => {
+    if (askedForLocation.current || locLoading) return
+    askedForLocation.current = true
+    if (origin) return
+    if (permission === "prompt" || permission === "unknown") void requestLocation(true)
+  }, [locLoading, origin, permission, requestLocation])
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -63,7 +94,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
               <MapPin className="h-4 w-4 flex-shrink-0 text-primary" />
               <span className="flex-1 truncate text-[13px] text-foreground">{origin.label}</span>
               <button
-                onClick={useGps}
+                onClick={() => void requestLocation()}
                 disabled={gps}
                 className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12px] font-semibold text-primary disabled:opacity-60"
               >
@@ -87,7 +118,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
                   : "Turn on location to sort services by distance and see who covers your area."}
               </p>
               <button
-                onClick={useGps}
+                onClick={() => void requestLocation()}
                 disabled={gps}
                 className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
               >
@@ -112,26 +143,49 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
           </div>
         </div>
 
-        {/* Distance filters — only meaningful once we know where the resident is */}
+        {/* Distance filters — only meaningful once we know where the resident is.
+            Two different kinds of control live here: distance is pick-one, and
+            "Serves my area" is an independent on/off. They used to render as
+            identical chips in one row, so a lit distance chip plus a lit toggle
+            read as a filter letting you choose two. They are now visually and
+            semantically distinct — a segmented control and a switch-style pill. */}
         {origin && (
-          <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3">
-            {([null, 2, 5, 10, 25] as const).map((km) => (
-              <button
-                key={km ?? "any"}
-                onClick={() => setMaxKm(km)}
-                className={`rounded-lg border px-2.5 py-1 text-[12px] font-semibold transition-colors ${
-                  maxKm === km ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
-                }`}
-              >
-                {km == null ? "Any distance" : `${km} km`}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
+            <div
+              role="radiogroup"
+              aria-label="Maximum distance"
+              className="inline-flex items-center gap-0.5 rounded-xl border border-border bg-muted/50 p-0.5"
+            >
+              {([null, 2, 5, 10, 25] as const).map((km) => {
+                const active = maxKm === km
+                return (
+                  <button
+                    key={km ?? "any"}
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setMaxKm(km)}
+                    className={`rounded-[10px] px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+                      active
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {km == null ? "Any" : `${km} km`}
+                  </button>
+                )
+              })}
+            </div>
+
             <button
+              aria-pressed={onlyServing}
               onClick={() => setOnlyServing((v) => !v)}
-              className={`rounded-lg border px-2.5 py-1 text-[12px] font-semibold transition-colors ${
-                onlyServing ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                onlyServing
+                  ? "border-accent bg-accent/10 text-accent"
+                  : "border-border text-muted-foreground hover:text-foreground"
               }`}
             >
+              <Check className={`h-3.5 w-3.5 transition-opacity ${onlyServing ? "opacity-100" : "opacity-30"}`} />
               Serves my area
             </button>
           </div>

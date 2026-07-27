@@ -144,6 +144,181 @@ export type Database = {
           },
         ]
       }
+      ai_conversations: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          id: string
+          pet_id: string | null
+          profile_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          pet_id?: string | null
+          profile_id: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          pet_id?: string | null
+          profile_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversations_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_conversations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_conversations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      ai_messages: {
+        Row: {
+          citations: Json
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          image_paths: string[]
+          model: string | null
+          role: string
+          tokens_in: number | null
+          tokens_out: number | null
+          triage_level: string | null
+        }
+        Insert: {
+          citations?: Json
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          image_paths?: string[]
+          model?: string | null
+          role: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          triage_level?: string | null
+        }
+        Update: {
+          citations?: Json
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          image_paths?: string[]
+          model?: string | null
+          role?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+          triage_level?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_suggestions: {
+        Row: {
+          action_label: string | null
+          action_target: string | null
+          body: string | null
+          created_at: string
+          dedupe_key: string
+          evidence: Json | null
+          id: string
+          kind: string
+          pet_id: string
+          profile_id: string
+          severity: string
+          status: string
+          title: string
+          valid_until: string | null
+        }
+        Insert: {
+          action_label?: string | null
+          action_target?: string | null
+          body?: string | null
+          created_at?: string
+          dedupe_key: string
+          evidence?: Json | null
+          id?: string
+          kind: string
+          pet_id: string
+          profile_id: string
+          severity?: string
+          status?: string
+          title: string
+          valid_until?: string | null
+        }
+        Update: {
+          action_label?: string | null
+          action_target?: string | null
+          body?: string | null
+          created_at?: string
+          dedupe_key?: string
+          evidence?: Json | null
+          id?: string
+          kind?: string
+          pet_id?: string
+          profile_id?: string
+          severity?: string
+          status?: string
+          title?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_suggestions_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_suggestions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_suggestions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -1724,6 +1899,7 @@ export type Database = {
           id: string
           name: string
           next_due: string | null
+          next_due_at: string | null
           pet_id: string
           reminder: boolean
         }
@@ -1734,6 +1910,7 @@ export type Database = {
           id?: string
           name: string
           next_due?: string | null
+          next_due_at?: string | null
           pet_id: string
           reminder?: boolean
         }
@@ -1744,6 +1921,7 @@ export type Database = {
           id?: string
           name?: string
           next_due?: string | null
+          next_due_at?: string | null
           pet_id?: string
           reminder?: boolean
         }
@@ -2018,6 +2196,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ai_consent_at: string | null
           avatar_url: string | null
           created_at: string
           email: string | null
@@ -2040,6 +2219,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_consent_at?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string | null
@@ -2062,6 +2242,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_consent_at?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string | null
@@ -2799,6 +2980,7 @@ export type Database = {
         | "billing"
         | "community"
         | "system"
+        | "assistant"
       payment_status: "pending" | "succeeded" | "failed" | "refunded"
       payout_status: "pending" | "in_transit" | "paid" | "failed" | "reversed"
       pet_sex: "male" | "female" | "unknown"
@@ -3048,6 +3230,7 @@ export const Constants = {
         "billing",
         "community",
         "system",
+        "assistant",
       ],
       payment_status: ["pending", "succeeded", "failed", "refunded"],
       payout_status: ["pending", "in_transit", "paid", "failed", "reversed"],

@@ -22,6 +22,8 @@ next-env.d.ts
 # Env files (never commit secrets)
 .env
 .env*
+# …but the template carries no values and documents required config.
+!.env.example
 
 # Demo/seed credentials — real logins to the live Supabase project.
 # This repo is public; these must never be published.

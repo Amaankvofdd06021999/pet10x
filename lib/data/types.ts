@@ -35,7 +35,7 @@ export type ViolationStage =
   | "fine-issued"
 export type ViolationTab = "active" | "warnings" | "fines" | "resolved"
 
-export type NotificationCategory = "compliance" | "incident" | "building"
+export type NotificationCategory = "compliance" | "incident" | "building" | "assistant"
 export type NotificationSeverity = "warning" | "error" | "info" | "success"
 
 /**
@@ -351,6 +351,7 @@ export type NotificationIconKey =
   | "check"
   | "calendar"
   | "shield"
+  | "sparkles"
 
 export interface AppNotification {
   id: string

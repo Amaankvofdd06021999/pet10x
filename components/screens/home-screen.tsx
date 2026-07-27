@@ -1,7 +1,10 @@
 "use client"
 
+import { useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { usePets, useHomeAlerts, useMyBuildingLink } from "@/lib/data"
+import { useAiSuggestions } from "@/lib/ai/client"
+import { SuggestionCard } from "@/components/ai/suggestion-card"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
@@ -17,6 +20,7 @@ import {
   Plus,
   Building2,
   Clock,
+  Sparkles,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -49,8 +53,22 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const { data: pets } = usePets()
   const { data: alerts } = useHomeAlerts()
   const { data: buildingLink } = useMyBuildingLink()
+  const suggestions = useAiSuggestions()
   const greeting = getGreeting()
   const primaryPet = pets[0]
+
+  // Re-evaluate the rules once the owner's pets are known. The runner is
+  // idempotent by dedupe_key, so landing on Home repeatedly costs nothing.
+  useEffect(() => {
+    if (pets.length > 0) void suggestions.run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per pet-set change
+  }, [pets.length])
+
+  const handleSuggestionAction = (target: string | null) => {
+    if (!target) return
+    const [screen, id] = target.split(":")
+    onNavigate?.(screen, id)
+  }
 
   const handleQuickAction = (label: string) => {
     if (label.includes("Rules")) toast("Building pet rules", { description: "One dog or one cat · leashed in common areas." })
@@ -90,6 +108,46 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             </p>
           )}
         </section>
+
+        {/* Ask the assistant */}
+        <section className="mb-5">
+          <button
+            onClick={() => onNavigate?.("ai-chat")}
+            className="group flex w-full items-center gap-3.5 rounded-2xl border border-accent/25 bg-accent/5 p-4 text-left transition-transform active:scale-[0.98]"
+          >
+            <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+              <Sparkles className="h-6 w-6" strokeWidth={2.2} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[16px] font-semibold text-foreground">
+                Ask about {primaryPet?.name ?? "your pet"}
+              </p>
+              <p className="text-[12px] text-muted-foreground">
+                Questions, photos and food labels — answers cite real veterinary references
+              </p>
+            </div>
+            <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-accent/10 transition-transform group-active:translate-x-0.5">
+              <ChevronRight className="h-5 w-5 text-accent" />
+            </span>
+          </button>
+        </section>
+
+        {/* Assistant suggestions — deterministic rules, model-written wording */}
+        {suggestions.data.length > 0 && (
+          <section className="mb-5">
+            <h2 className="mb-2.5 text-[17px] font-semibold text-foreground">Worth a look</h2>
+            <div className="flex flex-col gap-2">
+              {suggestions.data.slice(0, 4).map((suggestion) => (
+                <SuggestionCard
+                  key={suggestion.id}
+                  suggestion={suggestion}
+                  onAction={handleSuggestionAction}
+                  onDismiss={suggestions.dismiss}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Today's Care */}
         <section className="mb-5">

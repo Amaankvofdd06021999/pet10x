@@ -15,10 +15,11 @@ import {
   Plus,
   Filter,
   BellOff,
+  Sparkles,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-type AlertTab = "all" | "compliance" | "incidents" | "building"
+type AlertTab = "all" | "compliance" | "incidents" | "building" | "assistant"
 
 const NOTIFICATION_ICONS: Record<NotificationIconKey, typeof Syringe> = {
   syringe: Syringe,
@@ -27,6 +28,7 @@ const NOTIFICATION_ICONS: Record<NotificationIconKey, typeof Syringe> = {
   check: CheckCircle2,
   calendar: Calendar,
   shield: Shield,
+  sparkles: Sparkles,
 }
 
 const SEVERITY_STYLES = {
@@ -41,6 +43,7 @@ const TABS: { id: AlertTab; label: string }[] = [
   { id: "compliance", label: "Compliance" },
   { id: "incidents", label: "Incidents" },
   { id: "building", label: "Building" },
+  { id: "assistant", label: "Assistant" },
 ]
 
 export function AlertsScreen() {

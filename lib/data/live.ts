@@ -922,6 +922,7 @@ const NOTIF_ICON: Record<string, AppNotification["iconKey"]> = {
   billing: "file",
   community: "check",
   system: "alert",
+  assistant: "sparkles",
 }
 
 function mapNotification(row: {
@@ -939,7 +940,7 @@ function mapNotification(row: {
   )
     ? (row.severity as AppNotification["severity"])
     : "info"
-  const category: AppNotification["category"] = (["compliance", "incident", "building"] as const).includes(
+  const category: AppNotification["category"] = (["compliance", "incident", "building", "assistant"] as const).includes(
     row.kind as AppNotification["category"],
   )
     ? (row.kind as AppNotification["category"])

@@ -15,6 +15,8 @@ import { ProfileScreen } from "@/components/screens/profile-screen"
 import { PetDetailScreen } from "@/components/screens/pet-detail-screen"
 import { AddPetScreen } from "@/components/screens/add-pet-screen"
 import { PetCareScreen } from "@/components/screens/pet-care-screen"
+import { AiChatScreen } from "@/components/screens/ai-chat-screen"
+import { AskFab } from "@/components/ai/ask-fab"
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
 import { LinkBuildingScreen } from "@/components/screens/link-building-screen"
 import { BusinessDetailScreen } from "@/components/screens/business-detail-screen"
@@ -36,6 +38,7 @@ const CONTENT_MAX: Record<string, string> = {
   "pet-detail": "max-w-3xl",
   "add-pet": "max-w-2xl",
   "pet-care": "max-w-2xl",
+  "ai-chat": "max-w-2xl",
   "link-building": "max-w-2xl",
   "business-detail": "max-w-2xl",
   "my-bookings": "max-w-2xl",
@@ -98,16 +101,25 @@ function AppContent() {
     )
   }
 
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab)
-    setCurrentScreen(tab)
-  }
-
   // `id` is polymorphic: a business id for the services flow, otherwise a pet id.
   const handleNavigate = (screen: string, id?: string) => {
     if (screen === "business-detail") setSelectedBusinessId(id)
     else if (id !== undefined) setSelectedPetId(id)
+    // Entering the assistant from the FAB or the sidebar carries no pet, and a
+    // pet left over from an earlier screen would silently scope the answer.
+    else if (screen === "ai-chat") setSelectedPetId(undefined)
     setCurrentScreen(screen)
+  }
+
+  const handleTabChange = (tab: string) => {
+    // The assistant is a screen, not a tab — routing it through navigate keeps
+    // the previous tab as the back destination.
+    if (tab === "ai-chat") {
+      handleNavigate("ai-chat")
+      return
+    }
+    setActiveTab(tab)
+    setCurrentScreen(tab)
   }
 
   const handleBack = () => {
@@ -123,11 +135,13 @@ function AppContent() {
       <div className="flex-1 md:min-w-0">
         <div key={currentScreen} className={`mx-auto w-full ${contentMax} animate-in fade-in duration-200`}>
           {currentScreen === "pet-detail" ? (
-            <PetDetailScreen onBack={handleBack} petId={selectedPetId} />
+            <PetDetailScreen onBack={handleBack} petId={selectedPetId} onNavigate={handleNavigate} />
           ) : currentScreen === "add-pet" ? (
             <AddPetScreen onBack={handleBack} onNavigate={handleNavigate} />
           ) : currentScreen === "pet-care" ? (
             <PetCareScreen onBack={handleBack} onNavigate={handleNavigate} />
+          ) : currentScreen === "ai-chat" ? (
+            <AiChatScreen onBack={handleBack} petId={selectedPetId} />
           ) : currentScreen === "link-building" ? (
             <LinkBuildingScreen onBack={handleBack} />
           ) : currentScreen === "business-detail" ? (
@@ -153,6 +167,9 @@ function AppContent() {
           )}
         </div>
       </div>
+
+      {/* Owners reach the assistant from a floating button — the tab bar is full. */}
+      {!isManager && currentScreen !== "ai-chat" && <AskFab onClick={() => handleNavigate("ai-chat")} />}
 
       <IOSTabBar activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
