@@ -47,7 +47,14 @@ const TABS: { id: AlertTab; label: string }[] = [
   { id: "assistant", label: "Assistant" },
 ]
 
-export function AlertsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
+export function AlertsScreen({
+  onNavigate,
+  onBack,
+}: {
+  onNavigate?: (screen: string) => void
+  /** Returns to the tab the viewer came from — managers have no "home". */
+  onBack?: () => void
+}) {
   const [activeTab, setActiveTab] = useState<AlertTab>("all")
   const { data: alerts } = useNotifications()
 
@@ -65,7 +72,7 @@ export function AlertsScreen({ onNavigate }: { onNavigate?: (screen: string) => 
       <IOSNavBar
         title="Alerts"
         largeTitle={false}
-        leftAction={<NavBackButton onClick={() => onNavigate?.("home")} />}
+        leftAction={<NavBackButton onClick={() => (onBack ? onBack() : onNavigate?.("home"))} />}
         rightAction={
           /* One action, matching the other bars. The "+" that used to sit
              here opened the same flow as the "Report an Incident" card in

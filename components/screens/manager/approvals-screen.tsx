@@ -60,12 +60,6 @@ function locationLabel(location: string): string {
   return location.replace(/\s*\(-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+\)\s*$/, "").trim() || location
 }
 
-const STATIC_TABS: { id: ApprovalTab; label: string; count: number }[] = [
-  { id: "registrations", label: "Registrations", count: 3 },
-  { id: "accommodations", label: "Accommodations", count: 2 },
-  { id: "documents", label: "Documents", count: 4 },
-]
-
 function ApprovalsEmptyState({ title, subtext }: { title: string; subtext: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
@@ -88,7 +82,15 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
   const { data: incidents, isLoading: incidentsLoading, refetch: refetchIncidents } = useIncidents()
 
   const openIncidents = incidents.filter((i) => isOpenIncident(i.status))
-  const TABS = [{ id: "incidents" as ApprovalTab, label: "Incidents", count: openIncidents.length }, ...STATIC_TABS]
+  // Every count is derived. These were hardcoded 3 / 2 / 4 while the lists
+  // beneath them came from live queries, so a tab could advertise rows that
+  // did not exist — and did, on every empty building.
+  const TABS: { id: ApprovalTab; label: string; count: number }[] = [
+    { id: "incidents", label: "Incidents", count: openIncidents.length },
+    { id: "registrations", label: "Registrations", count: registrations.length },
+    { id: "accommodations", label: "Accommodations", count: accommodations.length },
+    { id: "documents", label: "Documents", count: documentsReview.length },
+  ]
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

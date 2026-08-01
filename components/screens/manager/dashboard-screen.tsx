@@ -3,7 +3,7 @@
 import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
-import { useBuildingResidents, useBuildingPets } from "@/lib/data"
+import { useBuildingResidents, useBuildingPets, useUnreadNotificationCount } from "@/lib/data"
 import {
   Shield,
   AlertTriangle,
@@ -35,6 +35,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
   const { user } = useAuth()
   const { data: residents, isLoading: rLoading } = useBuildingResidents()
   const { data: pets, isLoading: pLoading } = useBuildingPets()
+  const unreadCount = useUnreadNotificationCount()
 
   const members = residents.filter((r) => r.status === "approved").length
   const pending = residents.filter((r) => r.status === "pending").length
@@ -63,8 +64,17 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
         title="Dashboard"
         largeTitle={false}
         rightAction={
-          <button onClick={() => toast("No new notifications")} className="relative p-2" aria-label="Notifications">
+          <button
+            onClick={() => onNavigate?.("alerts")}
+            className="relative p-2"
+            aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+          >
             <Bell className="h-5 w-5 text-foreground" />
+            {unreadCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </button>
         }
       />

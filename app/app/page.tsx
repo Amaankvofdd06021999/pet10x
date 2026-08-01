@@ -159,13 +159,16 @@ function AppContent() {
               {currentScreen === "violations" && <ManagerViolationsScreen onNavigate={handleNavigate} />}
               {currentScreen === "approvals" && <ManagerApprovalsScreen onNavigate={handleNavigate} />}
               {currentScreen === "settings" && <ManagerSettingsScreen onNavigate={handleNavigate} />}
+              {/* Managers have no Alerts tab, but the dashboard bell routes
+                  here — without this the screen renders blank. */}
+              {currentScreen === "alerts" && <AlertsScreen onNavigate={handleNavigate} onBack={handleBack} />}
             </>
           ) : (
             <>
               {currentScreen === "home" && <HomeScreen onNavigate={handleNavigate} />}
               {currentScreen === "community" && <CommunityScreen onNavigate={handleNavigate} />}
               {currentScreen === "services" && <ServicesScreen onNavigate={handleNavigate} />}
-              {currentScreen === "alerts" && <AlertsScreen onNavigate={handleNavigate} />}
+              {currentScreen === "alerts" && <AlertsScreen onNavigate={handleNavigate} onBack={handleBack} />}
               {currentScreen === "profile" && <ProfileScreen onNavigate={handleNavigate} />}
             </>
           )}
