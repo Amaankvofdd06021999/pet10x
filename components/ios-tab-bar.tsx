@@ -48,7 +48,10 @@ export function IOSTabBar({ activeTab, onTabChange }: TabBarProps) {
   const unreadCount = useUnreadNotificationCount()
   const badges: Record<string, number> = { alerts: unreadCount }
   const tabs = isManager ? managerTabs : ownerTabs
-  const activeColor = isManager ? "text-info" : "text-primary"
+  // One brand colour for both roles. Managers used to get `--info` (iOS system
+  // blue), which is not a Pet10x colour and made their half of the app look
+  // like a different product.
+  const activeColor = "text-primary"
 
   return (
     <nav

@@ -1,57 +1,94 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
-import { useBuildingResidents, useBuildingPets, useUnreadNotificationCount } from "@/lib/data"
+import { useBuildingResidents, useBuildingPets, useUnreadNotificationCount, useViolations } from "@/lib/data"
+import { useComplianceInputs } from "@/lib/data/portfolio"
+import { useManagerBuilding } from "@/lib/data/manager"
 import {
   Shield,
   AlertTriangle,
   UserCheck,
   Gavel,
-  BarChart3,
   QrCode,
   Dog,
   Cat,
-  Clock,
-  Building2,
+  PawPrint,
   Bell,
   Loader2,
-  CheckCircle2,
+  FileText,
+  DollarSign,
+  ChevronRight,
 } from "lucide-react"
 
+/**
+ * Manager dashboard.
+ *
+ * Colours come from the app's tokens only — primary/accent/success/warning/
+ * destructive. The previous version used `--info` (#007AFF, iOS system blue)
+ * for the compliance banner, the Approvals tile and the Members stat, which
+ * introduced a hue that appears nowhere in the Pet10x palette.
+ */
+
 const QUICK_ACTIONS = [
-  { icon: UserCheck, label: "Review\nResidents", color: "bg-primary/10 text-primary", screen: "residents" },
-  { icon: Gavel, label: "Violations", color: "bg-destructive/10 text-destructive", screen: "violations" },
-  { icon: BarChart3, label: "Approvals", color: "bg-info/10 text-info", screen: "approvals" },
-  { icon: QrCode, label: "Emergency\nQR", color: "bg-accent/10 text-accent", screen: "" },
-]
+  { icon: UserCheck, label: "Review Residents", tint: "bg-primary/10 text-primary", screen: "residents" },
+  { icon: AlertTriangle, label: "Violations", tint: "bg-destructive/10 text-destructive", screen: "violations" },
+  { icon: Shield, label: "Approvals", tint: "bg-success/10 text-success", screen: "approvals" },
+  { icon: QrCode, label: "Emergency QR", tint: "bg-muted text-foreground", screen: "" },
+] as const
+
+/** Stage → the tile shown on a violation row. */
+const STAGE_TILE: Record<string, { tint: string; icon: typeof Gavel }> = {
+  investigation: { tint: "bg-destructive/10 text-destructive", icon: AlertTriangle },
+  "pending-review": { tint: "bg-destructive/10 text-destructive", icon: AlertTriangle },
+  "verbal-warning": { tint: "bg-primary/10 text-primary", icon: FileText },
+  "written-warning": { tint: "bg-primary/10 text-primary", icon: Gavel },
+  "fine-issued": { tint: "bg-destructive/10 text-destructive", icon: DollarSign },
+}
+
+const BAD_VAX = ["expired", "rejected"]
 
 interface DashboardScreenProps {
-  onNavigate?: (screen: string) => void
+  onNavigate?: (screen: string, id?: string) => void
 }
 
 export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
   const { user } = useAuth()
+  const { data: building, isLoading: bLoading } = useManagerBuilding()
   const { data: residents, isLoading: rLoading } = useBuildingResidents()
-  const { data: pets, isLoading: pLoading } = useBuildingPets()
+  const { data: allPets, isLoading: pLoading } = useBuildingPets()
+  const { data: allInputs } = useComplianceInputs()
+  const { data: allViolations } = useViolations()
   const unreadCount = useUnreadNotificationCount()
+
+  // A manager may hold more than one building. Every number on this screen is
+  // labelled as *this* building's, so scope to it rather than trusting RLS to
+  // have returned exactly one building's worth of rows.
+  //
+  // While the building is still resolving, show nothing rather than a flash of
+  // every building's rows. If it resolves to null the manager has no building,
+  // so RLS-scoped rows are the honest fallback rather than a blank screen.
+  const inBuilding = <T extends { buildingId: string | null }>(rows: T[]) => {
+    if (building) return rows.filter((r) => r.buildingId === building.id)
+    return bLoading ? [] : rows
+  }
+  const pets = inBuilding(allPets)
+  const violations = inBuilding(allViolations)
+  const inputs = inBuilding(allInputs)
 
   const members = residents.filter((r) => r.status === "approved").length
   const pending = residents.filter((r) => r.status === "pending").length
   const dogs = pets.filter((p) => p.species === "dog").length
   const cats = pets.filter((p) => p.species === "cat").length
+  const others = pets.length - dogs - cats
+  const ownersWithPets = new Set(pets.map((p) => p.ownerId).filter(Boolean)).size
   const compliant = pets.filter((p) => p.compliancePct >= 100).length
   const needsAttention = pets.length - compliant
+  const expiredDocs = inputs.filter((p) => p.vax.some((v) => BAD_VAX.includes(v.status))).length
   const avgCompliance = pets.length ? Math.round(pets.reduce((s, p) => s + p.compliancePct, 0) / pets.length) : 100
-  const loading = rLoading || pLoading
-
-  const SUMMARY = [
-    { label: "Pets", value: pets.length, icon: Dog, color: "text-primary" },
-    { label: "Members", value: members, icon: UserCheck, color: "text-info" },
-    { label: "Pending", value: pending, icon: Clock, color: "text-[#B8860B]" },
-    { label: "Attention", value: needsAttention, icon: AlertTriangle, color: "text-destructive" },
-  ]
+  const loading = rLoading || pLoading || bLoading
 
   const handleQuickAction = (screen: string) => {
     if (!screen) toast.success("Emergency QR generated", { description: "Valid for 4 hours." })
@@ -59,10 +96,15 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <IOSNavBar
-        title="Dashboard"
-        largeTitle={false}
+        inlineTitle
+        title={
+          <>
+            <PawPrint className="h-6 w-6 flex-shrink-0 text-primary" fill="currentColor" />
+            Pet10x
+          </>
+        }
         rightAction={
           <button
             onClick={() => onNavigate?.("alerts")}
@@ -81,94 +123,53 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
 
       <main className="ios-scroll flex-1 px-4 pb-24">
         {/* Greeting */}
-        <section className="mb-4">
-          <p className="text-[13px] text-muted-foreground">Welcome back, {user?.name?.split(" ")[0]}</p>
-          {user?.building && (
-            <div className="mt-0.5 flex items-center gap-1.5">
-              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-[13px] text-muted-foreground">{user.building}</span>
-            </div>
+        <section className="mb-5 mt-3">
+          <h1 className="text-[26px] font-semibold leading-tight text-primary">
+            Welcome back, {user?.name?.split(" ")[0]}
+          </h1>
+          {(building?.name || user?.building) && (
+            <p className="mt-1 text-[14px] text-muted-foreground">{building?.name ?? user?.building}</p>
           )}
         </section>
 
-        {/* Compliance hero */}
-        <section className="mb-5">
-          <div className="rounded-2xl bg-info p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[12px] font-medium text-info-foreground/80">Building compliance</p>
-                <p className="text-[32px] font-semibold leading-tight text-info-foreground">
-                  {loading ? "—" : `${avgCompliance}%`}
-                </p>
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-info-foreground/20">
-                <Shield className="h-6 w-6 text-info-foreground" />
-              </div>
-            </div>
-            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-info-foreground/20">
-              <div className="h-full rounded-full bg-info-foreground transition-all" style={{ width: `${avgCompliance}%` }} />
-            </div>
-            <p className="mt-2 text-[11px] text-info-foreground/70">
-              {pets.length === 0
-                ? "No registered pets yet"
-                : needsAttention === 0
-                  ? "All registered pets are compliant"
-                  : `${needsAttention} pet${needsAttention === 1 ? "" : "s"} need attention`}
+        {/* Headline pair — the building at a glance */}
+        <section className="mb-6 grid grid-cols-2 gap-3">
+          <div className="relative overflow-hidden rounded-2xl bg-primary p-4">
+            <PawPrint
+              className="absolute -bottom-3 -right-2 h-20 w-20 text-primary-foreground/15"
+              fill="currentColor"
+              aria-hidden
+            />
+            <p className="relative text-[13px] font-medium text-primary-foreground/90">Total pets</p>
+            <p className="relative mt-0.5 text-[30px] font-bold leading-none text-primary-foreground">
+              {loading ? "—" : pets.length}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <p className="text-[13px] font-medium text-muted-foreground">Residents w/ pets</p>
+            <p className="mt-0.5 text-[30px] font-bold leading-none text-primary">
+              {loading ? "—" : ownersWithPets}
             </p>
           </div>
         </section>
 
-        {/* Summary row */}
-        <section className="mb-5">
-          <div className="grid grid-cols-4 gap-2">
-            {SUMMARY.map((stat) => {
-              const Icon = stat.icon
-              return (
-                <div key={stat.label} className="rounded-2xl border border-border bg-card p-2.5 text-center">
-                  <Icon className={`mx-auto h-4 w-4 ${stat.color}`} />
-                  <p className={`mt-1 text-[18px] font-semibold ${stat.color}`}>{loading ? "—" : stat.value}</p>
-                  <p className="text-[9px] font-medium text-muted-foreground">{stat.label}</p>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-
-        {/* Pending approvals nudge */}
-        {pending > 0 && (
-          <button
-            onClick={() => onNavigate?.("residents")}
-            className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-warning/30 bg-[#FFFBEF] p-3.5 text-left transition-transform active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-warning/15">
-              <Clock className="h-5 w-5 text-[#B8860B]" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-semibold text-foreground">
-                {pending} resident{pending === 1 ? "" : "s"} awaiting approval
-              </p>
-              <p className="text-[12px] text-muted-foreground">Review and approve to add them to your building</p>
-            </div>
-          </button>
-        )}
-
         <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-5">
-          {/* Quick Actions */}
-          <section className="mb-5">
-            <h2 className="mb-2.5 text-[15px] font-semibold text-foreground">Quick actions</h2>
-            <div className="grid grid-cols-4 gap-2">
+          {/* Quick actions */}
+          <section className="mb-6">
+            <SectionLabel>Quick actions</SectionLabel>
+            <div className="grid grid-cols-2 gap-3">
               {QUICK_ACTIONS.map((action) => {
                 const Icon = action.icon
                 return (
                   <button
                     key={action.label}
                     onClick={() => handleQuickAction(action.screen)}
-                    className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card p-2.5 transition-transform active:scale-[0.97]"
+                    className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card px-3 py-5 transition-transform active:scale-[0.97]"
                   >
-                    <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${action.color}`}>
-                      <Icon className="h-4.5 w-4.5" />
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${action.tint}`}>
+                      <Icon className="h-5 w-5" />
                     </span>
-                    <span className="whitespace-pre-line text-center text-[10px] font-medium leading-tight text-foreground">
+                    <span className="text-center text-[13px] font-semibold leading-tight text-foreground">
                       {action.label}
                     </span>
                   </button>
@@ -177,9 +178,86 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
             </div>
           </section>
 
-          {/* Pet breakdown */}
-          <section className="mb-5">
-            <h2 className="mb-2.5 text-[15px] font-semibold text-foreground">Pet breakdown</h2>
+          {/* Violation tracking */}
+          <section className="mb-6">
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-[17px] font-semibold text-foreground">Violation tracking</h2>
+                {violations.length > 0 && (
+                  <button
+                    onClick={() => onNavigate?.("violations")}
+                    className="flex-shrink-0 text-[13px] font-semibold text-primary"
+                  >
+                    View all
+                  </button>
+                )}
+              </div>
+
+              {loading ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : violations.length === 0 ? (
+                <div className="flex flex-col items-center gap-1 py-6 text-center">
+                  <Shield className="h-6 w-6 text-success" />
+                  <p className="text-[14px] font-semibold text-foreground">No open violations</p>
+                  <p className="text-[12px] text-muted-foreground">Reported incidents will appear here.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {violations.slice(0, 3).map((v) => {
+                    const tile = STAGE_TILE[v.stage] ?? STAGE_TILE.investigation
+                    const Icon = tile.icon
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => onNavigate?.("violations")}
+                        className="flex items-center gap-3 rounded-xl bg-muted/50 p-2.5 text-left transition-colors active:bg-muted"
+                      >
+                        <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${tile.tint}`}>
+                          <Icon className="h-4.5 w-4.5" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[14px] font-semibold text-foreground">
+                            {v.stageLabel}
+                          </span>
+                          <span className="block truncate text-[12px] text-muted-foreground">
+                            {v.pet} · Unit {v.unit}
+                          </span>
+                        </span>
+                        <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Awaiting approval — the one thing on this screen that is a job to do,
+            so it gets a coloured rule rather than another neutral card. */}
+        {pending > 0 && (
+          <button
+            onClick={() => onNavigate?.("residents")}
+            className="mb-6 flex w-full items-center gap-3 rounded-2xl border-l-4 border-success bg-success/10 p-4 text-left transition-transform active:scale-[0.99]"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-semibold text-success">Residents awaiting approval</span>
+              <span className="mt-0.5 block text-[24px] font-bold leading-tight text-foreground">
+                {pending} new application{pending === 1 ? "" : "s"}
+              </span>
+            </span>
+            <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-success">
+              <UserCheck className="h-5 w-5 text-success-foreground" />
+            </span>
+          </button>
+        )}
+
+        <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-5">
+          {/* Species breakdown */}
+          <section className="mb-6">
+            <SectionLabel>Species breakdown</SectionLabel>
             {loading ? (
               <div className="flex justify-center rounded-2xl border border-border bg-card py-10">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -193,38 +271,146 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <BreakdownCard icon={Dog} color="text-primary" label="Dogs" value={dogs} />
-                <BreakdownCard icon={Cat} color="text-accent" label="Cats" value={cats} />
-                <BreakdownCard icon={CheckCircle2} color="text-success" label="Compliant" value={compliant} />
-                <BreakdownCard icon={AlertTriangle} color="text-destructive" label="Needs attention" value={needsAttention} />
+              <div className="grid grid-cols-2 gap-3">
+                <SpeciesCard icon={Dog} tint="bg-primary/10 text-primary" label="Dogs" value={dogs} />
+                <SpeciesCard icon={Cat} tint="bg-accent/10 text-accent" label="Cats" value={cats} />
+                {/* Only when there are any — the app registers seven species,
+                    and folding them into a permanent zero would read as a bug. */}
+                {others > 0 && (
+                  <SpeciesCard icon={PawPrint} tint="bg-muted text-foreground" label="Other" value={others} />
+                )}
               </div>
             )}
           </section>
+
+          {/* Register health */}
+          <section className="mb-6">
+            <div className="grid grid-cols-2 gap-3">
+              <StatBar label="Compliant" value={compliant} total={pets.length} bar="bg-primary" loading={loading} />
+              <StatBar
+                label="Expired docs"
+                value={expiredDocs}
+                total={pets.length}
+                bar="bg-destructive"
+                tone="text-destructive"
+                loading={loading}
+              />
+              <StatBar label="Members" value={members} total={members + pending} bar="bg-success" loading={loading} />
+              <StatBar
+                label="Pending"
+                value={pending}
+                total={members + pending}
+                bar="bg-warning"
+                tone="text-[#B8860B]"
+                loading={loading}
+              />
+            </div>
+          </section>
         </div>
+
+        {/* Building compliance */}
+        <section className="mb-2">
+          <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4">
+            <ComplianceRing pct={loading ? 0 : avgCompliance} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[16px] font-semibold text-foreground">Building compliance</p>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
+                {pets.length === 0
+                  ? "No registered pets yet."
+                  : needsAttention === 0
+                    ? "All registered pets are compliant."
+                    : `${needsAttention} pet${needsAttention === 1 ? "" : "s"} need attention.`}
+              </p>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   )
 }
 
-function BreakdownCard({
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>
+  )
+}
+
+function SpeciesCard({
   icon: Icon,
-  color,
+  tint,
   label,
   value,
 }: {
   icon: typeof Dog
-  color: string
+  tint: string
   label: string
   value: number
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-3">
-      <div className="flex items-center gap-2">
-        <Icon className={`h-4 w-4 ${color}`} />
-        <span className="text-[13px] font-semibold text-foreground">{label}</span>
+    <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
+      <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${tint}`}>
+        <Icon className="h-5 w-5" />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-[13px] font-medium text-muted-foreground">{label}</p>
+        <p className="text-[20px] font-bold leading-tight text-foreground">{value}</p>
       </div>
-      <p className="mt-1 text-[22px] font-semibold text-foreground">{value}</p>
+    </div>
+  )
+}
+
+function StatBar({
+  label,
+  value,
+  total,
+  bar,
+  tone = "text-foreground",
+  loading,
+}: {
+  label: string
+  value: number
+  total: number
+  bar: string
+  tone?: string
+  loading: boolean
+}) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3.5">
+      <p className="truncate text-[13px] font-medium text-muted-foreground">{label}</p>
+      <p className={`mt-0.5 text-[22px] font-bold leading-tight ${tone}`}>{loading ? "—" : value}</p>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className={`h-full rounded-full transition-all ${bar}`} style={{ width: `${loading ? 0 : pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+/** Compliance as a ring rather than a filled banner — a percentage is one
+ *  number, and the old full-width block gave it more weight than the work
+ *  items above it. */
+function ComplianceRing({ pct }: { pct: number }) {
+  const r = 26
+  const circumference = 2 * Math.PI * r
+  return (
+    <div className="relative h-16 w-16 flex-shrink-0">
+      <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" strokeWidth="6" className="stroke-muted" />
+        <circle
+          cx="32"
+          cy="32"
+          r={r}
+          fill="none"
+          strokeWidth="6"
+          strokeLinecap="round"
+          className="stroke-success transition-[stroke-dashoffset] duration-500"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - Math.min(Math.max(pct, 0), 100) / 100)}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[14px] font-bold text-foreground">
+        {pct}%
+      </span>
     </div>
   )
 }
