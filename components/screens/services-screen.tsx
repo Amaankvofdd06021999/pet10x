@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { NavBackButton } from "@/components/nav-back-button"
 import { useNearbyBusinesses, useMyLocation, captureDeviceLocation } from "@/lib/data/business"
 import { toast } from "sonner"
 import { Search, Star, MapPin, Navigation, Loader2, Store, CalendarCheck, Check } from "lucide-react"
@@ -76,6 +77,8 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Services"
+        largeTitle={false}
+        leftAction={<NavBackButton onClick={() => onNavigate?.("home")} />}
         rightAction={
           <button
             onClick={() => onNavigate?.("my-bookings")}

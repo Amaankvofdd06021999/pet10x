@@ -2,10 +2,11 @@
 
 import { useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { usePets } from "@/lib/data"
+import { usePets, useUnreadNotificationCount } from "@/lib/data"
 import { exportMyData, deleteMyAccount, updateMyProfile } from "@/lib/data/account"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { NavBackButton } from "@/components/nav-back-button"
 import {
   ChevronRight,
   Settings,
@@ -31,6 +32,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
+import { Portal } from "@/components/ui/portal"
 
 const MENU_SECTIONS = [
   {
@@ -77,6 +79,7 @@ interface ProfileScreenProps {
 export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const { user, signOut, updateLocalUser } = useAuth()
   const { data: pets } = usePets()
+  const unreadCount = useUnreadNotificationCount()
   const [busy, setBusy] = useState<"export" | "delete" | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -153,9 +156,20 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Profile"
+        largeTitle={false}
+        leftAction={<NavBackButton onClick={() => onNavigate?.("home")} />}
         rightAction={
-          <button onClick={() => toast("Settings — coming soon")} className="p-2" aria-label="Settings">
-            <Settings className="h-5 w-5 text-foreground" />
+          <button
+            onClick={() => onNavigate?.("alerts")}
+            className="relative p-2"
+            aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+          >
+            <Bell className="h-5 w-5 text-foreground" />
+            {unreadCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </button>
         }
       />
@@ -278,6 +292,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
         </section>
 
         {editing && (
+          <Portal>
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6"
             onClick={() => !savingProfile && setEditing(false)}
@@ -341,9 +356,11 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
               </div>
             </div>
           </div>
+          </Portal>
         )}
 
         {confirmDelete && (
+          <Portal>
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6"
             onClick={() => busy === null && setConfirmDelete(false)}
@@ -371,6 +388,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
               </div>
             </div>
           </div>
+          </Portal>
         )}
 
         {/* Sign Out */}

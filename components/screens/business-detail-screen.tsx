@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
+import { Portal } from "@/components/ui/portal"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { usePublicBusiness, DAY_KEYS, DAY_LABEL, formatAddress, mapsUrl, formatPrice } from "@/lib/data/business"
 import { useBusinessServices, useBusinessReviews, createBooking, type ServiceItem } from "@/lib/data/bookings"
@@ -253,6 +254,7 @@ function BookSheet({
   }
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 sm:items-center" onClick={onClose}>
       <div
         className="w-full max-w-md rounded-t-3xl border border-border bg-card p-5 sm:rounded-3xl"
@@ -347,5 +349,6 @@ function BookSheet({
         )}
       </div>
     </div>
+    </Portal>
   )
 }

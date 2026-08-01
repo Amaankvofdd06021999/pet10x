@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
+import { Portal } from "@/components/ui/portal"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
   useMyBookings,
@@ -183,6 +184,7 @@ function ReviewSheet({
   }
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 sm:items-center" onClick={onClose}>
       <div
         className="w-full max-w-md rounded-t-3xl border border-border bg-card p-5 sm:rounded-3xl"
@@ -221,5 +223,6 @@ function ReviewSheet({
         </div>
       </div>
     </div>
+    </Portal>
   )
 }

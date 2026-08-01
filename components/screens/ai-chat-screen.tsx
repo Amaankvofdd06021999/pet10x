@@ -1,9 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowLeft, ArrowUp, MessageSquarePlus, Square } from "lucide-react"
+import { ArrowUp, MessageSquarePlus, Square } from "lucide-react"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { NavBackButton } from "@/components/nav-back-button"
 import { MessageBubble } from "@/components/ai/message-bubble"
 import { PetContextSwitcher } from "@/components/ai/pet-context-switcher"
 import { ConsentDialog } from "@/components/ai/consent-dialog"
@@ -246,14 +247,22 @@ export function AiChatScreen({ onBack, petId, conversationId: initialConversatio
   const selectedPet = pets.find((p) => p.id === selectedPetId) ?? null
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    /**
+     * Exactly one viewport tall, minus the tab bar on mobile.
+     *
+     * `min-h-screen` let the column grow past the viewport, which pushed the
+     * composer down behind the tab bar (fixed bottom-0, z-50). `h-dvh` bounds
+     * it — and `dvh` rather than `vh` so it tracks the browser chrome
+     * collapsing on scroll. The bottom padding is the tab bar's own height
+     * (64px) plus the home indicator; the bar is `md:hidden`, so the padding
+     * goes away at the same breakpoint.
+     */
+    <div className="flex h-dvh flex-col bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       <IOSNavBar
         title="Ask Pet10x"
         largeTitle={false}
         leftAction={
-          <button onClick={onBack} className="-ml-2 flex items-center gap-0.5 p-2 text-primary" aria-label="Back">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+<NavBackButton onClick={onBack} />
         }
         rightAction={
           <button
@@ -273,7 +282,7 @@ export function AiChatScreen({ onBack, petId, conversationId: initialConversatio
         </div>
       )}
 
-      <div ref={scrollRef} className="ios-scroll flex-1 overflow-y-auto px-4 pb-4 pt-4">
+      <div ref={scrollRef} className="ios-scroll min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-4">
         {turns.length === 0 ? (
           <EmptyState petName={selectedPet?.name ?? null} onPick={(q) => void handleSend(q)} disabled={isSending} />
         ) : (
@@ -286,7 +295,7 @@ export function AiChatScreen({ onBack, petId, conversationId: initialConversatio
       </div>
 
       {/* Composer */}
-      <div className="sticky bottom-0 border-t border-border bg-card/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2.5 backdrop-blur-xl md:pb-3">
+      <div className="shrink-0 border-t border-border bg-card/95 px-3 pb-3 pt-2.5 backdrop-blur-xl">
         <PhotoAttachPreview images={images} onChange={setImages} />
 
         <div className="flex items-end gap-1.5">

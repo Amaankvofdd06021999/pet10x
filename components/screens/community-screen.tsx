@@ -14,6 +14,7 @@ import {
 } from "@/lib/data"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { NavBackButton } from "@/components/nav-back-button"
 import {
   Heart,
   MessageCircle,
@@ -37,6 +38,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
+import { Portal } from "@/components/ui/portal"
 
 type FeedTab = "feed" | "lost" | "events"
 
@@ -73,7 +75,7 @@ function EmptyState({
   )
 }
 
-export function CommunityScreen() {
+export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const { user } = useAuth()
   const isManager = user?.role === "building-manager"
   const { data: posts, isLoading: postsLoading, refetch: refetchPosts } = useCommunityPosts()
@@ -135,15 +137,20 @@ export function CommunityScreen() {
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Community"
+        largeTitle={false}
+        leftAction={<NavBackButton onClick={() => onNavigate?.("home")} />}
         rightAction={
-          <button onClick={() => setComposerOpen(true)} className="flex h-8 w-8 items-center justify-center rounded-full bg-primary" aria-label="New post">
-            <Plus className="h-4 w-4 text-primary-foreground" />
+          <button
+            onClick={() => setComposerOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12.5px] font-semibold text-primary"
+          >
+            <Plus className="h-3.5 w-3.5" /> New post
           </button>
         }
       />
 
       {/* Segmented Control */}
-      <div className="sticky top-[88px] z-30 bg-background px-4 pb-3">
+      <div className="sticky top-16 z-30 bg-background px-4 pb-3">
         <div className="flex rounded-xl bg-muted p-1">
           {(["feed", "lost", "events"] as FeedTab[]).map((tab) => (
             <button
@@ -376,6 +383,7 @@ export function CommunityScreen() {
       </main>
 
       {composerOpen && (
+        <Portal>
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:px-6"
           onClick={() => !posting && setComposerOpen(false)}
@@ -412,9 +420,11 @@ export function CommunityScreen() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
 
       {commentsFor && (
+        <Portal>
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:px-6"
           onClick={() => setCommentsFor(null)}
@@ -476,6 +486,7 @@ export function CommunityScreen() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </div>
   )

@@ -16,7 +16,6 @@ import { PetDetailScreen } from "@/components/screens/pet-detail-screen"
 import { AddPetScreen } from "@/components/screens/add-pet-screen"
 import { PetCareScreen } from "@/components/screens/pet-care-screen"
 import { AiChatScreen } from "@/components/screens/ai-chat-screen"
-import { AskFab } from "@/components/ai/ask-fab"
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
 import { LinkBuildingScreen } from "@/components/screens/link-building-screen"
 import { BusinessDetailScreen } from "@/components/screens/business-detail-screen"
@@ -159,17 +158,14 @@ function AppContent() {
           ) : (
             <>
               {currentScreen === "home" && <HomeScreen onNavigate={handleNavigate} />}
-              {currentScreen === "community" && <CommunityScreen />}
+              {currentScreen === "community" && <CommunityScreen onNavigate={handleNavigate} />}
               {currentScreen === "services" && <ServicesScreen onNavigate={handleNavigate} />}
-              {currentScreen === "alerts" && <AlertsScreen />}
+              {currentScreen === "alerts" && <AlertsScreen onNavigate={handleNavigate} />}
               {currentScreen === "profile" && <ProfileScreen onNavigate={handleNavigate} />}
             </>
           )}
         </div>
       </div>
-
-      {/* Owners reach the assistant from a floating button — the tab bar is full. */}
-      {!isManager && currentScreen !== "ai-chat" && <AskFab onClick={() => handleNavigate("ai-chat")} />}
 
       <IOSTabBar activeTab={activeTab} onTabChange={handleTabChange} />
     </div>

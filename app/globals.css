@@ -142,6 +142,17 @@ html {
   overflow-y: auto;
 }
 
+/* Horizontal rails (the pet carousel) scroll by drag/swipe — the scrollbar is
+   noise on a card strip and eats vertical space on desktop. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Prevent pull-to-refresh on mobile */
 body {
   overscroll-behavior-y: contain;

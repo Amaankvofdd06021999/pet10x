@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { NavBackButton } from "@/components/nav-back-button"
 import { useNotifications, type NotificationIconKey } from "@/lib/data"
 import { toast } from "sonner"
 import {
@@ -12,7 +13,6 @@ import {
   FileText,
   Shield,
   Syringe,
-  Plus,
   Filter,
   BellOff,
   Sparkles,
@@ -46,7 +46,7 @@ const TABS: { id: AlertTab; label: string }[] = [
   { id: "assistant", label: "Assistant" },
 ]
 
-export function AlertsScreen() {
+export function AlertsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const [activeTab, setActiveTab] = useState<AlertTab>("all")
   const { data: alerts } = useNotifications()
 
@@ -63,20 +63,23 @@ export function AlertsScreen() {
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Alerts"
+        largeTitle={false}
+        leftAction={<NavBackButton onClick={() => onNavigate?.("home")} />}
         rightAction={
-          <div className="flex items-center gap-2">
-            <button onClick={() => toast("Report an incident", { description: "Coming soon." })} className="p-2" aria-label="Report incident">
-              <Plus className="h-5 w-5 text-primary" />
-            </button>
-            <button onClick={() => toast("Filters — coming soon")} className="p-2" aria-label="Filter">
-              <Filter className="h-5 w-5 text-foreground" />
-            </button>
-          </div>
+          /* One action, matching the other bars. The "+" that used to sit
+             here opened the same flow as the "Report an Incident" card in
+             the body below, so it was a duplicate of a more visible control. */
+          <button
+            onClick={() => toast("Filters — coming soon")}
+            className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-[12.5px] font-semibold text-foreground"
+          >
+            <Filter className="h-3.5 w-3.5" /> Filter
+          </button>
         }
       />
 
       {/* Tabs */}
-      <div className="sticky top-[88px] z-30 bg-background px-4 pb-3">
+      <div className="sticky top-16 z-30 bg-background px-4 pb-3">
         <div className="flex flex-wrap gap-2">
           {TABS.map((tab) => (
             <button
