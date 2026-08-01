@@ -63,16 +63,37 @@ export async function runSuggestions(supabase: Client, ownerId: string): Promise
   const hits = await evaluateRules(supabase, pets ?? [])
   if (hits.length === 0) return { evaluated: 0, created: 0, skipped: 0, notified: 0 }
 
-  // Which dedupe keys already exist — including dismissed ones, so a nudge the
-  // owner has waved away does not come back on the next run.
+  // Every dedupe key ends in a period or a state — `checkup_due:<pet>:2026-07`,
+  // `care_adherence:<pet>:<kind>:<isoWeek>` — so a nudge can legitimately
+  // return in a later period. Everything before that last segment identifies
+  // the SUBJECT: this rule, about this pet.
+  const familyOf = (key: string) => key.slice(0, key.lastIndexOf(":"))
+
+  // Two separate questions, and answering only the first was the bug.
+  //
+  // 1. Has this exact key been raised before? Includes dismissed ones, so a
+  //    nudge the owner waved away does not come back within its own period.
+  // 2. Is there ALREADY a live, unexpired nudge about the same subject? At
+  //    midnight on the 1st every `checkup_due` key changed month, so every pet
+  //    was told again about a vet visit whose previous notice was still active
+  //    with three weeks left to run. A period boundary is permission to
+  //    re-raise a nudge that has LAPSED — not to duplicate a standing one.
   const { data: existing } = await supabase
     .from("ai_suggestions")
-    .select("dedupe_key")
+    .select("dedupe_key, status, valid_until")
     .eq("profile_id", ownerId)
-    .in("dedupe_key", hits.map((h) => h.dedupeKey))
 
-  const seen = new Set((existing ?? []).map((r) => r.dedupe_key))
-  const fresh = hits.filter((h) => !seen.has(h.dedupeKey))
+  const now = Date.now()
+  const seen = new Set<string>()
+  const liveFamilies = new Set<string>()
+  for (const row of existing ?? []) {
+    const key = row.dedupe_key as string
+    seen.add(key)
+    const unexpired = !row.valid_until || new Date(row.valid_until as string).getTime() > now
+    if (row.status === "active" && unexpired) liveFamilies.add(familyOf(key))
+  }
+
+  const fresh = hits.filter((h) => !seen.has(h.dedupeKey) && !liveFamilies.has(familyOf(h.dedupeKey)))
   if (fresh.length === 0) return { evaluated: hits.length, created: 0, skipped: hits.length, notified: 0 }
 
   const bodies = await Promise.all(fresh.map(writeCopy))

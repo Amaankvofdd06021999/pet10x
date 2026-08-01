@@ -67,6 +67,30 @@ function sanitizeAuthError(message: string): string {
  */
 const LOAD_APP_USER_TIMEOUT_MS = 8000
 
+/**
+ * Record the browser's IANA zone once, if the profile has none.
+ *
+ * Care reminders resolve their times in this zone; without it they fall back
+ * to the project's region, which fires at the wrong hour for anyone outside
+ * it. Captured at session load rather than only at onboarding so existing
+ * accounts — all of which predate the column — get one on their next visit.
+ *
+ * Only writes when the column is null: a value set deliberately (support
+ * correcting a traveller's zone) must not be overwritten by whatever device
+ * they happen to open next.
+ */
+async function ensureTimezone(userId: string): Promise<void> {
+  try {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) return
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (!tz) return
+    await supabase.from("profiles").update({ timezone: tz }).eq("id", userId).is("timezone", null)
+  } catch {
+    // Best effort. A failure here must never block sign-in.
+  }
+}
+
 async function loadAppUser(authUser: User): Promise<AppUser> {
   const supabase = getSupabaseBrowserClient()!
 
