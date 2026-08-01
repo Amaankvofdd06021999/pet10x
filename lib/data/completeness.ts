@@ -26,7 +26,6 @@ export interface BuildingPetRules {
 }
 
 export type GapId =
-  | "phone"
   | "unit"
   | "pet"
   | "rabies"
@@ -50,6 +49,7 @@ export interface Gap {
 }
 
 export interface CompletenessInput {
+  /** Retained on the input so callers need not change; no gap is raised for it. */
   phone: string | null
   unitId: string | null
   hasBuilding: boolean
@@ -75,11 +75,9 @@ const BAD_VAX = ["expired", "missing", "rejected"]
 export function computeGaps(input: CompletenessInput): Gap[] {
   const gaps: Gap[] = []
 
-  // Identification and contact first: a manager who cannot reach or place
-  // someone cannot act on anything else they might be missing.
-  if (!input.phone?.trim()) {
-    gaps.push({ id: "phone", label: "Phone number", target: "profile", severity: "blocking" })
-  }
+  // Phone is deliberately NOT asked for. Managers reach residents by email —
+  // profiles.email is populated from the auth account for everyone, so the
+  // channel exists without demanding a second one at registration.
   if (input.hasBuilding && !input.unitId) {
     gaps.push({ id: "unit", label: "Unit number", target: "link-building", severity: "blocking" })
   }

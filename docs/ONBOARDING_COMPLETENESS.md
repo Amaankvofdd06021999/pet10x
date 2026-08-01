@@ -23,9 +23,13 @@ carries `require_rabies`, `require_core_vaccines`, `require_license`,
 reads them. Onboarding asks for what *that* building enforces, so a standalone
 owner is asked for almost nothing and a strict building asks for everything.
 
-**Two things are mandatory regardless: unit and phone.** They are not
-compliance, they are identification and contact. Without them a manager cannot
-place a resident or reach them, and every other feature degrades.
+**Unit is mandatory regardless.** It is not compliance, it is identification —
+without it a manager cannot place a resident or their pets against a unit.
+
+**Phone is not asked for.** `profiles.email` is populated from the auth account
+for every user, so a contact channel already exists; demanding a second one at
+registration costs completion rate for no capability the manager does not
+already have.
 
 **Skipping is allowed; forgetting is not.** A hard gate on document upload
 loses the person signing up at 9pm without a vaccination certificate to hand —
@@ -38,7 +42,6 @@ that a manager can act on.
 | Item | Source | Required when | Why a manager needs it |
 | --- | --- | --- | --- |
 | Unit | `resident_links.unit_id` | Always, if linked | Places the resident and their pets |
-| Phone | `profiles.phone` | Always | The only channel outside the app |
 | Pet name / species / breed | `pets` | Always | Nothing else attaches without a pet |
 | Rabies | `pet_vaccinations` | `pet_rules.require_rabies` | Compliance percentage |
 | Core vaccines | `pet_vaccinations` | `pet_rules.require_core_vaccines` | Compliance percentage |

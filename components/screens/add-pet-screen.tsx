@@ -2,12 +2,22 @@
 
 import { useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { addPet, setPetPhoto } from "@/lib/data"
+import { OTHER_SPECIES, OTHER_BREED, breedsFor, addPet, setPetPhoto } from "@/lib/data"
+import type { Species } from "@/lib/data"
 import { toast } from "sonner"
-import { ArrowLeft, ImagePlus, Dog, Cat, PawPrint, CheckCircle2, Loader2, Utensils } from "lucide-react"
+import {
+  ArrowLeft,
+  ImagePlus,
+  Dog,
+  Cat,
+  PawPrint,
+  CheckCircle2,
+  Loader2,
+  Utensils,
+  ChevronDown,
+} from "lucide-react"
 
-type Species = "dog" | "cat" | "other"
-
+/** Three tiles for the common case; "Other" opens the full pet_species list. */
 const SPECIES: { id: Species; label: string; icon: typeof Dog }[] = [
   { id: "dog", label: "Dog", icon: Dog },
   { id: "cat", label: "Cat", icon: Cat },
@@ -25,7 +35,11 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
   const [saving, setSaving] = useState(false)
   const [name, setName] = useState("")
   const [species, setSpecies] = useState<Species | null>(null)
+  // Breed is picked from a list; `customBreed` only carries the free text the
+  // "Other" option reveals, so switching back to a listed breed cannot leave a
+  // stale string behind.
   const [breed, setBreed] = useState("")
+  const [customBreed, setCustomBreed] = useState("")
   const [dob, setDob] = useState("")
   const [gender, setGender] = useState<"Male" | "Female" | "">("")
   const [weight, setWeight] = useState("")
@@ -37,6 +51,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const photoInput = useRef<HTMLInputElement>(null)
 
+  const breedOptions = breedsFor(species)
   const canSubmit = name.trim().length > 0 && species !== null
 
   const handleSubmit = async () => {
@@ -46,7 +61,8 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
     const { error, pet } = await addPet({
       name: name.trim(),
       species,
-      breed: breed.trim() || undefined,
+      breed:
+        (breedOptions.length === 0 || breed === OTHER_BREED ? customBreed.trim() : breed.trim()) || undefined,
       dob: dob || undefined,
       sex: gender === "Male" ? "male" : gender === "Female" ? "female" : undefined,
       weightKg: weightKg && !Number.isNaN(weightKg) ? weightKg : undefined,
@@ -91,7 +107,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
             <button
               onClick={() => {
                 setSubmitted(false)
-                setName(""); setSpecies(null); setBreed(""); setDob(""); setGender(""); setWeight(""); setColor(""); setMicrochip(""); setNeutered(false)
+                setName(""); setSpecies(null); setBreed(""); setCustomBreed(""); setDob(""); setGender(""); setWeight(""); setColor(""); setMicrochip(""); setNeutered(false)
                 setPhotoFile(null); setPhotoPreview(null)
               }}
               className="w-full rounded-xl border border-border py-3.5 text-[16px] font-semibold text-foreground transition-transform active:scale-[0.98]"
@@ -164,7 +180,12 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
             return (
               <button
                 key={s.id}
-                onClick={() => setSpecies(s.id)}
+                onClick={() => {
+                  setSpecies(s.id)
+                  // A Labrador is not an option for a cat.
+                  setBreed("")
+                  setCustomBreed("")
+                }}
                 className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all active:scale-[0.97] ${
                   active ? "border-primary bg-primary/5" : "border-border bg-card"
                 }`}
@@ -179,8 +200,47 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
         <Field label="Name" required>
           <Input value={name} onChange={setName} placeholder="e.g. Max" />
         </Field>
+        {/* Which kind of "other" — bird, reptile, and so on. The tiles stay at
+            three so the common case is one tap, and the long tail lives behind
+            the one tile that needs it. */}
+        {species !== null && species !== "dog" && species !== "cat" && (
+          <Field label="Type of pet" required>
+            <Select
+              value={species}
+              onChange={(v) => {
+                setSpecies(v as Species)
+                setBreed("")
+                setCustomBreed("")
+              }}
+              options={OTHER_SPECIES.map((o) => ({ value: o.value, label: o.label }))}
+            />
+          </Field>
+        )}
+
+        {/* Breed from a list rather than free text: several buildings restrict
+            by breed, and a rule cannot be applied to "lab", "Labrador" and
+            "Lab X" all meaning the same dog. */}
         <Field label="Breed">
-          <Input value={breed} onChange={setBreed} placeholder="e.g. Golden Retriever" />
+          {breedOptions.length > 0 ? (
+            <>
+              <Select
+                value={breed}
+                onChange={setBreed}
+                placeholder="Select a breed"
+                options={[
+                  ...breedOptions.map((b) => ({ value: b, label: b })),
+                  { value: OTHER_BREED, label: "Other / not listed" },
+                ]}
+              />
+              {breed === OTHER_BREED && (
+                <div className="mt-2">
+                  <Input value={customBreed} onChange={setCustomBreed} placeholder="Tell us the breed" />
+                </div>
+              )}
+            </>
+          ) : (
+            <Input value={customBreed} onChange={setCustomBreed} placeholder="e.g. Holland Lop" />
+          )}
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
@@ -276,6 +336,40 @@ function Field({ label, required, children }: { label: string; required?: boolea
     </div>
   )
 }
+function Select({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+  placeholder?: string
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full appearance-none rounded-xl border border-border bg-card px-4 py-3 pr-10 text-[15px] text-foreground outline-none focus:border-primary"
+      >
+        {placeholder && (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        )}
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    </div>
+  )
+}
+
 function Input({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <input

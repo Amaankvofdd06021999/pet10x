@@ -14,6 +14,7 @@ export * from "./hooks"
 export * from "./live"
 export * from "./care-schedule"
 export * from "./completeness"
+export * from "./breeds"
 export {
   MOCK_USERS,
   VALID_BUILDING_CODES,
