@@ -940,7 +940,7 @@ function mapNotification(row: {
   )
     ? (row.severity as AppNotification["severity"])
     : "info"
-  const category: AppNotification["category"] = (["compliance", "incident", "building", "assistant"] as const).includes(
+  const category: AppNotification["category"] = (["compliance", "incident", "building", "assistant", "care"] as const).includes(
     row.kind as AppNotification["category"],
   )
     ? (row.kind as AppNotification["category"])

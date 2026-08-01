@@ -6,6 +6,7 @@ import { usePets, useHomeAlerts, useMyBuildingLink, useUnreadNotificationCount }
 import { useAiSuggestions } from "@/lib/ai/client"
 import { SuggestionCard } from "@/components/ai/suggestion-card"
 import { TodayCareTiles } from "@/components/screens/home/today-care-tiles"
+import { TodayScheduleStrip } from "@/components/screens/home/today-schedule"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
@@ -273,6 +274,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             </button>
 
             <TodayCareTiles petId={primaryPet?.id} onOpen={(kind) => onNavigate?.("pet-care", kind)} />
+            <TodayScheduleStrip petId={primaryPet?.id} />
           </div>
         </section>
 

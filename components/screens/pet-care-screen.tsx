@@ -4,6 +4,7 @@ import { useState } from "react"
 import { usePets, useCareEntries, useCareTargets, addCareEntry, deleteCareEntry, setCareTarget } from "@/lib/data"
 import type { CareEntry, CareEntryKind } from "@/lib/data"
 import { toast } from "sonner"
+import { ScheduleTab } from "@/components/screens/care/schedule-tab"
 import {
   ArrowLeft,
   Utensils,
@@ -138,6 +139,8 @@ export function PetCareScreen({ onBack, onNavigate, initialKind }: PetCareScreen
   const [amount, setAmount] = useState("")
   const [saving, setSaving] = useState(false)
 
+  // "log" records what happened; "schedule" plans what should.
+  const [view, setView] = useState<"log" | "schedule">("log")
   const [editingTarget, setEditingTarget] = useState(false)
   const [targetInput, setTargetInput] = useState("")
 
@@ -250,8 +253,23 @@ export function PetCareScreen({ onBack, onNavigate, initialKind }: PetCareScreen
           </div>
         )}
 
+        {/* Log vs plan */}
+        <div className="mb-3 flex rounded-xl bg-muted p-1">
+          {(["log", "schedule"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`flex-1 rounded-lg py-2 text-[13px] font-semibold transition-colors ${
+                view === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+              }`}
+            >
+              {v === "log" ? "Log" : "Schedule"}
+            </button>
+          ))}
+        </div>
+
         {/* Tracker tabs */}
-        <div className="mb-4 flex rounded-xl bg-muted p-1">
+        <div className={`mb-4 flex rounded-xl bg-muted p-1 ${view === "schedule" ? "hidden" : ""}`}>
           {TABS.map((t) => {
             const Icon = t.icon
             return (
@@ -273,155 +291,161 @@ export function PetCareScreen({ onBack, onNavigate, initialKind }: PetCareScreen
           })}
         </div>
 
-        {/* Today summary */}
-        <section className={`mb-5 rounded-2xl p-4 ${overLimit ? "bg-destructive" : "bg-primary"} text-primary-foreground`}>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[12px] font-medium opacity-80">
-                {tab.label} today · {pet?.name}
-              </p>
-              <p className="text-[28px] font-semibold leading-tight">
-                {todayTotal}
-                <span className="text-[15px] font-medium opacity-80">
-                  {" "}
+        {view === "schedule" ? (
+          <ScheduleTab petId={petId} petName={pet?.name} />
+        ) : (
+          <>
+          {/* Today summary */}
+          <section className={`mb-5 rounded-2xl p-4 ${overLimit ? "bg-destructive" : "bg-primary"} text-primary-foreground`}>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[12px] font-medium opacity-80">
+                  {tab.label} today · {pet?.name}
+                </p>
+                <p className="text-[28px] font-semibold leading-tight">
+                  {todayTotal}
+                  <span className="text-[15px] font-medium opacity-80">
+                    {" "}
+                    {tab.unit}
+                    {target != null && ` / ${target}`}
+                  </span>
+                </p>
+                {overLimit && <p className="mt-0.5 text-[12px] font-medium">Over the daily limit</p>}
+              </div>
+              <button
+                onClick={() => {
+                  setEditingTarget((v) => !v)
+                  setTargetInput(target != null ? String(target) : "")
+                }}
+                className="flex items-center gap-1 rounded-full bg-primary-foreground/20 px-2.5 py-1 text-[11px] font-semibold"
+              >
+                <Target className="h-3 w-3" /> {target != null ? "Edit" : "Set"} target
+              </button>
+            </div>
+            {target != null && !editingTarget && (
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-primary-foreground/25">
+                <div className="h-full rounded-full bg-primary-foreground transition-all" style={{ width: `${pct}%` }} />
+              </div>
+            )}
+            {editingTarget && (
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                  placeholder={tab.targetLabel}
+                  className="min-w-0 flex-1 rounded-lg bg-primary-foreground/20 px-3 py-2 text-[14px] font-semibold text-primary-foreground placeholder:text-primary-foreground/60 focus:outline-none"
+                />
+                <button
+                  onClick={saveTarget}
+                  className="rounded-lg bg-primary-foreground px-3 py-2 text-[13px] font-semibold text-primary"
+                >
+                  Save
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* Quick log */}
+          <section className="mb-6 rounded-2xl border border-border bg-card p-3.5">
+            <h2 className="mb-2.5 text-[14px] font-semibold text-foreground">Log {tab.label.toLowerCase()}</h2>
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder={tab.placeholder}
+              className="mb-2 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step={tab.step}
+                  min="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Amount"
+                  className="w-full rounded-xl border border-border bg-background py-2.5 pl-3.5 pr-14 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted-foreground">
                   {tab.unit}
-                  {target != null && ` / ${target}`}
                 </span>
-              </p>
-              {overLimit && <p className="mt-0.5 text-[12px] font-medium">Over the daily limit</p>}
-            </div>
-            <button
-              onClick={() => {
-                setEditingTarget((v) => !v)
-                setTargetInput(target != null ? String(target) : "")
-              }}
-              className="flex items-center gap-1 rounded-full bg-primary-foreground/20 px-2.5 py-1 text-[11px] font-semibold"
-            >
-              <Target className="h-3 w-3" /> {target != null ? "Edit" : "Set"} target
-            </button>
-          </div>
-          {target != null && !editingTarget && (
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-primary-foreground/25">
-              <div className="h-full rounded-full bg-primary-foreground transition-all" style={{ width: `${pct}%` }} />
-            </div>
-          )}
-          {editingTarget && (
-            <div className="mt-3 flex items-center gap-2">
-              <input
-                type="number"
-                inputMode="decimal"
-                value={targetInput}
-                onChange={(e) => setTargetInput(e.target.value)}
-                placeholder={tab.targetLabel}
-                className="min-w-0 flex-1 rounded-lg bg-primary-foreground/20 px-3 py-2 text-[14px] font-semibold text-primary-foreground placeholder:text-primary-foreground/60 focus:outline-none"
-              />
+              </div>
               <button
-                onClick={saveTarget}
-                className="rounded-lg bg-primary-foreground px-3 py-2 text-[13px] font-semibold text-primary"
-              >
-                Save
-              </button>
-            </div>
-          )}
-        </section>
-
-        {/* Quick log */}
-        <section className="mb-6 rounded-2xl border border-border bg-card p-3.5">
-          <h2 className="mb-2.5 text-[14px] font-semibold text-foreground">Log {tab.label.toLowerCase()}</h2>
-          <input
-            type="text"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder={tab.placeholder}
-            className="mb-2 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <input
-                type="number"
-                inputMode="decimal"
-                step={tab.step}
-                min="0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Amount"
-                className="w-full rounded-xl border border-border bg-background py-2.5 pl-3.5 pr-14 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted-foreground">
-                {tab.unit}
-              </span>
-            </div>
-            <button
-              onClick={() => log(amount ? parseFloat(amount) : null)}
-              disabled={saving}
-              className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Log
-            </button>
-          </div>
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            {tab.quick.map((q) => (
-              <button
-                key={q}
-                onClick={() => log(q)}
+                onClick={() => log(amount ? parseFloat(amount) : null)}
                 disabled={saving}
-                className="rounded-full border border-border bg-background px-3 py-1.5 text-[12px] font-semibold text-foreground transition-colors active:bg-muted disabled:opacity-60"
+                className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
               >
-                + {q} {tab.unit}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Log
               </button>
-            ))}
-          </div>
-        </section>
-
-        {/* History */}
-        <section>
-          <h2 className="mb-2.5 text-[15px] font-semibold text-foreground">History</h2>
-          {entriesLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : entries.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card p-7 text-center">
-              <tab.icon className="mx-auto h-6 w-6 text-muted-foreground" />
-              <p className="mt-2 text-[13px] text-muted-foreground">No {tab.label.toLowerCase()} logged yet</p>
-              <p className="text-[12px] text-muted-foreground">Log your first entry above.</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {groups.map((g) => (
-                <div key={g.label}>
-                  <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{g.label}</p>
-                  <div className="overflow-hidden rounded-xl border border-border bg-card">
-                    {g.items.map((e, i) => (
-                      <div
-                        key={e.id}
-                        className={`flex items-center gap-3 p-3 ${i < g.items.length - 1 ? "border-b border-border" : ""}`}
-                      >
-                        <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${tab.bg}`}>
-                          <tab.icon className={`h-4 w-4 ${tab.color}`} />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[14px] font-semibold text-foreground">{e.label || tab.defaultLabel}</p>
-                          <p className="text-[12px] text-muted-foreground">
-                            {e.amount != null && `${e.amount} ${e.unit ?? tab.unit} · `}
-                            {timeLabel(e.loggedAt)}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => removeEntry(e)}
-                          aria-label="Remove entry"
-                          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {tab.quick.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => log(q)}
+                  disabled={saving}
+                  className="rounded-full border border-border bg-background px-3 py-1.5 text-[12px] font-semibold text-foreground transition-colors active:bg-muted disabled:opacity-60"
+                >
+                  + {q} {tab.unit}
+                </button>
               ))}
             </div>
-          )}
-        </section>
+          </section>
+
+          {/* History */}
+          <section>
+            <h2 className="mb-2.5 text-[15px] font-semibold text-foreground">History</h2>
+            {entriesLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : entries.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-card p-7 text-center">
+                <tab.icon className="mx-auto h-6 w-6 text-muted-foreground" />
+                <p className="mt-2 text-[13px] text-muted-foreground">No {tab.label.toLowerCase()} logged yet</p>
+                <p className="text-[12px] text-muted-foreground">Log your first entry above.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {groups.map((g) => (
+                  <div key={g.label}>
+                    <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{g.label}</p>
+                    <div className="overflow-hidden rounded-xl border border-border bg-card">
+                      {g.items.map((e, i) => (
+                        <div
+                          key={e.id}
+                          className={`flex items-center gap-3 p-3 ${i < g.items.length - 1 ? "border-b border-border" : ""}`}
+                        >
+                          <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${tab.bg}`}>
+                            <tab.icon className={`h-4 w-4 ${tab.color}`} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[14px] font-semibold text-foreground">{e.label || tab.defaultLabel}</p>
+                            <p className="text-[12px] text-muted-foreground">
+                              {e.amount != null && `${e.amount} ${e.unit ?? tab.unit} · `}
+                              {timeLabel(e.loggedAt)}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => removeEntry(e)}
+                            aria-label="Remove entry"
+                            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+          </>
+        )}
       </main>
     </ScreenShell>
   )

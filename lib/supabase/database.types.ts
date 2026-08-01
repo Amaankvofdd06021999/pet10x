@@ -1716,36 +1716,90 @@ export type Database = {
           },
         ]
       }
+      pet_care_reminders: {
+        Row: {
+          id: string
+          notification_id: string | null
+          on_date: string
+          sent_at: string
+          task_id: string
+        }
+        Insert: {
+          id?: string
+          notification_id?: string | null
+          on_date: string
+          sent_at?: string
+          task_id: string
+        }
+        Update: {
+          id?: string
+          notification_id?: string | null
+          on_date?: string
+          sent_at?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_care_reminders_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_care_reminders_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "pet_care_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pet_care_tasks: {
         Row: {
           created_at: string
+          days_of_week: number[] | null
           detail: string | null
           id: string
+          is_active: boolean
           kind: Database["public"]["Enums"]["care_kind"]
           label: string
           pet_id: string
+          remind_minutes_before: number
+          scheduled_at: string | null
           sort_order: number | null
           time_label: string | null
+          updated_at: string
         }
         Insert: {
           created_at?: string
+          days_of_week?: number[] | null
           detail?: string | null
           id?: string
+          is_active?: boolean
           kind?: Database["public"]["Enums"]["care_kind"]
           label: string
           pet_id: string
+          remind_minutes_before?: number
+          scheduled_at?: string | null
           sort_order?: number | null
           time_label?: string | null
+          updated_at?: string
         }
         Update: {
           created_at?: string
+          days_of_week?: number[] | null
           detail?: string | null
           id?: string
+          is_active?: boolean
           kind?: Database["public"]["Enums"]["care_kind"]
           label?: string
           pet_id?: string
+          remind_minutes_before?: number
+          scheduled_at?: string | null
           sort_order?: number | null
           time_label?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2216,6 +2270,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           suspended_at: string | null
           suspended_by: string | null
+          timezone: string | null
           updated_at: string
         }
         Insert: {
@@ -2239,6 +2294,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           suspended_at?: string | null
           suspended_by?: string | null
+          timezone?: string | null
           updated_at?: string
         }
         Update: {
@@ -2262,6 +2318,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           suspended_at?: string | null
           suspended_by?: string | null
+          timezone?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2988,6 +3045,7 @@ export type Database = {
         | "community"
         | "system"
         | "assistant"
+        | "care"
       payment_status: "pending" | "succeeded" | "failed" | "refunded"
       payout_status: "pending" | "in_transit" | "paid" | "failed" | "reversed"
       pet_sex: "male" | "female" | "unknown"
@@ -3238,6 +3296,7 @@ export const Constants = {
         "community",
         "system",
         "assistant",
+        "care",
       ],
       payment_status: ["pending", "succeeded", "failed", "refunded"],
       payout_status: ["pending", "in_transit", "paid", "failed", "reversed"],

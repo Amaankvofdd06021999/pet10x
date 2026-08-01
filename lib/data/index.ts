@@ -12,6 +12,7 @@
 export * from "./types"
 export * from "./hooks"
 export * from "./live"
+export * from "./care-schedule"
 export {
   MOCK_USERS,
   VALID_BUILDING_CODES,

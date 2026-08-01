@@ -19,7 +19,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-type AlertTab = "all" | "compliance" | "incidents" | "building" | "assistant"
+type AlertTab = "all" | "care" | "compliance" | "incidents" | "building" | "assistant"
 
 const NOTIFICATION_ICONS: Record<NotificationIconKey, typeof Syringe> = {
   syringe: Syringe,
@@ -40,6 +40,7 @@ const SEVERITY_STYLES = {
 
 const TABS: { id: AlertTab; label: string }[] = [
   { id: "all", label: "All" },
+  { id: "care", label: "Care" },
   { id: "compliance", label: "Compliance" },
   { id: "incidents", label: "Incidents" },
   { id: "building", label: "Building" },
