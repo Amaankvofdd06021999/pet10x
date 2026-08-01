@@ -853,7 +853,7 @@ export function useBuildingResidents(): LiveResult<ResidentLinkRow[]> {
     }
     const { data: rows, error: err } = await supabase
       .from("resident_links")
-      .select("id, profile_id, building_id, status, requested_at, units(unit_number), profiles!profile_id(full_name, email)")
+      .select("id, profile_id, building_id, status, requested_at, info_requested_at, units(unit_number), profiles!profile_id(full_name, email, phone)")
       .in("status", ["pending", "approved"])
       .is("left_at", null)
       .order("requested_at", { ascending: false })
@@ -863,7 +863,11 @@ export function useBuildingResidents(): LiveResult<ResidentLinkRow[]> {
     } else {
       setData(
         (rows ?? []).map((r) => {
-          const prof = r.profiles as { full_name: string | null; email: string | null } | null
+          const prof = r.profiles as {
+            full_name: string | null
+            email: string | null
+            phone: string | null
+          } | null
           const unit = r.units as { unit_number: string } | null
           return {
             linkId: r.id,
@@ -874,6 +878,8 @@ export function useBuildingResidents(): LiveResult<ResidentLinkRow[]> {
             requestedAt: r.requested_at,
             residentName: prof?.full_name || prof?.email || "Resident",
             residentEmail: prof?.email ?? null,
+            residentPhone: prof?.phone ?? null,
+            infoRequestedAt: r.info_requested_at ?? null,
           }
         }),
       )

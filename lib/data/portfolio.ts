@@ -199,10 +199,14 @@ export function useOutstandingFines(): LiveResult<OutstandingFine[]> {
 export interface PetComplianceInput {
   petId: string
   buildingId: string | null
+  ownerId: string | null
   name: string
   neutered: boolean | null
   vax: { name: string; status: string }[]
   docs: { kind: string }[]
+  /** Emergency contact is not a compliance rule, but the manager's
+   *  outstanding-items view reports it alongside the ones that are. */
+  hasEmergencyContact: boolean
 }
 
 /** Per-pet raw inputs so the bylaws editor can recompute compliance under proposed rules. */
@@ -217,7 +221,7 @@ export function useComplianceInputs(): LiveResult<PetComplianceInput[]> {
     setLoading(true)
     const { data: rows, error: err } = await supabase
       .from("pets")
-      .select("id, building_id, name, neutered, pet_vaccinations ( name, status ), pet_documents ( kind )")
+      .select("id, building_id, owner_id, name, neutered, pet_vaccinations ( name, status ), pet_documents ( kind ), pet_emergency_contacts ( id )")
       .not("building_id", "is", null)
       .is("deleted_at", null)
 
@@ -232,10 +236,12 @@ export function useComplianceInputs(): LiveResult<PetComplianceInput[]> {
       (rows ?? []).map((r) => ({
         petId: r.id,
         buildingId: r.building_id,
+        ownerId: r.owner_id ?? null,
         name: r.name,
         neutered: r.neutered,
         vax: (r.pet_vaccinations as { name: string; status: string }[] | null) ?? [],
         docs: (r.pet_documents as { kind: string }[] | null) ?? [],
+        hasEmergencyContact: ((r.pet_emergency_contacts as { id: string }[] | null) ?? []).length > 0,
       })),
     )
     setError(null)

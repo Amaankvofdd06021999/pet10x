@@ -238,6 +238,9 @@ export interface ResidentLinkRow {
   requestedAt: string
   residentName: string
   residentEmail: string | null
+  residentPhone: string | null
+  /** When a manager last asked for missing details. Null = never asked. */
+  infoRequestedAt: string | null
 }
 
 export interface ManagerPet {

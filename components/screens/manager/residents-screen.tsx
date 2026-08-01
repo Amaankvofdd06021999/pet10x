@@ -3,7 +3,17 @@
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
-import { useBuildingResidents, useBuildingPets, approveResidentLink, denyResidentLink, removeResident } from "@/lib/data"
+import {
+  useBuildingResidents,
+  useBuildingPets,
+  computeGaps,
+  approveResidentLink,
+  denyResidentLink,
+  removeResident,
+} from "@/lib/data"
+import { useComplianceInputs } from "@/lib/data/portfolio"
+import { useManagerBuilding } from "@/lib/data/manager"
+import { RequestInfoButton } from "@/components/screens/manager/request-info-button"
 import type { ResidentLinkRow, ManagerPet } from "@/lib/data"
 import { toast } from "sonner"
 import { Search, Check, X, Clock, UserMinus, Loader2, Users, Dog, Cat, ChevronDown, Shield } from "lucide-react"
@@ -12,7 +22,32 @@ export function ManagerResidentsScreen({ onNavigate }: { onNavigate?: (screen: s
   const [search, setSearch] = useState("")
   const { data: residents, isLoading, refetch } = useBuildingResidents()
   const { data: buildingPets } = useBuildingPets()
+  const { data: complianceInputs } = useComplianceInputs()
+  const { data: building } = useManagerBuilding()
   const [busy, setBusy] = useState<string | null>(null)
+
+  /**
+   * What each resident still owes, from the same function their own card
+   * reads — so the manager cannot see a different list to the resident, and
+   * cannot ask for something this building does not require.
+   */
+  const gapsFor = (r: ResidentLinkRow) => {
+    const theirPets = complianceInputs.filter((p) => p.ownerId === r.profileId)
+    return computeGaps({
+      phone: r.residentPhone,
+      unitId: r.unit,
+      hasBuilding: true,
+      rules: building?.rules ?? {},
+      pets: theirPets.map((p) => ({
+        id: p.petId,
+        name: p.name,
+        neutered: p.neutered,
+        vaccinations: p.vax,
+        documentKinds: p.docs.map((d) => d.kind),
+        hasEmergencyContact: p.hasEmergencyContact,
+      })),
+    })
+  }
 
   const match = (r: ResidentLinkRow) =>
     search === "" ||
@@ -73,10 +108,45 @@ export function ManagerResidentsScreen({ onNavigate }: { onNavigate?: (screen: s
                 </div>
               ) : (
                 <div className="grid gap-2.5 lg:grid-cols-2">
-                  {pending.map((r) => (
+                  {pending.map((r) => {
+                    const gaps = gapsFor(r)
+                    return (
                     <div key={r.linkId} className="rounded-xl border border-warning/30 bg-[#FFFBEF] p-3.5">
                       <p className="text-[15px] font-semibold text-foreground">{r.residentName}</p>
                       <p className="text-[12px] text-muted-foreground">{r.residentEmail || "—"}</p>
+
+                      {/* What this request is still missing, so the decision to
+                          approve is made with the gaps visible rather than
+                          discovered afterwards. */}
+                      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                        {gaps.length === 0 ? (
+                          <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                            All details provided
+                          </span>
+                        ) : (
+                          <>
+                            {gaps.slice(0, 3).map((g) => (
+                              <span
+                                key={`${g.id}:${g.petId ?? "self"}`}
+                                className="rounded-full bg-card px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
+                              >
+                                {g.label}
+                              </span>
+                            ))}
+                            {gaps.length > 3 && (
+                              <span className="text-[11px] text-muted-foreground">+{gaps.length - 3}</span>
+                            )}
+                          </>
+                        )}
+                        <span className="ml-auto">
+                          <RequestInfoButton
+                            resident={r}
+                            missing={gaps.map((g) => (g.petName ? `${g.label} (${g.petName})` : g.label))}
+                            onDone={refetch}
+                          />
+                        </span>
+                      </div>
+
                       <div className="mt-3 flex gap-2">
                         <button
                           onClick={() => act(r.linkId, approveResidentLink, "Resident approved")}
@@ -94,7 +164,8 @@ export function ManagerResidentsScreen({ onNavigate }: { onNavigate?: (screen: s
                         </button>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </section>

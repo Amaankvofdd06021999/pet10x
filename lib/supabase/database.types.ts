@@ -2385,6 +2385,8 @@ export type Database = {
           decided_at: string | null
           decided_by: string | null
           id: string
+          info_requested_at: string | null
+          info_requested_by: string | null
           left_at: string | null
           move_in_date: string | null
           profile_id: string
@@ -2400,6 +2402,8 @@ export type Database = {
           decided_at?: string | null
           decided_by?: string | null
           id?: string
+          info_requested_at?: string | null
+          info_requested_by?: string | null
           left_at?: string | null
           move_in_date?: string | null
           profile_id: string
@@ -2415,6 +2419,8 @@ export type Database = {
           decided_at?: string | null
           decided_by?: string | null
           id?: string
+          info_requested_at?: string | null
+          info_requested_by?: string | null
           left_at?: string | null
           move_in_date?: string | null
           profile_id?: string
@@ -2441,6 +2447,20 @@ export type Database = {
           {
             foreignKeyName: "resident_links_decided_by_fkey"
             columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "resident_links_info_requested_by_fkey"
+            columns: ["info_requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resident_links_info_requested_by_fkey"
+            columns: ["info_requested_by"]
             isOneToOne: false
             referencedRelation: "user_entitlements"
             referencedColumns: ["profile_id"]

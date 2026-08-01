@@ -7,6 +7,7 @@ import { useAiSuggestions } from "@/lib/ai/client"
 import { SuggestionCard } from "@/components/ai/suggestion-card"
 import { TodayCareTiles } from "@/components/screens/home/today-care-tiles"
 import { TodayScheduleStrip } from "@/components/screens/home/today-schedule"
+import { MissingInfoCard } from "@/components/screens/home/missing-info-card"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
@@ -165,6 +166,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             </button>
           ) : null}
         </section>
+
+        <div className="mb-6">
+          <MissingInfoCard onNavigate={onNavigate} />
+        </div>
 
         {/* My Pets — horizontal rail on compact, grid from md up */}
         <section className="mb-6">

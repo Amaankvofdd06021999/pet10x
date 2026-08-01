@@ -98,3 +98,40 @@ export function sendWelcomeEmail(opts: { to: string; name?: string }) {
     }),
   })
 }
+
+/**
+ * "Your building needs a few details."
+ *
+ * The chase half of the completeness loop. Email rather than in-app alone
+ * because the residents who have filled nothing in are, by definition, the
+ * ones not opening the app. The missing items are listed literally so the
+ * recipient can gather them before opening anything.
+ */
+export function sendRequestInfoEmail(opts: {
+  to: string
+  name?: string
+  buildingName: string
+  missing: string[]
+}) {
+  const items =
+    opts.missing.length > 0
+      ? `<ul style="margin:12px 0 0;padding-left:20px;color:#1F1F1F;">${opts.missing
+          .map((m) => `<li style="margin:4px 0;">${m}</li>`)
+          .join("")}</ul>`
+      : ""
+
+  return send({
+    to: opts.to,
+    subject: `${opts.buildingName} needs a few details`,
+    html: emailHtml({
+      headline: `A few details still needed${opts.name ? `, ${opts.name}` : ""}`,
+      body:
+        `${opts.buildingName} can't finish registering you until these are on file:` +
+        items +
+        `<p style="margin:14px 0 0;">Each one takes a moment in the app.</p>`,
+      ctaUrl: `${APP_URL}/app`,
+      ctaLabel: "Complete my registration",
+      footnote: "You're receiving this because you asked to link to this building on Pet10x.",
+    }),
+  })
+}
