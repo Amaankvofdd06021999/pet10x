@@ -2,12 +2,13 @@
 
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { NavBackButton } from "@/components/nav-back-button"
 import { useBuildingResidents, useBuildingPets, approveResidentLink, denyResidentLink, removeResident } from "@/lib/data"
 import type { ResidentLinkRow, ManagerPet } from "@/lib/data"
 import { toast } from "sonner"
 import { Search, Check, X, Clock, UserMinus, Loader2, Users, Dog, Cat, ChevronDown, Shield } from "lucide-react"
 
-export function ManagerResidentsScreen() {
+export function ManagerResidentsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const [search, setSearch] = useState("")
   const { data: residents, isLoading, refetch } = useBuildingResidents()
   const { data: buildingPets } = useBuildingPets()
@@ -33,9 +34,13 @@ export function ManagerResidentsScreen() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <IOSNavBar title="Residents" />
+      <IOSNavBar
+        title="Residents"
+        largeTitle={false}
+        leftAction={<NavBackButton onClick={() => onNavigate?.("dashboard")} />}
+      />
 
-      <div className="sticky top-[88px] z-30 bg-background px-4 pb-2">
+      <div className="sticky top-16 z-30 bg-background px-4 pb-2">
         <div className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2.5">
           <Search className="h-4 w-4 text-muted-foreground" />
           <input

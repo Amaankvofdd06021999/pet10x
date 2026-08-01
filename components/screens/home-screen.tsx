@@ -272,7 +272,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground/50" />
             </button>
 
-            <TodayCareTiles petId={primaryPet?.id} />
+            <TodayCareTiles petId={primaryPet?.id} onOpen={(kind) => onNavigate?.("pet-care", kind)} />
           </div>
         </section>
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { NavBackButton } from "@/components/nav-back-button"
 import { useRegistrations, useAccommodations, useDocumentsReview } from "@/lib/data"
 import {
   useRegistrationsLive,
@@ -77,7 +78,7 @@ function ApprovalsEmptyState({ title, subtext }: { title: string; subtext: strin
   )
 }
 
-export function ManagerApprovalsScreen() {
+export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const [activeTab, setActiveTab] = useState<ApprovalTab>("incidents")
   const [expandedReg, setExpandedReg] = useState<string | null>(null)
   const [expandedAcc, setExpandedAcc] = useState<string | null>(null)
@@ -91,10 +92,14 @@ export function ManagerApprovalsScreen() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <IOSNavBar title="Approvals" />
+      <IOSNavBar
+        title="Approvals"
+        largeTitle={false}
+        leftAction={<NavBackButton onClick={() => onNavigate?.("dashboard")} />}
+      />
 
       {/* Tabs */}
-      <div className="sticky top-[88px] z-30 bg-background px-4 pb-3">
+      <div className="sticky top-16 z-30 bg-background px-4 pb-3">
         <div className="flex flex-wrap gap-2">
           {TABS.map((tab) => (
             <button

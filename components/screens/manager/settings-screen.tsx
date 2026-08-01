@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 import { Portal } from "@/components/ui/portal"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { NavBackButton } from "@/components/nav-back-button"
 import QRCode from "qrcode"
 import {
   useManagerBuilding,
@@ -66,7 +67,7 @@ const RULE_TOGGLES: { key: keyof PetRules; label: string }[] = [
 
 type Sheet = "profile" | "bylaws" | "qr" | null
 
-export function ManagerSettingsScreen() {
+export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const { user, signOut } = useAuth()
   const { data: building, isLoading, refetch } = useManagerBuilding()
   const { data: stats, isLoading: statsLoading } = useBuildingStats(building?.id)
@@ -74,7 +75,11 @@ export function ManagerSettingsScreen() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <IOSNavBar title="Settings" />
+      <IOSNavBar
+        title="Settings"
+        largeTitle={false}
+        leftAction={<NavBackButton onClick={() => onNavigate?.("dashboard")} />}
+      />
 
       <main className="ios-scroll flex-1 px-4 pb-24">
         {/* Profile Card */}

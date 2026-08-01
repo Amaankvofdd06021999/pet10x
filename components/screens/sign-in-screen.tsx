@@ -96,7 +96,7 @@ export function SignInScreen() {
   if (view === "building-code") {
     return (
       <div className="flex min-h-dvh flex-col bg-background">
-        <div className="flex items-center gap-2.5 px-4 pt-[env(safe-area-inset-top,48px)] pb-2">
+        <div className="flex items-center gap-2.5 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-2">
           <button
             onClick={() => { setView("main"); setCodeError(null); setBuildingCode("") }}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-muted transition-transform active:scale-95"
@@ -164,7 +164,7 @@ export function SignInScreen() {
   /* ── Main Sign-In View ── */
   return (
     <div className="flex min-h-dvh flex-col bg-background sm:justify-center sm:py-8">
-      <div className="flex flex-col items-center px-5 pt-[env(safe-area-inset-top,48px)] pb-5 sm:pt-2">
+      <div className="flex flex-col items-center px-5 pt-[max(2rem,env(safe-area-inset-top))] pb-5 sm:pt-2">
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary shadow-lg shadow-primary/20">
           <PawPrint className="h-8 w-8 text-primary-foreground" strokeWidth={2.5} />
         </div>
@@ -304,7 +304,7 @@ export function SignInScreen() {
         </button>
       </div>
 
-      <div className="px-5 pb-[env(safe-area-inset-bottom,24px)] pt-4 sm:pb-2">
+      <div className="px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-4 sm:pb-2">
         <Link
           href="/manager"
           className="block rounded-xl border border-border bg-card py-2.5 text-center text-[13px] font-semibold text-info transition-colors active:bg-muted"

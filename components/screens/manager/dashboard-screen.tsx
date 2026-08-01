@@ -61,6 +61,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Dashboard"
+        largeTitle={false}
         rightAction={
           <button onClick={() => toast("No new notifications")} className="relative p-2" aria-label="Notifications">
             <Bell className="h-5 w-5 text-foreground" />

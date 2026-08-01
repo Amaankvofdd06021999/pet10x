@@ -9,6 +9,7 @@ import {
   Utensils,
   Pill,
   Cookie,
+  Footprints,
   Plus,
   Trash2,
   Loader2,
@@ -70,11 +71,32 @@ const TABS: TabConfig[] = [
     targetLabel: "Daily limit",
     step: "1",
   },
+  /**
+   * Walk was already a valid `care_entry_kind` in the database — the UI just
+   * never offered it, so Today's Care showed a Walk tile that could never be
+   * satisfied. Logged in MINUTES rather than as a count: duration is what an
+   * owner actually knows, and it sums into a daily total the way food does.
+   */
+  {
+    kind: "walk",
+    label: "Walk",
+    icon: Footprints,
+    color: "text-success",
+    bg: "bg-success/10",
+    unit: "min",
+    defaultLabel: "Walk",
+    placeholder: "Morning walk, park…",
+    quick: [15, 30, 45],
+    targetLabel: "Minutes / day",
+    step: "5",
+  },
 ]
 
 interface PetCareScreenProps {
   onBack: () => void
   onNavigate?: (screen: string) => void
+  /** Tab to open on, when arriving from a Today's Care tile. */
+  initialKind?: string
 }
 
 function startOfToday(): number {
@@ -97,13 +119,16 @@ function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
 }
 
-export function PetCareScreen({ onBack, onNavigate }: PetCareScreenProps) {
+export function PetCareScreen({ onBack, onNavigate, initialKind }: PetCareScreenProps) {
   const { data: pets, isLoading: petsLoading } = usePets()
   const [activePetId, setActivePetId] = useState<string | undefined>(undefined)
   const petId = activePetId ?? pets[0]?.id
   const pet = pets.find((p) => p.id === petId) ?? pets[0]
 
-  const [kind, setKind] = useState<CareEntryKind>("food")
+  // Only honour a kind this screen actually has a tab for.
+  const [kind, setKind] = useState<CareEntryKind>(
+    TABS.some((t) => t.kind === initialKind) ? (initialKind as CareEntryKind) : "food",
+  )
   const tab = TABS.find((t) => t.kind === kind)!
 
   const { data: entries, isLoading: entriesLoading, refetch } = useCareEntries(petId, kind)

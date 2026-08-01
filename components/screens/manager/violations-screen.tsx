@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { NavBackButton } from "@/components/nav-back-button"
 import { useViolations, useResolvedViolations } from "@/lib/data"
 import { toast } from "sonner"
 import {
@@ -37,7 +38,7 @@ const STAGE_CONFIG = {
   "fine-issued": { color: "bg-destructive/10 text-destructive", icon: DollarSign },
 } as const
 
-export function ManagerViolationsScreen() {
+export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const [activeTab, setActiveTab] = useState<ViolationTab>("active")
   const { data: violations } = useViolations()
   const { data: resolvedViolations } = useResolvedViolations()
@@ -66,6 +67,8 @@ export function ManagerViolationsScreen() {
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Violations"
+        largeTitle={false}
+        leftAction={<NavBackButton onClick={() => onNavigate?.("dashboard")} />}
         rightAction={
           <div className="flex items-center gap-1">
             <button onClick={() => toast.success("Violations exported")} className="p-2" aria-label="Export">
@@ -79,7 +82,7 @@ export function ManagerViolationsScreen() {
       />
 
       {/* Tabs */}
-      <div className="sticky top-[88px] z-30 bg-background px-4 pb-3">
+      <div className="sticky top-16 z-30 bg-background px-4 pb-3">
         <div className="flex flex-wrap gap-2">
           {TABS.map((tab) => (
             <button

@@ -55,6 +55,8 @@ function AppContent() {
   const [currentScreen, setCurrentScreen] = useState("home")
   const [selectedPetId, setSelectedPetId] = useState<string | undefined>(undefined)
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | undefined>(undefined)
+  // Which tracker tab to open when arriving from a Today's Care tile.
+  const [careKind, setCareKind] = useState<string | undefined>(undefined)
 
   // Reset tabs when user/role changes (e.g. after sign-in)
   useEffect(() => {
@@ -103,6 +105,9 @@ function AppContent() {
   // `id` is polymorphic: a business id for the services flow, otherwise a pet id.
   const handleNavigate = (screen: string, id?: string) => {
     if (screen === "business-detail") setSelectedBusinessId(id)
+    // For the tracker the id is a care kind, not a pet — a Today's Care tile
+    // says which tab to land on.
+    else if (screen === "pet-care") setCareKind(id)
     else if (id !== undefined) setSelectedPetId(id)
     // Entering the assistant from the FAB or the sidebar carries no pet, and a
     // pet left over from an earlier screen would silently scope the answer.
@@ -138,7 +143,7 @@ function AppContent() {
           ) : currentScreen === "add-pet" ? (
             <AddPetScreen onBack={handleBack} onNavigate={handleNavigate} />
           ) : currentScreen === "pet-care" ? (
-            <PetCareScreen onBack={handleBack} onNavigate={handleNavigate} />
+            <PetCareScreen onBack={handleBack} onNavigate={handleNavigate} initialKind={careKind} />
           ) : currentScreen === "ai-chat" ? (
             <AiChatScreen onBack={handleBack} petId={selectedPetId} />
           ) : currentScreen === "link-building" ? (
@@ -150,10 +155,10 @@ function AppContent() {
           ) : isManager ? (
             <>
               {currentScreen === "dashboard" && <ManagerDashboardScreen onNavigate={handleNavigate} />}
-              {currentScreen === "residents" && <ManagerResidentsScreen />}
-              {currentScreen === "violations" && <ManagerViolationsScreen />}
-              {currentScreen === "approvals" && <ManagerApprovalsScreen />}
-              {currentScreen === "settings" && <ManagerSettingsScreen />}
+              {currentScreen === "residents" && <ManagerResidentsScreen onNavigate={handleNavigate} />}
+              {currentScreen === "violations" && <ManagerViolationsScreen onNavigate={handleNavigate} />}
+              {currentScreen === "approvals" && <ManagerApprovalsScreen onNavigate={handleNavigate} />}
+              {currentScreen === "settings" && <ManagerSettingsScreen onNavigate={handleNavigate} />}
             </>
           ) : (
             <>
