@@ -68,6 +68,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const suggestions = useAiSuggestions()
   const { greeting, icon: GreetingIcon } = getGreeting()
   const primaryPet = pets[0]
+  const singlePet = pets.length === 1
 
   // Re-evaluate the rules once the owner's pets are known. The runner is
   // idempotent by dedupe_key, so landing on Home repeatedly costs nothing.
@@ -202,7 +203,14 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               <div
                 ref={railRef}
                 onScroll={handleRailScroll}
-                className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0"
+                className={
+                  /* A rail of one is not a rail. With a single pet the 280px
+                     card left ~80px of dead space beside it on a phone, so
+                     drop the scroller entirely and let the card own the row. */
+                  singlePet
+                    ? "grid gap-4 md:grid-cols-2"
+                    : "no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0"
+                }
               >
                 {pets.map((pet, i) => {
                   const status = STATUS_CONFIG[pet.status]
@@ -211,9 +219,17 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                     <button
                       key={pet.id}
                       onClick={() => onNavigate?.("pet-detail", pet.id)}
-                      className="flex min-w-[280px] snap-start items-center gap-4 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-transform active:scale-[0.98] md:min-w-0"
+                      className={`flex items-center gap-4 rounded-2xl border border-border bg-card text-left shadow-sm transition-transform active:scale-[0.98] md:min-w-0 ${
+                        singlePet ? "w-full p-5" : "min-w-[280px] snap-start p-4"
+                      }`}
                     >
-                      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-muted">
+                      {/* The extra width would otherwise read as emptiness, so
+                          the one-pet card spends it on the photo. */}
+                      <div
+                        className={`relative flex-shrink-0 overflow-hidden rounded-xl bg-muted ${
+                          singlePet ? "h-24 w-24" : "h-20 w-20"
+                        }`}
+                      >
                         <Image src={pet.image} alt={pet.name} fill className="object-cover" priority={i === 0} />
                       </div>
 
