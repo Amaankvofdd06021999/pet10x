@@ -6,6 +6,7 @@ import { usePets, useUnreadNotificationCount } from "@/lib/data"
 import { exportMyData, deleteMyAccount, updateMyProfile } from "@/lib/data/account"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { PersonaSwitcher } from "@/components/persona-switcher"
 import { NavBackButton } from "@/components/nav-back-button"
 import {
   ChevronRight,
@@ -175,6 +176,9 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
       />
 
       <main className="ios-scroll flex-1 px-4 pb-24">
+        {/* Renders itself only for accounts granted more than one persona. */}
+        <PersonaSwitcher className="mb-4 w-full" />
+
         {/* Profile Card */}
         <section className="mb-5">
           <button

@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 import { Portal } from "@/components/ui/portal"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { PersonaSwitcher } from "@/components/persona-switcher"
 import { NavBackButton } from "@/components/nav-back-button"
 import QRCode from "qrcode"
 import {
@@ -82,6 +83,9 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
       />
 
       <main className="ios-scroll flex-1 px-4 pb-24">
+        {/* Renders itself only for accounts granted more than one persona. */}
+        <PersonaSwitcher className="mb-4 w-full" />
+
         {/* Profile Card */}
         <section className="mb-5">
           <div className="rounded-2xl border border-border bg-card p-4">

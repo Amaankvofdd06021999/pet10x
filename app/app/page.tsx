@@ -49,8 +49,18 @@ const CONTENT_MAX: Record<string, string> = {
 }
 
 function AppContent() {
-  const { isAuthenticated, isGuest, isLoading, user } = useAuth()
-  const isManager = user?.role === "building-manager"
+  const { isAuthenticated, isGuest, isLoading, user, activePersona, personas } = useAuth()
+  /**
+   * Which surface to render follows the persona being *worn*, not
+   * `profiles.role`. Those disagree for anyone holding more than one grant —
+   * a manager who owns a dog, an admin who is also a resident — and the role
+   * column can only ever name one of them.
+   *
+   * Falls back to the role column while personas are still loading, and for
+   * mock mode where there is no RPC to ask.
+   */
+  const isManager =
+    personas.length > 0 ? activePersona === "building-manager" : user?.role === "building-manager"
   const [activeTab, setActiveTab] = useState("home")
   const [currentScreen, setCurrentScreen] = useState("home")
   const [selectedPetId, setSelectedPetId] = useState<string | undefined>(undefined)

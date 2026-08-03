@@ -978,9 +978,31 @@ export function useNotifications(): LiveResult<AppNotification[]> {
       setLoading(false)
       return
     }
+
+    /* Scope to the signed-in account explicitly.
+     *
+     * This used to select with no filter and let RLS do the narrowing, which
+     * is correct for an ordinary user and wrong for a privileged one: the
+     * notifications policy is `profile_id = auth.uid() OR is_admin()`, so an
+     * account holding is_super_admin got EVERY user's notifications — which is
+     * how building alerts addressed to managers appeared in a pet owner's
+     * feed.
+     *
+     * RLS is a floor, not a WHERE clause. A query must ask for the rows it
+     * actually wants; RLS then guarantees it cannot get more. */
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setData([])
+      setLoading(false)
+      return
+    }
+
     const { data: rows, error: err } = await supabase
       .from("notifications")
       .select("id, kind, severity, title, body, action_label, read_at, created_at")
+      .eq("profile_id", user.id)
       .order("created_at", { ascending: false })
       .limit(100)
     if (err) {

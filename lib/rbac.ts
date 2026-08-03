@@ -75,6 +75,109 @@ export function canAccessRoute(pathname: string, subject: RoleCheckSubject): boo
   return true
 }
 
+/* ------------------------------------------------------------------ */
+/* Personas — what one account is entitled to *be*                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `profiles.role` holds one value, so it cannot describe a manager who also
+ * owns a dog, or an admin who is also a resident. The grants that decide this
+ * already exist as rows (building_managers, pets, is_super_admin); a persona is
+ * just a name for one of them.
+ *
+ * A persona is a VIEW, not a permission. Switching does not grant anything —
+ * RLS is unchanged and unchangeable from the client. It selects which surface
+ * renders and which scope queries ask for, which is the part that was missing:
+ * an account with the admin flag was shown the owner UI while its queries,
+ * relying on RLS alone as their filter, returned every user's rows.
+ */
+export type Persona = "pet-owner" | "building-manager" | "strata-manager" | "super-admin" | "business"
+
+export interface ManagedBuilding {
+  id: string
+  name: string
+  isPrimary: boolean | null
+}
+
+/** Exactly the shape of the my_personas() RPC. */
+export interface PersonaGrants {
+  profileId: string | null
+  defaultRole: string | null
+  isSuspended: boolean
+  isSuperAdmin: boolean
+  ownsPets: boolean
+  managedBuildings: ManagedBuilding[]
+}
+
+export const PERSONA_LABEL: Record<Persona, string> = {
+  "pet-owner": "Pet owner",
+  "building-manager": "Building manager",
+  "strata-manager": "Strata portfolio",
+  "super-admin": "Admin",
+  business: "Business",
+}
+
+/** Where each persona lives, for the switcher to navigate to. */
+export const PERSONA_ROUTE: Record<Persona, string> = {
+  "pet-owner": "/app",
+  "building-manager": "/app",
+  "strata-manager": "/strata-portal",
+  "super-admin": "/admin",
+  business: "/businessaccess",
+}
+
+/**
+ * The personas an account may wear, most-privileged last.
+ *
+ * Derived only from grants. A plain signup gets exactly one — "pet owner" —
+ * so no switcher appears until an admin actually grants something. Being
+ * granted is the only way to gain an option.
+ */
+export function personasFor(g: PersonaGrants): Persona[] {
+  if (g.isSuspended) return []
+
+  // A business account is a separate product surface, not a persona someone
+  // holds alongside residency.
+  if (g.defaultRole === "business") return ["business"]
+
+  const personas: Persona[] = ["pet-owner"]
+
+  if (g.managedBuildings.length >= 1) personas.push("building-manager")
+  // Strata is the portfolio view — it only means anything across buildings.
+  if (g.managedBuildings.length >= 2) personas.push("strata-manager")
+  if (g.isSuperAdmin) personas.push("super-admin")
+
+  return personas
+}
+
+/**
+ * Which persona to land on when none has been chosen.
+ *
+ * The most *specific* working role rather than the most privileged: an admin
+ * who manages a building is usually there to manage that building, and an
+ * admin who owns pets should not be dropped into the admin console every
+ * morning. `profiles.role` breaks the tie when it names something held.
+ */
+export function defaultPersona(personas: Persona[], defaultRole: string | null): Persona | null {
+  if (personas.length === 0) return null
+  const preferred = DB_ROLE_TO_PERSONA[defaultRole ?? ""]
+  if (preferred && personas.includes(preferred)) return preferred
+  if (personas.includes("building-manager")) return "building-manager"
+  return personas[0]
+}
+
+const DB_ROLE_TO_PERSONA: Record<string, Persona | undefined> = {
+  pet_owner: "pet-owner",
+  building_manager: "building-manager",
+  super_admin: "super-admin",
+  business: "business",
+}
+
+/** The switcher only exists for accounts that were granted more than one. */
+export function canSwitchPersona(personas: Persona[]): boolean {
+  return personas.length > 1
+}
+
 /** Where to send an authenticated user whose role doesn't belong on the current route. */
 export function getHomeRouteForRole(subject: RoleCheckSubject): string {
   if (subject.isSuperAdmin) return "/admin"

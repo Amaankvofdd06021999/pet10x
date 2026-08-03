@@ -14,6 +14,14 @@ import {
   type GuestSession,
   type UserRole,
 } from "@/lib/data"
+import {
+  canSwitchPersona,
+  defaultPersona,
+  personasFor,
+  type ManagedBuilding,
+  type Persona,
+  type PersonaGrants,
+} from "@/lib/rbac"
 
 export type AuthMode = "full" | "guest"
 
@@ -183,6 +191,29 @@ function readPersistedUser(): AppUser | null {
   }
 }
 
+/* Persona choice is remembered per profile id, never globally: two accounts on
+   one device must not inherit each other's view. */
+const PERSONA_KEY = (profileId: string) => `pet10x.persona.${profileId}`
+const BUILDING_KEY = (profileId: string) => `pet10x.building.${profileId}`
+
+function readStored(key: string): string | null {
+  if (typeof window === "undefined") return null
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function writeStored(key: string, value: string): void {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.setItem(key, value)
+  } catch {
+    /* private mode / quota — the preference is optional */
+  }
+}
+
 function persistUser(u: AppUser | null): void {
   if (typeof window === "undefined") return
   try {
@@ -201,6 +232,21 @@ interface AuthContextValue {
   isGuest: boolean
   isLoading: boolean
   supabaseEnabled: boolean
+  /* ── Personas ──
+     Which surfaces this account was granted, and which it is currently
+     wearing. A persona is a view, never a permission: switching changes what
+     the app renders and what scope its queries ask for. RLS is untouched and
+     cannot be influenced from here. */
+  personas: Persona[]
+  activePersona: Persona | null
+  /** No-op unless the persona was actually granted — the client cannot invent one. */
+  setActivePersona: (p: Persona) => void
+  /** True only when more than one was granted; otherwise no switcher is shown. */
+  canSwitch: boolean
+  /** Buildings this account manages, for the strata/multi-building switcher. */
+  managedBuildings: ManagedBuilding[]
+  activeBuildingId: string | null
+  setActiveBuilding: (id: string) => void
   /** Mock demo sign-in — only used when Supabase isn't configured. */
   signIn: (role: DemoRole) => void
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>
@@ -238,6 +284,13 @@ const AuthContext = createContext<AuthContextValue>({
   isGuest: false,
   isLoading: true,
   supabaseEnabled: SUPABASE_ENABLED,
+  personas: [],
+  activePersona: null,
+  setActivePersona: () => {},
+  canSwitch: false,
+  managedBuildings: [],
+  activeBuildingId: null,
+  setActiveBuilding: () => {},
   signIn: () => {},
   signInWithPassword: async () => ({ error: "Auth not configured." }),
   startSignup: async () => ({ error: "Auth not configured." }),
@@ -255,6 +308,92 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [guestSession, setGuestSession] = useState<GuestSession | null>(null)
   const [authMode, setAuthMode] = useState<AuthMode | null>(null)
   const [isLoading, setIsLoading] = useState(SUPABASE_ENABLED)
+
+  /* ── Persona state ──
+     `grants` is whatever my_personas() reported; it is the only input to
+     which personas exist. The chosen persona is remembered per profile so a
+     manager who was working in the manager view is still there tomorrow, and
+     so one account's choice never leaks into another's on a shared device. */
+  const [grants, setGrants] = useState<PersonaGrants | null>(null)
+  const [activePersona, setActivePersonaState] = useState<Persona | null>(null)
+  const [activeBuildingId, setActiveBuildingState] = useState<string | null>(null)
+
+  const personas = grants ? personasFor(grants) : []
+  const managedBuildings = grants?.managedBuildings ?? []
+  const canSwitch = canSwitchPersona(personas)
+
+  useEffect(() => {
+    if (!SUPABASE_ENABLED || !authUser) {
+      setGrants(null)
+      setActivePersonaState(null)
+      setActiveBuildingState(null)
+      return
+    }
+    let active = true
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) return
+
+    void supabase.rpc("my_personas").then(({ data, error }) => {
+      if (!active || error || !data) return
+      // jsonb comes back as the generated `Json` union; the shape is fixed by
+      // my_personas() itself, which is the contract this mirrors.
+      const raw = data as unknown as {
+        profile_id: string | null
+        default_role: string | null
+        is_suspended: boolean
+        is_super_admin: boolean
+        owns_pets: boolean
+        managed_buildings: ManagedBuilding[]
+      }
+      const g: PersonaGrants = {
+        profileId: raw.profile_id,
+        defaultRole: raw.default_role,
+        isSuspended: raw.is_suspended,
+        isSuperAdmin: raw.is_super_admin,
+        ownsPets: raw.owns_pets,
+        managedBuildings: raw.managed_buildings ?? [],
+      }
+      setGrants(g)
+
+      const available = personasFor(g)
+      // A remembered choice is only honoured if it is still granted — access
+      // revoked elsewhere must not survive in this browser's localStorage.
+      const remembered = readStored(PERSONA_KEY(authUser.id)) as Persona | null
+      setActivePersonaState(
+        remembered && available.includes(remembered) ? remembered : defaultPersona(available, g.defaultRole),
+      )
+
+      const rememberedBuilding = readStored(BUILDING_KEY(authUser.id))
+      const ids = g.managedBuildings.map((b) => b.id)
+      setActiveBuildingState(
+        rememberedBuilding && ids.includes(rememberedBuilding) ? rememberedBuilding : (ids[0] ?? null),
+      )
+    })
+    return () => {
+      active = false
+    }
+  }, [authUser])
+
+  const setActivePersona = useCallback(
+    (p: Persona) => {
+      // Silently ignore anything not granted. The switcher only offers valid
+      // options, so reaching here with an invalid one means something is
+      // trying to assign itself a persona.
+      if (!grants || !personasFor(grants).includes(p)) return
+      setActivePersonaState(p)
+      if (authUser) writeStored(PERSONA_KEY(authUser.id), p)
+    },
+    [grants, authUser],
+  )
+
+  const setActiveBuilding = useCallback(
+    (id: string) => {
+      if (!grants?.managedBuildings.some((b) => b.id === id)) return
+      setActiveBuildingState(id)
+      if (authUser) writeStored(BUILDING_KEY(authUser.id), id)
+    },
+    [grants, authUser],
+  )
 
   // Track the Supabase session (real mode only). Profile is loaded in a separate
   // effect to avoid running queries inside the onAuthStateChange callback.
@@ -512,6 +651,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isGuest: authMode === "guest",
         isLoading,
         supabaseEnabled: SUPABASE_ENABLED,
+        personas,
+        activePersona,
+        setActivePersona,
+        canSwitch,
+        managedBuildings,
+        activeBuildingId,
+        setActiveBuilding,
         signIn,
         signInWithPassword,
         startSignup,

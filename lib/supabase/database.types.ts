@@ -2994,6 +2994,7 @@ export type Database = {
       manages_building: { Args: { b: string }; Returns: boolean }
       my_app_user: { Args: never; Returns: Json }
       my_building_link: { Args: never; Returns: Json }
+      my_personas: { Args: never; Returns: Json }
       purge_expired_pending_signups: { Args: never; Returns: number }
       request_building_link: { Args: { p_code: string }; Returns: Json }
       resolve_building_code: { Args: { p_code: string }; Returns: Json }
