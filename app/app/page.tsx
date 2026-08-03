@@ -49,18 +49,17 @@ const CONTENT_MAX: Record<string, string> = {
 }
 
 function AppContent() {
-  const { isAuthenticated, isGuest, isLoading, user, activePersona, personas } = useAuth()
   /**
    * Which surface to render follows the persona being *worn*, not
    * `profiles.role`. Those disagree for anyone holding more than one grant —
    * a manager who owns a dog, an admin who is also a resident — and the role
    * column can only ever name one of them.
    *
-   * Falls back to the role column while personas are still loading, and for
-   * mock mode where there is no RPC to ask.
+   * `viewAs` resolves the fallback centrally so the tab bar, the sidebar and
+   * this router cannot reach different answers.
    */
-  const isManager =
-    personas.length > 0 ? activePersona === "building-manager" : user?.role === "building-manager"
+  const { isAuthenticated, isGuest, isLoading, user, viewAs } = useAuth()
+  const isManager = viewAs === "building-manager"
   const [activeTab, setActiveTab] = useState("home")
   const [currentScreen, setCurrentScreen] = useState("home")
   const [selectedPetId, setSelectedPetId] = useState<string | undefined>(undefined)
@@ -102,9 +101,19 @@ function AppContent() {
       </div>
     )
   }
-  // New pet owners answer one onboarding question before entering the app.
-  // Super admins are Pet10x staff, never residents — they skip it entirely.
-  if (user && user.role === "pet-owner" && !user.onboarded && !user.isSuperAdmin) {
+  /**
+   * The resident surface starts with onboarding, whoever is looking at it.
+   *
+   * Keyed on the persona being worn rather than `profiles.role`, because a
+   * manager or admin who switches to the resident view is a resident who has
+   * answered nothing — no building link, no pets. Previously the gate read
+   * `role === "pet-owner" && !isSuperAdmin`, so those accounts dropped into an
+   * empty Home with no way to link a building.
+   *
+   * OnboardingFlow renders a "Back to <persona>" escape for anyone holding
+   * another grant, since this replaces the shell that contains the switcher.
+   */
+  if (user && viewAs === "pet-owner" && !user.onboarded) {
     return (
       <div key="onboarding" className="mx-auto w-full max-w-md animate-in fade-in duration-300">
         <OnboardingFlow />

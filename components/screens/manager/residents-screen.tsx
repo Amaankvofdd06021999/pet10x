@@ -13,6 +13,7 @@ import {
 } from "@/lib/data"
 import { useComplianceInputs } from "@/lib/data/portfolio"
 import { useManagerBuilding } from "@/lib/data/manager"
+import { useAuth } from "@/lib/auth-context"
 import { RequestInfoButton } from "@/components/screens/manager/request-info-button"
 import type { ResidentLinkRow, ManagerPet } from "@/lib/data"
 import { toast } from "sonner"
@@ -23,7 +24,8 @@ export function ManagerResidentsScreen({ onNavigate }: { onNavigate?: (screen: s
   const { data: residents, isLoading, refetch } = useBuildingResidents()
   const { data: buildingPets } = useBuildingPets()
   const { data: complianceInputs } = useComplianceInputs()
-  const { data: building } = useManagerBuilding()
+  const { activeBuildingId } = useAuth()
+  const { data: building } = useManagerBuilding(activeBuildingId)
   const [busy, setBusy] = useState<string | null>(null)
 
   /**
@@ -173,9 +175,9 @@ export function ManagerResidentsScreen({ onNavigate }: { onNavigate?: (screen: s
             {/* Members */}
             <section>
               <div className="mb-2.5 flex items-center gap-2">
-                <Users className="h-4 w-4 text-info" />
+                <Users className="h-4 w-4 text-primary" />
                 <h2 className="text-[15px] font-semibold text-foreground">Members</h2>
-                <span className="rounded-full bg-info/10 px-2 py-0.5 text-[11px] font-semibold text-info">{members.length}</span>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{members.length}</span>
               </div>
               {members.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-[13px] text-muted-foreground">

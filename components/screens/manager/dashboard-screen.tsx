@@ -55,8 +55,8 @@ interface DashboardScreenProps {
 }
 
 export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
-  const { user } = useAuth()
-  const { data: building, isLoading: bLoading } = useManagerBuilding()
+  const { user, activeBuildingId } = useAuth()
+  const { data: building, isLoading: bLoading } = useManagerBuilding(activeBuildingId)
   const { data: residents, isLoading: rLoading } = useBuildingResidents()
   const { data: allPets, isLoading: pLoading } = useBuildingPets()
   const { data: allInputs } = useComplianceInputs()

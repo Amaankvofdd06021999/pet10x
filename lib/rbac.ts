@@ -153,16 +153,25 @@ export function personasFor(g: PersonaGrants): Persona[] {
 /**
  * Which persona to land on when none has been chosen.
  *
- * The most *specific* working role rather than the most privileged: an admin
- * who manages a building is usually there to manage that building, and an
- * admin who owns pets should not be dropped into the admin console every
- * morning. `profiles.role` breaks the tie when it names something held.
+ * An explicit grant outranks `profiles.role`. Granting someone a building is a
+ * deliberate administrative act; the role column is a default that nothing
+ * keeps in step with it, and in practice a person granted a building often
+ * still reads `pet_owner` there.
+ *
+ * Preferring the column instead put a granted manager into *resident
+ * onboarding* — "does your building manage pets?" asked of the person who
+ * manages it — with their own building nowhere in sight.
+ *
+ * Not the most privileged, though: an admin who also manages a building is
+ * usually there to manage the building, and should not land in the admin
+ * console every morning. Both are one tap away in the switcher.
  */
 export function defaultPersona(personas: Persona[], defaultRole: string | null): Persona | null {
   if (personas.length === 0) return null
+  if (personas.includes("building-manager")) return "building-manager"
+
   const preferred = DB_ROLE_TO_PERSONA[defaultRole ?? ""]
   if (preferred && personas.includes(preferred)) return preferred
-  if (personas.includes("building-manager")) return "building-manager"
   return personas[0]
 }
 

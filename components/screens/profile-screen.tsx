@@ -7,6 +7,7 @@ import { exportMyData, deleteMyAccount, updateMyProfile } from "@/lib/data/accou
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { PersonaSwitcher } from "@/components/persona-switcher"
+import { PERSONA_LABEL } from "@/lib/rbac"
 import { NavBackButton } from "@/components/nav-back-button"
 import {
   ChevronRight,
@@ -78,7 +79,7 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
-  const { user, signOut, updateLocalUser } = useAuth()
+  const { user, signOut, updateLocalUser, viewAs } = useAuth()
   const { data: pets } = usePets()
   const unreadCount = useUnreadNotificationCount()
   const [busy, setBusy] = useState<"export" | "delete" | null>(null)
@@ -194,7 +195,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                 <p className="text-[12px] text-muted-foreground">Unit {user?.unit} &middot; {user?.building}</p>
                 <div className="mt-1 flex items-center gap-2">
                   <Badge className="bg-primary/10 text-primary border-0 text-[10px]">
-                    {user?.roleLabel}
+                    {PERSONA_LABEL[viewAs]}
                   </Badge>
                   <span className="text-[10px] text-muted-foreground">Since {user?.memberSince}</span>
                 </div>

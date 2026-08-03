@@ -43,8 +43,11 @@ const managerTabs = [
 ]
 
 export function IOSTabBar({ activeTab, onTabChange }: TabBarProps) {
-  const { user } = useAuth()
-  const isManager = user?.role === "building-manager"
+  // Tabs follow the persona being worn, not the role column — a manager
+  // viewing as a resident needs resident tabs, or the switch does nothing
+  // visible and the app looks broken.
+  const { viewAs } = useAuth()
+  const isManager = viewAs === "building-manager"
   const unreadCount = useUnreadNotificationCount()
   const badges: Record<string, number> = { alerts: unreadCount }
   const tabs = isManager ? managerTabs : ownerTabs

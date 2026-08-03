@@ -32,8 +32,15 @@ export interface BuildingStats {
   openIssues: number
 }
 
-/** The building this manager runs, resolved via building_managers → buildings. */
-export function useManagerBuilding() {
+/**
+ * The building this manager runs, resolved via building_managers → buildings.
+ *
+ * `preferredId` is the building chosen in the persona switcher. Without it a
+ * manager of several buildings was always pinned to their primary, so the
+ * picker changed nothing. It is still verified against their own grants below
+ * — passing an id they do not manage falls back rather than selecting it.
+ */
+export function useManagerBuilding(preferredId?: string | null) {
   const [data, setData] = useState<ManagerBuilding | null>(null)
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -53,15 +60,20 @@ export function useManagerBuilding() {
       return
     }
 
-    // Order by is_primary so a manager who runs several buildings always lands
-    // on the same one, rather than whichever row Postgres happens to return.
-    const { data: link } = await supabase
+    // Every building this manager holds, primary first so the fallback is
+    // stable rather than whichever row Postgres happens to return.
+    const { data: links } = await supabase
       .from("building_managers")
       .select("building_id")
       .eq("profile_id", user.id)
       .order("is_primary", { ascending: false })
-      .limit(1)
-      .maybeSingle()
+
+    const held = (links ?? []).map((l) => l.building_id)
+    // Honour the switcher's choice only if it is one of theirs — the id comes
+    // from localStorage, so it must be checked rather than trusted, and a
+    // stale one (access since revoked) has to degrade instead of blanking.
+    const chosen = preferredId && held.includes(preferredId) ? preferredId : held[0]
+    const link = chosen ? { building_id: chosen } : null
 
     if (!link?.building_id) {
       setData(null)
@@ -93,7 +105,8 @@ export function useManagerBuilding() {
       setError(null)
     }
     setLoading(false)
-  }, [])
+    // Re-runs when the switcher picks a different building.
+  }, [preferredId])
 
   useEffect(() => {
     void refetch()

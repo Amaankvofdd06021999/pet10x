@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Portal } from "@/components/ui/portal"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { PersonaSwitcher } from "@/components/persona-switcher"
+import { PERSONA_LABEL } from "@/lib/rbac"
 import { NavBackButton } from "@/components/nav-back-button"
 import QRCode from "qrcode"
 import {
@@ -69,8 +70,8 @@ const RULE_TOGGLES: { key: keyof PetRules; label: string }[] = [
 type Sheet = "profile" | "bylaws" | "qr" | null
 
 export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
-  const { user, signOut } = useAuth()
-  const { data: building, isLoading, refetch } = useManagerBuilding()
+  const { user, signOut, activeBuildingId, viewAs } = useAuth()
+  const { data: building, isLoading, refetch } = useManagerBuilding(activeBuildingId)
   const { data: stats, isLoading: statsLoading } = useBuildingStats(building?.id)
   const [sheet, setSheet] = useState<Sheet>(null)
 
@@ -102,7 +103,7 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-[17px] font-semibold text-foreground">{user?.name}</h2>
                 <p className="truncate text-[12px] text-muted-foreground">{building?.name ?? "No building assigned"}</p>
-                <Badge className="mt-1 border-0 bg-info/10 text-[10px] text-info">{user?.roleLabel}</Badge>
+                <Badge className="mt-1 border-0 bg-primary/10 text-[10px] text-primary">{PERSONA_LABEL[viewAs]}</Badge>
               </div>
             </div>
           </div>
@@ -462,7 +463,7 @@ function MenuRow({
         last ? "" : "border-b border-border"
       }`}
     >
-      <Icon className="h-5 w-5 text-info" />
+      <Icon className="h-5 w-5 text-primary" />
       <span className="flex-1 text-[14px] text-foreground">{label}</span>
       {detail && <span className="truncate text-[12px] text-muted-foreground">{detail}</span>}
       <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />

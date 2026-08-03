@@ -33,7 +33,7 @@ const TABS: { id: ViolationTab; label: string; count: number }[] = [
 const STAGE_CONFIG = {
   "investigation": { color: "bg-destructive/10 text-destructive", icon: AlertTriangle },
   "pending-review": { color: "bg-warning/10 text-[#B8860B]", icon: Clock },
-  "verbal-warning": { color: "bg-info/10 text-info", icon: FileText },
+  "verbal-warning": { color: "bg-primary/10 text-primary", icon: FileText },
   "written-warning": { color: "bg-warning/10 text-[#B8860B]", icon: Gavel },
   "fine-issued": { color: "bg-destructive/10 text-destructive", icon: DollarSign },
 } as const
@@ -75,7 +75,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
               <Download className="h-5 w-5 text-foreground" />
             </button>
             <button onClick={() => toast("Log a violation — coming soon")} className="p-2" aria-label="New violation">
-              <Plus className="h-5 w-5 text-info" />
+              <Plus className="h-5 w-5 text-primary" />
             </button>
           </div>
         }
@@ -90,7 +90,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
               onClick={() => setActiveTab(tab.id)}
               className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
                 activeTab === tab.id
-                  ? "bg-info text-info-foreground"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -192,7 +192,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
                     <div className="mt-2.5 flex gap-2">
                       {violation.stage === "investigation" && (
                         <>
-                          <button onClick={() => toast("Investigation started")} className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                          <button onClick={() => toast("Investigation started")} className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary active:scale-[0.97] transition-transform">
                             Investigate
                           </button>
                           <button onClick={() => toast.success("Warning issued")} className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
@@ -201,7 +201,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
                         </>
                       )}
                       {violation.stage === "pending-review" && (
-                        <button onClick={() => toast("Reviewing case")} className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                        <button onClick={() => toast("Reviewing case")} className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary active:scale-[0.97] transition-transform">
                           Review Case
                         </button>
                       )}
@@ -217,7 +217,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
                       )}
                       {violation.stage === "fine-issued" && (
                         <>
-                          <button onClick={() => toast.success("Reminder sent")} className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                          <button onClick={() => toast.success("Reminder sent")} className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary active:scale-[0.97] transition-transform">
                             Send Reminder
                           </button>
                           <button onClick={() => toast("Escalated to CRT")} className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
@@ -250,8 +250,8 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
         {/* Export CRT Button */}
         <div className="mt-4">
           <button onClick={() => toast.success("CRT evidence package exported")} className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-3 active:scale-[0.98] transition-transform">
-            <Download className="h-4 w-4 text-info" />
-            <span className="text-[13px] font-semibold text-info">Export CRT Evidence Package</span>
+            <Download className="h-4 w-4 text-primary" />
+            <span className="text-[13px] font-semibold text-primary">Export CRT Evidence Package</span>
           </button>
         </div>
       </main>

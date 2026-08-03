@@ -68,7 +68,7 @@ export function RequestInfoButton({
       onClick={send}
       disabled={sending}
       className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${
-        askedRecently ? "bg-muted text-muted-foreground" : "bg-info/10 text-info"
+        askedRecently ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
       }`}
     >
       {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MailQuestion className="h-3.5 w-3.5" />}

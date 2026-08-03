@@ -109,7 +109,7 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
               onClick={() => setActiveTab(tab.id)}
               className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
                 activeTab === tab.id
-                  ? "bg-info text-info-foreground"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -228,7 +228,7 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
                         </button>
                         <button
                           onClick={() => toast("Info requested", { description: "Messaging the resident isn't built yet." })}
-                          className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                          className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary active:scale-[0.97] transition-transform">
                           Request Info
                         </button>
                       </div>
@@ -277,11 +277,11 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
                       <p className="text-[11px] text-muted-foreground mb-2">Submitted by {acc.resident} on {acc.submitted}</p>
 
                       {/* Legal Guidance */}
-                      <div className="mb-3 rounded-lg bg-info/5 border border-info/20 p-2.5">
+                      <div className="mb-3 rounded-lg bg-primary/5 border border-primary/20 p-2.5">
                         <div className="flex items-start gap-2">
-                          <Scale className="h-4 w-4 mt-0.5 flex-shrink-0 text-info" />
+                          <Scale className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
                           <div>
-                            <p className="text-[11px] font-semibold text-info">Legal Guidance</p>
+                            <p className="text-[11px] font-semibold text-primary">Legal Guidance</p>
                             <p className="mt-0.5 text-[11px] leading-relaxed text-foreground">{acc.legalNote}</p>
                           </div>
                         </div>
@@ -331,7 +331,7 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
                             toast("More information requested")
                             refetchAcc()
                           }}
-                          className="flex-1 rounded-lg bg-info/10 py-2 text-[12px] font-semibold text-info active:scale-[0.97] transition-transform">
+                          className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary active:scale-[0.97] transition-transform">
                           Verify Docs
                         </button>
                       </div>
@@ -396,7 +396,7 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
 
 const INCIDENT_STATUS_STYLE: Record<string, string> = {
   submitted: "bg-destructive/10 text-destructive",
-  triaged: "bg-info/10 text-info",
+  triaged: "bg-primary/10 text-primary",
   investigating: "bg-warning/10 text-[#B8860B]",
   linked_to_violation: "bg-primary/10 text-primary",
   dismissed: "bg-muted text-muted-foreground",

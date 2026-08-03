@@ -239,6 +239,16 @@ interface AuthContextValue {
      cannot be influenced from here. */
   personas: Persona[]
   activePersona: Persona | null
+  /**
+   * The persona actually driving the UI, fallback resolved.
+   *
+   * Everything that branches on "am I a manager right now?" — tab bar,
+   * sidebar, the surface router, the onboarding gate — must read THIS and not
+   * `user.role`, or the switcher changes one of them and not the others. That
+   * is precisely what happened: switching to the resident view left the
+   * manager tab bar in place.
+   */
+  viewAs: Persona
   /** No-op unless the persona was actually granted — the client cannot invent one. */
   setActivePersona: (p: Persona) => void
   /** True only when more than one was granted; otherwise no switcher is shown. */
@@ -286,6 +296,7 @@ const AuthContext = createContext<AuthContextValue>({
   supabaseEnabled: SUPABASE_ENABLED,
   personas: [],
   activePersona: null,
+  viewAs: "pet-owner",
   setActivePersona: () => {},
   canSwitch: false,
   managedBuildings: [],
@@ -321,6 +332,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const personas = grants ? personasFor(grants) : []
   const managedBuildings = grants?.managedBuildings ?? []
   const canSwitch = canSwitchPersona(personas)
+
+  /* The single answer to "which surface am I on?".
+   *
+   * Falls back to the role column while grants are still loading and in mock
+   * mode, where there is no RPC to ask — so the UI never flickers through the
+   * wrong surface on a cold load. */
+  const viewAs: Persona =
+    activePersona ?? (user?.role === "building-manager" ? "building-manager" : "pet-owner")
 
   useEffect(() => {
     if (!SUPABASE_ENABLED || !authUser) {
@@ -653,6 +672,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabaseEnabled: SUPABASE_ENABLED,
         personas,
         activePersona,
+        viewAs,
         setActivePersona,
         canSwitch,
         managedBuildings,

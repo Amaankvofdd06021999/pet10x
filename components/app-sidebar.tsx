@@ -1,6 +1,8 @@
 "use client"
 
 import { useAuth } from "@/lib/auth-context"
+import { PERSONA_LABEL } from "@/lib/rbac"
+import { PersonaSwitcher } from "@/components/persona-switcher"
 import { useUnreadNotificationCount } from "@/lib/data"
 import {
   Home,
@@ -44,8 +46,10 @@ const managerTabs = [
  * the app is a real web layout on larger screens while mobile keeps the bottom bar.
  */
 export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
-  const { user, signOut } = useAuth()
-  const isManager = user?.role === "building-manager"
+  // Mirrors the mobile tab bar: nav follows the persona being worn, not the
+  // role column, so switching view actually changes the menu.
+  const { user, signOut, viewAs, canSwitch } = useAuth()
+  const isManager = viewAs === "building-manager"
   const unreadCount = useUnreadNotificationCount()
   const badges: Record<string, number> = { alerts: unreadCount }
   const tabs = isManager ? managerTabs : ownerTabs
@@ -108,6 +112,10 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
 
       {/* User + sign out */}
       <div className="border-t border-border p-3">
+        {/* Desktop reach for the switcher — on mobile it lives on Profile /
+            Settings, but a manager viewing as a resident must be able to get
+            back without hunting through tabs that just changed under them. */}
+        {canSwitch && <PersonaSwitcher className="mb-2 w-full" />}
         <div className="flex items-center gap-2.5 px-2 py-1.5">
           <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-muted">
             {user?.avatar ? (
@@ -116,7 +124,7 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold text-foreground">{user?.name}</p>
-            <p className="truncate text-[11px] text-muted-foreground">{user?.roleLabel}</p>
+            <p className="truncate text-[11px] text-muted-foreground">{PERSONA_LABEL[viewAs]}</p>
           </div>
         </div>
         <button

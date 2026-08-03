@@ -3,13 +3,14 @@
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { requestBuildingLink } from "@/lib/data"
+import { PERSONA_LABEL } from "@/lib/rbac"
 import { toast } from "sonner"
 import { PawPrint, Building2, ArrowLeft, KeyRound, Loader2, CheckCircle2, Share2, Sparkles } from "lucide-react"
 
 type Step = "intro" | "code" | "linked" | "standalone"
 
 export function OnboardingFlow() {
-  const { user, markOnboarded } = useAuth()
+  const { user, markOnboarded, personas, setActivePersona } = useAuth()
   const [step, setStep] = useState<Step>("intro")
   const [code, setCode] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -55,8 +56,28 @@ export function OnboardingFlow() {
     }
   }
 
+  /**
+   * The way out, for someone who is not only a resident.
+   *
+   * Onboarding replaces the whole shell — including Profile, where the
+   * switcher lives — so a manager who switched to the resident view would
+   * otherwise be stranded here with no route back to their own building.
+   * Absent for a plain signup, who has nowhere else to be.
+   */
+  const otherPersona = personas.find((p) => p !== "pet-owner")
+
   return (
     <div className="flex min-h-dvh flex-col bg-background px-6 pt-[env(safe-area-inset-top,56px)] pb-[env(safe-area-inset-bottom,32px)]">
+      {otherPersona && (
+        <button
+          onClick={() => setActivePersona(otherPersona)}
+          className="mb-2 flex items-center gap-1.5 self-start text-[13px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to {PERSONA_LABEL[otherPersona]}
+        </button>
+      )}
+
       {/* Intro */}
       {step === "intro" && (
         <div className="flex flex-1 flex-col">
