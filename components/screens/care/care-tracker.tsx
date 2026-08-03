@@ -493,12 +493,17 @@ function TargetSheet({
      * one cannot beat a sibling of that context, so the tab bar's z-50 painted
      * over this sheet's z-[100] and swallowed the Save button. */
     <Portal>
-    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]" />
       <div
         role="dialog"
         aria-label={`${spec.targetLabel} for ${spec.label}`}
-        className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-3xl sm:pb-5"
+        /* Centred rather than a bottom sheet: this dialog is short, and docked
+           to the bottom edge it collided with the tab bar and the home
+           indicator. `p-4` on the container keeps it off the screen edges on a
+           narrow phone; max-h + overflow keeps a long target list scrollable
+           inside the box rather than pushing the Save button off-screen. */
+        className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-border bg-card p-5 shadow-xl"
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-[17px] font-semibold text-foreground">{spec.targetLabel}</h2>
