@@ -6,16 +6,23 @@ import { Resend } from "resend"
  * reset) are sent by Supabase's own SMTP (also Resend); these helpers are for
  * app-driven emails (manager invites, notifications).
  *
- * Emails are suppressed unless NODE_ENV=production AND a key is present, so we
- * never email real people during local dev. The Vercel project provides the key
- * as `resend` (we also accept the standard `RESEND_API_KEY`).
+ * Emails are suppressed outside production so we never mail real people from a
+ * dev machine. The Vercel project provides the key as `resend` (we also accept
+ * the standard `RESEND_API_KEY`).
+ *
+ * That default makes anything email-dependent — signup verification above all,
+ * where the code IS the flow — impossible to exercise locally. Set
+ * `EMAIL_DEV_SEND=1` in .env.local (alongside a key) to send for real from dev.
+ * It is opt-in per machine and never set in the deployed environments, so the
+ * guard still holds by default.
  */
 const RESEND_KEY = process.env.RESEND_API_KEY ?? process.env.resend
 const resend = RESEND_KEY ? new Resend(RESEND_KEY) : null
 
 const FROM = process.env.EMAIL_FROM ?? "Pet10x <noreply@pet10x.com>"
 const APP_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://www.pet10x.com"
-const EMAIL_ENABLED = process.env.NODE_ENV === "production" && !!resend
+const EMAIL_ENABLED =
+  !!resend && (process.env.NODE_ENV === "production" || process.env.EMAIL_DEV_SEND === "1")
 
 interface TemplateOpts {
   headline: string
@@ -60,7 +67,10 @@ export function emailHtml({ headline, body, ctaUrl, ctaLabel, footnote }: Templa
 
 async function send(opts: { to: string | string[]; subject: string; html: string }) {
   if (!EMAIL_ENABLED) {
-    console.log(`[email] suppressed (dev or no key): "${opts.subject}" -> ${Array.isArray(opts.to) ? opts.to.join(", ") : opts.to}`)
+    const why = !resend ? "no RESEND_API_KEY/resend key" : "not production and EMAIL_DEV_SEND is not 1"
+    console.log(
+      `[email] suppressed (${why}): "${opts.subject}" -> ${Array.isArray(opts.to) ? opts.to.join(", ") : opts.to}`,
+    )
     return { suppressed: true as const }
   }
   return resend!.emails.send({ from: FROM, to: opts.to, subject: opts.subject, html: opts.html })
