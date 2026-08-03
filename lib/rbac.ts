@@ -187,16 +187,30 @@ export function canSwitchPersona(personas: Persona[]): boolean {
   return personas.length > 1
 }
 
-/** Where to send an authenticated user whose role doesn't belong on the current route. */
+/**
+ * Where to send an authenticated user whose role doesn't belong on the current
+ * route — and where to land them after sign-in.
+ *
+ * The declared role is consulted BEFORE the admin flag, to agree with
+ * `defaultPersona`. Checking `isSuperAdmin` first dropped an account that is
+ * a resident holding an admin grant straight into the admin console, while the
+ * switcher beside it read "Viewing as Pet owner" — the shell and the persona
+ * disagreeing on the same screen.
+ *
+ * The flag still decides for someone whose role actually *is* super_admin, and
+ * still transcends every scope in `canAccessRoute` — this is only about where
+ * they start, which the switcher can change in one tap.
+ */
 export function getHomeRouteForRole(subject: RoleCheckSubject): string {
-  if (subject.isSuperAdmin) return "/admin"
   switch (subject.role) {
     case "business":
       return "/businessaccess"
     case "pet-owner":
     case "building-manager":
       return "/app"
+    case "super-admin":
+      return "/admin"
     default:
-      return "/login"
+      return subject.isSuperAdmin ? "/admin" : "/login"
   }
 }

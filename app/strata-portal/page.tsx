@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
+import { PersonaSwitcher } from "@/components/persona-switcher"
 import { canAccessRoute } from "@/lib/rbac"
 import { Toaster } from "@/components/ui/sonner"
 import { StrataProvider, BuildingSwitcher } from "@/components/screens/strata/portal-context"
@@ -196,6 +197,8 @@ function Portal() {
           })}
         </nav>
         <div className="border-t border-border p-3">
+          {/* Same reason as /admin: a separate shell needs its own way back. */}
+          <PersonaSwitcher className="mb-2 w-full" />
           <div className="flex items-center gap-2.5 px-2 py-1.5">
             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-info/15 text-[13px] font-semibold text-info">
               {(user?.name ?? "?").slice(0, 1)}

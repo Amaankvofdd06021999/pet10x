@@ -35,7 +35,18 @@ const PERSONA_BLURB: Record<Persona, string> = {
   business: "Your business listing and bookings",
 }
 
-export function PersonaSwitcher({ className = "" }: { className?: string }) {
+export function PersonaSwitcher({
+  className = "",
+  /**
+   * Icon + name only, no "Viewing as" caption. For dense headers like the
+   * admin console's, where the full control wrapped "Sign out" onto a second
+   * line at phone width.
+   */
+  compact = false,
+}: {
+  className?: string
+  compact?: boolean
+}) {
   const {
     personas,
     activePersona,
@@ -72,16 +83,24 @@ export function PersonaSwitcher({ className = "" }: { className?: string }) {
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-label={`Viewing as ${PERSONA_LABEL[current]}. Switch view`}
-        className={`flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left transition-colors active:bg-muted ${className}`}
+        className={`flex items-center gap-2 rounded-xl border border-border bg-card text-left transition-colors active:bg-muted ${
+          compact ? "px-2 py-1.5" : "px-3 py-2"
+        } ${className}`}
       >
-        <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <CurrentIcon className="h-4 w-4 text-primary" />
+        <span
+          className={`flex flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 ${
+            compact ? "h-6 w-6" : "h-7 w-7"
+          }`}
+        >
+          <CurrentIcon className={compact ? "h-3.5 w-3.5 text-primary" : "h-4 w-4 text-primary"} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Viewing as
-          </span>
-          <span className="block truncate text-[13px] font-semibold text-foreground">
+          {!compact && (
+            <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Viewing as
+            </span>
+          )}
+          <span className={`block truncate font-semibold text-foreground ${compact ? "text-[12px]" : "text-[13px]"}`}>
             {PERSONA_LABEL[current]}
           </span>
         </span>

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
+import { PersonaSwitcher } from "@/components/persona-switcher"
 import { canAccessRoute } from "@/lib/rbac"
 import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
@@ -145,13 +146,16 @@ function Portal() {
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/90 px-5 py-3 backdrop-blur">
+      <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/90 px-5 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
           <span className="text-[15px] font-semibold">Pet10x Admin</span>
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden text-[12px] text-muted-foreground sm:block">{user?.email}</span>
+          {/* The console is its own shell, so without this an admin who is
+              also a resident has no route back to their own pets. */}
+          <PersonaSwitcher compact />
           <button onClick={() => signOut()} className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold">
             <LogOut className="h-3.5 w-3.5" /> Sign out
           </button>

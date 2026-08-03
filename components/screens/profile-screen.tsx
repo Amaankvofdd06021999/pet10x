@@ -187,8 +187,17 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             className="w-full rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
           >
             <div className="flex items-center gap-3">
-              <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted flex-shrink-0">
-                <Image src={user?.avatar ?? ""} alt={user?.name ?? ""} fill className="object-cover" />
+              {/* An <Image> with src="" makes the browser re-request the whole
+                  page. Accounts created by the signup flow have no avatar, so
+                  fall back to an initial rather than rendering an empty src. */}
+              <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                {user?.avatar ? (
+                  <Image src={user.avatar} alt={user.name ?? ""} fill className="object-cover" />
+                ) : (
+                  <span className="text-[18px] font-semibold text-muted-foreground">
+                    {(user?.name ?? "?").slice(0, 1).toUpperCase()}
+                  </span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="truncate text-[17px] font-semibold text-foreground">{user?.name}</h2>
@@ -311,12 +320,18 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                   className="group relative h-20 w-20 overflow-hidden rounded-full bg-muted"
                   aria-label="Change photo"
                 >
-                  <Image
-                    src={editAvatarPreview ?? user?.avatar ?? ""}
-                    alt={user?.name ?? ""}
-                    fill
-                    className="object-cover"
-                  />
+                  {editAvatarPreview ?? user?.avatar ? (
+                    <Image
+                      src={(editAvatarPreview ?? user?.avatar) as string}
+                      alt={user?.name ?? ""}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-[24px] font-semibold text-muted-foreground">
+                      {(user?.name ?? "?").slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
                   <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
                     <Camera className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
                   </span>
