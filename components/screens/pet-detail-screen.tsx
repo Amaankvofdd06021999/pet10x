@@ -3,6 +3,7 @@
 import { useRef, useState } from "react"
 import Image from "next/image"
 import { toast } from "sonner"
+import { CareTracker } from "@/components/screens/care/care-tracker"
 import {
   ArrowLeft,
   Camera,
@@ -43,7 +44,7 @@ import {
 } from "@/lib/data"
 import { petFileSignedUrl } from "@/lib/supabase/storage"
 
-type DetailTab = "overview" | "vaccinations" | "documents" | "contacts"
+type DetailTab = "overview" | "care" | "vaccinations" | "documents" | "contacts"
 
 const STATUSES: { value: PetStatus; label: string }[] = [
   { value: "home", label: "Home" },
@@ -203,14 +204,14 @@ export function PetDetailScreen({ onBack, petId, onNavigate }: PetDetailScreenPr
         {/* Tabs */}
         <div className="sticky top-[44px] z-30 bg-background px-4 pb-3 pt-3">
           <div className="flex gap-1 rounded-2xl border border-border bg-muted/60 p-1">
-            {(["overview", "vaccinations", "documents", "contacts"] as DetailTab[]).map((tab) => (
+            {(["overview", "care", "vaccinations", "documents", "contacts"] as DetailTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => {
                   setActiveTab(tab)
                   setEditing(false)
                 }}
-                className={`flex-1 rounded-xl py-2 text-[12px] font-semibold capitalize transition-all ${
+                className={`flex-1 rounded-xl py-2 text-[11.5px] font-semibold capitalize transition-all ${
                   activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground active:text-foreground"
                 }`}
               >
@@ -227,6 +228,10 @@ export function PetDetailScreen({ onBack, petId, onNavigate }: PetDetailScreenPr
             ) : (
               <OverviewTab pet={pet} onStatus={setStatus} />
             ))}
+          {/* Care lives here as well as on the Trackers screen: logs and
+              targets belong to the animal, and looking at a pet is when an
+              owner wants them. Same component, so the two cannot disagree. */}
+          {activeTab === "care" && <CareTracker pet={pet} />}
           {activeTab === "vaccinations" && <VaccinationsTab petId={pet.id} />}
           {activeTab === "documents" && <DocumentsTab petId={pet.id} />}
           {activeTab === "contacts" && <ContactsTab petId={pet.id} />}
