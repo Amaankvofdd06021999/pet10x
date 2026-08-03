@@ -926,25 +926,40 @@ export type Database = {
       }
       care_targets: {
         Row: {
+          created_at: string
           id: string
+          is_active: boolean
           kind: Database["public"]["Enums"]["care_entry_kind"]
+          label: string
+          period: string
           pet_id: string
+          sort_order: number
           target_amount: number | null
           unit: string | null
           updated_at: string
         }
         Insert: {
+          created_at?: string
           id?: string
+          is_active?: boolean
           kind: Database["public"]["Enums"]["care_entry_kind"]
+          label: string
+          period?: string
           pet_id: string
+          sort_order?: number
           target_amount?: number | null
           unit?: string | null
           updated_at?: string
         }
         Update: {
+          created_at?: string
           id?: string
+          is_active?: boolean
           kind?: Database["public"]["Enums"]["care_entry_kind"]
+          label?: string
+          period?: string
           pet_id?: string
+          sort_order?: number
           target_amount?: number | null
           unit?: string | null
           updated_at?: string
@@ -1793,14 +1808,20 @@ export type Database = {
           created_at: string
           days_of_week: number[] | null
           detail: string | null
+          dose: string | null
+          ends_on: string | null
           id: string
+          interval_days: number | null
           is_active: boolean
           kind: Database["public"]["Enums"]["care_kind"]
           label: string
+          next_due_on: string | null
           pet_id: string
+          recurrence: string
           remind_minutes_before: number
           scheduled_at: string | null
           sort_order: number | null
+          starts_on: string | null
           time_label: string | null
           updated_at: string
         }
@@ -1808,14 +1829,20 @@ export type Database = {
           created_at?: string
           days_of_week?: number[] | null
           detail?: string | null
+          dose?: string | null
+          ends_on?: string | null
           id?: string
+          interval_days?: number | null
           is_active?: boolean
           kind?: Database["public"]["Enums"]["care_kind"]
           label: string
+          next_due_on?: string | null
           pet_id: string
+          recurrence?: string
           remind_minutes_before?: number
           scheduled_at?: string | null
           sort_order?: number | null
+          starts_on?: string | null
           time_label?: string | null
           updated_at?: string
         }
@@ -1823,14 +1850,20 @@ export type Database = {
           created_at?: string
           days_of_week?: number[] | null
           detail?: string | null
+          dose?: string | null
+          ends_on?: string | null
           id?: string
+          interval_days?: number | null
           is_active?: boolean
           kind?: Database["public"]["Enums"]["care_kind"]
           label?: string
+          next_due_on?: string | null
           pet_id?: string
+          recurrence?: string
           remind_minutes_before?: number
           scheduled_at?: string | null
           sort_order?: number | null
+          starts_on?: string | null
           time_label?: string | null
           updated_at?: string
         }
@@ -2029,8 +2062,11 @@ export type Database = {
           expires_on: string | null
           given_on: string | null
           id: string
+          kind: string
           name: string
           pet_id: string
+          remind_days_before: number
+          reminded_for: string | null
           status: Database["public"]["Enums"]["doc_status"]
         }
         Insert: {
@@ -2039,8 +2075,11 @@ export type Database = {
           expires_on?: string | null
           given_on?: string | null
           id?: string
+          kind?: string
           name: string
           pet_id: string
+          remind_days_before?: number
+          reminded_for?: string | null
           status?: Database["public"]["Enums"]["doc_status"]
         }
         Update: {
@@ -2049,8 +2088,11 @@ export type Database = {
           expires_on?: string | null
           given_on?: string | null
           id?: string
+          kind?: string
           name?: string
           pet_id?: string
+          remind_days_before?: number
+          reminded_for?: string | null
           status?: Database["public"]["Enums"]["doc_status"]
         }
         Relationships: [
@@ -3047,6 +3089,8 @@ export type Database = {
         | "weight"
         | "potty"
         | "other"
+        | "play"
+        | "outing"
       care_kind: "meal" | "medication" | "water" | "walk" | "grooming" | "other"
       doc_kind:
         | "vaccination"
@@ -3291,6 +3335,8 @@ export const Constants = {
         "weight",
         "potty",
         "other",
+        "play",
+        "outing",
       ],
       care_kind: ["meal", "medication", "water", "walk", "grooming", "other"],
       doc_kind: [

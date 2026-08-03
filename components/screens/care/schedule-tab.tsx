@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import type { Species } from "@/lib/data"
+import { COURSE_PRESETS, DURATION_PRESETS } from "@/lib/data/care-catalog"
 import { toast } from "sonner"
 import { Clock, Plus, Trash2, Check, Pencil, CalendarDays, Loader2 } from "lucide-react"
 import {
@@ -34,9 +36,33 @@ interface Draft {
   scheduledAt: string
   days: number[]
   remind: number
+  /** 'daily' = time of day + weekdays. 'interval' = every N days. */
+  recurrence: "daily" | "interval"
+  intervalDays: number
+  /** ISO date the interval counts from. */
+  nextDueOn: string
+  /** Days the course runs; null = ongoing. */
+  durationDays: number | null
+  dose: string
 }
 
-const EMPTY: Draft = { label: "", kind: "walk", scheduledAt: "17:00", days: [], remind: 0 }
+const todayIso = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+const EMPTY: Draft = {
+  label: "",
+  kind: "walk",
+  scheduledAt: "17:00",
+  days: [],
+  remind: 0,
+  recurrence: "daily",
+  intervalDays: 30,
+  nextDueOn: "",
+  durationDays: null,
+  dose: "",
+}
 
 /**
  * The daily plan for a pet.
@@ -46,7 +72,16 @@ const EMPTY: Draft = { label: "", kind: "walk", scheduledAt: "17:00", days: [], 
  * computed against the device clock — the same judgement the server sweep
  * makes in the owner's timezone, so the two agree.
  */
-export function ScheduleTab({ petId, petName }: { petId?: string; petName?: string }) {
+export function ScheduleTab({
+  petId,
+  petName,
+  species,
+}: {
+  petId?: string
+  petName?: string
+  /** Decides which task kinds are offered — a fish has no walks. */
+  species?: Species | null
+}) {
   const { data: tasks, isLoading, refetch } = useCareTasks(petId)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
@@ -67,12 +102,33 @@ export function ScheduleTab({ petId, petName }: { petId?: string; petName?: stri
     if (!draft || !petId) return
     if (!draft.label.trim()) return toast.error("Give the task a name.")
     setSaving(true)
+    const interval = draft.recurrence === "interval"
+    const start = draft.nextDueOn || todayIso()
+    // ends_on is derived from the duration the owner picked, because "six
+    // months" is what they say and a date arithmetic is what the sweep needs.
+    const ends =
+      interval && draft.durationDays != null
+        ? (() => {
+            const d = new Date(`${start}T00:00:00Z`)
+            d.setUTCDate(d.getUTCDate() + draft.durationDays!)
+            return d.toISOString().slice(0, 10)
+          })()
+        : null
+
     const payload = {
       label: draft.label.trim(),
       kind: draft.kind,
-      scheduledAt: draft.scheduledAt || null,
-      daysOfWeek: draft.days,
+      // An interval task is due on a date, not at a time; keeping a time here
+      // would make the sweep treat it as a daily task too.
+      scheduledAt: interval ? null : draft.scheduledAt || null,
+      daysOfWeek: interval ? [] : draft.days,
       remindMinutesBefore: draft.remind,
+      recurrence: draft.recurrence,
+      intervalDays: interval ? draft.intervalDays : null,
+      nextDueOn: interval ? start : null,
+      startsOn: interval ? start : null,
+      endsOn: ends,
+      dose: draft.dose.trim() || null,
     }
     const { error } = draft.id
       ? await updateCareTask(draft.id, payload)
@@ -193,6 +249,20 @@ export function ScheduleTab({ petId, petName }: { petId?: string; petName?: stri
                       scheduledAt: t.scheduledAt ?? "",
                       days: t.daysOfWeek,
                       remind: t.remindMinutesBefore,
+                      recurrence: t.recurrence,
+                      intervalDays: t.intervalDays ?? 30,
+                      nextDueOn: t.nextDueOn ?? "",
+                      // Recovered from the stored bounds rather than kept
+                      // separately, so editing shows the course as saved.
+                      durationDays:
+                        t.startsOn && t.endsOn
+                          ? Math.round(
+                              (new Date(`${t.endsOn}T00:00:00Z`).getTime() -
+                                new Date(`${t.startsOn}T00:00:00Z`).getTime()) /
+                                86_400_000,
+                            )
+                          : null,
+                      dose: t.dose ?? "",
                     })
                   }
                   className="p-2 text-muted-foreground"
@@ -244,6 +314,87 @@ export function ScheduleTab({ petId, petName }: { petId?: string; petName?: stri
             ))}
           </div>
 
+          {/* How it repeats. A weekday pattern cannot say "every 6 months",
+              which is exactly the shape a heartworm or flea course takes, so
+              the two modes are chosen explicitly rather than inferred. */}
+          <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">Schedule</label>
+          <div className="mt-1 flex rounded-xl bg-muted p-1">
+            {([
+              { id: "daily", label: "Time of day" },
+              { id: "interval", label: "Every N days" },
+            ] as const).map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setDraft({ ...draft, recurrence: m.id })}
+                className={`flex-1 rounded-lg py-2 text-[12.5px] font-semibold transition-colors ${
+                  draft.recurrence === m.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {draft.recurrence === "interval" && (
+            <>
+              <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">How often</label>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {COURSE_PRESETS.map((c) => (
+                  <button
+                    key={c.intervalDays}
+                    onClick={() => setDraft({ ...draft, intervalDays: c.intervalDays })}
+                    className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                      draft.intervalDays === c.intervalDays
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+
+              <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">First dose</label>
+              <input
+                type="date"
+                value={draft.nextDueOn || todayIso()}
+                onChange={(e) => setDraft({ ...draft, nextDueOn: e.target.value })}
+                className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+              />
+
+              <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
+                For how long <span className="font-normal">(the course retires itself)</span>
+              </label>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {DURATION_PRESETS.map((d) => (
+                  <button
+                    key={d.label}
+                    onClick={() => setDraft({ ...draft, durationDays: d.days })}
+                    className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                      draft.durationDays === d.days
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+
+              <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
+                Dose <span className="font-normal">(optional)</span>
+              </label>
+              <input
+                value={draft.dose}
+                onChange={(e) => setDraft({ ...draft, dose: e.target.value })}
+                placeholder="1 tablet, 0.5 ml…"
+                className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+              />
+            </>
+          )}
+
+          {draft.recurrence === "daily" && (
+            <>
           <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
             Time <span className="font-normal">(leave empty for all day)</span>
           </label>
@@ -279,6 +430,8 @@ export function ScheduleTab({ petId, petName }: { petId?: string; petName?: stri
               )
             })}
           </div>
+            </>
+          )}
 
           <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">Remind me</label>
           <div className="mt-1 flex gap-1.5">

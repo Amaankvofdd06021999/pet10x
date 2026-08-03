@@ -24,6 +24,9 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin"
 
 const DEFAULT_TZ = "America/Vancouver"
 
+/** How long after expiry a vaccination reminder is still worth raising. */
+const MAX_OVERDUE_DAYS = 60
+
 /** Wall-clock minutes past midnight, and the weekday, in a given zone. */
 function nowIn(timezone: string): { minutes: number; weekday: number; dateKey: string } {
   const now = new Date()
@@ -66,14 +69,25 @@ export async function GET(request: NextRequest) {
   const { data: tasks, error } = await supabase
     .from("pet_care_tasks")
     .select(
-      "id, label, detail, kind, scheduled_at, days_of_week, remind_minutes_before, pet_id, pets!inner(id, name, owner_id, profiles:owner_id(timezone))",
+      "id, label, detail, kind, scheduled_at, days_of_week, remind_minutes_before, pet_id, recurrence, interval_days, next_due_on, starts_on, ends_on, pets!inner(id, name, owner_id, profiles:owner_id(timezone))",
     )
     .eq("is_active", true)
-    .not("scheduled_at", "is", null)
+    // No `scheduled_at is not null` filter any more: an interval task (monthly
+    // flea, six-month heartworm) is due on a DATE, not at a time of day, and
+    // that filter excluded every one of them.
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const due: { taskId: string; ownerId: string; petName: string; label: string; dateKey: string }[] = []
+  const due: {
+    taskId: string
+    ownerId: string
+    petName: string
+    label: string
+    dateKey: string
+    recurrence: string | null
+    intervalDays: number | null
+    endsOn: string | null
+  }[] = []
 
   for (const task of tasks ?? []) {
     // The embed is typed as an object or array depending on the relationship;
@@ -91,11 +105,25 @@ export async function GET(request: NextRequest) {
       clock = nowIn(DEFAULT_TZ)
     }
 
-    const days = task.days_of_week
-    if (days && days.length > 0 && !days.includes(clock.weekday)) continue
+    // A finite course is not due before it starts or after it ends. Without
+    // this a six-month medicine keeps asking to be given forever.
+    if (task.starts_on && clock.dateKey < task.starts_on) continue
+    if (task.ends_on && clock.dateKey > task.ends_on) continue
 
-    const dueAt = minutesOfDay(task.scheduled_at as string) - (task.remind_minutes_before ?? 0)
-    if (clock.minutes < dueAt) continue
+    if (task.recurrence === "interval") {
+      // Due on its anchor date only. Not "on or after": the ledger already
+      // dedupes per day, but firing every day after a missed dose would turn
+      // one reminder into a daily nag.
+      if (task.next_due_on !== clock.dateKey) continue
+    } else {
+      const days = task.days_of_week
+      if (days && days.length > 0 && !days.includes(clock.weekday)) continue
+
+      // A daily task with no time is all-day: due from midnight.
+      const at = task.scheduled_at ? minutesOfDay(task.scheduled_at as string) : 0
+      const dueAt = at - (task.remind_minutes_before ?? 0)
+      if (clock.minutes < dueAt) continue
+    }
 
     due.push({
       taskId: task.id,
@@ -103,6 +131,9 @@ export async function GET(request: NextRequest) {
       petName: pet.name ?? "your pet",
       label: task.label,
       dateKey: clock.dateKey,
+      recurrence: task.recurrence,
+      intervalDays: task.interval_days,
+      endsOn: task.ends_on,
     })
   }
 
@@ -157,7 +188,101 @@ export async function GET(request: NextRequest) {
       continue
     }
     raised += 1
+
+    /* An interval task has to move its own anchor forward, or it fires once
+     * and is silent forever. Done only after the ledger row is safely in, so
+     * a failure above leaves the task due rather than silently skipping a
+     * dose. */
+    if (item.recurrence === "interval" && item.intervalDays) {
+      const next = new Date(`${item.dateKey}T00:00:00Z`)
+      next.setUTCDate(next.getUTCDate() + item.intervalDays)
+      const nextKey = next.toISOString().slice(0, 10)
+      // Past the end of the course, the task retires itself rather than
+      // sitting active with a due date nobody will ever reach.
+      const finished = item.endsOn != null && nextKey > item.endsOn
+      await supabase
+        .from("pet_care_tasks")
+        .update(finished ? { is_active: false } : { next_due_on: nextKey })
+        .eq("id", item.taskId)
+    }
   }
 
-  return NextResponse.json({ checked: tasks?.length ?? 0, due: due.length, raised })
+  /* ---- Vaccinations, boosters and injections ----
+   *
+   * 49 rows carried `expires_on` and nothing had ever looked at it. A booster
+   * that lapses is the one nobody was told about, and for a building that
+   * enforces rabies it is also a compliance failure the resident never saw
+   * coming. */
+  const { data: vaccines } = await supabase
+    .from("pet_vaccinations")
+    .select("id, name, kind, expires_on, remind_days_before, reminded_for, pets!inner(id, name, owner_id)")
+    .not("expires_on", "is", null)
+
+  let vaccineReminders = 0
+  const todayKey = new Date().toISOString().slice(0, 10)
+
+  for (const v of vaccines ?? []) {
+    const pet = Array.isArray(v.pets) ? v.pets[0] : v.pets
+    if (!pet?.owner_id || !v.expires_on) continue
+
+    // Already told them about THIS expiry date. Storing the date rather than a
+    // boolean means renewing the vaccination re-arms the reminder by itself.
+    if (v.reminded_for === v.expires_on) continue
+
+    const daysLeft = Math.round(
+      (new Date(`${v.expires_on}T00:00:00Z`).getTime() - new Date(`${todayKey}T00:00:00Z`).getTime()) / 86_400_000,
+    )
+    if (daysLeft > (v.remind_days_before ?? 30)) continue
+
+    /* A reminder is for the transition, not the standing state.
+     *
+     * On production today, 9 of the 10 rows inside the window lapsed 46–207
+     * days ago — history, not news, and shipping this without a floor would
+     * have fired all of them at once. A long-lapsed vaccination is already
+     * surfaced continuously: it fails computeCompliance, shows on the
+     * manager's Incomplete filter, and sits on the resident's missing-info
+     * card. It does not also need a notification about a date last spring. */
+    if (daysLeft < -MAX_OVERDUE_DAYS) continue
+
+    const overdue = daysLeft < 0
+    const noun = v.kind === "vaccine" ? "vaccination" : (v.kind ?? "vaccination")
+
+    const { data: note, error: noteErr } = await supabase
+      .from("notifications")
+      .insert({
+        profile_id: pet.owner_id,
+        kind: "compliance",
+        severity: overdue ? "warning" : "info",
+        title: `${v.name} ${overdue ? "has expired" : "is due"} for ${pet.name}`,
+        body: overdue
+          ? `This ${noun} expired on ${v.expires_on}. Book a renewal and upload the new record.`
+          : `This ${noun} expires on ${v.expires_on}${daysLeft > 0 ? ` — ${daysLeft} day${daysLeft === 1 ? "" : "s"} left` : " — today"}.`,
+        action_label: "Open pet",
+        action_target: "pet-detail",
+      })
+      .select("id")
+      .single()
+
+    if (noteErr) continue
+
+    // Stamp AFTER the notification exists, so a failure retries next sweep.
+    const { error: stampErr } = await supabase
+      .from("pet_vaccinations")
+      .update({ reminded_for: v.expires_on })
+      .eq("id", v.id)
+
+    if (stampErr) {
+      await supabase.from("notifications").delete().eq("id", note.id)
+      continue
+    }
+    vaccineReminders += 1
+  }
+
+  return NextResponse.json({
+    checked: tasks?.length ?? 0,
+    due: due.length,
+    raised,
+    vaccinesChecked: vaccines?.length ?? 0,
+    vaccineReminders,
+  })
 }

@@ -35,6 +35,19 @@ export interface ScheduledCareTask {
   sortOrder: number
   /** Whether it has been ticked off for the day currently being viewed. */
   doneToday: boolean
+  /**
+   * 'daily'    — scheduledAt + daysOfWeek (meals, walks)
+   * 'interval' — every `intervalDays` from `nextDueOn` (flea = 30, heartworm
+   *              = 182). A weekday pattern cannot express either.
+   */
+  recurrence: "daily" | "interval"
+  intervalDays: number | null
+  nextDueOn: string | null
+  startsOn: string | null
+  /** Last day of a finite course; the sweep stops past it. */
+  endsOn: string | null
+  /** As written on the packet — "1 tablet", "0.5 ml". */
+  dose: string | null
 }
 
 export interface ScheduledCareTaskResult {
@@ -57,6 +70,17 @@ function trimTime(t: string | null): string | null {
 /** Does this task recur on the given weekday? */
 export function taskRunsOn(task: ScheduledCareTask, date: Date): boolean {
   if (!task.isActive) return false
+
+  // A finite course does not run before it starts or after it ends. Without
+  // this a six-month medicine would keep asking to be given in year two.
+  const key = localDateKey(date)
+  if (task.startsOn && key < task.startsOn) return false
+  if (task.endsOn && key > task.endsOn) return false
+
+  // Interval tasks run on their due date only — a weekday pattern cannot say
+  // "every 30 days", so days_of_week is meaningless for them.
+  if (task.recurrence === "interval") return task.nextDueOn === key
+
   if (task.daysOfWeek.length === 0) return true
   return task.daysOfWeek.includes(date.getDay())
 }
@@ -79,6 +103,12 @@ interface TaskRow {
   is_active: boolean
   remind_minutes_before: number
   sort_order: number | null
+  recurrence: string | null
+  interval_days: number | null
+  next_due_on: string | null
+  starts_on: string | null
+  ends_on: string | null
+  dose: string | null
 }
 
 /**
@@ -104,7 +134,9 @@ export function useCareTasks(petId: string | undefined, dateKey = localDateKey()
 
     const { data: tasks, error: taskErr } = await supabase
       .from("pet_care_tasks")
-      .select("id, pet_id, label, detail, kind, scheduled_at, days_of_week, is_active, remind_minutes_before, sort_order")
+      .select(
+        "id, pet_id, label, detail, kind, scheduled_at, days_of_week, is_active, remind_minutes_before, sort_order, recurrence, interval_days, next_due_on, starts_on, ends_on, dose",
+      )
       .eq("pet_id", petId)
       .order("sort_order", { ascending: true })
       .order("scheduled_at", { ascending: true, nullsFirst: false })
@@ -141,6 +173,12 @@ export function useCareTasks(petId: string | undefined, dateKey = localDateKey()
         remindMinutesBefore: r.remind_minutes_before,
         sortOrder: r.sort_order ?? 0,
         doneToday: doneIds.has(r.id),
+        recurrence: (r.recurrence === "interval" ? "interval" : "daily") as "daily" | "interval",
+        intervalDays: r.interval_days,
+        nextDueOn: r.next_due_on,
+        startsOn: r.starts_on,
+        endsOn: r.ends_on,
+        dose: r.dose,
       })),
     )
     setError(null)
@@ -162,6 +200,12 @@ export async function addCareTask(input: {
   scheduledAt?: string | null
   daysOfWeek?: number[]
   remindMinutesBefore?: number
+  recurrence?: "daily" | "interval"
+  intervalDays?: number | null
+  nextDueOn?: string | null
+  startsOn?: string | null
+  endsOn?: string | null
+  dose?: string | null
 }): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not saved — backend not configured." }
@@ -176,6 +220,14 @@ export async function addCareTask(input: {
     // one representation the query can rely on.
     days_of_week: input.daysOfWeek && input.daysOfWeek.length > 0 && input.daysOfWeek.length < 7 ? input.daysOfWeek : null,
     remind_minutes_before: input.remindMinutesBefore ?? 0,
+    recurrence: input.recurrence ?? "daily",
+    // The DB check constraint rejects an interval task without both, and a
+    // daily one carrying an interval — send exactly the shape it expects.
+    interval_days: input.recurrence === "interval" ? (input.intervalDays ?? null) : null,
+    next_due_on: input.recurrence === "interval" ? (input.nextDueOn ?? null) : (input.nextDueOn ?? null),
+    starts_on: input.startsOn ?? null,
+    ends_on: input.endsOn ?? null,
+    dose: input.dose || null,
     // Keep the legacy display column consistent for anything still reading it.
     time_label: input.scheduledAt ? formatTime(input.scheduledAt) : "All day",
   })
@@ -192,6 +244,12 @@ export async function updateCareTask(
     daysOfWeek: number[]
     isActive: boolean
     remindMinutesBefore: number
+    recurrence: "daily" | "interval"
+    intervalDays: number | null
+    nextDueOn: string | null
+    startsOn: string | null
+    endsOn: string | null
+    dose: string | null
   }>,
 ): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
@@ -205,6 +263,12 @@ export async function updateCareTask(
   if (patch.kind !== undefined) row.kind = patch.kind
   if (patch.isActive !== undefined) row.is_active = patch.isActive
   if (patch.remindMinutesBefore !== undefined) row.remind_minutes_before = patch.remindMinutesBefore
+  if (patch.recurrence !== undefined) row.recurrence = patch.recurrence
+  if (patch.intervalDays !== undefined) row.interval_days = patch.intervalDays
+  if (patch.nextDueOn !== undefined) row.next_due_on = patch.nextDueOn
+  if (patch.startsOn !== undefined) row.starts_on = patch.startsOn
+  if (patch.endsOn !== undefined) row.ends_on = patch.endsOn
+  if (patch.dose !== undefined) row.dose = patch.dose
   if (patch.scheduledAt !== undefined) {
     row.scheduled_at = patch.scheduledAt
     row.time_label = patch.scheduledAt ? formatTime(patch.scheduledAt) : "All day"

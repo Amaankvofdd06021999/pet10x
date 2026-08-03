@@ -708,27 +708,36 @@ export async function deleteCareEntry(id: string): Promise<{ error: string | nul
 
 /* ----------------------------- care targets ----------------------------- */
 
-export function useCareTargets(petId: string | undefined): LiveResult<Record<string, CareTarget>> {
-  const [data, setData] = useState<Record<string, CareTarget>>({})
+/**
+ * Every target for a pet, as a LIST.
+ *
+ * Was a map keyed by kind, which quietly encoded the old one-target-per-kind
+ * limit: a second medication overwrote the first in the map even once the
+ * database allowed both.
+ */
+export function useCareTargets(petId: string | undefined): LiveResult<CareTarget[]> {
+  const [data, setData] = useState<CareTarget[]>([])
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const refetch = useCallback(async () => {
     const supabase = getSupabaseBrowserClient()
     if (!supabase || !petId) {
-      setData({})
+      setData([])
       setLoading(false)
       return
     }
-    const { data: rows, error: err } = await supabase.from("care_targets").select("*").eq("pet_id", petId)
+    const { data: rows, error: err } = await supabase
+      .from("care_targets")
+      .select("*")
+      .eq("pet_id", petId)
+      .order("kind")
+      .order("sort_order")
+      .order("label")
     if (err) {
       setError(err.message)
     } else {
-      const map: Record<string, CareTarget> = {}
-      for (const r of (rows ?? []) as CareTargetRow[]) {
-        map[r.kind] = { kind: r.kind, targetAmount: r.target_amount, unit: r.unit }
-      }
-      setData(map)
+      setData((rows ?? []).map(mapCareTarget))
       setError(null)
     }
     setLoading(false)
@@ -741,17 +750,75 @@ export function useCareTargets(petId: string | undefined): LiveResult<Record<str
   return { data, isLoading, error, refetch }
 }
 
-export async function setCareTarget(
-  petId: string,
-  kind: CareEntryKind,
-  targetAmount: number | null,
-  unit: string | null,
-): Promise<{ error: string | null }> {
+function mapCareTarget(r: CareTargetRow): CareTarget {
+  return {
+    id: r.id,
+    petId: r.pet_id,
+    kind: r.kind as CareEntryKind,
+    label: r.label,
+    targetAmount: r.target_amount,
+    unit: r.unit,
+    period: (r.period === "week" ? "week" : "day"),
+    sortOrder: r.sort_order ?? 0,
+    isActive: r.is_active ?? true,
+  }
+}
+
+/** Create a target, or update the one already carrying this label. */
+export async function upsertCareTarget(input: {
+  petId: string
+  kind: CareEntryKind
+  label: string
+  targetAmount: number | null
+  unit: string | null
+  period?: "day" | "week"
+}): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
-  const { error } = await supabase
+  const label = input.label.trim()
+  if (!label) return { error: "Give the target a name." }
+
+  // Uniqueness in the database is on lower(btrim(label)) within (pet, kind),
+  // so match the same way rather than creating a near-duplicate that differs
+  // only by capitalisation.
+  const { data: existing } = await supabase
     .from("care_targets")
-    .upsert({ pet_id: petId, kind, target_amount: targetAmount, unit }, { onConflict: "pet_id,kind" })
+    .select("id, label")
+    .eq("pet_id", input.petId)
+    .eq("kind", input.kind)
+
+  const hit = (existing ?? []).find((r) => r.label.trim().toLowerCase() === label.toLowerCase())
+
+  if (hit) {
+    const { error } = await supabase
+      .from("care_targets")
+      .update({
+        target_amount: input.targetAmount,
+        unit: input.unit,
+        period: input.period ?? "day",
+        label,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", hit.id)
+    return { error: error?.message ?? null }
+  }
+
+  const { error } = await supabase.from("care_targets").insert({
+    pet_id: input.petId,
+    kind: input.kind,
+    label,
+    target_amount: input.targetAmount,
+    unit: input.unit,
+    period: input.period ?? "day",
+    sort_order: (existing ?? []).length,
+  })
+  return { error: error?.message ?? null }
+}
+
+export async function deleteCareTarget(id: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase.from("care_targets").delete().eq("id", id)
   return { error: error?.message ?? null }
 }
 

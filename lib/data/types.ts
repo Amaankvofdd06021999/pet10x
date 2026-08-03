@@ -157,7 +157,19 @@ export interface Medication {
 
 /* ---- Care logging (food / medicine / treat trackers) ---- */
 
-export type CareEntryKind = "food" | "medicine" | "treat" | "water" | "walk" | "weight" | "potty" | "other"
+/** Mirrors the `care_entry_kind` enum. `play`/`outing` exist because "walk"
+ *  is a dog's word — a cat has playtime and time outdoors. */
+export type CareEntryKind =
+  | "food"
+  | "medicine"
+  | "treat"
+  | "water"
+  | "walk"
+  | "play"
+  | "outing"
+  | "weight"
+  | "potty"
+  | "other"
 
 export interface CareEntry {
   id: string
@@ -170,10 +182,22 @@ export interface CareEntry {
   loggedAt: string
 }
 
+/**
+ * A single care goal. Several may share a `kind` — two medications, three
+ * treat types — which is why this carries an id and a label rather than being
+ * keyed by kind alone.
+ */
 export interface CareTarget {
+  id: string
+  petId: string
   kind: CareEntryKind
+  label: string
   targetAmount?: number | null
   unit?: string | null
+  /** 'day' | 'week' — a weekly walk goal is as reasonable as a daily one. */
+  period: "day" | "week"
+  sortOrder: number
+  isActive: boolean
 }
 
 /* ---- Pet documents / vaccinations / contacts (live, from child tables) ---- */
