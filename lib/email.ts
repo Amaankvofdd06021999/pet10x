@@ -86,6 +86,56 @@ export function sendManagerInviteEmail(opts: { to: string; inviteUrl: string; bu
   })
 }
 
+/**
+ * The 6-digit signup code.
+ *
+ * No link and no CTA button on purpose: there is nothing to click, and a
+ * clickable "verify" in a code email is exactly the shape a phishing lookalike
+ * wants to copy. The code is rendered large enough to read off a phone.
+ */
+export function sendSignupCodeEmail(opts: { to: string; code: string; minutes: number }) {
+  const spaced = `${opts.code.slice(0, 3)} ${opts.code.slice(3)}`
+  return send({
+    to: opts.to,
+    subject: `${opts.code} is your Pet10x verification code`,
+    html: emailHtml({
+      headline: "Verify your email",
+      body:
+        `Enter this code in Pet10x to finish creating your account:` +
+        `<div style="margin:20px 0 6px;padding:16px 20px;background:#FFF6EE;border:1px solid #FBDCC2;border-radius:10px;text-align:center">` +
+        `<span style="font-family:'SF Mono',Menlo,Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:#1F1F1F">${spaced}</span>` +
+        `</div>` +
+        `<p style="margin:12px 0 0;color:#555">This code expires in ${opts.minutes} minutes.</p>`,
+      footnote:
+        "If you didn't try to create a Pet10x account, you can ignore this email — no account has been created, and none will be without this code.",
+    }),
+  })
+}
+
+/**
+ * Sent instead of a code when the address already has an account.
+ *
+ * The signup endpoint answers identically whether or not an address is
+ * registered, so it cannot be used to test which emails are on Pet10x. The
+ * person who actually owns the address still needs to know what happened, and
+ * this is the only channel that reaches exactly them.
+ */
+export function sendSignupExistingAccountEmail(opts: { to: string }) {
+  return send({
+    to: opts.to,
+    subject: "You already have a Pet10x account",
+    html: emailHtml({
+      headline: "You already have an account",
+      body:
+        "Someone just tried to create a Pet10x account with this email address. You already have one, so we didn't create another. " +
+        "Sign in with your password instead — or reset it if you've forgotten it.",
+      ctaUrl: `${APP_URL}/login`,
+      ctaLabel: "Sign in",
+      footnote: "If this wasn't you, nothing has changed on your account and there's nothing you need to do.",
+    }),
+  })
+}
+
 export function sendWelcomeEmail(opts: { to: string; name?: string }) {
   return send({
     to: opts.to,

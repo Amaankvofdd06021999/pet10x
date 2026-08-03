@@ -204,11 +204,24 @@ interface AuthContextValue {
   /** Mock demo sign-in — only used when Supabase isn't configured. */
   signIn: (role: DemoRole) => void
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>
-  signUp: (
+  /**
+   * Step 1 of signup: email a 6-digit code. Creates no account.
+   * `retryAfterSeconds` is set when a still-valid code was sent recently.
+   */
+  startSignup: (
     email: string,
+    fullName?: string,
+  ) => Promise<{ error: string | null; retryAfterSeconds?: number }>
+  /**
+   * Step 2: verify the code and create the account, then sign in.
+   * `expired` means the code is dead and a new one must be requested.
+   */
+  verifySignup: (
+    email: string,
+    code: string,
     password: string,
     fullName?: string,
-  ) => Promise<{ error: string | null; needsConfirmation?: boolean }>
+  ) => Promise<{ error: string | null; expired?: boolean }>
   resetPassword: (email: string) => Promise<{ error: string | null }>
   markOnboarded: () => Promise<void>
   /** Patch the locally-cached user after a profile write elsewhere (e.g. account.ts). */
@@ -227,7 +240,8 @@ const AuthContext = createContext<AuthContextValue>({
   supabaseEnabled: SUPABASE_ENABLED,
   signIn: () => {},
   signInWithPassword: async () => ({ error: "Auth not configured." }),
-  signUp: async () => ({ error: "Auth not configured." }),
+  startSignup: async () => ({ error: "Auth not configured." }),
+  verifySignup: async () => ({ error: "Auth not configured." }),
   resetPassword: async () => ({ error: "Auth not configured." }),
   markOnboarded: async () => {},
   updateLocalUser: () => {},
@@ -361,19 +375,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? sanitizeAuthError(error.message) : null }
   }, [])
 
-  const signUp = useCallback(async (email: string, password: string, fullName?: string) => {
-    const supabase = getSupabaseBrowserClient()
-    if (!supabase) return { error: "Auth not configured." }
-    const emailRedirectTo =
-      typeof window !== "undefined" ? `${window.location.origin}/auth/callback?next=/app` : undefined
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName }, emailRedirectTo },
-    })
-    if (error) return { error: sanitizeAuthError(error.message) }
-    return { error: null, needsConfirmation: !data.session }
+  /**
+   * Signup is a two-step, server-side flow — the browser no longer calls
+   * `supabase.auth.signUp()`.
+   *
+   * That call created a live `auth.users` row (and, via the
+   * on_auth_user_created trigger, a profiles row) the moment it ran. With
+   * email confirmation disabled on the project, typing any address into the
+   * form was enough to register it.
+   *
+   * The password is deliberately NOT sent in step 1. It stays in this
+   * component's state until the code is verified, so an abandoned signup
+   * leaves neither an account nor a credential behind.
+   */
+  const startSignup = useCallback(async (email: string, fullName?: string) => {
+    try {
+      const res = await fetch("/api/auth/signup/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, fullName }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) return { error: json.error ?? "Something went wrong. Try again." }
+      return { error: null, retryAfterSeconds: json.retryAfterSeconds as number | undefined }
+    } catch {
+      return { error: "Network error. Check your connection and try again." }
+    }
   }, [])
+
+  const verifySignup = useCallback(
+    async (email: string, code: string, password: string, fullName?: string) => {
+      try {
+        const res = await fetch("/api/auth/signup/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, code, password, fullName }),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) return { error: json.error ?? "Something went wrong. Try again.", expired: !!json.expired }
+
+        // The account exists and is confirmed; sign in with the password the
+        // browser has been holding. Doing it here rather than on the server
+        // keeps the session in the same place every other sign-in puts it.
+        const supabase = getSupabaseBrowserClient()
+        if (!supabase) return { error: "Auth not configured." }
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        // The account was created either way — a failure here is a sign-in
+        // problem, not a signup one, and must not read as "try signing up
+        // again".
+        return { error: error ? "Account created. Please sign in." : null }
+      } catch {
+        return { error: "Network error. Check your connection and try again." }
+      }
+    },
+    [],
+  )
 
   const resetPassword = useCallback(async (email: string) => {
     const supabase = getSupabaseBrowserClient()
@@ -458,7 +514,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabaseEnabled: SUPABASE_ENABLED,
         signIn,
         signInWithPassword,
-        signUp,
+        startSignup,
+        verifySignup,
         resetPassword,
         markOnboarded,
         updateLocalUser,

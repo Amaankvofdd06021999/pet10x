@@ -1652,6 +1652,39 @@ export type Database = {
           },
         ]
       }
+      pending_signups: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          email: string
+          expires_at: string
+          full_name: string | null
+          last_sent_at: string
+          send_count: number
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          email: string
+          expires_at: string
+          full_name?: string | null
+          last_sent_at?: string
+          send_count?: number
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          full_name?: string | null
+          last_sent_at?: string
+          send_count?: number
+        }
+        Relationships: []
+      }
       pet_activity: {
         Row: {
           created_at: string
@@ -2940,6 +2973,7 @@ export type Database = {
         Args: { p_booking: string }
         Returns: string
       }
+      email_is_registered: { Args: { p_email: string }; Returns: boolean }
       emergency_directory: { Args: { p_token: string }; Returns: Json }
       escalate_incident_to_violation: {
         Args: { p_incident: string; p_type?: string }
@@ -2960,6 +2994,7 @@ export type Database = {
       manages_building: { Args: { b: string }; Returns: boolean }
       my_app_user: { Args: never; Returns: Json }
       my_building_link: { Args: never; Returns: Json }
+      purge_expired_pending_signups: { Args: never; Returns: number }
       request_building_link: { Args: { p_code: string }; Returns: Json }
       resolve_building_code: { Args: { p_code: string }; Returns: Json }
       resolve_entitlement: {

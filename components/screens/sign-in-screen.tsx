@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useAuth, MOCK_USERS, type DemoRole } from "@/lib/auth-context"
 import {
   Dog,
@@ -13,6 +13,7 @@ import {
   Mail,
   Lock,
   Loader2,
+  MailCheck,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -22,11 +23,21 @@ const ROLE_CARDS: { role: DemoRole; icon: typeof Dog; iconColor: string; iconBg:
   { role: "building-manager", icon: Building2, iconColor: "text-info", iconBg: "bg-info/10", accent: "border-info/20 active:border-info/40" },
 ]
 
-type SignInView = "main" | "building-code"
+type SignInView = "main" | "building-code" | "verify-email"
 type AuthMode = "signin" | "signup"
 
+/** Mirrors the server's CODE_TTL_MINUTES / RESEND_COOLDOWN_SECONDS. */
+const CODE_TTL_MS = 15 * 60 * 1000
+const RESEND_COOLDOWN_MS = 60 * 1000
+
+const mmss = (ms: number) => {
+  const total = Math.max(0, Math.ceil(ms / 1000))
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`
+}
+
 export function SignInScreen() {
-  const { signIn, signInWithPassword, signUp, resetPassword, signInGuest, supabaseEnabled } = useAuth()
+  const { signIn, signInWithPassword, startSignup, verifySignup, resetPassword, signInGuest, supabaseEnabled } =
+    useAuth()
   const [view, setView] = useState<SignInView>("main")
   const [buildingCode, setBuildingCode] = useState("")
   const [codeError, setCodeError] = useState<string | null>(null)
@@ -39,6 +50,31 @@ export function SignInScreen() {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  /* ── Email verification (signup step 2) ──
+     The password lives here, in component state, from the moment it is typed
+     until the code is verified. It is never sent with the code request, so an
+     abandoned signup leaves no account and no credential on the server. */
+  const [otp, setOtp] = useState("")
+  const [expiresAt, setExpiresAt] = useState(0)
+  const [resendAt, setResendAt] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
+  const otpInputRef = useRef<HTMLInputElement>(null)
+
+  // One ticker for both countdowns, running only while the step is on screen.
+  useEffect(() => {
+    if (view !== "verify-email") return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [view])
+
+  useEffect(() => {
+    if (view === "verify-email") otpInputRef.current?.focus()
+  }, [view])
+
+  const msLeft = Math.max(0, expiresAt - now)
+  const codeExpired = expiresAt > 0 && msLeft === 0
+  const resendLeft = Math.max(0, resendAt - now)
 
   const handleGuestSignIn = async () => {
     if (!buildingCode.trim()) {
@@ -73,11 +109,58 @@ export function SignInScreen() {
       // success → keep the spinner running; AuthProvider is now loading the
       // profile in the background and will swap to the authed view when ready.
     } else {
-      const { error: e, needsConfirmation } = await signUp(email.trim(), password, fullName.trim() || undefined)
+      // No account is created by this call — it only sends the code.
+      const { error: e, retryAfterSeconds } = await startSignup(email.trim(), fullName.trim() || undefined)
       setLoading(false)
-      if (e) setError(e)
-      else if (needsConfirmation) setInfo("Almost there — check your email to confirm your account.")
+      if (e) return setError(e)
+      const t = Date.now()
+      setExpiresAt(t + CODE_TTL_MS)
+      setResendAt(t + (retryAfterSeconds ? retryAfterSeconds * 1000 : RESEND_COOLDOWN_MS))
+      setNow(t)
+      setOtp("")
+      setView("verify-email")
     }
+  }
+
+  const handleVerify = async () => {
+    setError(null)
+    setInfo(null)
+    if (otp.length !== 6) {
+      setError("Enter the 6-digit code from your email.")
+      return
+    }
+    if (codeExpired) {
+      setError("That code has expired. Request a new one.")
+      return
+    }
+    setLoading(true)
+    const { error: e, expired } = await verifySignup(email.trim(), otp, password, fullName.trim() || undefined)
+    if (e) {
+      setLoading(false)
+      setError(e)
+      // A dead code can't be retyped into life — stop the clock so the UI
+      // offers a resend instead of a countdown that no longer means anything.
+      if (expired) setExpiresAt(0)
+      setOtp("")
+      return
+    }
+    // Success → the account exists and we're signed in. Keep the spinner up;
+    // AuthProvider swaps to the authed view once the profile loads.
+  }
+
+  const handleResend = async () => {
+    setError(null)
+    setInfo(null)
+    setLoading(true)
+    const { error: e, retryAfterSeconds } = await startSignup(email.trim(), fullName.trim() || undefined)
+    setLoading(false)
+    if (e) return setError(e)
+    const t = Date.now()
+    setExpiresAt(t + CODE_TTL_MS)
+    setResendAt(t + (retryAfterSeconds ? retryAfterSeconds * 1000 : RESEND_COOLDOWN_MS))
+    setNow(t)
+    setOtp("")
+    setInfo(`New code sent to ${email.trim()}.`)
   }
 
   const handleForgot = async () => {
@@ -90,6 +173,95 @@ export function SignInScreen() {
     const { error: e } = await resetPassword(email.trim())
     if (e) setError(e)
     else setInfo(`Password reset link sent to ${email.trim()}.`)
+  }
+
+  /* ── Verify email (signup step 2) ── */
+  if (view === "verify-email") {
+    return (
+      <div className="flex min-h-dvh flex-col bg-background">
+        <div className="flex items-center gap-2.5 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-2">
+          <button
+            onClick={() => {
+              // Back, not cancel: email/password/name are kept so a mistyped
+              // address can be corrected without retyping everything.
+              setView("main")
+              setError(null)
+              setInfo(null)
+              setOtp("")
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-muted transition-transform active:scale-95"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-4.5 w-4.5 text-foreground" />
+          </button>
+          <h1 className="text-[17px] font-semibold text-foreground">Verify your email</h1>
+        </div>
+
+        <div className="flex-1 px-5 pt-6 sm:flex sm:flex-none sm:flex-col sm:justify-center sm:pt-10">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+            <MailCheck className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-center text-[20px] font-semibold text-foreground">Enter your code</h2>
+          <p className="mt-1.5 text-center text-[14px] leading-relaxed text-muted-foreground">
+            We sent a 6-digit code to <span className="font-semibold text-foreground">{email.trim()}</span>. Your
+            account is created once it&rsquo;s verified.
+          </p>
+
+          <div className="mt-6">
+            <label htmlFor="otp" className="sr-only">
+              6-digit verification code
+            </label>
+            <input
+              id="otp"
+              ref={otpInputRef}
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={otp}
+              onChange={(e) => {
+                setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                setError(null)
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleVerify()}
+              placeholder="••••••"
+              aria-invalid={!!error}
+              className="w-full rounded-xl border border-border bg-card py-4 text-center font-mono text-[28px] font-bold tracking-[0.4em] text-foreground placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <span className={`text-[13px] ${codeExpired ? "text-destructive" : "text-muted-foreground"}`}>
+                {codeExpired ? "Code expired" : `Expires in ${mmss(msLeft)}`}
+              </span>
+              <button
+                onClick={handleResend}
+                disabled={loading || (resendLeft > 0 && !codeExpired)}
+                className="text-[13px] font-semibold text-primary disabled:text-muted-foreground"
+              >
+                {resendLeft > 0 && !codeExpired ? `Resend in ${Math.ceil(resendLeft / 1000)}s` : "Send a new code"}
+              </button>
+            </div>
+
+            {error && <p className="mt-3 text-[13px] text-destructive">{error}</p>}
+            {info && <p className="mt-3 text-[13px] text-success">{info}</p>}
+
+            <button
+              onClick={handleVerify}
+              disabled={loading || otp.length !== 6 || codeExpired}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Verify &amp; create account
+            </button>
+
+            <p className="mt-4 text-center text-[12px] leading-relaxed text-muted-foreground">
+              Didn&rsquo;t get it? Check spam, or go back and confirm the address is right. No account exists until
+              the code is entered.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   /* ── Building Code (guest) View ── */
