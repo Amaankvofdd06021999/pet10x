@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { PasswordField } from "@/components/ui/password-field"
 import Link from "next/link"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { Toaster } from "@/components/ui/sonner"
@@ -90,17 +91,11 @@ function ManagerLogin() {
               className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
-          <div className="relative">
-            <Lock className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              onKeyDown={(e) => e.key === "Enter" && submit()}
-              className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
+          <PasswordField
+            value={password}
+            onChange={setPassword}
+            onEnter={submit}
+          />
           {error && <p className="text-[13px] text-destructive">{error}</p>}
           {info && <p className="text-[13px] text-success">{info}</p>}
           <button

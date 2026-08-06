@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { PasswordField } from "@/components/ui/password-field"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { canAccessRoute } from "@/lib/rbac"
 import { Toaster } from "@/components/ui/sonner"
@@ -163,7 +164,15 @@ function BusinessAuth() {
               </>
             )}
             <Input placeholder="Email" type="email" value={f.email} onChange={(v) => set("email", v)} />
-            <Input placeholder="Password" type="password" value={f.password} onChange={(v) => set("password", v)} onEnter={submit} />
+            {/* Business signup creates an account too, so it gets the same
+                checklist; signing in does not. */}
+            <PasswordField
+              value={f.password}
+              onChange={(v) => set("password", v)}
+              autoComplete={mode === "signin" ? "current-password" : "new-password"}
+              onEnter={submit}
+              showRules={mode === "signup"}
+            />
             {error && <p className="text-[13px] text-destructive">{error}</p>}
             <button
               onClick={submit}

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
 import { sendWelcomeEmail } from "@/lib/email"
+import { checkPassword } from "@/lib/auth/password-rules"
 import {
   MAX_ATTEMPTS,
-  MIN_PASSWORD_LENGTH,
   codeMatches,
   isSixDigits,
   isValidEmail,
@@ -48,11 +48,11 @@ export async function POST(request: Request) {
   if (!isSixDigits(code)) {
     return NextResponse.json({ error: "Enter the 6-digit code from your email." }, { status: 400 })
   }
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    return NextResponse.json(
-      { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` },
-      { status: 400 },
-    )
+  // The same function the signup form ticks off live. Enforced here because a
+  // client-side checklist stops nobody posting straight to this endpoint.
+  const verdict = checkPassword(password)
+  if (!verdict.ok) {
+    return NextResponse.json({ error: verdict.failed[0] }, { status: 400 })
   }
 
   const admin = getSupabaseAdmin()

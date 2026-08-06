@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { PasswordField } from "@/components/ui/password-field"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { PersonaSwitcher } from "@/components/persona-switcher"
 import { canAccessRoute } from "@/lib/rbac"
@@ -116,14 +117,7 @@ function AdminLogin() {
             autoCapitalize="none"
             className="w-full rounded-xl border border-border bg-background px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-          />
+          <PasswordField value={password} onChange={setPassword} onEnter={submit} />
           {error && <p className="text-[13px] text-destructive">{error}</p>}
           <button
             onClick={submit}

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useAuth, MOCK_USERS, type DemoRole } from "@/lib/auth-context"
+import { PasswordField } from "@/components/ui/password-field"
+import { checkPassword } from "@/lib/auth/password-rules"
 import {
   Dog,
   Building2,
@@ -95,9 +97,12 @@ export function SignInScreen() {
       setError("Enter your email and password.")
       return
     }
-    if (mode === "signup" && password.length < 8) {
-      setError("Password must be at least 8 characters.")
-      return
+    if (mode === "signup") {
+      const verdict = checkPassword(password)
+      if (!verdict.ok) {
+        setError(verdict.failed[0])
+        return
+      }
     }
     setLoading(true)
     if (mode === "signin") {
@@ -384,18 +389,16 @@ export function SignInScreen() {
                   className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                  onKeyDown={(e) => e.key === "Enter" && handleAuth()}
-                  className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+              {/* Rules panel only while creating a password — showing a
+                  strength checklist over a sign-in field would imply the
+                  existing password is being judged. */}
+              <PasswordField
+                value={password}
+                onChange={setPassword}
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                onEnter={handleAuth}
+                showRules={mode === "signup"}
+              />
 
               {error && <p className="text-[13px] text-destructive">{error}</p>}
               {info && <p className="text-[13px] text-success">{info}</p>}

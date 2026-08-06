@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { PasswordField } from "@/components/ui/password-field"
 import Link from "next/link"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { PersonaSwitcher } from "@/components/persona-switcher"
@@ -132,14 +133,7 @@ function StrataLogin() {
                 className="w-full rounded-xl border border-border bg-background py-3 pl-10 pr-4 text-[15px] text-foreground focus:border-info focus:outline-none focus:ring-2 focus:ring-info/20"
               />
             </div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              onKeyDown={(e) => e.key === "Enter" && submit()}
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-[15px] text-foreground focus:border-info focus:outline-none focus:ring-2 focus:ring-info/20"
-            />
+            <PasswordField value={password} onChange={setPassword} onEnter={submit} />
             {error && <p className="text-[13px] text-destructive">{error}</p>}
             {info && <p className="text-[13px] text-success">{info}</p>}
             <button

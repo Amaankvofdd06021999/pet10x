@@ -33,7 +33,11 @@ export const RESEND_COOLDOWN_SECONDS = 60
  */
 export const MAX_SENDS = 5
 
-export const MIN_PASSWORD_LENGTH = 8
+/**
+ * Re-exported from the shared rules so the form's checklist, this module and
+ * the verify route cannot drift apart.
+ */
+export { MIN_PASSWORD_LENGTH } from "./password-rules"
 
 /**
  * Codes are stored hashed, never in plaintext.

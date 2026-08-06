@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { PasswordField } from "@/components/ui/password-field"
+import { checkPassword } from "@/lib/auth/password-rules"
 import { useRouter } from "next/navigation"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { PawPrint, Loader2 } from "lucide-react"
@@ -57,7 +59,10 @@ export default function SetPasswordPage() {
 
   const submit = async () => {
     setError(null)
-    if (password.length < 8) return setError("Password must be at least 8 characters.")
+    // Same ruleset the field's checklist shows, so the button cannot reject
+    // something the panel just ticked green.
+    const verdict = checkPassword(password)
+    if (!verdict.ok) return setError(verdict.failed[0])
     if (password !== confirm) return setError("Passwords don't match.")
     const supabase = getSupabaseBrowserClient()
     if (!supabase) return
@@ -70,7 +75,7 @@ export default function SetPasswordPage() {
         return setError("Your new password must be different from your old one.")
       }
       if (/at least|weak|short|characters/.test(m)) {
-        return setError("Please choose a stronger password (at least 8 characters).")
+        return setError("Please choose a stronger password.")
       }
       if (/expired|session|jwt|not authenticated|auth session missing/.test(m)) {
         // genuinely no usable session — fall back to the expired state
@@ -119,19 +124,21 @@ export default function SetPasswordPage() {
             <h1 className="text-[20px] font-semibold tracking-tight">Set your password</h1>
             <p className="mt-1 text-[14px] text-muted-foreground">Choose a password to finish setting up your account.</p>
             <div className="mt-5 flex flex-col gap-3">
-              <input
-                type="password"
+              {/* Also a creation flow (invite acceptance, password reset), so
+                  it gets the same checklist and the same rules as signup. */}
+              <PasswordField
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={setPassword}
                 placeholder="New password"
-                className="w-full rounded-lg border border-border bg-card px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                autoComplete="new-password"
+                showRules
               />
-              <input
-                type="password"
+              <PasswordField
                 value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
+                onChange={setConfirm}
                 placeholder="Confirm password"
-                className="w-full rounded-lg border border-border bg-card px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                autoComplete="new-password"
+                onEnter={submit}
               />
               {error && <p className="text-[13px] text-destructive">{error}</p>}
               <button
