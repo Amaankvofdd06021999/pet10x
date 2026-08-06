@@ -1,7 +1,7 @@
 "use client"
 
 import { useId, useState } from "react"
-import { Check, Eye, EyeOff, Lock, X } from "lucide-react"
+import { Check, Eye, EyeOff, Info, Lock, X } from "lucide-react"
 import { PASSWORD_RULES, STRENGTH_LABEL, checkPassword } from "@/lib/auth/password-rules"
 
 /**
@@ -35,7 +35,19 @@ export function PasswordField({
   ariaLabel?: string
 }) {
   const [visible, setVisible] = useState(false)
-  const [open, setOpen] = useState(false)
+
+  /* Open/closed is derived, not a single toggle.
+   *
+   * `focused`/`hovered` are the automatic reasons to show it. `dismissed` is
+   * the user overriding those — previously there was nothing but blur to close
+   * the panel, so hovering on desktop left it up with no way out. `pinned`
+   * re-opens it after a dismissal, via the ⓘ button. */
+  const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+  const [pinned, setPinned] = useState(false)
+
+  const open = showRules && !dismissed && (pinned || focused || hovered)
   const generatedId = useId()
   const panelId = `${id ?? generatedId}-rules`
 
@@ -45,7 +57,11 @@ export function PasswordField({
     verdict.score <= 1 ? "bg-destructive" : verdict.score === 2 ? "bg-warning" : verdict.score === 3 ? "bg-primary" : "bg-success"
 
   return (
-    <div className={`relative ${className}`}>
+    <div
+      className={`relative ${className}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div className="relative">
         <Lock className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -62,12 +78,31 @@ export function PasswordField({
           autoCorrect="off"
           spellCheck={false}
           aria-describedby={showRules ? panelId : undefined}
-          onFocus={() => showRules && setOpen(true)}
-          onBlur={() => setOpen(false)}
-          onMouseEnter={() => showRules && setOpen(true)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false)
+            // Pinning is a one-off "show me again", not a sticky preference.
+            setPinned(false)
+          }}
           onKeyDown={(e) => e.key === "Enter" && onEnter?.()}
-          className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-12 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          className={`w-full rounded-xl border border-border bg-card py-3 pl-11 text-[15px] ${showRules && dismissed ? "pr-20" : "pr-12"} focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20`}
         />
+        {/* Only when there are rules to review, and only once dismissed —
+            otherwise it is a button that does nothing visible. */}
+        {showRules && dismissed && (
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setDismissed(false)
+              setPinned(true)
+            }}
+            aria-label="Show password requirements"
+            className="absolute right-10 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted"
+          >
+            <Info className="h-4 w-4" />
+          </button>
+        )}
         <button
           type="button"
           // Keeps focus in the input, so revealing the password does not close
@@ -94,9 +129,23 @@ export function PasswordField({
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Password strength
             </span>
-            <span className="text-[11.5px] font-semibold text-foreground">
-              {value ? STRENGTH_LABEL[verdict.score] : ""}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11.5px] font-semibold text-foreground">
+                {value ? STRENGTH_LABEL[verdict.score] : ""}
+              </span>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setDismissed(true)
+                  setPinned(false)
+                }}
+                aria-label="Hide password requirements"
+                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors active:bg-muted"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
           <div className="mb-2.5 h-1.5 overflow-hidden rounded-full bg-muted">
             <div

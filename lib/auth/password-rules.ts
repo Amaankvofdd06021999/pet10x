@@ -8,11 +8,14 @@
  */
 
 /**
- * Length does more for strength than any composition rule, so it carries the
- * weight here. The previous minimum was 8, which is inside brute-force range
- * for an offline attack on a leaked hash.
+ * Eight, by product decision — twelve was judged too much friction at signup.
+ *
+ * Eight alone is weak, so the composition rule below is doing most of the work
+ * at this length: eight characters drawn from three classes is a far larger
+ * space than eight lowercase letters. The 20+ waiver still lets a passphrase
+ * skip composition entirely.
  */
-export const MIN_PASSWORD_LENGTH = 12
+export const MIN_PASSWORD_LENGTH = 8
 
 /**
  * How many of the four character classes are required.
@@ -110,9 +113,11 @@ export function checkPassword(v: string): PasswordVerdict {
   // scramble even with fewer classes.
   let score = 0
   if (v.length >= MIN_PASSWORD_LENGTH) score += 1
-  if (v.length >= 16) score += 1
+  // Still rewarded, just no longer required — the meter should keep pointing
+  // at length as the cheapest way to get stronger.
+  if (v.length >= 12) score += 1
   if (v.length >= PASSPHRASE_LENGTH || classCount(v) >= REQUIRED_CLASSES) score += 1
-  if (classCount(v) === 4 || v.length >= 24) score += 1
+  if (classCount(v) === 4 || v.length >= PASSPHRASE_LENGTH) score += 1
   if (looksCommon(v)) score = Math.min(score, 1)
 
   return { ok: failed.length === 0, failed, score: Math.min(4, score) }
