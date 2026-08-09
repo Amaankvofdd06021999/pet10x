@@ -405,3 +405,99 @@ export const VACCINATION_KINDS: { id: string; label: string }[] = [
   { id: "injection", label: "Injection" },
   { id: "treatment", label: "Treatment" },
 ]
+
+/* ------------------------------------------------------------------ */
+/* Sensible starting points                                            */
+/* ------------------------------------------------------------------ */
+
+export interface DefaultTarget {
+  kind: CareKindId
+  label: string
+  amount: number
+  unit: string
+  period: "day" | "week"
+}
+
+export interface DefaultSchedule {
+  label: string
+  kind: "meal" | "medication" | "water" | "walk" | "grooming" | "other"
+  /** "HH:MM" local. */
+  at: string
+}
+
+/**
+ * What a new pet's tracker starts with.
+ *
+ * An empty tracker asks the owner to invent a routine before they know what
+ * the app does; a seeded one is something to correct, which is a much easier
+ * task. Every value is editable and deletable immediately.
+ *
+ * The numbers are ordinary-pet defaults, not veterinary advice — a Chihuahua
+ * and a Great Dane do not eat the same amount. They exist to be adjusted.
+ */
+const DEFAULTS: Partial<Record<Species, { targets: DefaultTarget[]; schedule: DefaultSchedule[] }>> = {
+  dog: {
+    targets: [
+      { kind: "food", label: "Meals", amount: 2, unit: "bowl", period: "day" },
+      { kind: "walk", label: "Walks", amount: 2, unit: "times", period: "day" },
+      { kind: "treat", label: "Treats", amount: 3, unit: "pieces", period: "day" },
+      { kind: "outing", label: "Fun places", amount: 1, unit: "times", period: "week" },
+    ],
+    // Two walks and two meals is the shape of most dog days; the times are
+    // the common ones and are the first thing an owner will drag around.
+    schedule: [
+      { label: "Morning walk", kind: "walk", at: "08:00" },
+      { label: "Breakfast", kind: "meal", at: "08:30" },
+      { label: "Evening walk", kind: "walk", at: "17:30" },
+      { label: "Dinner", kind: "meal", at: "18:00" },
+    ],
+  },
+  cat: {
+    targets: [
+      { kind: "food", label: "Meals", amount: 2, unit: "can", period: "day" },
+      { kind: "play", label: "Playtime", amount: 20, unit: "min", period: "day" },
+      { kind: "treat", label: "Treats", amount: 3, unit: "pieces", period: "day" },
+    ],
+    schedule: [
+      { label: "Breakfast", kind: "meal", at: "08:00" },
+      { label: "Playtime", kind: "other", at: "18:00" },
+      { label: "Dinner", kind: "meal", at: "18:30" },
+    ],
+  },
+  bird: {
+    targets: [
+      { kind: "food", label: "Feed", amount: 30, unit: "g", period: "day" },
+      { kind: "play", label: "Out of cage", amount: 60, unit: "min", period: "day" },
+    ],
+    schedule: [{ label: "Morning feed", kind: "meal", at: "08:00" }],
+  },
+  small_mammal: {
+    targets: [
+      { kind: "food", label: "Feed", amount: 50, unit: "g", period: "day" },
+      { kind: "play", label: "Exercise", amount: 60, unit: "min", period: "day" },
+    ],
+    schedule: [{ label: "Morning feed", kind: "meal", at: "08:00" }],
+  },
+  reptile: {
+    // Fed on a cycle, not daily — the target is weekly and the schedule is an
+    // interval task the owner sets, not a time of day.
+    targets: [{ kind: "food", label: "Feed", amount: 3, unit: "item", period: "week" }],
+    schedule: [],
+  },
+  fish: {
+    targets: [{ kind: "food", label: "Feed", amount: 2, unit: "pinch", period: "day" }],
+    schedule: [{ label: "Feed", kind: "meal", at: "08:00" }],
+  },
+  other: {
+    targets: [{ kind: "food", label: "Feed", amount: 1, unit: "g", period: "day" }],
+    schedule: [],
+  },
+}
+
+export function defaultTargetsFor(species: Species | null | undefined): DefaultTarget[] {
+  return DEFAULTS[species ?? "other"]?.targets ?? []
+}
+
+export function defaultScheduleFor(species: Species | null | undefined): DefaultSchedule[] {
+  return DEFAULTS[species ?? "other"]?.schedule ?? []
+}

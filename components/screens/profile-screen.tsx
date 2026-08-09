@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { usePets, useUnreadNotificationCount } from "@/lib/data"
+import { usePets, useUnreadNotificationCount, useMyBuildingLink } from "@/lib/data"
 import { exportMyData, deleteMyAccount, updateMyProfile, setMyUnit } from "@/lib/data/account"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
@@ -201,7 +201,14 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="truncate text-[17px] font-semibold text-foreground">{user?.name}</h2>
-                <p className="text-[12px] text-muted-foreground">Unit {user?.unit} &middot; {user?.building}</p>
+                {/* Built from whichever parts exist. Was "Unit {unit} · {building}"
+                    unconditionally, which rendered "Unit 2104 ·" with a dangling
+                    separator for anyone whose link is still pending, and a bare
+                    "Unit  ·" for standalone owners. */}
+                <p className="text-[12px] text-muted-foreground">
+                  {[user?.unit ? `Unit ${user.unit}` : null, user?.building || null].filter(Boolean).join(" · ") ||
+                    "Pet owner"}
+                </p>
                 <div className="mt-1 flex items-center gap-2">
                   <Badge className="bg-primary/10 text-primary border-0 text-[10px]">
                     {PERSONA_LABEL[viewAs]}
@@ -216,12 +223,13 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
 
         {/* Unit — the resident's, not the pet's. Editable here because this is
             where it belongs: one person, one unit, however many pets. Tapping
-            the "Unit number" gap on Home lands on this screen. */}
-        {user?.building && (
-          <section className="mb-5">
-            <UnitRow currentUnit={user?.unit ?? null} onSaved={(u) => updateLocalUser({ unit: u ?? undefined })} />
-          </section>
-        )}
+            the "Unit number" gap on Home lands on this screen.
+
+            Driven by useMyBuildingLink, NOT user.building: my_app_user() only
+            reports a building once the link is APPROVED, so gating on it hid
+            this row from everyone with a pending request — precisely the
+            people the banner is telling to set their unit. */}
+        <UnitRow onSaved={(u) => updateLocalUser({ unit: u ?? undefined })} />
 
         {/* Pet Quick View */}
         <section className="mb-5">
@@ -445,10 +453,17 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
  * Reads as a row until tapped, so it does not look like an unfilled form on a
  * profile that is otherwise complete.
  */
-function UnitRow({ currentUnit, onSaved }: { currentUnit: string | null; onSaved: (u: string | null) => void }) {
+function UnitRow({ onSaved }: { onSaved: (u: string | null) => void }) {
+  const { data: link, isLoading, refetch } = useMyBuildingLink()
   const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState(currentUnit ?? "")
+  const [value, setValue] = useState("")
   const [saving, setSaving] = useState(false)
+
+  const currentUnit = link?.unit ?? null
+
+  // A unit number only means something inside a building. Standalone owners
+  // are not shown an empty field they can never fill.
+  if (isLoading || !link) return null
 
   async function save() {
     setSaving(true)
@@ -457,11 +472,13 @@ function UnitRow({ currentUnit, onSaved }: { currentUnit: string | null; onSaved
     if (error) return toast.error("Couldn't save", { description: error })
     toast.success(unit ? `Unit set to ${unit}` : "Unit cleared")
     onSaved(unit ?? null)
+    refetch()
     setEditing(false)
   }
 
   if (!editing) {
     return (
+      <section className="mb-5">
       <button
         onClick={() => {
           setValue(currentUnit ?? "")
@@ -475,16 +492,17 @@ function UnitRow({ currentUnit, onSaved }: { currentUnit: string | null; onSaved
         <span className="min-w-0 flex-1">
           <span className="block text-[14px] font-semibold text-foreground">Unit number</span>
           <span className="block truncate text-[12px] text-muted-foreground">
-            {currentUnit ? `Unit ${currentUnit}` : "Not set — your building needs this"}
+            {currentUnit ? `Unit ${currentUnit} · ${link.buildingName}` : `Not set — ${link.buildingName} needs this`}
           </span>
         </span>
         <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
       </button>
+      </section>
     )
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <section className="mb-5 rounded-2xl border border-border bg-card p-4">
       <label htmlFor="unit-number" className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
         Unit number
       </label>
@@ -509,6 +527,6 @@ function UnitRow({ currentUnit, onSaved }: { currentUnit: string | null; onSaved
       <button onClick={() => setEditing(false)} className="mt-2 text-[12.5px] font-medium text-muted-foreground">
         Cancel
       </button>
-    </div>
+    </section>
   )
 }

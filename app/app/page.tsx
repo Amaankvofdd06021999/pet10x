@@ -19,6 +19,7 @@ import { AiChatScreen } from "@/components/screens/ai-chat-screen"
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
 import { LinkBuildingScreen } from "@/components/screens/link-building-screen"
 import { BusinessDetailScreen } from "@/components/screens/business-detail-screen"
+import { ShopScreen } from "@/components/screens/shop-screen"
 import { MyBookingsScreen } from "@/components/screens/my-bookings-screen"
 import { ManagerDashboardScreen } from "@/components/screens/manager/dashboard-screen"
 import { ManagerResidentsScreen } from "@/components/screens/manager/residents-screen"
@@ -41,6 +42,7 @@ const CONTENT_MAX: Record<string, string> = {
   "link-building": "max-w-2xl",
   "business-detail": "max-w-2xl",
   "my-bookings": "max-w-2xl",
+  shop: "max-w-3xl",
   dashboard: "max-w-5xl",
   residents: "max-w-5xl",
   violations: "max-w-5xl",
@@ -169,6 +171,8 @@ function AppContent() {
             <LinkBuildingScreen onBack={handleBack} />
           ) : currentScreen === "business-detail" ? (
             <BusinessDetailScreen businessId={selectedBusinessId} onBack={handleBack} />
+          ) : currentScreen === "shop" ? (
+            <ShopScreen onNavigate={handleNavigate} />
           ) : currentScreen === "my-bookings" ? (
             <MyBookingsScreen onBack={handleBack} />
           ) : isManager ? (

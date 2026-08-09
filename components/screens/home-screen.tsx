@@ -24,7 +24,7 @@ import {
   Building2,
   Clock,
   PlusCircle,
-  Search,
+  ShoppingBag,
   Sun,
   Sunrise,
   Moon,
@@ -44,7 +44,7 @@ const QUICK_ACTIONS = [
   { icon: Building2, label: "Building Rules", color: "bg-info/10 text-info" },
   { icon: AlertTriangle, label: "Report Incident", color: "bg-destructive/10 text-destructive" },
   { icon: Calendar, label: "Pet Events", color: "bg-primary/10 text-primary" },
-  { icon: Search, label: "Lost & Found", color: "bg-muted text-muted-foreground" },
+  { icon: ShoppingBag, label: "Shop", color: "bg-accent/10 text-accent" },
 ]
 
 const ALERT_DOT = {
@@ -103,7 +103,8 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
       toast("Building pet rules", { description: "One dog or one cat · leashed in common areas." })
     else if (label.includes("Report"))
       toast("Report an incident", { description: "Pet incident reporting is coming soon." })
-    else if (label.includes("Events") || label.includes("Lost")) onNavigate?.("community")
+    else if (label.includes("Shop")) onNavigate?.("shop")
+    else if (label.includes("Events")) onNavigate?.("community")
   }
 
   return (
@@ -294,7 +295,11 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground/50" />
             </button>
 
-            <TodayCareTiles petId={primaryPet?.id} onOpen={(kind) => onNavigate?.("pet-care", kind)} />
+            <TodayCareTiles
+              petId={primaryPet?.id}
+              species={primaryPet?.species}
+              onOpen={(kind) => onNavigate?.("pet-care", kind)}
+            />
             <TodayScheduleStrip petId={primaryPet?.id} />
           </div>
         </section>

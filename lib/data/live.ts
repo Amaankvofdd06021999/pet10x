@@ -16,6 +16,7 @@ import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/c
 import { petFileSignedUrls, isStoragePath, uploadPetFile, deletePetFile } from "@/lib/supabase/storage"
 import type { Database } from "@/lib/supabase/database.types"
 import { PETS as MOCK_PETS } from "./mock-data"
+import { defaultTargetsFor, defaultScheduleFor } from "./care-catalog"
 import type {
   AppNotification,
   BuildingLink,
@@ -369,8 +370,58 @@ export async function addPet(input: AddPetInput): Promise<{ error: string | null
     .select()
     .single()
   if (error) return { error: error.message }
+
+  /* Seed the tracker so it is not empty on first open.
+   *
+   * An empty tracker asks the owner to invent a routine before they know what
+   * the app does. A seeded one is something to correct, which is far easier —
+   * and correcting is exactly what the numbers are for. Species-specific, so a
+   * cat gets meals-in-cans and playtime rather than a dog's two walks.
+   *
+   * Best-effort: a pet that exists with no defaults is a minor annoyance, a
+   * failed registration because a default could not be written is not. */
+  await seedCareDefaults(data.id, input.species).catch((e) =>
+    console.error("[addPet] could not seed care defaults", e),
+  )
+
   await refreshPets()
   return { error: null, pet: mapPet(data) }
+}
+
+/** Species-appropriate starting targets and schedule for a brand-new pet. */
+async function seedCareDefaults(petId: string, species: Species): Promise<void> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return
+
+  const targets = defaultTargetsFor(species)
+  if (targets.length > 0) {
+    await supabase.from("care_targets").insert(
+      targets.map((t, i) => ({
+        pet_id: petId,
+        kind: t.kind as CareEntryKind,
+        label: t.label,
+        target_amount: t.amount,
+        unit: t.unit,
+        period: t.period,
+        sort_order: i,
+      })),
+    )
+  }
+
+  const schedule = defaultScheduleFor(species)
+  if (schedule.length > 0) {
+    await supabase.from("pet_care_tasks").insert(
+      schedule.map((t, i) => ({
+        pet_id: petId,
+        label: t.label,
+        kind: t.kind,
+        scheduled_at: t.at,
+        time_label: t.at,
+        sort_order: i,
+        recurrence: "daily",
+      })),
+    )
+  }
 }
 
 export async function updatePet(
@@ -1341,5 +1392,128 @@ export async function addPostComment(postId: string, content: string): Promise<{
     .from("community_posts")
     .update({ comment_count: (post?.comment_count ?? 0) + 1 })
     .eq("id", postId)
+  return { error: null }
+}
+
+/* ------------------------------- pet photos ------------------------------ */
+
+export interface PetPhoto {
+  id: string
+  path: string
+  /** Signed URL, refreshed each fetch — the bucket is private. */
+  url: string | null
+  caption: string | null
+  sortOrder: number
+}
+
+/**
+ * A pet's photo gallery.
+ *
+ * `pets.image_url` remains the avatar every list, card and emergency page
+ * reads; this is the album beside it. The first photo is mirrored into
+ * image_url on upload so those surfaces need no change.
+ */
+export function usePetPhotos(petId: string | undefined): LiveResult<PetPhoto[]> {
+  const [data, setData] = useState<PetPhoto[]>([])
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase || !petId) {
+      setData([])
+      setLoading(false)
+      return
+    }
+    const { data: rows, error: err } = await supabase
+      .from("pet_photos")
+      .select("id, path, caption, sort_order")
+      .eq("pet_id", petId)
+      .order("sort_order")
+
+    if (err) {
+      setError(err.message)
+      setData([])
+      setLoading(false)
+      return
+    }
+
+    // One batched signing call rather than one per photo.
+    const urls = await petFileSignedUrls((rows ?? []).map((r) => r.path))
+    setData(
+      (rows ?? []).map((r) => ({
+        id: r.id,
+        path: r.path,
+        url: urls[r.path] ?? null,
+        caption: r.caption,
+        sortOrder: r.sort_order,
+      })),
+    )
+    setError(null)
+    setLoading(false)
+  }, [petId])
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+
+  return { data, isLoading, error, refetch }
+}
+
+export async function addPetPhoto(petId: string, file: File): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+
+  const { path, error } = await uploadPetFile({ petId, file, prefix: "photo" })
+  if (error || !path) return { error: error ?? "Upload failed." }
+
+  const { count } = await supabase
+    .from("pet_photos")
+    .select("id", { count: "exact", head: true })
+    .eq("pet_id", petId)
+
+  const { error: insErr } = await supabase
+    .from("pet_photos")
+    .insert({ pet_id: petId, path, sort_order: count ?? 0 })
+  if (insErr) {
+    // Do not leave the file orphaned in storage if the row failed.
+    await deletePetFile(path)
+    return { error: insErr.message }
+  }
+
+  // First photo becomes the avatar, so a pet is never a placeholder when it
+  // demonstrably has a picture.
+  if ((count ?? 0) === 0) {
+    await supabase.from("pets").update({ image_url: path }).eq("id", petId)
+    await refreshPets()
+  }
+  return { error: null }
+}
+
+export async function deletePetPhoto(id: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+
+  const { data: row } = await supabase.from("pet_photos").select("pet_id, path").eq("id", id).maybeSingle()
+  const { error } = await supabase.from("pet_photos").delete().eq("id", id)
+  if (error) return { error: error.message }
+
+  if (row) {
+    await deletePetFile(row.path)
+    // If this was the avatar, promote the next photo rather than leaving the
+    // pet pointing at a file that no longer exists.
+    const { data: pet } = await supabase.from("pets").select("image_url").eq("id", row.pet_id).maybeSingle()
+    if (pet?.image_url === row.path) {
+      const { data: next } = await supabase
+        .from("pet_photos")
+        .select("path")
+        .eq("pet_id", row.pet_id)
+        .order("sort_order")
+        .limit(1)
+        .maybeSingle()
+      await supabase.from("pets").update({ image_url: next?.path ?? null }).eq("id", row.pet_id)
+      await refreshPets()
+    }
+  }
   return { error: null }
 }

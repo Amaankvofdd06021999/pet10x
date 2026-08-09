@@ -4,6 +4,7 @@ import { useRef, useState } from "react"
 import Image from "next/image"
 import { toast } from "sonner"
 import { CareTracker } from "@/components/screens/care/care-tracker"
+import { PetPhotoGallery } from "@/components/screens/pet/photo-gallery"
 import {
   ArrowLeft,
   Camera,
@@ -226,7 +227,10 @@ export function PetDetailScreen({ onBack, petId, onNavigate }: PetDetailScreenPr
             (editing ? (
               <EditForm pet={pet} onDone={() => setEditing(false)} onSaved={refetch} />
             ) : (
-              <OverviewTab pet={pet} onStatus={setStatus} />
+              <>
+                <PetPhotoGallery petId={pet.id} />
+                <OverviewTab pet={pet} onStatus={setStatus} />
+              </>
             ))}
           {/* Care lives here as well as on the Trackers screen: logs and
               targets belong to the animal, and looking at a pet is when an
