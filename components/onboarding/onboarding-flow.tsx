@@ -85,8 +85,14 @@ export function OnboardingFlow() {
             <PawPrint className="h-8 w-8 text-primary-foreground" strokeWidth={2.5} />
           </div>
           <h1 className="mt-6 text-[26px] font-semibold leading-tight text-foreground">Welcome, {firstName} 👋</h1>
+          {/* The strata question is gone. Most people arriving here were
+              handed a code by their building and have no idea whether that
+              counts as "managing pets, registration, rules or compliance" —
+              the question asked them to classify their landlord. The code is
+              the thing they physically have. */}
           <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
-            Quick question to set things up. Does your building or strata manage pets — registration, rules, or compliance?
+            If your property management uses Pet10x, they&apos;ve given you a building code. Enter it and
+            we&apos;ll automatically ask them to add you and your pet.
           </p>
 
           <div className="mt-8 flex flex-col gap-3">
@@ -94,12 +100,12 @@ export function OnboardingFlow() {
               onClick={() => setStep("code")}
               className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-transform active:scale-[0.98]"
             >
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-info/10">
-                <Building2 className="h-5 w-5 text-info" />
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <Building2 className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-[15px] font-semibold text-foreground">Yes — my building manages pets</p>
-                <p className="text-[13px] text-muted-foreground">I have a building code to join</p>
+                <p className="text-[15px] font-semibold text-foreground">I have a Pet10x code</p>
+                <p className="text-[13px] text-muted-foreground">From my building or property management</p>
               </div>
             </button>
             <button
@@ -110,8 +116,8 @@ export function OnboardingFlow() {
                 <PawPrint className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-[15px] font-semibold text-foreground">No / not sure — I&apos;m here for my pet</p>
-                <p className="text-[13px] text-muted-foreground">Track care, reminders &amp; community</p>
+                <p className="text-[15px] font-semibold text-foreground">I don&apos;t have a code</p>
+                <p className="text-[13px] text-muted-foreground">Just here for my pet — skip building setup</p>
               </div>
             </button>
           </div>
@@ -130,7 +136,8 @@ export function OnboardingFlow() {
           </div>
           <h1 className="mt-6 text-[24px] font-semibold text-foreground">Enter your building code</h1>
           <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
-            Your property management shares this code. We&apos;ll send them a request to add you — your pets stay yours either way.
+            Your property management shares this code. Entering it sends them a request to add you and your
+            pet automatically — your pets stay yours either way.
           </p>
 
           <div className="mt-6">
@@ -176,8 +183,9 @@ export function OnboardingFlow() {
           </div>
           <h1 className="mt-6 text-[24px] font-semibold text-foreground">Request sent</h1>
           <p className="mt-2 max-w-sm text-[15px] leading-relaxed text-muted-foreground">
-            We&apos;ve asked <span className="font-semibold text-foreground">{linkedBuilding}</span> to add you. You&apos;ll be
-            notified once approved — meanwhile you can use everything in the app.
+            We&apos;ve asked <span className="font-semibold text-foreground">{linkedBuilding}</span>{" "}
+            to add you and your pet. You&apos;ll be notified once approved. Meanwhile, you can use everything
+            in our Pet10x app.
           </p>
           <button
             onClick={finish}

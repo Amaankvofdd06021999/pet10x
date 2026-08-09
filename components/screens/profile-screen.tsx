@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { usePets, useUnreadNotificationCount } from "@/lib/data"
-import { exportMyData, deleteMyAccount, updateMyProfile } from "@/lib/data/account"
+import { exportMyData, deleteMyAccount, updateMyProfile, setMyUnit } from "@/lib/data/account"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { PersonaSwitcher } from "@/components/persona-switcher"
@@ -213,6 +213,15 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             </div>
           </button>
         </section>
+
+        {/* Unit — the resident's, not the pet's. Editable here because this is
+            where it belongs: one person, one unit, however many pets. Tapping
+            the "Unit number" gap on Home lands on this screen. */}
+        {user?.building && (
+          <section className="mb-5">
+            <UnitRow currentUnit={user?.unit ?? null} onSaved={(u) => updateLocalUser({ unit: u ?? undefined })} />
+          </section>
+        )}
 
         {/* Pet Quick View */}
         <section className="mb-5">
@@ -426,6 +435,80 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
           <p className="text-[11px] text-muted-foreground">Pet10x v1.0.0 &middot; Park10x Services Inc.</p>
         </div>
       </main>
+    </div>
+  )
+}
+
+/**
+ * Add or change the resident's unit number.
+ *
+ * Reads as a row until tapped, so it does not look like an unfilled form on a
+ * profile that is otherwise complete.
+ */
+function UnitRow({ currentUnit, onSaved }: { currentUnit: string | null; onSaved: (u: string | null) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(currentUnit ?? "")
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    setSaving(true)
+    const { error, unit } = await setMyUnit(value)
+    setSaving(false)
+    if (error) return toast.error("Couldn't save", { description: error })
+    toast.success(unit ? `Unit set to ${unit}` : "Unit cleared")
+    onSaved(unit ?? null)
+    setEditing(false)
+  }
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => {
+          setValue(currentUnit ?? "")
+          setEditing(true)
+        }}
+        className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+      >
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <Building2 className="h-4.5 w-4.5 text-primary" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14px] font-semibold text-foreground">Unit number</span>
+          <span className="block truncate text-[12px] text-muted-foreground">
+            {currentUnit ? `Unit ${currentUnit}` : "Not set — your building needs this"}
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+      </button>
+    )
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <label htmlFor="unit-number" className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
+        Unit number
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          id="unit-number"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && save()}
+          placeholder="e.g. 2104"
+          autoFocus
+          className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        />
+        <button
+          onClick={save}
+          disabled={saving}
+          className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+        >
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
+        </button>
+      </div>
+      <button onClick={() => setEditing(false)} className="mt-2 text-[12.5px] font-medium text-muted-foreground">
+        Cancel
+      </button>
     </div>
   )
 }

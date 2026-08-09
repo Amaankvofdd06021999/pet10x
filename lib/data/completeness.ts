@@ -79,7 +79,10 @@ export function computeGaps(input: CompletenessInput): Gap[] {
   // profiles.email is populated from the auth account for everyone, so the
   // channel exists without demanding a second one at registration.
   if (input.hasBuilding && !input.unitId) {
-    gaps.push({ id: "unit", label: "Unit number", target: "link-building", severity: "blocking" })
+    // Targets the profile, not link-building. That screen only offers to
+    // CANCEL the building request — tapping "Unit number" and being shown a
+    // cancel button was the opposite of the intent.
+    gaps.push({ id: "unit", label: "Unit number", target: "profile", severity: "blocking" })
   }
 
   if (input.pets.length === 0) {

@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context"
 import { OTHER_SPECIES, OTHER_BREED, breedsFor, addPet, setPetPhoto } from "@/lib/data"
 import type { Species } from "@/lib/data"
 import { toast } from "sonner"
+import { SIZE_BANDS, RESTRAINTS, DIET_TYPES, MAX_HEIGHT_INCHES, inchesToCm } from "@/lib/data/pet-attributes"
 import {
   ArrowLeft,
   ImagePlus,
@@ -40,13 +41,17 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
   // stale string behind.
   const [breed, setBreed] = useState("")
   const [customBreed, setCustomBreed] = useState("")
+  const [sizeBand, setSizeBand] = useState("")
+  const [heightIn, setHeightIn] = useState("")
+  const [restraints, setRestraints] = useState<string[]>([])
+  const [dietType, setDietType] = useState("")
+  const [showChart, setShowChart] = useState(false)
   const [dob, setDob] = useState("")
   const [gender, setGender] = useState<"Male" | "Female" | "">("")
   const [weight, setWeight] = useState("")
   const [color, setColor] = useState("")
   const [microchip, setMicrochip] = useState("")
   const [neutered, setNeutered] = useState(false)
-  const [unit, setUnit] = useState(user?.unit ?? "")
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const photoInput = useRef<HTMLInputElement>(null)
@@ -69,6 +74,11 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
       color: color.trim() || undefined,
       microchip: microchip.trim() || undefined,
       neutered,
+      sizeBand: sizeBand || undefined,
+      // Collected in inches because every size chart is; stored in cm.
+      heightCm: heightIn ? inchesToCm(parseFloat(heightIn)) : undefined,
+      restraints,
+      dietType: dietType || undefined,
     })
     if (error || !pet) {
       setSaving(false)
@@ -272,17 +282,115 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Color / markings">
-            <Input value={color} onChange={setColor} placeholder="e.g. Golden" />
-          </Field>
-          <Field label="Unit">
-            <Input value={unit} onChange={setUnit} placeholder="e.g. 2104" />
-          </Field>
-        </div>
+        {/* Unit lived here and was never saved — it was not in the payload at
+            all, so every value typed into it was discarded. It belongs to the
+            resident, not the pet: one person in one unit may have three pets,
+            and asking three times invites three answers. It is on the profile
+            now. */}
+        <Field label="Color / markings">
+          <Input value={color} onChange={setColor} placeholder="e.g. Golden" />
+        </Field>
 
         <Field label="Microchip number">
           <Input value={microchip} onChange={setMicrochip} placeholder="Optional" />
+        </Field>
+
+        {/* Size — recorded, never enforced. A building may cap size in its
+            bylaws, and the manager is shown when a pet exceeds it, but a
+            resident whose large dog already lives there must still be able to
+            register it or the register stops describing the building. */}
+        <Field label="Size">
+          <div className="flex flex-wrap gap-1.5">
+            {SIZE_BANDS.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => setSizeBand(sizeBand === b.id ? "" : b.id)}
+                className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                  sizeBand === b.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {b.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setShowChart((v) => !v)}
+              className="rounded-full px-3 py-1.5 text-[12.5px] font-semibold text-primary"
+            >
+              {showChart ? "Hide chart" : "Size chart"}
+            </button>
+          </div>
+          {showChart && (
+            <div className="mt-2 overflow-hidden rounded-xl border border-border">
+              {SIZE_BANDS.map((b, i) => (
+                <div
+                  key={b.id}
+                  className={`flex items-baseline gap-2 px-3 py-2 ${i > 0 ? "border-t border-border" : ""}`}
+                >
+                  <span className="w-16 flex-shrink-0 text-[12.5px] font-semibold text-foreground">{b.label}</span>
+                  <span className="w-20 flex-shrink-0 text-[12px] text-muted-foreground">{b.range}</span>
+                  <span className="min-w-0 flex-1 truncate text-[11.5px] text-muted-foreground">{b.examples}</span>
+                </div>
+              ))}
+              <p className="border-t border-border bg-muted/40 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+                Measured at the shoulder. Buildings commonly cap at {MAX_HEIGHT_INCHES} in — we record the size
+                and let your manager review it rather than blocking registration.
+              </p>
+            </div>
+          )}
+        </Field>
+
+        <Field label="Height at shoulder">
+          <div className="relative">
+            <Input value={heightIn} onChange={setHeightIn} placeholder="Optional, e.g. 20" />
+            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted-foreground">
+              inches
+            </span>
+          </div>
+        </Field>
+
+        {/* Several apply at once — harnessed AND muzzled is a normal answer. */}
+        <Field label="In common areas">
+          <div className="flex flex-wrap gap-1.5">
+            {RESTRAINTS.map((r) => {
+              const on = restraints.includes(r.id)
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() =>
+                    setRestraints(on ? restraints.filter((x) => x !== r.id) : [...restraints, r.id])
+                  }
+                  title={r.hint}
+                  className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                    on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {r.label}
+                </button>
+              )
+            })}
+          </div>
+        </Field>
+
+        <Field label="Diet">
+          <div className="flex flex-wrap gap-1.5">
+            {DIET_TYPES.map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => setDietType(dietType === d.id ? "" : d.id)}
+                title={d.hint}
+                className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                  dietType === d.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
         </Field>
 
         {/* Neutered */}

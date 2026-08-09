@@ -73,6 +73,26 @@ const WATER = (units: CareUnit[]): CareKindSpec => ({
   multi: false,
 })
 
+/**
+ * Going somewhere fun — the one activity every species shares.
+ *
+ * "Walk" only suits a dog; a cat has playtime, a rabbit floor time, a fish
+ * neither. But every owner takes their animal somewhere occasionally, and that
+ * is worth planning and tracking regardless of species. Shared verbatim so a
+ * multi-pet household sees one consistent idea.
+ */
+const OUTING: CareKindSpec = {
+  kind: "outing",
+  label: "Fun places",
+  placeholder: "Dog park, beach, pet cafe…",
+  defaultLabel: "Outing",
+  units: [TIMES, MINUTES],
+  targetLabel: "Outings / week",
+  // Several kinds of outing deserve their own goals — the park twice a week
+  // is a different commitment to the beach once a month.
+  multi: true,
+}
+
 const MEDICINE: CareKindSpec = {
   kind: "medicine",
   label: "Medicine",
@@ -84,6 +104,16 @@ const MEDICINE: CareKindSpec = {
   // biggest limitation of the old one-target-per-kind model.
   multi: true,
 }
+
+/** Medication categories offered as suggestions when naming a target. */
+export const MEDICATION_CATEGORIES = [
+  "Prescription drug",
+  "Preventative (flea / tick / worm)",
+  "Supplement",
+  "Probiotic",
+  "Pain relief",
+  "Other",
+] as const
 
 const TREAT: CareKindSpec = {
   kind: "treat",
@@ -127,7 +157,9 @@ const DOG: CareKindSpec[] = [
     // Bowls first: it is how most owners actually think about a dog's meal.
     units: [BOWLS, GRAMS, CUPS, CANS],
     targetLabel: "Daily target",
-    multi: false,
+    // Wet and dry, or morning and evening, are separate goals for plenty of
+    // households — same reasoning as medicines.
+    multi: true,
   },
   WATER([ML, BOWLS]),
   TREAT,
@@ -143,15 +175,7 @@ const DOG: CareKindSpec[] = [
     targetLabel: "Walks / day",
     multi: false,
   },
-  {
-    kind: "outing",
-    label: "Outings",
-    placeholder: "Dog park, beach…",
-    defaultLabel: "Outing",
-    units: [TIMES, MINUTES],
-    targetLabel: "Outings / week",
-    multi: false,
-  },
+  OUTING,
   POTTY,
   WEIGHT,
 ]
@@ -165,7 +189,9 @@ const CAT: CareKindSpec[] = [
     // Cans and pouches first — cat food is portioned, not scooped.
     units: [CANS, GRAMS, POUCHES, BOWLS],
     targetLabel: "Daily target",
-    multi: false,
+    // Wet and dry, or morning and evening, are separate goals for plenty of
+    // households — same reasoning as medicines.
+    multi: true,
   },
   WATER([ML, BOWLS]),
   TREAT,
@@ -179,15 +205,7 @@ const CAT: CareKindSpec[] = [
     targetLabel: "Minutes / day",
     multi: false,
   },
-  {
-    kind: "outing",
-    label: "Outdoors",
-    placeholder: "Garden, catio…",
-    defaultLabel: "Outdoors",
-    units: [MINUTES, TIMES],
-    targetLabel: "Minutes / day",
-    multi: false,
-  },
+  OUTING,
   POTTY,
   WEIGHT,
 ]
@@ -200,7 +218,9 @@ const BIRD: CareKindSpec[] = [
     defaultLabel: "Feed",
     units: [GRAMS, { ...PIECES, label: "portions" }],
     targetLabel: "Daily target",
-    multi: false,
+    // Wet and dry, or morning and evening, are separate goals for plenty of
+    // households — same reasoning as medicines.
+    multi: true,
   },
   WATER([ML]),
   TREAT,
@@ -214,6 +234,7 @@ const BIRD: CareKindSpec[] = [
     targetLabel: "Minutes / day",
     multi: false,
   },
+  OUTING,
   WEIGHT,
 ]
 
@@ -225,7 +246,9 @@ const SMALL_MAMMAL: CareKindSpec[] = [
     defaultLabel: "Feed",
     units: [GRAMS, { ...PIECES, label: "portions" }],
     targetLabel: "Daily target",
-    multi: false,
+    // Wet and dry, or morning and evening, are separate goals for plenty of
+    // households — same reasoning as medicines.
+    multi: true,
   },
   WATER([ML]),
   TREAT,
@@ -239,6 +262,7 @@ const SMALL_MAMMAL: CareKindSpec[] = [
     targetLabel: "Minutes / day",
     multi: false,
   },
+  OUTING,
   WEIGHT,
 ]
 
@@ -255,6 +279,7 @@ const REPTILE: CareKindSpec[] = [
   },
   WATER([ML]),
   MEDICINE,
+  OUTING,
   WEIGHT,
 ]
 
@@ -271,6 +296,9 @@ const FISH: CareKindSpec[] = [
   // No walk, no play, no potty, no treats. A tracker that offered them would
   // be telling a fish owner it was not built for them.
   MEDICINE,
+  // Outings are otherwise universal — every owner takes their animal
+  // somewhere. Not a fish. Offering "Fun places" here would be the same
+  // mistake as the Walk tile it replaced.
 ]
 
 const OTHER: CareKindSpec[] = [
@@ -281,7 +309,9 @@ const OTHER: CareKindSpec[] = [
     defaultLabel: "Feed",
     units: [GRAMS, { ...PIECES, label: "portions" }],
     targetLabel: "Daily target",
-    multi: false,
+    // Wet and dry, or morning and evening, are separate goals for plenty of
+    // households — same reasoning as medicines.
+    multi: true,
   },
   WATER([ML]),
   TREAT,
@@ -295,6 +325,7 @@ const OTHER: CareKindSpec[] = [
     targetLabel: "Minutes / day",
     multi: false,
   },
+  OUTING,
   WEIGHT,
 ]
 

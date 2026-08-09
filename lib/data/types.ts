@@ -295,6 +295,14 @@ export interface Pet {
   color?: string
   microchip?: string
   neutered?: boolean
+  /** small | medium | large | xlarge. Advisory — never blocks registration. */
+  sizeBand?: string
+  /** Height at the shoulder, cm. */
+  heightCm?: number
+  /** Several apply at once: harnessed AND muzzled is normal. */
+  restraints?: string[]
+  dietType?: string
+  dietNotes?: string
   medical?: PetMedicalInfo
   vaccinations?: Vaccination[]
   emergencyContacts?: EmergencyContact[]

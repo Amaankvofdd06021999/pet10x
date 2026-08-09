@@ -69,6 +69,7 @@ export const BREEDS_BY_SPECIES: Partial<Record<Species, string[]>> = {
     "Bengal",
     "Birman",
     "British Shorthair",
+    "Calico",
     "Domestic Longhair",
     "Domestic Shorthair",
     "Maine Coon",

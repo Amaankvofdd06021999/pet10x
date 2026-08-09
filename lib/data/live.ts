@@ -190,6 +190,11 @@ function mapPet(r: PetRow): Pet {
     color: r.color ?? undefined,
     microchip: r.microchip ?? undefined,
     neutered: r.neutered ?? undefined,
+    sizeBand: r.size_band ?? undefined,
+    heightCm: r.height_cm ?? undefined,
+    restraints: r.restraints ?? [],
+    dietType: r.diet_type ?? undefined,
+    dietNotes: r.diet_notes ?? undefined,
     medical: {
       conditions: r.conditions ?? "",
       medications: r.medications_notes ?? "",
@@ -327,6 +332,12 @@ export interface AddPetInput {
   color?: string
   microchip?: string
   neutered?: boolean
+  sizeBand?: string | null
+  /** Stored in cm; the form collects inches because size charts are in inches. */
+  heightCm?: number | null
+  restraints?: string[]
+  dietType?: string | null
+  dietNotes?: string | null
 }
 
 export async function addPet(input: AddPetInput): Promise<{ error: string | null; pet?: Pet }> {
@@ -349,6 +360,11 @@ export async function addPet(input: AddPetInput): Promise<{ error: string | null
       color: input.color || null,
       microchip: input.microchip || null,
       neutered: input.neutered ?? null,
+      size_band: input.sizeBand || null,
+      height_cm: input.heightCm ?? null,
+      restraints: input.restraints ?? [],
+      diet_type: input.dietType || null,
+      diet_notes: input.dietNotes || null,
     })
     .select()
     .single()

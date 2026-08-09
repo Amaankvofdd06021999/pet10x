@@ -81,3 +81,30 @@ export async function deleteMyAccount(): Promise<{ error: string | null }> {
     return { error: e instanceof Error ? e.message : "Couldn't delete your account." }
   }
 }
+
+/**
+ * Set the signed-in resident's unit.
+ *
+ * Goes through the `set_my_unit` RPC rather than writing `resident_links`
+ * directly: residents have no UPDATE policy on that table, and widening it
+ * enough to allow this would also let them change their building or approve
+ * themselves. The function is scoped to unit_id on their own active link.
+ */
+export async function setMyUnit(unit: string): Promise<{ error: string | null; unit?: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+
+  const { data, error } = await supabase.rpc("set_my_unit", { p_unit: unit })
+  if (error) return { error: error.message }
+
+  const r = (data ?? {}) as { ok?: boolean; error?: string; unit?: string | null }
+  if (!r.ok) {
+    return {
+      error:
+        r.error === "no_building"
+          ? "Join a building first — a unit number only means something inside one."
+          : "Couldn't save your unit.",
+    }
+  }
+  return { error: null, unit: r.unit ?? null }
+}

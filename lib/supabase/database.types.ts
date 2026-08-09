@@ -2055,6 +2055,58 @@ export type Database = {
           },
         ]
       }
+      pet_photos: {
+        Row: {
+          caption: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          path: string
+          pet_id: string
+          sort_order: number
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          path: string
+          pet_id: string
+          sort_order?: number
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          path?: string
+          pet_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_photos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_photos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "pet_photos_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pet_vaccinations: {
         Row: {
           created_at: string
@@ -2123,8 +2175,11 @@ export type Database = {
           conditions: string | null
           created_at: string
           deleted_at: string | null
+          diet_notes: string | null
+          diet_type: string | null
           dob: string | null
           grandfathered_on: string | null
+          height_cm: number | null
           id: string
           image_url: string | null
           is_grandfathered: boolean | null
@@ -2134,7 +2189,9 @@ export type Database = {
           neutered: boolean | null
           owner_id: string
           registration_status: Database["public"]["Enums"]["registration_status"]
+          restraints: string[]
           sex: Database["public"]["Enums"]["pet_sex"] | null
+          size_band: string | null
           species: Database["public"]["Enums"]["pet_species"]
           status: Database["public"]["Enums"]["pet_status"]
           unit_id: string | null
@@ -2154,8 +2211,11 @@ export type Database = {
           conditions?: string | null
           created_at?: string
           deleted_at?: string | null
+          diet_notes?: string | null
+          diet_type?: string | null
           dob?: string | null
           grandfathered_on?: string | null
+          height_cm?: number | null
           id?: string
           image_url?: string | null
           is_grandfathered?: boolean | null
@@ -2165,7 +2225,9 @@ export type Database = {
           neutered?: boolean | null
           owner_id: string
           registration_status?: Database["public"]["Enums"]["registration_status"]
+          restraints?: string[]
           sex?: Database["public"]["Enums"]["pet_sex"] | null
+          size_band?: string | null
           species: Database["public"]["Enums"]["pet_species"]
           status?: Database["public"]["Enums"]["pet_status"]
           unit_id?: string | null
@@ -2185,8 +2247,11 @@ export type Database = {
           conditions?: string | null
           created_at?: string
           deleted_at?: string | null
+          diet_notes?: string | null
+          diet_type?: string | null
           dob?: string | null
           grandfathered_on?: string | null
+          height_cm?: number | null
           id?: string
           image_url?: string | null
           is_grandfathered?: boolean | null
@@ -2196,7 +2261,9 @@ export type Database = {
           neutered?: boolean | null
           owner_id?: string
           registration_status?: Database["public"]["Enums"]["registration_status"]
+          restraints?: string[]
           sex?: Database["public"]["Enums"]["pet_sex"] | null
+          size_band?: string | null
           species?: Database["public"]["Enums"]["pet_species"]
           status?: Database["public"]["Enums"]["pet_status"]
           unit_id?: string | null
@@ -2663,6 +2730,57 @@ export type Database = {
           },
         ]
       }
+      shop_items: {
+        Row: {
+          affiliate_url: string
+          category: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          merchant: string | null
+          price_label: string | null
+          sort_order: number
+          species: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          affiliate_url: string
+          category?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          merchant?: string | null
+          price_label?: string | null
+          sort_order?: number
+          species?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          affiliate_url?: string
+          category?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          merchant?: string | null
+          price_label?: string | null
+          sort_order?: number
+          species?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sponsored_seats: {
         Row: {
           activated_at: string
@@ -3044,6 +3162,7 @@ export type Database = {
         Args: { p_user: string }
         Returns: Database["public"]["Enums"]["entitlement_source"]
       }
+      set_my_unit: { Args: { p_unit: string }; Returns: Json }
       shares_managed_building_with: { Args: { p: string }; Returns: boolean }
       submit_incident_report: {
         Args: {
