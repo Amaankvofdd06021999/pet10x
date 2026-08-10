@@ -48,6 +48,13 @@ export interface ScheduledCareTask {
   endsOn: string | null
   /** As written on the packet — "1 tablet", "0.5 ml". */
   dose: string | null
+  /**
+   * Which care target this task feeds — the specific food, treat or medicine.
+   * Without it a scheduled "Breakfast" is a word that satisfies nothing.
+   */
+  targetId: string | null
+  /** Amount logged against that target when ticked. Null = tick only. */
+  logAmount: number | null
 }
 
 export interface ScheduledCareTaskResult {
@@ -109,6 +116,8 @@ interface TaskRow {
   starts_on: string | null
   ends_on: string | null
   dose: string | null
+  target_id: string | null
+  log_amount: number | null
 }
 
 /**
@@ -135,7 +144,7 @@ export function useCareTasks(petId: string | undefined, dateKey = localDateKey()
     const { data: tasks, error: taskErr } = await supabase
       .from("pet_care_tasks")
       .select(
-        "id, pet_id, label, detail, kind, scheduled_at, days_of_week, is_active, remind_minutes_before, sort_order, recurrence, interval_days, next_due_on, starts_on, ends_on, dose",
+        "id, pet_id, label, detail, kind, scheduled_at, days_of_week, is_active, remind_minutes_before, sort_order, recurrence, interval_days, next_due_on, starts_on, ends_on, dose, target_id, log_amount",
       )
       .eq("pet_id", petId)
       .order("sort_order", { ascending: true })
@@ -179,6 +188,8 @@ export function useCareTasks(petId: string | undefined, dateKey = localDateKey()
         startsOn: r.starts_on,
         endsOn: r.ends_on,
         dose: r.dose,
+        targetId: r.target_id,
+        logAmount: r.log_amount,
       })),
     )
     setError(null)
@@ -206,6 +217,8 @@ export async function addCareTask(input: {
   startsOn?: string | null
   endsOn?: string | null
   dose?: string | null
+  targetId?: string | null
+  logAmount?: number | null
 }): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not saved — backend not configured." }
@@ -228,6 +241,8 @@ export async function addCareTask(input: {
     starts_on: input.startsOn ?? null,
     ends_on: input.endsOn ?? null,
     dose: input.dose || null,
+    target_id: input.targetId ?? null,
+    log_amount: input.logAmount ?? null,
     // Keep the legacy display column consistent for anything still reading it.
     time_label: input.scheduledAt ? formatTime(input.scheduledAt) : "All day",
   })
@@ -250,6 +265,8 @@ export async function updateCareTask(
     startsOn: string | null
     endsOn: string | null
     dose: string | null
+    targetId: string | null
+    logAmount: number | null
   }>,
 ): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
@@ -269,6 +286,8 @@ export async function updateCareTask(
   if (patch.startsOn !== undefined) row.starts_on = patch.startsOn
   if (patch.endsOn !== undefined) row.ends_on = patch.endsOn
   if (patch.dose !== undefined) row.dose = patch.dose
+  if (patch.targetId !== undefined) row.target_id = patch.targetId
+  if (patch.logAmount !== undefined) row.log_amount = patch.logAmount
   if (patch.scheduledAt !== undefined) {
     row.scheduled_at = patch.scheduledAt
     row.time_label = patch.scheduledAt ? formatTime(patch.scheduledAt) : "All day"
@@ -310,7 +329,53 @@ export async function setCareTaskDone(
       { task_id: taskId, on_date: dateKey, completed: done, completed_at: new Date().toISOString() },
       { onConflict: "task_id,on_date" },
     )
-  return { error: error?.message ?? null }
+  if (error) return { error: error.message }
+
+  /* Ticking a linked task logs against its target.
+   *
+   * This is what makes several foods or treats per day mean anything: two
+   * meals of different food each advance their own goal, rather than both
+   * being ticks against a single undifferentiated "food". Only on completion —
+   * un-ticking deletes the entry below rather than logging a negative. */
+  const { data: task } = await supabase
+    .from("pet_care_tasks")
+    .select("pet_id, label, target_id, log_amount, care_targets(kind, label, unit)")
+    .eq("id", taskId)
+    .maybeSingle()
+
+  if (!task?.target_id || task.log_amount == null) return { error: null }
+  const target = Array.isArray(task.care_targets) ? task.care_targets[0] : task.care_targets
+  if (!target) return { error: null }
+
+  // Idempotent by (task, day): ticking, un-ticking and re-ticking must not
+  // stack three portions onto the same meal.
+  const dayStart = `${dateKey}T00:00:00`
+  const dayEnd = `${dateKey}T23:59:59`
+  const { data: existing } = await supabase
+    .from("care_entries")
+    .select("id")
+    .eq("pet_id", task.pet_id)
+    .eq("kind", target.kind)
+    .eq("label", target.label)
+    .gte("logged_at", dayStart)
+    .lte("logged_at", dayEnd)
+    .eq("source_task_id", taskId)
+
+  if (done) {
+    if ((existing ?? []).length > 0) return { error: null }
+    await supabase.from("care_entries").insert({
+      pet_id: task.pet_id,
+      kind: target.kind,
+      label: target.label,
+      amount: task.log_amount,
+      unit: target.unit,
+      source_task_id: taskId,
+    })
+  } else if ((existing ?? []).length > 0) {
+    await supabase.from("care_entries").delete().in("id", (existing ?? []).map((e) => e.id))
+  }
+
+  return { error: null }
 }
 
 /** "17:00" → "5:00 PM". */

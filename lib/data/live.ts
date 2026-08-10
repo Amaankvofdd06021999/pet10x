@@ -394,18 +394,26 @@ async function seedCareDefaults(petId: string, species: Species): Promise<void> 
   if (!supabase) return
 
   const targets = defaultTargetsFor(species)
+  // Insert with `select` so the schedule below can point at the rows created —
+  // a seeded routine that is not wired to its own targets would ship the exact
+  // disconnection this seeding exists to avoid.
+  const byLabel = new Map<string, string>()
   if (targets.length > 0) {
-    await supabase.from("care_targets").insert(
-      targets.map((t, i) => ({
-        pet_id: petId,
-        kind: t.kind as CareEntryKind,
-        label: t.label,
-        target_amount: t.amount,
-        unit: t.unit,
-        period: t.period,
-        sort_order: i,
-      })),
-    )
+    const { data: rows } = await supabase
+      .from("care_targets")
+      .insert(
+        targets.map((t, i) => ({
+          pet_id: petId,
+          kind: t.kind as CareEntryKind,
+          label: t.label,
+          target_amount: t.amount,
+          unit: t.unit,
+          period: t.period,
+          sort_order: i,
+        })),
+      )
+      .select("id, label")
+    for (const r of rows ?? []) byLabel.set(r.label, r.id)
   }
 
   const schedule = defaultScheduleFor(species)
@@ -419,6 +427,8 @@ async function seedCareDefaults(petId: string, species: Species): Promise<void> 
         time_label: t.at,
         sort_order: i,
         recurrence: "daily",
+        target_id: t.targetLabel ? (byLabel.get(t.targetLabel) ?? null) : null,
+        log_amount: t.targetLabel && byLabel.has(t.targetLabel) ? (t.logAmount ?? null) : null,
       })),
     )
   }

@@ -874,6 +874,7 @@ export type Database = {
           logged_by: string | null
           note: string | null
           pet_id: string
+          source_task_id: string | null
           unit: string | null
         }
         Insert: {
@@ -886,6 +887,7 @@ export type Database = {
           logged_by?: string | null
           note?: string | null
           pet_id: string
+          source_task_id?: string | null
           unit?: string | null
         }
         Update: {
@@ -898,6 +900,7 @@ export type Database = {
           logged_by?: string | null
           note?: string | null
           pet_id?: string
+          source_task_id?: string | null
           unit?: string | null
         }
         Relationships: [
@@ -920,6 +923,13 @@ export type Database = {
             columns: ["pet_id"]
             isOneToOne: false
             referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "care_entries_source_task_id_fkey"
+            columns: ["source_task_id"]
+            isOneToOne: false
+            referencedRelation: "pet_care_tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -1825,6 +1835,7 @@ export type Database = {
           is_active: boolean
           kind: Database["public"]["Enums"]["care_kind"]
           label: string
+          log_amount: number | null
           next_due_on: string | null
           pet_id: string
           recurrence: string
@@ -1832,6 +1843,7 @@ export type Database = {
           scheduled_at: string | null
           sort_order: number | null
           starts_on: string | null
+          target_id: string | null
           time_label: string | null
           updated_at: string
         }
@@ -1846,6 +1858,7 @@ export type Database = {
           is_active?: boolean
           kind?: Database["public"]["Enums"]["care_kind"]
           label: string
+          log_amount?: number | null
           next_due_on?: string | null
           pet_id: string
           recurrence?: string
@@ -1853,6 +1866,7 @@ export type Database = {
           scheduled_at?: string | null
           sort_order?: number | null
           starts_on?: string | null
+          target_id?: string | null
           time_label?: string | null
           updated_at?: string
         }
@@ -1867,6 +1881,7 @@ export type Database = {
           is_active?: boolean
           kind?: Database["public"]["Enums"]["care_kind"]
           label?: string
+          log_amount?: number | null
           next_due_on?: string | null
           pet_id?: string
           recurrence?: string
@@ -1874,6 +1889,7 @@ export type Database = {
           scheduled_at?: string | null
           sort_order?: number | null
           starts_on?: string | null
+          target_id?: string | null
           time_label?: string | null
           updated_at?: string
         }
@@ -1883,6 +1899,13 @@ export type Database = {
             columns: ["pet_id"]
             isOneToOne: false
             referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_care_tasks_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "care_targets"
             referencedColumns: ["id"]
           },
         ]

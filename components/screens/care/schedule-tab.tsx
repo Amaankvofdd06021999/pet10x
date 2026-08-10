@@ -17,6 +17,7 @@ import {
   minutesOfDay,
   DAY_LABELS,
   type CareTaskKind,
+  useCareTargets,
   type ScheduledCareTask,
 } from "@/lib/data"
 
@@ -44,6 +45,10 @@ interface Draft {
   /** Days the course runs; null = ongoing. */
   durationDays: number | null
   dose: string
+  /** Which specific food / treat / medicine this task is for. */
+  targetId: string
+  /** How much ticking it logs against that target. */
+  logAmount: string
 }
 
 const todayIso = () => {
@@ -62,6 +67,8 @@ const EMPTY: Draft = {
   nextDueOn: "",
   durationDays: null,
   dose: "",
+  targetId: "",
+  logAmount: "",
 }
 
 /**
@@ -83,6 +90,8 @@ export function ScheduleTab({
   species?: Species | null
 }) {
   const { data: tasks, isLoading, refetch } = useCareTasks(petId)
+  // Targets are what a task can point at — the specific kibble, chew or tablet.
+  const { data: targets } = useCareTargets(petId)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -129,6 +138,8 @@ export function ScheduleTab({
       startsOn: interval ? start : null,
       endsOn: ends,
       dose: draft.dose.trim() || null,
+      targetId: draft.targetId || null,
+      logAmount: draft.targetId && draft.logAmount ? parseFloat(draft.logAmount) : null,
     }
     const { error } = draft.id
       ? await updateCareTask(draft.id, payload)
@@ -263,6 +274,8 @@ export function ScheduleTab({
                             )
                           : null,
                       dose: t.dose ?? "",
+                      targetId: t.targetId ?? "",
+                      logAmount: t.logAmount != null ? String(t.logAmount) : "",
                     })
                   }
                   className="p-2 text-muted-foreground"
@@ -317,6 +330,48 @@ export function ScheduleTab({
           {/* How it repeats. A weekday pattern cannot say "every 6 months",
               which is exactly the shape a heartworm or flea course takes, so
               the two modes are chosen explicitly rather than inferred. */}
+          {/* Which item this is for.
+              This is what makes "two meals of different food" expressible: the
+              task points at a specific target, and ticking it advances that
+              target rather than a single undifferentiated "food". */}
+          {targets.length > 0 && (
+            <>
+              <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
+                For which item? <span className="font-normal">(optional)</span>
+              </label>
+              <select
+                value={draft.targetId}
+                onChange={(e) => setDraft({ ...draft, targetId: e.target.value })}
+                className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-[15px] text-foreground outline-none focus:border-primary"
+              >
+                <option value="">Just a reminder — don&apos;t log anything</option>
+                {targets.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label} ({t.targetAmount} {t.unit ?? ""} / {t.period})
+                  </option>
+                ))}
+              </select>
+
+              {draft.targetId && (
+                <>
+                  <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
+                    Log how much when ticked?
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.25"
+                    value={draft.logAmount}
+                    onChange={(e) => setDraft({ ...draft, logAmount: e.target.value })}
+                    placeholder={`e.g. 1 ${targets.find((t) => t.id === draft.targetId)?.unit ?? ""}`}
+                    className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+                  />
+                </>
+              )}
+            </>
+          )}
+
           <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">Schedule</label>
           <div className="mt-1 flex rounded-xl bg-muted p-1">
             {([

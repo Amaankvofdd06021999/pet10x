@@ -423,6 +423,13 @@ export interface DefaultSchedule {
   kind: "meal" | "medication" | "water" | "walk" | "grooming" | "other"
   /** "HH:MM" local. */
   at: string
+  /**
+   * Label of the default target this task feeds, and how much it logs.
+   * Two meals pointing at one food target is the shape most owners start
+   * from — and it is what makes ticking a meal move the day's progress.
+   */
+  targetLabel?: string
+  logAmount?: number
 }
 
 /**
@@ -446,10 +453,10 @@ const DEFAULTS: Partial<Record<Species, { targets: DefaultTarget[]; schedule: De
     // Two walks and two meals is the shape of most dog days; the times are
     // the common ones and are the first thing an owner will drag around.
     schedule: [
-      { label: "Morning walk", kind: "walk", at: "08:00" },
-      { label: "Breakfast", kind: "meal", at: "08:30" },
-      { label: "Evening walk", kind: "walk", at: "17:30" },
-      { label: "Dinner", kind: "meal", at: "18:00" },
+      { label: "Morning walk", kind: "walk", at: "08:00", targetLabel: "Walks", logAmount: 1 },
+      { label: "Breakfast", kind: "meal", at: "08:30", targetLabel: "Meals", logAmount: 1 },
+      { label: "Evening walk", kind: "walk", at: "17:30", targetLabel: "Walks", logAmount: 1 },
+      { label: "Dinner", kind: "meal", at: "18:00", targetLabel: "Meals", logAmount: 1 },
     ],
   },
   cat: {
@@ -459,9 +466,9 @@ const DEFAULTS: Partial<Record<Species, { targets: DefaultTarget[]; schedule: De
       { kind: "treat", label: "Treats", amount: 3, unit: "pieces", period: "day" },
     ],
     schedule: [
-      { label: "Breakfast", kind: "meal", at: "08:00" },
-      { label: "Playtime", kind: "other", at: "18:00" },
-      { label: "Dinner", kind: "meal", at: "18:30" },
+      { label: "Breakfast", kind: "meal", at: "08:00", targetLabel: "Meals", logAmount: 1 },
+      { label: "Playtime", kind: "other", at: "18:00", targetLabel: "Playtime", logAmount: 20 },
+      { label: "Dinner", kind: "meal", at: "18:30", targetLabel: "Meals", logAmount: 1 },
     ],
   },
   bird: {
@@ -469,14 +476,14 @@ const DEFAULTS: Partial<Record<Species, { targets: DefaultTarget[]; schedule: De
       { kind: "food", label: "Feed", amount: 30, unit: "g", period: "day" },
       { kind: "play", label: "Out of cage", amount: 60, unit: "min", period: "day" },
     ],
-    schedule: [{ label: "Morning feed", kind: "meal", at: "08:00" }],
+    schedule: [{ label: "Morning feed", kind: "meal", at: "08:00", targetLabel: "Feed", logAmount: 30 }],
   },
   small_mammal: {
     targets: [
       { kind: "food", label: "Feed", amount: 50, unit: "g", period: "day" },
       { kind: "play", label: "Exercise", amount: 60, unit: "min", period: "day" },
     ],
-    schedule: [{ label: "Morning feed", kind: "meal", at: "08:00" }],
+    schedule: [{ label: "Morning feed", kind: "meal", at: "08:00", targetLabel: "Feed", logAmount: 50 }],
   },
   reptile: {
     // Fed on a cycle, not daily — the target is weekly and the schedule is an
@@ -486,7 +493,7 @@ const DEFAULTS: Partial<Record<Species, { targets: DefaultTarget[]; schedule: De
   },
   fish: {
     targets: [{ kind: "food", label: "Feed", amount: 2, unit: "pinch", period: "day" }],
-    schedule: [{ label: "Feed", kind: "meal", at: "08:00" }],
+    schedule: [{ label: "Feed", kind: "meal", at: "08:00", targetLabel: "Feed", logAmount: 1 }],
   },
   other: {
     targets: [{ kind: "food", label: "Feed", amount: 1, unit: "g", period: "day" }],
