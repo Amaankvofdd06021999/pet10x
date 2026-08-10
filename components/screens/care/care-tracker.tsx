@@ -440,6 +440,17 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
   )
 }
 
+/**
+ * Add or edit the goals for one care kind — as a LIST.
+ *
+ * It was one row at a time: type a name, save, reopen, type the next. For the
+ * kinds that are inherently plural — three kinds of treat, four medications,
+ * wet and dry food — that is the same form filled repeatedly, and the owner
+ * never sees the set they are actually building.
+ *
+ * Every row is editable, blank rows can be appended, and one Save writes them
+ * all. Removing a row deletes that target.
+ */
 function TargetSheet({
   petId,
   spec,
@@ -457,137 +468,207 @@ function TargetSheet({
   onClose: () => void
   onSaved: () => void
 }) {
-  // Single-target kinds prefill from the one that exists, so the sheet reads
-  // as "edit" rather than "add a second daily food goal".
-  const one = !spec.multi ? existing[0] : undefined
-  const [label, setLabel] = useState(one?.label ?? (spec.multi ? "" : spec.defaultLabel))
-  const [amount, setAmount] = useState(one?.targetAmount != null ? String(one.targetAmount) : "")
-  const [unitId, setUnitId] = useState(one?.unit ?? spec.units[0]?.id ?? "")
-  const [period, setPeriod] = useState<"day" | "week">(one?.period ?? "day")
+  interface Row {
+    /** Present when the row already exists in the database. */
+    id?: string
+    label: string
+    amount: string
+    unit: string
+    period: "day" | "week"
+  }
+
+  const blank = (): Row => ({
+    label: "",
+    amount: "",
+    unit: spec.units[0]?.id ?? "",
+    period: "day",
+  })
+
+  const [rows, setRows] = useState<Row[]>(() => {
+    const fromDb = existing.map((t) => ({
+      id: t.id,
+      label: t.label,
+      amount: t.targetAmount != null ? String(t.targetAmount) : "",
+      unit: t.unit ?? spec.units[0]?.id ?? "",
+      period: t.period,
+    }))
+    // Single-kind targets edit in place; plural ones open with an empty row
+    // ready so the common action — adding another — takes no extra tap.
+    if (!spec.multi) return fromDb.length > 0 ? fromDb : [blank()]
+    return fromDb.length > 0 ? [...fromDb, blank()] : [blank()]
+  })
+
   const [saving, setSaving] = useState(false)
+  const [removing, setRemoving] = useState<string | null>(null)
+
+  const patch = (i: number, next: Partial<Row>) =>
+    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...next } : r)))
 
   async function save() {
-    if (!label.trim()) return toast.error("Give the target a name.")
-    const value = amount ? parseFloat(amount) : null
-    if (value == null || Number.isNaN(value)) return toast.error("Enter a target amount.")
+    // Blank rows are how "add another" works, so an untouched one is not an
+    // error — it is simply nothing to save.
+    const filled = rows.filter((r) => r.label.trim() !== "" || r.amount.trim() !== "")
+    const incomplete = filled.find((r) => !r.label.trim() || !r.amount.trim())
+    if (incomplete) {
+      return toast.error("Each item needs a name and an amount.")
+    }
+    if (filled.length === 0) {
+      onClose()
+      return
+    }
+
+    // Two rows with the same name would collide on the database's unique index
+    // and fail halfway through, leaving some saved and some not.
+    const seen = new Set<string>()
+    for (const r of filled) {
+      const key = r.label.trim().toLowerCase()
+      if (seen.has(key)) return toast.error(`"${r.label.trim()}" is listed twice.`)
+      seen.add(key)
+    }
+
     setSaving(true)
-    const { error } = await upsertCareTarget({ petId, kind, label, targetAmount: value, unit: unitId, period })
+    let failed = 0
+    for (const r of filled) {
+      const { error } = await upsertCareTarget({
+        petId,
+        kind,
+        label: r.label.trim(),
+        targetAmount: parseFloat(r.amount),
+        unit: r.unit,
+        period: r.period,
+      })
+      if (error) failed += 1
+    }
     setSaving(false)
-    if (error) return toast.error("Couldn't save target", { description: error })
-    toast.success("Target saved")
+    if (failed > 0) return toast.error(`${failed} target${failed === 1 ? "" : "s"} couldn't be saved`)
+    toast.success(filled.length === 1 ? "Target saved" : `${filled.length} targets saved`)
     onSaved()
   }
 
-  async function remove(id: string) {
-    const { error } = await deleteCareTarget(id)
+  async function removeRow(i: number) {
+    const row = rows[i]
+    // Never saved: drop it locally, nothing to delete.
+    if (!row.id) {
+      setRows((prev) => prev.filter((_, idx) => idx !== i))
+      return
+    }
+    setRemoving(row.id)
+    const { error } = await deleteCareTarget(row.id)
+    setRemoving(null)
     if (error) return toast.error("Couldn't remove", { description: error })
+    setRows((prev) => prev.filter((_, idx) => idx !== i))
     toast("Target removed")
-    onSaved()
   }
 
   return (
-    /* Portalled to <body>.
-     *
-     * Every screen in /app is wrapped in `animate-in fade-in`, which animates
-     * opacity and therefore creates a stacking context. A z-index set inside
-     * one cannot beat a sibling of that context, so the tab bar's z-50 painted
-     * over this sheet's z-[100] and swallowed the Save button. */
+    /* Portalled to <body>: every screen in /app is wrapped in `animate-in
+       fade-in`, which animates opacity and creates a stacking context, so a
+       z-index set inside it cannot beat the tab bar outside it. */
     <Portal>
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]" />
-      <div
-        role="dialog"
-        aria-label={`${spec.targetLabel} for ${spec.label}`}
-        /* Centred rather than a bottom sheet: this dialog is short, and docked
-           to the bottom edge it collided with the tab bar and the home
-           indicator. `p-4` on the container keeps it off the screen edges on a
-           narrow phone; max-h + overflow keeps a long target list scrollable
-           inside the box rather than pushing the Save button off-screen. */
-        className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-border bg-card p-5 shadow-xl"
-      >
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-[17px] font-semibold text-foreground">{spec.targetLabel}</h2>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]" />
+        <div
+          role="dialog"
+          aria-label={`${spec.targetLabel} for ${spec.label}`}
+          className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-border bg-card p-5 shadow-xl"
+        >
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <h2 className="text-[17px] font-semibold text-foreground">{spec.targetLabel}</h2>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {spec.multi && (
+            <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
+              Add one line per item — they are tracked separately.
+            </p>
+          )}
 
-        {spec.multi && existing.length > 0 && (
-          <div className="mb-4 flex flex-col gap-1.5">
-            {existing.map((t) => (
-              <div key={t.id} className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2">
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">{t.label}</span>
-                <span className="flex-shrink-0 text-[12px] text-muted-foreground">
-                  {t.targetAmount} {unitById(species, kind, t.unit ?? null).label}
-                </span>
-                <button
-                  onClick={() => remove(t.id)}
-                  aria-label={`Remove ${t.label}`}
-                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+          <div className="flex flex-col gap-2.5">
+            {rows.map((row, i) => (
+              <div key={row.id ?? `new-${i}`} className="rounded-xl border border-border bg-background p-2.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={row.label}
+                    onChange={(e) => patch(i, { label: e.target.value })}
+                    placeholder={spec.placeholder}
+                    className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-[14px] focus:border-primary focus:outline-none"
+                  />
+                  {(spec.multi || rows.length > 1) && (
+                    <button
+                      onClick={() => removeRow(i)}
+                      disabled={removing === row.id}
+                      aria-label={`Remove ${row.label || "item"}`}
+                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-destructive disabled:opacity-50"
+                    >
+                      {removing === row.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step={unitById(species, kind, row.unit).step}
+                    min="0"
+                    value={row.amount}
+                    onChange={(e) => patch(i, { amount: e.target.value })}
+                    placeholder="Amount"
+                    className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-[14px] focus:border-primary focus:outline-none"
+                  />
+                  <select
+                    value={row.unit}
+                    onChange={(e) => patch(i, { unit: e.target.value })}
+                    aria-label="Unit"
+                    className="flex-shrink-0 rounded-lg border border-border bg-card px-2 py-2 text-[13px] font-medium text-foreground focus:border-primary focus:outline-none"
+                  >
+                    {spec.units.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={row.period}
+                    onChange={(e) => patch(i, { period: e.target.value as "day" | "week" })}
+                    aria-label="Per"
+                    className="flex-shrink-0 rounded-lg border border-border bg-card px-2 py-2 text-[13px] font-medium text-foreground focus:border-primary focus:outline-none"
+                  >
+                    <option value="day">/ day</option>
+                    <option value="week">/ week</option>
+                  </select>
+                </div>
               </div>
             ))}
           </div>
-        )}
 
-        <div className="flex flex-col gap-2.5">
-          <input
-            type="text"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder={spec.placeholder}
-            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              inputMode="decimal"
-              step={unitById(species, kind, unitId).step}
-              min="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Amount"
-              className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-            <select
-              value={unitId}
-              onChange={(e) => setUnitId(e.target.value)}
-              aria-label="Unit"
-              className="flex-shrink-0 rounded-xl border border-border bg-background px-2.5 py-2.5 text-[13px] font-medium text-foreground focus:border-primary focus:outline-none"
+          {spec.multi && (
+            <button
+              onClick={() => setRows((prev) => [...prev, blank()])}
+              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-[13px] font-semibold text-primary"
             >
-              {spec.units.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value as "day" | "week")}
-              aria-label="Per"
-              className="flex-shrink-0 rounded-xl border border-border bg-background px-2.5 py-2.5 text-[13px] font-medium text-foreground focus:border-primary focus:outline-none"
-            >
-              <option value="day">/ day</option>
-              <option value="week">/ week</option>
-            </select>
-          </div>
+              <Plus className="h-3.5 w-3.5" /> Add another
+            </button>
+          )}
+
           <button
             onClick={save}
             disabled={saving}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {spec.multi ? "Add target" : "Save target"}
+            Save
           </button>
         </div>
       </div>
-    </div>
     </Portal>
   )
 }
