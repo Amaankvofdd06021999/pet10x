@@ -217,9 +217,12 @@ function BuildingProfileSheet({
     address: building.address ?? "",
     city: building.city ?? "",
     region: building.region ?? "",
+    postalCode: building.postalCode ?? "",
     totalUnits: building.totalUnits ? String(building.totalUnits) : "",
+    buildingCode: building.code,
   })
   const [busy, setBusy] = useState(false)
+  const codeChanged = form.buildingCode.trim().toUpperCase() !== building.code.toUpperCase()
 
   async function save() {
     if (!form.name.trim()) return toast.error("Building name can't be empty.")
@@ -229,26 +232,56 @@ function BuildingProfileSheet({
       address: form.address.trim(),
       city: form.city.trim(),
       region: form.region.trim(),
+      postalCode: form.postalCode.trim(),
       totalUnits: form.totalUnits ? Number(form.totalUnits) : null,
+      buildingCode: codeChanged ? form.buildingCode : undefined,
     })
     setBusy(false)
     if (error) return toast.error("Couldn't save", { description: error })
-    toast.success("Building profile updated")
+    toast.success(codeChanged ? `Code is now ${form.buildingCode.trim().toUpperCase()}` : "Building profile updated")
     onSaved()
   }
 
   return (
     <Sheet title="Building Profile" onClose={onClose}>
-      <p className="mb-3 text-[12px] text-muted-foreground">
-        Building code <span className="font-mono font-semibold text-foreground">{building.code}</span> — residents use
-        this to link their unit. It can only be changed by a Pet10x admin.
-      </p>
       <Field label="Building name" value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} />
+
+      {/* Address is the resident-facing one too: a linked resident's profile
+          reads it from here rather than storing a copy, so correcting it
+          corrects theirs. Worth saying, or it looks like admin-only trivia. */}
       <Field label="Address" value={form.address} onChange={(v) => setForm((p) => ({ ...p, address: v }))} />
       <div className="grid grid-cols-2 gap-2">
         <Field label="City" value={form.city} onChange={(v) => setForm((p) => ({ ...p, city: v }))} />
         <Field label="Region" value={form.region} onChange={(v) => setForm((p) => ({ ...p, region: v }))} />
       </div>
+      <Field
+        label="Postal code"
+        value={form.postalCode}
+        onChange={(v) => setForm((p) => ({ ...p, postalCode: v }))}
+      />
+      <p className="-mt-1 mb-3 text-[11.5px] leading-relaxed text-muted-foreground">
+        Residents linked to this building see this as their home address — they don&apos;t retype it. The postal
+        code also lets Pet10x recognise residents who sign up without a code.
+      </p>
+
+      {/* The join code, editable. It was labelled "admin only" while the RLS
+          policy already let a manager write it — the restriction was in the
+          copy, not in the database. */}
+      <Field
+        label="Building / signup code"
+        value={form.buildingCode}
+        onChange={(v) => setForm((p) => ({ ...p, buildingCode: v.toUpperCase().replace(/[^A-Z0-9]/g, "") }))}
+      />
+      <p className="-mt-1 mb-3 text-[11.5px] leading-relaxed text-muted-foreground">
+        4–12 letters and numbers. Residents enter this to join.
+        {codeChanged && (
+          <span className="mt-1 block font-semibold text-[#B8860B]">
+            Changing it stops <span className="font-mono">{building.code}</span> working immediately. Anyone
+            part-way through joining with the old code will need the new one. Residents already linked are
+            unaffected.
+          </span>
+        )}
+      </p>
       <Field
         label="Total units"
         value={form.totalUnits}

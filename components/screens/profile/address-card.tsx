@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Building2, ChevronRight, Loader2, MapPin } from "lucide-react"
+import { useMyBuildingLink } from "@/lib/data"
 import {
   getMyAddress,
   updateMyAddress,
@@ -24,6 +25,7 @@ import {
  * themselves into a building's register.
  */
 export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => void }) {
+  const { data: link } = useMyBuildingLink()
   const [address, setAddress] = useState<MyAddress | null>(null)
   const [matches, setMatches] = useState<string[]>([])
   const [editing, setEditing] = useState(false)
@@ -60,6 +62,52 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
   }
 
   if (loading) return null
+
+  /* Linked to a building: the address comes FROM the building.
+   *
+   * It was asking a linked resident to type an address they had already told
+   * us by joining, producing a second copy that drifts the moment a manager
+   * corrects theirs. Read-only here; the manager edits it on their side and it
+   * changes here immediately. The unit stays the resident's to give, and lives
+   * in its own row above this one. */
+  if (link) {
+    const buildingAddress = [
+      link.buildingAddress,
+      link.buildingCity,
+      link.buildingRegion,
+      link.buildingPostalCode,
+    ]
+      .filter(Boolean)
+      .join(", ")
+
+    return (
+      <section className="mb-5">
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <MapPin className="h-4.5 w-4.5 text-primary" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[14px] font-semibold text-foreground">Home address</p>
+              <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+                {buildingAddress ? (
+                  <>
+                    {link.unit ? `Unit ${link.unit}, ` : ""}
+                    {buildingAddress}
+                  </>
+                ) : (
+                  <>From {link.buildingName}. Your manager hasn&apos;t added the building address yet.</>
+                )}
+              </p>
+              <p className="mt-1.5 text-[11.5px] text-muted-foreground">
+                Kept in step with {link.buildingName} — your building manager maintains it.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   const summary = [address?.addressUnit ? `Unit ${address.addressUnit}` : null, address?.streetAddress, address?.city]
     .filter(Boolean)

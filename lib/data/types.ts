@@ -251,6 +251,15 @@ export interface BuildingLink {
   status: ResidentLinkStatus
   unit: string | null
   requestedAt: string
+  /**
+   * The building's own address. A linked resident's address IS this plus their
+   * unit, so it is read from here rather than retyped — otherwise a manager
+   * correcting it changes nothing on the resident's side.
+   */
+  buildingAddress: string | null
+  buildingCity: string | null
+  buildingRegion: string | null
+  buildingPostalCode: string | null
 }
 
 export interface ResidentLinkRow {

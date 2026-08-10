@@ -22,6 +22,7 @@ export interface ManagerBuilding {
   city: string | null
   region: string | null
   totalUnits: number | null
+  postalCode: string | null
   rules: PetRules
 }
 
@@ -84,7 +85,7 @@ export function useManagerBuilding(preferredId?: string | null) {
 
     const { data: b, error: err } = await supabase
       .from("buildings")
-      .select("id, name, building_code, address, city, region, total_units, pet_rules")
+      .select("id, name, building_code, address, city, region, postal_code, total_units, pet_rules")
       .eq("id", link.building_id)
       .maybeSingle()
 
@@ -100,6 +101,7 @@ export function useManagerBuilding(preferredId?: string | null) {
         city: b.city,
         region: b.region,
         totalUnits: b.total_units,
+        postalCode: b.postal_code,
         rules: (b.pet_rules as PetRules) ?? {},
       })
       setError(null)
@@ -171,21 +173,53 @@ export function useBuildingStats(buildingId?: string) {
 /** Edit the building's own profile fields. RLS: buildings_manager_update. */
 export async function updateMyBuilding(
   id: string,
-  input: { name: string; address?: string; city?: string; region?: string; totalUnits?: number | null },
+  input: {
+    name: string
+    address?: string
+    city?: string
+    region?: string
+    postalCode?: string
+    totalUnits?: number | null
+    /**
+     * The join code. Changing it invalidates the old one immediately — that is
+     * the point of being able to change it. Normalised and validated by a
+     * database trigger, so a manager typing lowercase or punctuation gets a
+     * clear failure rather than a code nobody can use.
+     */
+    buildingCode?: string
+  },
 ): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
-  const { error } = await supabase
-    .from("buildings")
-    .update({
-      name: input.name,
-      address: input.address || null,
-      city: input.city || null,
-      region: input.region || null,
-      total_units: input.totalUnits ?? null,
-    })
-    .eq("id", id)
-  return { error: error?.message ?? null }
+
+  // The generated Update type, not Record<string, unknown> — a typo in a
+  // column name should fail at compile time, not silently at runtime.
+  const patch: Database["public"]["Tables"]["buildings"]["Update"] = {
+    name: input.name,
+    address: input.address || null,
+    city: input.city || null,
+    region: input.region || null,
+    postal_code: input.postalCode || null,
+    total_units: input.totalUnits ?? null,
+  }
+  // Only sent when actually changed, so an unrelated profile save cannot
+  // rewrite the code through the trigger.
+  if (input.buildingCode) patch.building_code = input.buildingCode.trim().toUpperCase()
+
+  const { error } = await supabase.from("buildings").update(patch).eq("id", id)
+  if (!error) return { error: null }
+
+  // The trigger and the unique index speak in error codes; turn them into
+  // something a manager can act on.
+  const m = error.message.toLowerCase()
+  if (m.includes("building_code_format")) {
+    return { error: "Codes are 4–12 letters and numbers, no spaces or symbols." }
+  }
+  if (m.includes("building_code_empty")) return { error: "The code can't be empty." }
+  if (m.includes("duplicate") || m.includes("unique")) {
+    return { error: "That code is already used by another building. Pick a different one." }
+  }
+  return { error: error.message }
 }
 
 /** Publish the building's pet bylaws (the pet_rules JSON the whole app reads). */

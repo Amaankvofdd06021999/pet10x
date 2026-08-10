@@ -942,6 +942,10 @@ export function useMyBuildingLink(): LiveResult<BuildingLink | null> {
         status: ResidentLinkStatus
         unit: string | null
         requested_at: string
+        building_address: string | null
+        building_city: string | null
+        building_region: string | null
+        building_postal_code: string | null
       }
       setData({
         linkId: j.link_id,
@@ -950,6 +954,10 @@ export function useMyBuildingLink(): LiveResult<BuildingLink | null> {
         status: j.status,
         unit: j.unit,
         requestedAt: j.requested_at,
+        buildingAddress: j.building_address,
+        buildingCity: j.building_city,
+        buildingRegion: j.building_region,
+        buildingPostalCode: j.building_postal_code,
       })
     } else {
       setData(null)
