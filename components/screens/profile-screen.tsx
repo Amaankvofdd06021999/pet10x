@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { PersonaSwitcher } from "@/components/persona-switcher"
 import { PERSONA_LABEL } from "@/lib/rbac"
+import { AddressCard } from "@/components/screens/profile/address-card"
 import { NavBackButton } from "@/components/nav-back-button"
 import {
   ChevronRight,
@@ -230,6 +231,10 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             this row from everyone with a pending request — precisely the
             people the banner is telling to set their unit. */}
         <UnitRow onSaved={(u) => updateLocalUser({ unit: u ?? undefined })} />
+
+        {/* Home address — shown to everyone, but it is the only route a
+            standalone owner has to discover their building is on Pet10x. */}
+        <AddressCard onNavigate={onNavigate} />
 
         {/* Pet Quick View */}
         <section className="mb-5">

@@ -108,3 +108,71 @@ export async function setMyUnit(unit: string): Promise<{ error: string | null; u
   }
   return { error: null, unit: r.unit ?? null }
 }
+
+export interface MyAddress {
+  streetAddress: string | null
+  addressUnit: string | null
+  city: string | null
+  region: string | null
+  postalCode: string | null
+}
+
+/** The signed-in person's own home address. */
+export async function getMyAddress(): Promise<MyAddress | null> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return null
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("street_address, address_unit, city, region, postal_code")
+    .eq("id", user.id)
+    .maybeSingle()
+  if (!data) return null
+  return {
+    streetAddress: data.street_address,
+    addressUnit: data.address_unit,
+    city: data.city,
+    region: data.region,
+    postalCode: data.postal_code,
+  }
+}
+
+export async function updateMyAddress(a: MyAddress): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not signed in." }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      street_address: a.streetAddress?.trim() || null,
+      address_unit: a.addressUnit?.trim() || null,
+      city: a.city?.trim() || null,
+      region: a.region?.trim() || null,
+      postal_code: a.postalCode?.trim() || null,
+    })
+    .eq("id", user.id)
+  return { error: error?.message ?? null }
+}
+
+/**
+ * Buildings already on Pet10x whose address matches the caller's.
+ *
+ * Names only — the server function never returns an id or a code. A match is
+ * the cue to say "your building uses Pet10x, ask them for a code", not a way
+ * to join one.
+ */
+export async function buildingsMatchingMyAddress(): Promise<string[]> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return []
+  const { data, error } = await supabase.rpc("buildings_matching_my_address")
+  if (error || !data) return []
+  return ((data as unknown as { matches?: string[] }).matches ?? []).filter(Boolean)
+}

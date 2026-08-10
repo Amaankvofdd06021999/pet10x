@@ -26,6 +26,7 @@ export interface BuildingPetRules {
 }
 
 export type GapId =
+  | "address"
   | "unit"
   | "pet"
   | "rabies"
@@ -53,6 +54,8 @@ export interface CompletenessInput {
   phone: string | null
   unitId: string | null
   hasBuilding: boolean
+  /** Whether a home address is on file. Only consulted when there is no building. */
+  hasAddress: boolean
   rules: BuildingPetRules
   pets: {
     id: string
@@ -78,6 +81,15 @@ export function computeGaps(input: CompletenessInput): Gap[] {
   // Phone is deliberately NOT asked for. Managers reach residents by email —
   // profiles.email is populated from the auth account for everyone, so the
   // channel exists without demanding a second one at registration.
+  /* No building at all: ask for an address instead.
+   *
+   * A standalone owner has no resident_link, so no unit gap ever fired and the
+   * banner had nothing to say to them. The address is what lets the app notice
+   * their building is already on Pet10x and offer the code path. */
+  if (!input.hasBuilding && !input.hasAddress) {
+    gaps.push({ id: "address", label: "Home address", target: "profile", severity: "required" })
+  }
+
   if (input.hasBuilding && !input.unitId) {
     // Targets the profile, not link-building. That screen only offers to
     // CANCEL the building request — tapping "Unit number" and being shown a
@@ -151,7 +163,7 @@ export function useMyCompleteness(): CompletenessResult {
     }
 
     const [{ data: profile }, { data: link }, { data: pets }] = await Promise.all([
-      supabase.from("profiles").select("phone").eq("id", user.id).maybeSingle(),
+      supabase.from("profiles").select("phone, street_address, postal_code").eq("id", user.id).maybeSingle(),
       supabase
         .from("resident_links")
         .select("unit_id, building_id, status")
@@ -192,6 +204,7 @@ export function useMyCompleteness(): CompletenessResult {
         phone: profile?.phone ?? null,
         unitId: link?.unit_id ?? null,
         hasBuilding: Boolean(link?.building_id),
+        hasAddress: Boolean(profile?.street_address?.trim() || profile?.postal_code?.trim()),
         rules,
         pets: ((pets ?? []) as PetRow[]).map((p) => ({
           id: p.id,

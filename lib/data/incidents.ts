@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { petFileSignedUrls, isStoragePath } from "@/lib/supabase/storage"
 
 export type IncidentType = "noise" | "aggressive" | "off_leash" | "waste" | "damage" | "unregistered" | "other"
 
@@ -71,7 +72,10 @@ export async function submitIncident(input: {
   type: IncidentType
   description: string
   location?: string
+  /** Manager-entered reports only. Guests are never asked for a unit. */
   unit?: string
+  /** The pet the reporter picked from photos. */
+  petId?: string
   anonymous?: boolean
 }): Promise<{ ok: boolean; reference?: string; error?: string }> {
   const supabase = getSupabaseBrowserClient()
@@ -84,6 +88,7 @@ export async function submitIncident(input: {
     p_location: input.location ?? undefined,
     p_unit: input.unit ?? undefined,
     p_anonymous: input.anonymous ?? true,
+    p_pet_id: input.petId ?? undefined,
   })
 
   if (error) return { ok: false, error: error.message }
@@ -234,4 +239,45 @@ export async function escalateIncident(id: string): Promise<{ error: string | nu
   const r = data as unknown as { ok: boolean; error?: string; violation_id?: string }
   if (!r.ok) return { error: r.error === "forbidden" ? "You don't manage this building." : "Couldn't escalate." }
   return { error: null, violationId: r.violation_id }
+}
+
+/* ------------------------- pets, for identification ------------------------ */
+
+export interface ReportablePet {
+  id: string
+  name: string
+  species: string
+  breed: string | null
+  /** Signed URL, or null when the pet has no photo. */
+  photoUrl: string | null
+}
+
+/**
+ * Pets a reporter can pick from, given a building code.
+ *
+ * Name, species, breed and a photo — nothing else. The server function is the
+ * guarantee here, not this wrapper: it never returns a unit, an owner or any
+ * contact detail, and anon cannot read the pets table directly.
+ */
+export async function reportablePets(code: string): Promise<ReportablePet[]> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return []
+
+  const { data, error } = await supabase.rpc("building_pets_for_report", { p_code: code })
+  if (error || !data) return []
+
+  const r = data as unknown as { valid: boolean; pets?: { id: string; name: string; species: string; breed: string | null; photo: string | null }[] }
+  if (!r.valid || !r.pets) return []
+
+  // Storage paths are private; sign them in one batch.
+  const paths = r.pets.map((p) => p.photo).filter((p): p is string => !!p && isStoragePath(p))
+  const urls = paths.length > 0 ? await petFileSignedUrls(paths) : {}
+
+  return r.pets.map((p) => ({
+    id: p.id,
+    name: p.name,
+    species: p.species,
+    breed: p.breed,
+    photoUrl: p.photo ? (urls[p.photo] ?? (isStoragePath(p.photo) ? null : p.photo)) : null,
+  }))
 }

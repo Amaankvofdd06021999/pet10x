@@ -1299,6 +1299,7 @@ export type Database = {
           ip_hash: string | null
           is_anonymous: boolean
           location_text: string | null
+          pet_id: string | null
           reference_code: string | null
           reporter_id: string | null
           status: Database["public"]["Enums"]["incident_status"]
@@ -1316,6 +1317,7 @@ export type Database = {
           ip_hash?: string | null
           is_anonymous?: boolean
           location_text?: string | null
+          pet_id?: string | null
           reference_code?: string | null
           reporter_id?: string | null
           status?: Database["public"]["Enums"]["incident_status"]
@@ -1333,6 +1335,7 @@ export type Database = {
           ip_hash?: string | null
           is_anonymous?: boolean
           location_text?: string | null
+          pet_id?: string | null
           reference_code?: string | null
           reporter_id?: string | null
           status?: Database["public"]["Enums"]["incident_status"]
@@ -1347,6 +1350,13 @@ export type Database = {
             columns: ["building_id"]
             isOneToOne: false
             referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_reports_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
             referencedColumns: ["id"]
           },
           {
@@ -2392,8 +2402,11 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address_unit: string | null
           ai_consent_at: string | null
           avatar_url: string | null
+          city: string | null
+          country: string | null
           created_at: string
           email: string | null
           full_name: string | null
@@ -2409,15 +2422,21 @@ export type Database = {
           onboarded: boolean
           phone: string | null
           plan_label: string | null
+          postal_code: string | null
+          region: string | null
           role: Database["public"]["Enums"]["user_role"]
+          street_address: string | null
           suspended_at: string | null
           suspended_by: string | null
           timezone: string | null
           updated_at: string
         }
         Insert: {
+          address_unit?: string | null
           ai_consent_at?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -2433,15 +2452,21 @@ export type Database = {
           onboarded?: boolean
           phone?: string | null
           plan_label?: string | null
+          postal_code?: string | null
+          region?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          street_address?: string | null
           suspended_at?: string | null
           suspended_by?: string | null
           timezone?: string | null
           updated_at?: string
         }
         Update: {
+          address_unit?: string | null
           ai_consent_at?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -2457,7 +2482,10 @@ export type Database = {
           onboarded?: boolean
           phone?: string | null
           plan_label?: string | null
+          postal_code?: string | null
+          region?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          street_address?: string | null
           suspended_at?: string | null
           suspended_by?: string | null
           timezone?: string | null
@@ -3129,6 +3157,8 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      building_pets_for_report: { Args: { p_code: string }; Returns: Json }
+      buildings_matching_my_address: { Args: never; Returns: Json }
       business_mark_booking_paid: {
         Args: { p_booking: string }
         Returns: string
@@ -3164,17 +3194,30 @@ export type Database = {
       }
       set_my_unit: { Args: { p_unit: string }; Returns: Json }
       shares_managed_building_with: { Args: { p: string }; Returns: boolean }
-      submit_incident_report: {
-        Args: {
-          p_anonymous?: boolean
-          p_building_code: string
-          p_description: string
-          p_location?: string
-          p_type: string
-          p_unit?: string
-        }
-        Returns: Json
-      }
+      submit_incident_report:
+        | {
+            Args: {
+              p_anonymous?: boolean
+              p_building_code: string
+              p_description: string
+              p_location?: string
+              p_type: string
+              p_unit?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_anonymous?: boolean
+              p_building_code: string
+              p_description: string
+              p_location?: string
+              p_pet_id?: string
+              p_type: string
+              p_unit?: string
+            }
+            Returns: Json
+          }
       targetable_buildings: {
         Args: never
         Returns: {

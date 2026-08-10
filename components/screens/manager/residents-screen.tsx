@@ -39,6 +39,9 @@ export function ManagerResidentsScreen({ onNavigate }: { onNavigate?: (screen: s
       phone: r.residentPhone,
       unitId: r.unit,
       hasBuilding: true,
+      // Every resident in this list is in a building, so the address gap — which
+      // only fires for standalone owners — can never apply here.
+      hasAddress: true,
       rules: building?.rules ?? {},
       pets: theirPets.map((p) => ({
         id: p.petId,

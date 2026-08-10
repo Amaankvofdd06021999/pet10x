@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import Image from "next/image"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
-import { submitIncident, type IncidentType as DbIncidentType } from "@/lib/data/incidents"
+import { submitIncident, reportablePets, type ReportablePet, type IncidentType as DbIncidentType } from "@/lib/data/incidents"
 import {
   ArrowLeft,
   Camera,
@@ -11,6 +12,7 @@ import {
   AlertTriangle,
   Volume2,
   PawPrint,
+  Check,
   Trash2,
   ShieldAlert,
   FileWarning,
@@ -51,7 +53,30 @@ export function GuestReportScreen() {
   const [selectedType, setSelectedType] = useState<IncidentType | null>(null)
   const [description, setDescription] = useState("")
   const [location, setLocation] = useState("")
-  const [unitNumber, setUnitNumber] = useState("")
+  /* Pets, not units.
+   *
+   * The form used to ask a stranger to type "Unit involved", which hands out a
+   * resident's home address in exchange for a code printed in the lobby — and
+   * asks the reporter for something they usually do not know. What a witness
+   * knows is what the animal looked like. */
+  const [petId, setPetId] = useState<string | null>(null)
+  const [pets, setPets] = useState<ReportablePet[]>([])
+  const [petsLoading, setPetsLoading] = useState(false)
+
+  useEffect(() => {
+    const code = guestSession?.buildingCode
+    if (!code) return
+    let active = true
+    setPetsLoading(true)
+    void reportablePets(code).then((list) => {
+      if (!active) return
+      setPets(list)
+      setPetsLoading(false)
+    })
+    return () => {
+      active = false
+    }
+  }, [guestSession?.buildingCode])
   const [photos, setPhotos] = useState<string[]>([])
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -101,7 +126,7 @@ export function GuestReportScreen() {
       type: TYPE_TO_DB[selectedType],
       description: description.trim(),
       location: location.trim() || undefined,
-      unit: unitNumber.trim() || undefined,
+      petId: petId ?? undefined,
       anonymous: isAnonymous,
     })
     setSubmitting(false)
@@ -139,7 +164,7 @@ export function GuestReportScreen() {
                 setSelectedType(null)
                 setDescription("")
                 setLocation("")
-                setUnitNumber("")
+                setPetId(null)
                 setPhotos([])
                 setReference(null)
               }}
@@ -302,19 +327,61 @@ export function GuestReportScreen() {
                 )}
               </div>
 
-              {/* Unit */}
+              {/* Which pet — by sight. No unit is shown or asked for. */}
               <div>
-                <label htmlFor="unit" className="mb-2 block text-[13px] font-semibold uppercase text-muted-foreground">
-                  Unit involved (if known)
+                <label className="mb-2 block text-[13px] font-semibold uppercase text-muted-foreground">
+                  Which pet? (if you recognise them)
                 </label>
-                <input
-                  id="unit"
-                  type="text"
-                  value={unitNumber}
-                  onChange={(e) => setUnitNumber(e.target.value)}
-                  placeholder="e.g. 2104"
-                  className="w-full rounded-xl border border-border bg-card py-3 px-4 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
+                {petsLoading ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : pets.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-border bg-card p-4 text-center text-[13px] text-muted-foreground">
+                    No registered pets to choose from — describe the animal above instead.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {pets.map((pet) => {
+                      const on = petId === pet.id
+                      return (
+                        <button
+                          key={pet.id}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => setPetId(on ? null : pet.id)}
+                          className={`overflow-hidden rounded-xl border-2 text-left transition-colors ${
+                            on ? "border-primary" : "border-transparent"
+                          }`}
+                        >
+                          <span className="relative block aspect-square w-full bg-muted">
+                            {pet.photoUrl ? (
+                              <Image src={pet.photoUrl} alt="" fill className="object-cover" unoptimized />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center">
+                                <PawPrint className="h-6 w-6 text-muted-foreground" />
+                              </span>
+                            )}
+                            {on && (
+                              <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+                                <Check className="h-3 w-3 text-primary-foreground" />
+                              </span>
+                            )}
+                          </span>
+                          <span className="block truncate px-1.5 py-1 text-[11.5px] font-semibold text-foreground">
+                            {pet.name}
+                          </span>
+                          <span className="block truncate px-1.5 pb-1.5 text-[10.5px] text-muted-foreground">
+                            {pet.breed || pet.species}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+                <p className="mt-1.5 text-[12px] text-muted-foreground">
+                  Optional — pick the pet you saw. Unit numbers aren&apos;t shown to protect residents&apos; privacy.
+                </p>
               </div>
 
               {/* Anonymous toggle */}
@@ -413,8 +480,10 @@ export function GuestReportScreen() {
                   <span className="text-[13px] font-medium text-foreground">{location || "Not specified"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[13px] text-muted-foreground">Unit</span>
-                  <span className="text-[13px] font-medium text-foreground">{unitNumber || "Unknown"}</span>
+                  <span className="text-[13px] text-muted-foreground">Pet</span>
+                  <span className="text-[13px] font-medium text-foreground">
+                    {pets.find((x) => x.id === petId)?.name ?? "Not identified"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[13px] text-muted-foreground">Evidence</span>

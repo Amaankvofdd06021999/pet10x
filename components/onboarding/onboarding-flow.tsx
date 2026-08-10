@@ -3,11 +3,15 @@
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { requestBuildingLink } from "@/lib/data"
+import { setMyUnit } from "@/lib/data/account"
 import { PERSONA_LABEL } from "@/lib/rbac"
 import { toast } from "sonner"
 import { PawPrint, Building2, ArrowLeft, KeyRound, Loader2, CheckCircle2, Share2, Sparkles } from "lucide-react"
 
-type Step = "intro" | "code" | "linked" | "standalone"
+/* "unit" sits between code and linked: the manager needs a unit to place the
+   request, and asking later means the request lands incomplete and has to be
+   chased. Asked once, here, while they are already thinking about it. */
+type Step = "intro" | "code" | "unit" | "linked" | "standalone"
 
 export function OnboardingFlow() {
   const { user, markOnboarded, personas, setActivePersona } = useAuth()
@@ -16,6 +20,7 @@ export function OnboardingFlow() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [linkedBuilding, setLinkedBuilding] = useState("")
+  const [unit, setUnit] = useState("")
   const firstName = (user?.name || "there").split(" ")[0]
 
   async function linkBuilding() {
@@ -32,6 +37,25 @@ export function OnboardingFlow() {
       return
     }
     setLinkedBuilding(res.buildingName ?? "your building")
+    setStep("unit")
+  }
+
+  async function saveUnitAndContinue() {
+    setError(null)
+    if (!unit.trim()) {
+      // Skippable, not optional-forever: the banner and the manager's
+      // Incomplete filter both still chase it. Blocking here would strand
+      // someone who genuinely does not know their unit number yet.
+      setStep("linked")
+      return
+    }
+    setLoading(true)
+    const { error: e } = await setMyUnit(unit.trim())
+    setLoading(false)
+    if (e) {
+      setError(e)
+      return
+    }
     setStep("linked")
   }
 
@@ -176,6 +200,50 @@ export function OnboardingFlow() {
       )}
 
       {/* Linked (pending) */}
+      {step === "unit" && (
+        <div className="flex flex-1 flex-col">
+          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary/10">
+            <KeyRound className="h-8 w-8 text-primary" />
+          </div>
+          <h1 className="mt-6 text-[24px] font-semibold text-foreground">Which unit are you in?</h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground">{linkedBuilding}</span> needs this to place you and
+            your pet on their register.
+          </p>
+
+          <div className="mt-6">
+            <input
+              type="text"
+              value={unit}
+              onChange={(e) => {
+                setUnit(e.target.value)
+                setError(null)
+              }}
+              placeholder="e.g. 2104"
+              autoFocus
+              onKeyDown={(e) => e.key === "Enter" && saveUnitAndContinue()}
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-[16px] font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            {error && <p className="mt-1.5 text-[13px] text-destructive">{error}</p>}
+          </div>
+
+          <button
+            onClick={saveUnitAndContinue}
+            disabled={loading}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+          >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Continue
+          </button>
+          <button
+            onClick={() => setStep("linked")}
+            className="mt-3 text-center text-[13px] font-medium text-muted-foreground"
+          >
+            I don&apos;t know it yet
+          </button>
+        </div>
+      )}
+
       {step === "linked" && (
         <div className="flex flex-1 flex-col items-center justify-center text-center">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
