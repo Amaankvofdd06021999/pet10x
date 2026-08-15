@@ -8,10 +8,10 @@ import {
   Building2,
   Users,
   Store,
+  ShoppingBag,
   QrCode,
   Heart,
   Calendar,
-  Bell,
   FileText,
   TrendingUp,
   Check,
@@ -32,11 +32,20 @@ import { Reveal } from "@/components/landing/reveal"
 /* Content                                                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Proof points, shown inline beneath the hero CTAs.
+ *
+ * They used to sit in their own full-width band under the fold, which put a
+ * horizontal rule between the pitch and its evidence — the reader had to
+ * scroll past the claim to reach the reason to believe it. Inline is the
+ * arrangement the reference uses, and it is the right one: the numbers are
+ * an argument for the headline, not a separate section.
+ */
 const STATS = [
-  { value: "450K+", label: "Strata units in BC" },
-  { value: "60%", label: "Of households own a pet" },
-  { value: "$2–5K", label: "Avg. yearly governance cost / building" },
-  { value: "1", label: "Platform to run it all" },
+  { icon: Building2, value: "450K+", label: "Strata units in BC" },
+  { icon: PawPrint, value: "60%", label: "Of households own a pet" },
+  { icon: TrendingUp, value: "$2–5K", label: "Yearly governance cost" },
+  { icon: Sparkles, value: "1", label: "Platform to run it all" },
 ]
 
 const FEATURES = [
@@ -107,7 +116,10 @@ const CAPABILITIES = [
   { icon: MapPin, title: "Lost & found", body: "Post and resolve lost pets with proximity alerts across the building." },
   { icon: Calendar, title: "Events", body: "Dog walks, vaccination clinics, and policy meetings with RSVP and reminders." },
   { icon: Store, title: "Services marketplace", body: "Vets, groomers, walkers, and trainers — discoverable by location and rating." },
-  { icon: Bell, title: "Emergency directory", body: "A time-limited, access-logged pet summary for emergency context, by floor and unit." },
+  // Was "Emergency directory" — the dark band directly below now explains
+  // that feature properly, and describing it twice in adjacent sections made
+  // the grid look like filler. The shop is a real capability with no card yet.
+  { icon: ShoppingBag, title: "Pet shop", body: "Curated food, gear and enrichment, chosen for the species your household actually has." },
 ]
 
 const PERSONAS = [
@@ -232,6 +244,25 @@ export default function LandingPage() {
                 Governance &amp; risk platform — not legal advice or a life-safety system.
               </div>
             </Reveal>
+
+            {/* Evidence sits with the claim, not a section below it. */}
+            <Reveal delay={400}>
+              <dl className="mt-9 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-border/60 pt-7 sm:grid-cols-4 sm:gap-x-4">
+                {STATS.map((s) => (
+                  <div key={s.label} className="flex items-start gap-2.5">
+                    <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <s.icon className="h-3.5 w-3.5 text-primary" />
+                    </span>
+                    <div className="min-w-0">
+                      <dt className="text-[19px] font-semibold leading-none tracking-tight text-foreground">
+                        {s.value}
+                      </dt>
+                      <dd className="mt-1 text-[12px] leading-snug text-muted-foreground">{s.label}</dd>
+                    </div>
+                  </div>
+                ))}
+              </dl>
+            </Reveal>
           </div>
 
           <Reveal delay={200} className="relative">
@@ -244,18 +275,6 @@ export default function LandingPage() {
               className="h-auto w-full"
             />
           </Reveal>
-        </div>
-      </section>
-
-      {/* ===================== Stats ===================== */}
-      <section className="border-b border-border/60 bg-secondary/40">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-y divide-border/60 sm:divide-y-0 lg:grid-cols-4">
-          {STATS.map((s, i) => (
-            <Reveal key={s.label} delay={i * 70} className="px-5 py-8 sm:px-6 sm:py-10">
-              <p className="text-[28px] font-semibold tracking-tight text-foreground sm:text-[32px]">{s.value}</p>
-              <p className="mt-1 text-[13px] text-muted-foreground">{s.label}</p>
-            </Reveal>
-          ))}
         </div>
       </section>
 
@@ -321,28 +340,103 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===================== Bento ===================== */}
+      {/* ===================== Capabilities =====================
+          Centred header over a 3x2 card grid — the reference's
+          "Comprehensive Care" block. Cards are separated rather than fused
+          into a gapless bento: six equal things read as a list of six, and
+          the hairline grid made them read as one table. */}
       <section className="border-y border-border/60 bg-secondary/40 px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-7xl">
-          <Reveal className="max-w-2xl">
+          <Reveal className="mx-auto max-w-2xl text-center">
             <p className={EYEBROW}>Beyond governance</p>
-            <h2 className={`mt-3 ${H2}`}>Everything in one place.</h2>
+            <h2 className={`mt-3 ${H2}`}>Comprehensive care for every pet in the building.</h2>
             <p className={`mt-4 ${LEAD}`}>Where your building&apos;s pet life actually happens.</p>
           </Reveal>
-          <div className="mt-12 grid gap-px overflow-hidden rounded-xl border border-border/70 bg-border/60 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {CAPABILITIES.map((c, i) => (
               <Reveal key={c.title} delay={(i % 3) * 70}>
-                <div className="group h-full bg-card p-6 transition-colors hover:bg-muted/40">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <div className="group h-full rounded-2xl border border-border/70 bg-card p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_8px_28px_-18px_rgba(0,0,0,0.28)]">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                     <c.icon className="h-5 w-5" />
                   </span>
-                  <h3 className="mt-4 text-[16px] font-semibold tracking-tight">{c.title}</h3>
-                  <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">{c.body}</p>
+                  <h3 className="mt-5 text-[16.5px] font-semibold tracking-tight">{c.title}</h3>
+                  <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">{c.body}</p>
                 </div>
               </Reveal>
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ===================== Emergency =====================
+          The reference's dark full-bleed band, which is the single thing
+          stopping a marketing page reading as one uninterrupted white
+          scroll. Dark comes from `foreground`, not the reference's green,
+          so it inverts correctly in dark mode instead of staying green.
+
+          It carries the emergency directory because that is a real feature
+          and the one with genuine urgency — a decorative dark band would be
+          a stripe for its own sake. */}
+      <section className="px-5 py-16 sm:px-8 sm:py-20">
+        <Reveal className="mx-auto max-w-7xl">
+          <div className="relative overflow-hidden rounded-3xl bg-foreground px-7 py-12 text-background sm:px-12 sm:py-14">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 opacity-[0.14]"
+              style={{
+                background:
+                  "radial-gradient(70% 90% at 88% 12%, rgba(253,147,64,0.9), transparent 62%), radial-gradient(60% 80% at 8% 96%, rgba(47,191,184,0.55), transparent 60%)",
+              }}
+            />
+            <div className="relative grid items-center gap-9 lg:grid-cols-[1.25fr_1fr]">
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full bg-background/15 px-3 py-1 text-[12px] font-semibold">
+                  <Siren className="h-3.5 w-3.5" />
+                  Emergency access
+                </span>
+                <h2 className="mt-5 text-balance text-[27px] font-semibold leading-[1.12] tracking-tight sm:text-[34px]">
+                  When seconds matter, responders know which units have pets.
+                </h2>
+                <p className="mt-4 max-w-xl text-[15.5px] leading-relaxed text-background/75">
+                  A time-limited QR gives fire and rescue a floor-by-floor pet summary — species, presence
+                  and an emergency contact. Every view is logged, and the code can be revoked the moment
+                  it is no longer needed.
+                </p>
+                <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <Link
+                    href="/app"
+                    className="group inline-flex items-center justify-center gap-2 rounded-lg bg-background px-6 py-3 text-[15px] font-semibold text-foreground transition-opacity hover:opacity-90"
+                  >
+                    See how it works
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                  <span className="text-[13px] text-background/60">No account needed to scan.</span>
+                </div>
+              </div>
+
+              {/* Three facts rather than a stock photo: this band is about
+                  what the feature guarantees, and a picture of a vet would
+                  say nothing the copy does not. */}
+              <ul className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                {[
+                  { icon: QrCode, label: "Scan a QR", body: "No app, no login." },
+                  { icon: ListChecks, label: "By floor & unit", body: "Species, presence, contact." },
+                  { icon: ShieldCheck, label: "Logged & revocable", body: "Expires on its own." },
+                ].map((f) => (
+                  <li key={f.label} className="flex items-start gap-3 rounded-2xl bg-background/10 p-4">
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-background/15">
+                      <f.icon className="h-4.5 w-4.5" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-semibold">{f.label}</p>
+                      <p className="mt-0.5 text-[12.5px] leading-snug text-background/65">{f.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Reveal>
       </section>
 
       {/* ===================== Personas ===================== */}
@@ -394,26 +488,33 @@ export default function LandingPage() {
       {/* ===================== Pricing ===================== */}
       <section id="pricing" className="scroll-mt-16 border-t border-border/60 bg-secondary/40 px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-7xl">
-          <Reveal className="max-w-2xl">
+          <Reveal className="mx-auto max-w-2xl text-center">
             <p className={EYEBROW}>Pricing</p>
             <h2 className={`mt-3 ${H2}`}>Simple, fair pricing.</h2>
             <p className={`mt-4 ${LEAD}`}>Free to start. Upgrade when you&apos;re ready — or let your building cover it.</p>
           </Reveal>
 
-          <div className="mt-12 grid items-stretch gap-4 lg:grid-cols-3">
+          {/* `items-center`, not `items-stretch`: the featured tier is taller,
+              and stretching the other two to match would erase the lift that
+              marks it. */}
+          <div className="mt-14 grid items-center gap-4 lg:grid-cols-3">
             {PRICING.map((tier, i) => (
               <Reveal key={tier.name} delay={i * 70}>
                 <div
-                  className={`flex h-full flex-col rounded-xl border bg-card p-7 ${
-                    tier.featured ? "border-primary" : "border-border/70"
+                  className={`relative flex h-full flex-col rounded-2xl border bg-card ${
+                    tier.featured
+                      ? "border-primary/60 p-8 shadow-[0_18px_48px_-28px_rgba(253,147,64,0.55)] lg:scale-[1.035]"
+                      : "border-border/70 p-7"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-[17px] font-semibold tracking-tight">{tier.name}</h3>
-                    {tier.featured && (
-                      <span className="rounded-md bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">Most popular</span>
-                    )}
-                  </div>
+                  {/* Badge sits on the border, as the reference does — inside
+                      the card it competed with the plan name for the same row. */}
+                  {tier.featured && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
+                      Most popular
+                    </span>
+                  )}
+                  <h3 className="text-[17px] font-semibold tracking-tight">{tier.name}</h3>
                   <div className="mt-4 flex items-baseline gap-1.5">
                     <span className="text-[36px] font-semibold tracking-tight">{tier.price}</span>
                     <span className="text-[14px] text-muted-foreground">{tier.cadence}</span>
@@ -458,17 +559,30 @@ export default function LandingPage() {
       {/* ===================== CTA ===================== */}
       <section className="px-5 py-20 sm:px-8 sm:py-24">
         <Reveal>
-          <div className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl bg-foreground px-7 py-14 text-center sm:px-12 sm:py-20">
+          {/* Warm and light, not dark.
+              It was `bg-foreground`, which was fine while the footer below it
+              was white — with a dark footer the two merged into one black slab
+              and the closing pitch stopped reading as its own moment. The
+              reference puts light content immediately above its dark footer for
+              exactly this reason. */}
+          <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-primary/20 bg-primary/[0.06] px-7 py-14 text-center sm:px-12 sm:py-20">
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-0 opacity-50"
-              style={{ background: "radial-gradient(60% 80% at 50% 0%, rgba(253,147,64,0.2), transparent 70%)" }}
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(60% 80% at 50% 0%, rgba(253,147,64,0.16), transparent 70%), radial-gradient(45% 60% at 92% 100%, rgba(47,191,184,0.12), transparent 70%)",
+              }}
             />
             <div className="relative">
-              <h2 className="mx-auto max-w-2xl text-balance text-[28px] font-semibold leading-[1.1] tracking-tight text-background sm:text-[38px]">
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-card px-3 py-1 text-[12px] font-semibold text-primary">
+                <PawPrint className="h-3.5 w-3.5" />
+                Free for residents
+              </span>
+              <h2 className="mx-auto mt-5 max-w-2xl text-balance text-[28px] font-semibold leading-[1.1] tracking-tight text-foreground sm:text-[38px]">
                 Bring order to pets in your building.
               </h2>
-              <p className="mx-auto mt-4 max-w-xl text-[16px] leading-relaxed text-background/70">
+              <p className="mx-auto mt-4 max-w-xl text-[16px] leading-relaxed text-muted-foreground">
                 Start free as a resident, or book a demo to roll Pet10x out across your strata.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -481,7 +595,7 @@ export default function LandingPage() {
                 </Link>
                 <Link
                   href="/app"
-                  className="inline-flex items-center justify-center rounded-lg border border-background/25 px-7 py-3 text-[15px] font-semibold text-background transition-colors hover:bg-background/10"
+                  className="inline-flex items-center justify-center rounded-lg border border-border bg-card px-7 py-3 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
                 >
                   Book a demo
                 </Link>
@@ -712,6 +826,13 @@ function Tone({ tone, children }: { tone: string; children: React.ReactNode }) {
   return <span className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${map[tone] ?? map.info}`}>{children}</span>
 }
 
+/**
+ * Dark footer, per the reference.
+ *
+ * Built on `foreground`/`background` rather than a literal dark hex, so it
+ * inverts with the theme instead of staying near-black on a dark page — the
+ * mistake a hardcoded #1F1F1F would make.
+ */
 function SiteFooter() {
   const cols = [
     { title: "Product", links: ["Features", "Pricing", "For Residents", "For Buildings", "For Businesses"] },
@@ -719,34 +840,52 @@ function SiteFooter() {
     { title: "Legal", links: ["Privacy Policy", "Terms of Service", "PIPEDA", "Disclaimers"] },
   ]
   return (
-    <footer className="border-t border-border/60 px-5 py-14 sm:px-8">
-      <div className="mx-auto max-w-7xl">
+    <footer className="relative overflow-hidden bg-foreground px-5 pb-10 pt-16 text-background sm:px-8 sm:pt-20">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.1]"
+        style={{ background: "radial-gradient(60% 70% at 82% 0%, rgba(253,147,64,0.9), transparent 60%)" }}
+      />
+      <div className="relative mx-auto max-w-7xl">
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
             <Link href="/" className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary"><PawPrint className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} /></span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+                <PawPrint className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
+              </span>
               <span className="text-[17px] font-semibold tracking-tight">Pet10x</span>
             </Link>
-            <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-background/60">
               Pet governance, risk &amp; community for multi-unit residential buildings.
             </p>
+            <Link
+              href="/app"
+              className="group mt-6 inline-flex items-center gap-2 rounded-lg bg-background px-5 py-2.5 text-[14px] font-semibold text-foreground transition-opacity hover:opacity-90"
+            >
+              Get started free
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
           </div>
           {cols.map((c) => (
             <div key={c.title}>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{c.title}</p>
+              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-background/50">{c.title}</p>
               <ul className="mt-4 flex flex-col gap-2.5">
                 {c.links.map((l) => (
                   <li key={l}>
-                    <a href="#" className="text-[14px] text-foreground/80 transition-colors hover:text-foreground">{l}</a>
+                    <a href="#" className="text-[14px] text-background/80 transition-colors hover:text-background">
+                      {l}
+                    </a>
                   </li>
                 ))}
               </ul>
             </div>
           ))}
         </div>
-        <div className="mt-12 flex flex-col gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[12px] text-muted-foreground">© 2026 Park10x Services Inc. All rights reserved.</p>
-          <p className="text-[12px] text-muted-foreground">A governance &amp; management tool — not legal advice or a life-safety system.</p>
+        <div className="mt-12 flex flex-col gap-3 border-t border-background/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[12px] text-background/55">© 2026 Park10x Services Inc. All rights reserved.</p>
+          <p className="text-[12px] text-background/55">
+            A governance &amp; management tool — not legal advice or a life-safety system.
+          </p>
         </div>
       </div>
     </footer>
