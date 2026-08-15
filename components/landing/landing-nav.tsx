@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { PawPrint, Menu, X } from "lucide-react"
+import { PawPrint, Menu, X, AlertTriangle } from "lucide-react"
 
 const LINKS = [
   { href: "#product", label: "Product" },
@@ -50,6 +50,17 @@ export function LandingNav() {
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
+          {/* Reporting must be reachable without an account — the person who
+              saw the incident is often not a resident and has nothing to sign
+              in with. Outlined rather than solid so it reads as available
+              without competing with "Get started". */}
+          <Link
+            href="/report"
+            className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3.5 py-2 text-[14px] font-semibold text-destructive transition-colors hover:bg-destructive/5"
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Report incident
+          </Link>
           <Link
             href="/login"
             className="rounded-lg px-4 py-2 text-[14px] font-semibold text-foreground transition-colors hover:bg-muted"
@@ -89,6 +100,14 @@ export function LandingNav() {
               </a>
             ))}
             <div className="mt-2 flex flex-col gap-2">
+              <Link
+                href="/report"
+                onClick={() => setOpen(false)}
+                className="flex items-center justify-center gap-2 rounded-lg border border-destructive/30 px-4 py-2.5 text-center text-[15px] font-semibold text-destructive"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                Report incident
+              </Link>
               <Link
                 href="/login"
                 className="rounded-lg border border-border px-4 py-2.5 text-center text-[15px] font-semibold text-foreground"

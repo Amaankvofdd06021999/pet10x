@@ -1476,6 +1476,124 @@ export type Database = {
           },
         ]
       }
+      municipal_reports: {
+        Row: {
+          created_at: string
+          description: string
+          evidence_paths: string[]
+          id: string
+          ip_hash: string | null
+          is_anonymous: boolean
+          latitude: number | null
+          location_text: string | null
+          longitude: number | null
+          municipality_id: string | null
+          postal_code: string | null
+          reference_code: string | null
+          reporter_id: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          evidence_paths?: string[]
+          id?: string
+          ip_hash?: string | null
+          is_anonymous?: boolean
+          latitude?: number | null
+          location_text?: string | null
+          longitude?: number | null
+          municipality_id?: string | null
+          postal_code?: string | null
+          reference_code?: string | null
+          reporter_id?: string | null
+          status?: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          evidence_paths?: string[]
+          id?: string
+          ip_hash?: string | null
+          is_anonymous?: boolean
+          latitude?: number | null
+          location_text?: string | null
+          longitude?: number | null
+          municipality_id?: string | null
+          postal_code?: string | null
+          reference_code?: string | null
+          reporter_id?: string | null
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "municipal_reports_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "municipal_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "municipal_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      municipalities: {
+        Row: {
+          animal_control_phone: string | null
+          animal_control_url: string | null
+          country: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          postal_prefixes: string[]
+          region: string | null
+          updated_at: string
+        }
+        Insert: {
+          animal_control_phone?: string | null
+          animal_control_url?: string | null
+          country?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          postal_prefixes?: string[]
+          region?: string | null
+          updated_at?: string
+        }
+        Update: {
+          animal_control_phone?: string | null
+          animal_control_url?: string | null
+          country?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          postal_prefixes?: string[]
+          region?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_label: string | null
@@ -3215,6 +3333,10 @@ export type Database = {
         Args: { p_user: string }
         Returns: Database["public"]["Enums"]["entitlement_source"]
       }
+      resolve_municipality: {
+        Args: { p_lat?: number; p_lng?: number; p_postal?: string }
+        Returns: Json
+      }
       set_my_unit: { Args: { p_unit: string }; Returns: Json }
       shares_managed_building_with: { Args: { p: string }; Returns: boolean }
       submit_incident_report:
@@ -3241,6 +3363,18 @@ export type Database = {
             }
             Returns: Json
           }
+      submit_municipal_report: {
+        Args: {
+          p_anonymous?: boolean
+          p_description: string
+          p_lat?: number
+          p_lng?: number
+          p_location?: string
+          p_postal?: string
+          p_type: string
+        }
+        Returns: Json
+      }
       targetable_buildings: {
         Args: never
         Returns: {

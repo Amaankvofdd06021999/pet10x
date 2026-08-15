@@ -101,8 +101,8 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const handleQuickAction = (label: string) => {
     if (label.includes("Rules"))
       toast("Building pet rules", { description: "One dog or one cat · leashed in common areas." })
-    else if (label.includes("Report"))
-      toast("Report an incident", { description: "Pet incident reporting is coming soon." })
+    // Was a "coming soon" toast while the screen existed above it.
+    else if (label.includes("Report")) onNavigate?.("report")
     else if (label.includes("Shop")) onNavigate?.("shop")
     else if (label.includes("Events")) onNavigate?.("community")
   }
@@ -168,6 +168,24 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             </button>
           ) : null}
         </section>
+
+        {/* Reporting is a thing people need in a hurry — it sits above the
+            fold rather than behind a tab, and offers both destinations. */}
+        <button
+          onClick={() => onNavigate?.("report")}
+          className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-destructive/25 bg-destructive/5 p-3.5 text-left transition-transform active:scale-[0.99]"
+        >
+          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-destructive/10">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14.5px] font-semibold text-foreground">Report an incident</span>
+            <span className="block text-[12px] text-muted-foreground">
+              To your building manager, or your local municipality
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+        </button>
 
         <div className="mb-6">
           <MissingInfoCard onNavigate={onNavigate} />
