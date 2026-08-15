@@ -9,8 +9,6 @@ import {
   Building2,
   ChevronRight,
   PawPrint,
-  KeyRound,
-  AlertTriangle,
   ArrowLeft,
   Mail,
   Lock,
@@ -25,7 +23,7 @@ const ROLE_CARDS: { role: DemoRole; icon: typeof Dog; iconColor: string; iconBg:
   { role: "building-manager", icon: Building2, iconColor: "text-info", iconBg: "bg-info/10", accent: "border-info/20 active:border-info/40" },
 ]
 
-type SignInView = "main" | "building-code" | "verify-email"
+type SignInView = "main" | "verify-email"
 type AuthMode = "signin" | "signup"
 
 /** Mirrors the server's CODE_TTL_MINUTES / RESEND_COOLDOWN_SECONDS. */
@@ -38,11 +36,9 @@ const mmss = (ms: number) => {
 }
 
 export function SignInScreen() {
-  const { signIn, signInWithPassword, startSignup, verifySignup, resetPassword, signInGuest, supabaseEnabled } =
+  const { signIn, signInWithPassword, startSignup, verifySignup, resetPassword, supabaseEnabled } =
     useAuth()
   const [view, setView] = useState<SignInView>("main")
-  const [buildingCode, setBuildingCode] = useState("")
-  const [codeError, setCodeError] = useState<string | null>(null)
 
   // real-auth form state
   const [mode, setMode] = useState<AuthMode>("signin")
@@ -78,17 +74,6 @@ export function SignInScreen() {
   const codeExpired = expiresAt > 0 && msLeft === 0
   const resendLeft = Math.max(0, resendAt - now)
 
-  const handleGuestSignIn = async () => {
-    if (!buildingCode.trim()) {
-      setCodeError("Please enter your building code.")
-      return
-    }
-    setCodeError(null)
-    setLoading(true)
-    const err = await signInGuest(buildingCode)
-    setLoading(false)
-    if (err) setCodeError(err)
-  }
 
   const handleAuth = async () => {
     setError(null)
@@ -269,74 +254,6 @@ export function SignInScreen() {
     )
   }
 
-  /* ── Building Code (guest) View ── */
-  if (view === "building-code") {
-    return (
-      <div className="flex min-h-dvh flex-col bg-background">
-        <div className="flex items-center gap-2.5 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-2">
-          <button
-            onClick={() => { setView("main"); setCodeError(null); setBuildingCode("") }}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-muted transition-transform active:scale-95"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="h-4.5 w-4.5 text-foreground" />
-          </button>
-          <h1 className="text-[17px] font-semibold text-foreground">Report an Incident</h1>
-        </div>
-
-        <div className="flex-1 px-5 pt-6 sm:flex sm:flex-none sm:flex-col sm:justify-center sm:pt-10">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10">
-            <AlertTriangle className="h-8 w-8 text-destructive" />
-          </div>
-          <h2 className="text-center text-[20px] font-semibold text-foreground">Enter Building Code</h2>
-          <p className="mt-1.5 text-center text-[14px] leading-relaxed text-muted-foreground">
-            No account needed. Enter the code from your property management to file an incident report.
-          </p>
-
-          <div className="mt-6">
-            <label htmlFor="building-code" className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Building Code
-            </label>
-            <div className="relative">
-              <KeyRound className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                id="building-code"
-                type="text"
-                value={buildingCode}
-                onChange={(e) => { setBuildingCode(e.target.value.toUpperCase()); setCodeError(null) }}
-                onKeyDown={(e) => e.key === "Enter" && handleGuestSignIn()}
-                placeholder="e.g. MCR2026"
-                autoCapitalize="characters"
-                autoComplete="off"
-                maxLength={10}
-                className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-4 text-[16px] font-mono font-semibold tracking-widest text-foreground placeholder:text-muted-foreground/40 placeholder:font-normal placeholder:tracking-normal focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-            {codeError && <p className="mt-1.5 text-[13px] text-destructive">{codeError}</p>}
-          </div>
-
-          <button
-            onClick={handleGuestSignIn}
-            disabled={loading}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-destructive py-3 text-[15px] font-semibold text-destructive-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {loading ? "Checking code…" : "Continue to Report"}
-          </button>
-
-          <div className="mt-6 rounded-xl bg-muted/60 p-3.5">
-            <p className="text-[12px] font-semibold text-foreground">Where do I find my building code?</p>
-            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-              Check the lobby notice board, ask your concierge, or look in your building welcome package.
-            </p>
-          </div>
-          <p className="mt-3 text-center text-[11px] text-muted-foreground">
-            Demo: use code <span className="font-mono font-semibold text-foreground">MCR2026</span>
-          </p>
-        </div>
-      </div>
-    )
-  }
 
   /* ── Main Sign-In View ── */
   return (
@@ -456,27 +373,10 @@ export function SignInScreen() {
           </>
         )}
 
-        {/* Divider */}
-        <div className="my-5 flex items-center gap-3">
-          <div className="flex-1 border-t border-border" />
-          <span className="text-[12px] text-muted-foreground">or</span>
-          <div className="flex-1 border-t border-border" />
-        </div>
-
-        {/* Guest / Incident Report */}
-        <button
-          onClick={() => setView("building-code")}
-          className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-destructive/25 bg-destructive/5 p-3 text-left transition-all active:scale-[0.98]"
-        >
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-destructive/10 flex-shrink-0">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <span className="text-[15px] font-semibold text-foreground">Report an Incident</span>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">No account needed &middot; Use building code</p>
-          </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-        </button>
+        {/* Incident reporting used to live here, behind the sign-in form.
+            It is a public route now (/report), reachable from the landing nav —
+            a witness who is not a resident should not have to look at a
+            sign-up page to report a dog bite. */}
       </div>
 
       <div className="px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-4 sm:pb-2">
