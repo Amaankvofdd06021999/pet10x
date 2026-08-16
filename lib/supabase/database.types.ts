@@ -2315,6 +2315,77 @@ export type Database = {
           },
         ]
       }
+      pet_vet_visits: {
+        Row: {
+          clinic: string | null
+          created_at: string
+          created_by: string | null
+          document_id: string | null
+          follow_up_on: string | null
+          id: string
+          notes: string | null
+          pet_id: string
+          reason: string
+          vet_name: string | null
+          visited_on: string
+        }
+        Insert: {
+          clinic?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_id?: string | null
+          follow_up_on?: string | null
+          id?: string
+          notes?: string | null
+          pet_id: string
+          reason: string
+          vet_name?: string | null
+          visited_on: string
+        }
+        Update: {
+          clinic?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_id?: string | null
+          follow_up_on?: string | null
+          id?: string
+          notes?: string | null
+          pet_id?: string
+          reason?: string
+          vet_name?: string | null
+          visited_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_vet_visits_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_vet_visits_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "pet_vet_visits_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "pet_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_vet_visits_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pets: {
         Row: {
           allergies: string | null
@@ -3300,6 +3371,7 @@ export type Database = {
       }
       building_pets_for_report: { Args: { p_code: string }; Returns: Json }
       buildings_matching_my_address: { Args: never; Returns: Json }
+      search_buildings_public: { Args: { q: string }; Returns: Json }
       business_mark_booking_paid: {
         Args: { p_booking: string }
         Returns: string

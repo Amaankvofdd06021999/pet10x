@@ -12,7 +12,7 @@ import {
   AlertTriangle,
   UserCheck,
   Gavel,
-  QrCode,
+  Megaphone,
   Dog,
   Cat,
   PawPrint,
@@ -36,7 +36,7 @@ const QUICK_ACTIONS = [
   { icon: UserCheck, label: "Review Residents", tint: "bg-primary/10 text-primary", screen: "residents" },
   { icon: AlertTriangle, label: "Violations", tint: "bg-destructive/10 text-destructive", screen: "violations" },
   { icon: Shield, label: "Approvals", tint: "bg-success/10 text-success", screen: "approvals" },
-  { icon: QrCode, label: "Emergency QR", tint: "bg-muted text-foreground", screen: "" },
+  { icon: Megaphone, label: "Incident Reports", tint: "bg-warning/10 text-[#B8860B]", screen: "incidents" },
 ] as const
 
 /** Stage → the tile shown on a violation row. */

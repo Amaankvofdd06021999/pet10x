@@ -26,6 +26,7 @@ import { ManagerDashboardScreen } from "@/components/screens/manager/dashboard-s
 import { ManagerResidentsScreen } from "@/components/screens/manager/residents-screen"
 import { ManagerViolationsScreen } from "@/components/screens/manager/violations-screen"
 import { ManagerApprovalsScreen } from "@/components/screens/manager/approvals-screen"
+import { ManagerIncidentsScreen } from "@/components/screens/manager/incidents-screen"
 import { ManagerSettingsScreen } from "@/components/screens/manager/settings-screen"
 import { Loader2, PawPrint } from "lucide-react"
 
@@ -185,6 +186,7 @@ function AppContent() {
               {currentScreen === "residents" && <ManagerResidentsScreen onNavigate={handleNavigate} />}
               {currentScreen === "violations" && <ManagerViolationsScreen onNavigate={handleNavigate} />}
               {currentScreen === "approvals" && <ManagerApprovalsScreen onNavigate={handleNavigate} />}
+              {currentScreen === "incidents" && <ManagerIncidentsScreen onNavigate={handleNavigate} />}
               {currentScreen === "settings" && <ManagerSettingsScreen onNavigate={handleNavigate} />}
               {/* Managers have no Alerts tab, but the dashboard bell routes
                   here — without this the screen renders blank. */}

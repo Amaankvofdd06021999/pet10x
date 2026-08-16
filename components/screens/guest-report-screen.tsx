@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
+import { DonateSpcaLink } from "@/components/donate-spca"
 import { submitIncident, reportablePets, type ReportablePet, type IncidentType as DbIncidentType } from "@/lib/data/incidents"
 import {
   ArrowLeft,
@@ -26,7 +27,17 @@ import {
 } from "lucide-react"
 
 type IncidentType = "noise" | "aggressive" | "off-leash" | "waste" | "damage" | "other"
-type ReportStep = "type" | "details" | "evidence" | "submitted"
+/**
+ * type → evidence → pet → summary.
+ *
+ * Was type → details → evidence, where "details" carried the description, the
+ * location AND the pet picker while "evidence" was photos alone. That split
+ * the two halves of one act — saying what happened and showing it — across
+ * screens, and buried the pet choice at the bottom of the longest step. There
+ * was also no summary: the reporter submitted without ever seeing what they
+ * were about to send.
+ */
+type ReportStep = "type" | "evidence" | "pet" | "summary" | "submitted"
 
 /** The screen uses hyphenated ids; the DB enum uses underscores. */
 const TYPE_TO_DB: Record<IncidentType, DbIncidentType> = {
@@ -179,6 +190,14 @@ export function GuestReportScreen() {
               Done
             </button>
           </div>
+
+          {/* Offered here, not before submitting — a donation prompt attached
+              to the act of reporting would read as a toll on doing the right
+              thing. */}
+          <div className="mt-8 text-center">
+            <p className="mb-2 text-[13px] text-muted-foreground">Want to do more for animals?</p>
+            <DonateSpcaLink />
+          </div>
         </div>
       </div>
     )
@@ -192,7 +211,7 @@ export function GuestReportScreen() {
           <div className="flex items-center gap-3">
             {step !== "type" ? (
               <button
-                onClick={() => setStep(step === "evidence" ? "details" : "type")}
+                onClick={() => setStep(step === "summary" ? "pet" : step === "pet" ? "evidence" : "type")}
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-muted transition-transform active:scale-95"
                 aria-label="Go back"
               >
@@ -215,13 +234,13 @@ export function GuestReportScreen() {
 
         {/* Progress bar */}
         <div className="mt-3 flex gap-2">
-          {["type", "details", "evidence"].map((s, i) => (
+          {["type", "evidence", "pet", "summary"].map((s, i) => (
             <div key={s} className="flex-1">
-              <div className={`h-1 rounded-full transition-all ${
-                (step === "type" && i === 0) || (step === "details" && i <= 1) || (step === "evidence" && i <= 2)
-                  ? "bg-destructive"
-                  : "bg-muted"
-              }`} />
+              <div
+                className={`h-1 rounded-full transition-all ${
+                  ["type", "evidence", "pet", "summary"].indexOf(step) >= i ? "bg-destructive" : "bg-muted"
+                }`}
+              />
             </div>
           ))}
         </div>
@@ -258,7 +277,7 @@ export function GuestReportScreen() {
             </div>
 
             <button
-              onClick={() => selectedType && setStep("details")}
+              onClick={() => selectedType && setStep("evidence")}
               disabled={!selectedType}
               className={`mt-6 w-full rounded-xl py-3.5 text-[17px] font-semibold transition-all active:scale-[0.98] ${
                 selectedType
@@ -272,11 +291,11 @@ export function GuestReportScreen() {
         )}
 
         {/* Step 2: Details */}
-        {step === "details" && (
+        {step === "evidence" && (
           <div>
-            <h2 className="mb-1 text-[22px] font-bold text-foreground">Provide Details</h2>
+            <h2 className="mb-1 text-[22px] font-bold text-foreground">Evidence</h2>
             <p className="mb-6 text-[15px] text-muted-foreground">
-              Describe what happened. The more detail the better.
+              Describe what happened and add photos. Both reach the building manager together.
             </p>
 
             <div className="flex flex-col gap-5">
@@ -327,88 +346,45 @@ export function GuestReportScreen() {
                 )}
               </div>
 
-              {/* Which pet — by sight. No unit is shown or asked for. */}
+              {/* Photo Upload */}
               <div>
-                <label className="mb-2 block text-[13px] font-semibold uppercase text-muted-foreground">
-                  Which pet? (if you recognise them)
-                </label>
-                {petsLoading ? (
-                  <div className="flex justify-center py-6">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : pets.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-border bg-card p-4 text-center text-[13px] text-muted-foreground">
-                    No registered pets to choose from — describe the animal above instead.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-3 gap-2">
-                    {pets.map((pet) => {
-                      const on = petId === pet.id
-                      return (
-                        <button
-                          key={pet.id}
-                          type="button"
-                          aria-pressed={on}
-                          onClick={() => setPetId(on ? null : pet.id)}
-                          className={`overflow-hidden rounded-xl border-2 text-left transition-colors ${
-                            on ? "border-primary" : "border-transparent"
-                          }`}
-                        >
-                          <span className="relative block aspect-square w-full bg-muted">
-                            {pet.photoUrl ? (
-                              <Image src={pet.photoUrl} alt="" fill className="object-cover" unoptimized />
-                            ) : (
-                              <span className="flex h-full w-full items-center justify-center">
-                                <PawPrint className="h-6 w-6 text-muted-foreground" />
-                              </span>
-                            )}
-                            {on && (
-                              <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
-                                <Check className="h-3 w-3 text-primary-foreground" />
-                              </span>
-                            )}
-                          </span>
-                          <span className="block truncate px-1.5 py-1 text-[11.5px] font-semibold text-foreground">
-                            {pet.name}
-                          </span>
-                          <span className="block truncate px-1.5 pb-1.5 text-[10.5px] text-muted-foreground">
-                            {pet.breed || pet.species}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-                <p className="mt-1.5 text-[12px] text-muted-foreground">
-                  Optional — pick the pet you saw. Unit numbers aren&apos;t shown to protect residents&apos; privacy.
+                <p className="mb-3 text-[13px] font-semibold uppercase text-muted-foreground">
+                  Photos / Video
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {photos.map((photo, idx) => (
+                    <div key={idx} className="relative h-24 w-24 overflow-hidden rounded-xl bg-muted">
+                      <div className="h-full w-full bg-muted flex items-center justify-center">
+                        <Camera className="h-8 w-8 text-muted-foreground/50" />
+                      </div>
+                      <button
+                        onClick={() => setPhotos((prev) => prev.filter((_, i) => i !== idx))}
+                        className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/80"
+                        aria-label="Remove photo"
+                      >
+                        <X className="h-3 w-3 text-background" />
+                      </button>
+                      <span className="absolute bottom-1 left-1 rounded bg-foreground/60 px-1.5 py-0.5 text-[9px] text-background">
+                        Photo {idx + 1}
+                      </span>
+                    </div>
+                  ))}
+                  <button
+                    onClick={handlePhotoAdd}
+                    className="flex h-24 w-24 flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border bg-card transition-all active:scale-95"
+                  >
+                    <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                    <span className="text-[11px] text-muted-foreground">Add</span>
+                  </button>
+                </div>
+                <p className="mt-2 text-[12px] text-muted-foreground">
+                  Add photos or videos as evidence. Max 5 files.
                 </p>
               </div>
-
-              {/* Anonymous toggle */}
-              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border bg-card p-4">
-                <div>
-                  <p className="text-[15px] font-medium text-foreground">Submit anonymously</p>
-                  <p className="text-[13px] text-muted-foreground">Your identity will be hidden from the report</p>
-                </div>
-                <div
-                  className={`relative h-7 w-12 rounded-full transition-colors ${
-                    isAnonymous ? "bg-success" : "bg-muted"
-                  }`}
-                  onClick={() => setIsAnonymous(!isAnonymous)}
-                  role="switch"
-                  aria-checked={isAnonymous}
-                >
-                  <div
-                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-card shadow-md transition-transform ${
-                      isAnonymous ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
-                </div>
-              </label>
             </div>
 
             <button
-              onClick={() => description.trim() && setStep("evidence")}
+              onClick={() => description.trim() && setStep("pet")}
               disabled={!description.trim()}
               className={`mt-6 w-full rounded-xl py-3.5 text-[17px] font-semibold transition-all active:scale-[0.98] ${
                 description.trim()
@@ -416,54 +392,89 @@ export function GuestReportScreen() {
                   : "bg-muted text-muted-foreground"
               }`}
             >
-              Continue to Evidence
+              Continue
             </button>
           </div>
         )}
 
-        {/* Step 3: Evidence & Submit */}
-        {step === "evidence" && (
+        {/* Step 3: which pet — by sight, never by unit. */}
+        {step === "pet" && (
           <div>
-            <h2 className="mb-1 text-[22px] font-bold text-foreground">Add Evidence</h2>
+            <h2 className="mb-1 text-[22px] font-bold text-foreground">Which pet?</h2>
             <p className="mb-6 text-[15px] text-muted-foreground">
-              Upload photos or video as proof. This helps building management investigate.
+              Pick them out if you recognise them. You can skip this — the description you just
+              wrote is enough for the manager to look into it.
             </p>
 
-            {/* Photo Upload */}
-            <div className="mb-6">
-              <p className="mb-3 text-[13px] font-semibold uppercase text-muted-foreground">
-                Photos / Video
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {photos.map((photo, idx) => (
-                  <div key={idx} className="relative h-24 w-24 overflow-hidden rounded-xl bg-muted">
-                    <div className="h-full w-full bg-muted flex items-center justify-center">
-                      <Camera className="h-8 w-8 text-muted-foreground/50" />
-                    </div>
-                    <button
-                      onClick={() => setPhotos((prev) => prev.filter((_, i) => i !== idx))}
-                      className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/80"
-                      aria-label="Remove photo"
-                    >
-                      <X className="h-3 w-3 text-background" />
-                    </button>
-                    <span className="absolute bottom-1 left-1 rounded bg-foreground/60 px-1.5 py-0.5 text-[9px] text-background">
-                      Photo {idx + 1}
-                    </span>
-                  </div>
-                ))}
-                <button
-                  onClick={handlePhotoAdd}
-                  className="flex h-24 w-24 flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border bg-card transition-all active:scale-95"
-                >
-                  <ImagePlus className="h-6 w-6 text-muted-foreground" />
-                  <span className="text-[11px] text-muted-foreground">Add</span>
-                </button>
+            {petsLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-              <p className="mt-2 text-[12px] text-muted-foreground">
-                Add photos or videos as evidence. Max 5 files.
+            ) : pets.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border bg-card p-4 text-center text-[13px] text-muted-foreground">
+                No registered pets to choose from — your description is what the manager will go on.
               </p>
-            </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {pets.map((pet) => {
+                  const on = petId === pet.id
+                  return (
+                    <button
+                      key={pet.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setPetId(on ? null : pet.id)}
+                      className={`overflow-hidden rounded-xl border-2 text-left transition-colors ${
+                        on ? "border-primary" : "border-transparent"
+                      }`}
+                    >
+                      <span className="relative block aspect-square w-full bg-muted">
+                        {pet.photoUrl ? (
+                          <Image src={pet.photoUrl} alt="" fill className="object-cover" unoptimized />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center">
+                            <PawPrint className="h-6 w-6 text-muted-foreground" />
+                          </span>
+                        )}
+                        {on && (
+                          <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+                            <Check className="h-3 w-3 text-primary-foreground" />
+                          </span>
+                        )}
+                      </span>
+                      <span className="block truncate px-1.5 py-1 text-[11.5px] font-semibold text-foreground">
+                        {pet.name}
+                      </span>
+                      <span className="block truncate px-1.5 pb-1.5 text-[10.5px] text-muted-foreground">
+                        {pet.breed || pet.species}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            <p className="mt-2.5 text-[12px] leading-relaxed text-muted-foreground">
+              Unit numbers aren&apos;t shown — a code from the lobby shouldn&apos;t hand out where
+              someone lives.
+            </p>
+
+            <button
+              onClick={() => setStep("summary")}
+              className="mt-6 w-full rounded-xl bg-destructive py-3.5 text-[17px] font-semibold text-destructive-foreground transition-all active:scale-[0.98]"
+            >
+              {petId ? "Continue" : "Skip — I don't recognise them"}
+            </button>
+          </div>
+        )}
+
+        {/* Step 4: summary — the reporter sees what they are sending. */}
+        {step === "summary" && (
+          <div>
+            <h2 className="mb-1 text-[22px] font-bold text-foreground">Check and send</h2>
+            <p className="mb-6 text-[15px] text-muted-foreground">
+              This goes to {guestSession?.buildingName}. Nothing is sent until you tap below.
+            </p>
 
             {/* Summary */}
             <div className="mb-6 rounded-2xl border border-border bg-card p-4">
@@ -474,6 +485,18 @@ export function GuestReportScreen() {
                   <span className="text-[13px] font-medium text-foreground">
                     {INCIDENT_TYPES.find((t) => t.id === selectedType)?.label}
                   </span>
+                </div>
+                {/* The description is the report. Showing only its metadata and
+                    hiding the words themselves is how a typo reaches a manager. */}
+                <div className="border-y border-border py-2">
+                  <span className="mb-1 block text-[13px] text-muted-foreground">What happened</span>
+                  <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">{description}</p>
+                  <button
+                    onClick={() => setStep("evidence")}
+                    className="mt-1.5 text-[12px] font-semibold text-primary underline underline-offset-2"
+                  >
+                    Edit
+                  </button>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[13px] text-muted-foreground">Location</span>
@@ -495,6 +518,28 @@ export function GuestReportScreen() {
                 </div>
               </div>
             </div>
+
+            {/* Anonymous toggle */}
+            <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border bg-card p-4">
+              <div>
+                <p className="text-[15px] font-medium text-foreground">Submit anonymously</p>
+                <p className="text-[13px] text-muted-foreground">Your identity will be hidden from the report</p>
+              </div>
+              <div
+                className={`relative h-7 w-12 rounded-full transition-colors ${
+                  isAnonymous ? "bg-success" : "bg-muted"
+                }`}
+                onClick={() => setIsAnonymous(!isAnonymous)}
+                role="switch"
+                aria-checked={isAnonymous}
+              >
+                <div
+                  className={`absolute top-0.5 h-6 w-6 rounded-full bg-card shadow-md transition-transform ${
+                    isAnonymous ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </div>
+            </label>
 
             <button
               onClick={handleSubmit}

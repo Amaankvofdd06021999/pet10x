@@ -1550,3 +1550,96 @@ export async function updatePetDiet(
   if (!error) await refreshPets()
   return { error: error?.message ?? null }
 }
+
+/* ------------------------------ vet visits ------------------------------- */
+
+export interface VetVisit {
+  id: string
+  visitedOn: string
+  reason: string
+  clinic: string | null
+  vetName: string | null
+  notes: string | null
+  followUpOn: string | null
+}
+
+/** A pet's visit history, newest first. */
+export function usePetVetVisits(petId: string | undefined): LiveResult<VetVisit[]> {
+  const [data, setData] = useState<VetVisit[]>([])
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase || !petId) {
+      setData([])
+      setLoading(false)
+      return
+    }
+    const { data: rows, error: err } = await supabase
+      .from("pet_vet_visits")
+      .select("id, visited_on, reason, clinic, vet_name, notes, follow_up_on")
+      .eq("pet_id", petId)
+      .order("visited_on", { ascending: false })
+
+    if (err) {
+      setError(err.message)
+      setData([])
+    } else {
+      setData(
+        (rows ?? []).map((r) => ({
+          id: r.id,
+          visitedOn: r.visited_on,
+          reason: r.reason,
+          clinic: r.clinic,
+          vetName: r.vet_name,
+          notes: r.notes,
+          followUpOn: r.follow_up_on,
+        })),
+      )
+      setError(null)
+    }
+    setLoading(false)
+  }, [petId])
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+
+  return { data, isLoading, error, refetch }
+}
+
+export async function addVetVisit(input: {
+  petId: string
+  visitedOn: string
+  reason: string
+  clinic?: string | null
+  vetName?: string | null
+  notes?: string | null
+  followUpOn?: string | null
+}): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { error } = await supabase.from("pet_vet_visits").insert({
+    pet_id: input.petId,
+    visited_on: input.visitedOn,
+    reason: input.reason.trim(),
+    clinic: input.clinic?.trim() || null,
+    vet_name: input.vetName?.trim() || null,
+    notes: input.notes?.trim() || null,
+    follow_up_on: input.followUpOn || null,
+    created_by: user?.id ?? null,
+  })
+  return { error: error?.message ?? null }
+}
+
+export async function deleteVetVisit(id: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase.from("pet_vet_visits").delete().eq("id", id)
+  return { error: error?.message ?? null }
+}

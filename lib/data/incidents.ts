@@ -52,6 +52,30 @@ export function isOpenIncident(s: IncidentStatus): boolean {
 /* Guest intake — no account                                           */
 /* ------------------------------------------------------------------ */
 
+export interface PublicBuilding {
+  name: string
+  address: string | null
+  city: string | null
+  region: string | null
+  postalCode: string | null
+}
+
+/**
+ * Find a building by name, street or postal code, with no account.
+ *
+ * Deliberately returns no id and no code — see the migration. A hit tells a
+ * witness "yes, this building is on Pet10x, now find its code", which is the
+ * question they actually have standing outside it. The code still does the
+ * authorising.
+ */
+export async function searchBuildingsPublic(q: string): Promise<PublicBuilding[]> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase || q.trim().length < 3) return []
+  const { data, error } = await supabase.rpc("search_buildings_public", { q })
+  if (error || !data) return []
+  return ((data as unknown as { matches?: PublicBuilding[] }).matches ?? []).filter(Boolean)
+}
+
 /** Validate a building code against the real `buildings` table. */
 export async function resolveBuildingCodeLive(
   code: string,
@@ -155,6 +179,7 @@ export async function lookupIncident(reference: string): Promise<IncidentStatusR
 export interface ManagerIncident {
   id: string
   buildingId: string | null
+  buildingName: string | null
   type: IncidentType
   status: IncidentStatus
   description: string
@@ -163,9 +188,26 @@ export interface ManagerIncident {
   isAnonymous: boolean
   reference: string | null
   createdAt: string
+  /** The pet the reporter picked out, if they recognised one. */
+  petId: string | null
+  petName: string | null
+  petBreed: string | null
+  petSpecies: string | null
+  petPhotoUrl: string | null
+  /** The unit the identified pet lives in — the manager may see this; the reporter may not. */
+  petUnit: string | null
+  petOwnerName: string | null
 }
 
-/** Every incident for the buildings this manager runs. Scoped by RLS. */
+/**
+ * Every incident for the buildings this manager runs.
+ *
+ * Scoped explicitly to those buildings rather than left to RLS. The policy
+ * reads `is_manager_of(building_id) OR is_admin()`, so for an ordinary manager
+ * an unscoped select happens to return the right rows — and for a super admin
+ * it silently returns every building on Pet10x in one undifferentiated queue,
+ * with the tab counts to match. RLS is the floor, not the filter.
+ */
 export function useIncidents() {
   const [data, setData] = useState<ManagerIncident[]>([])
   const [isLoading, setLoading] = useState(true)
@@ -178,31 +220,99 @@ export function useIncidents() {
       return
     }
     setLoading(true)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setData([])
+      setLoading(false)
+      return
+    }
+
+    const { data: mine } = await supabase
+      .from("building_managers")
+      .select("building_id")
+      .eq("profile_id", user.id)
+    const buildingIds = (mine ?? []).map((m) => m.building_id).filter(Boolean) as string[]
+    if (buildingIds.length === 0) {
+      setData([])
+      setError(null)
+      setLoading(false)
+      return
+    }
+
     const { data: rows, error: err } = await supabase
       .from("incident_reports")
-      .select("id, building_id, type, status, description, location_text, unit_involved, is_anonymous, reference_code, created_at")
+      .select(
+        `id, building_id, type, status, description, location_text, unit_involved, is_anonymous,
+         reference_code, created_at, pet_id,
+         building:buildings!incident_reports_building_id_fkey ( name ),
+         pet:pets!incident_reports_pet_id_fkey (
+           id, name, breed, species, image_url,
+           unit:units!pets_unit_id_fkey ( unit_number ),
+           owner:profiles!pets_owner_id_fkey ( full_name )
+         )`,
+      )
+      .in("building_id", buildingIds)
       .order("created_at", { ascending: false })
 
     if (err) {
       setError(err.message)
       setData([])
-    } else {
-      setData(
-        (rows ?? []).map((r) => ({
-          id: r.id,
-          buildingId: r.building_id,
-          type: r.type as IncidentType,
-          status: r.status as IncidentStatus,
-          description: r.description,
-          location: r.location_text,
-          unitInvolved: r.unit_involved,
-          isAnonymous: r.is_anonymous,
-          reference: r.reference_code,
-          createdAt: r.created_at,
-        })),
-      )
-      setError(null)
+      setLoading(false)
+      return
     }
+
+    const first = <T,>(v: T | T[] | null | undefined): T | null =>
+      Array.isArray(v) ? (v[0] ?? null) : (v ?? null)
+
+    type Row = (typeof rows extends (infer R)[] ? R : never) & Record<string, unknown>
+    const mapped = ((rows ?? []) as unknown as Row[]).map((r) => {
+      const b = first(r.building as { name: string } | null)
+      const pet = first(
+        r.pet as {
+          id: string
+          name: string
+          breed: string | null
+          species: string | null
+          image_url: string | null
+          unit: { unit_number: string } | { unit_number: string }[] | null
+          owner: { full_name: string | null } | { full_name: string | null }[] | null
+        } | null,
+      )
+      return {
+        id: r.id as string,
+        buildingId: (r.building_id as string) ?? null,
+        buildingName: b?.name ?? null,
+        type: r.type as IncidentType,
+        status: r.status as IncidentStatus,
+        description: r.description as string,
+        location: (r.location_text as string) ?? null,
+        unitInvolved: (r.unit_involved as string) ?? null,
+        isAnonymous: Boolean(r.is_anonymous),
+        reference: (r.reference_code as string) ?? null,
+        createdAt: r.created_at as string,
+        petId: pet?.id ?? null,
+        petName: pet?.name ?? null,
+        petBreed: pet?.breed ?? null,
+        petSpecies: pet?.species ?? null,
+        petPhotoUrl: pet?.image_url ?? null,
+        petUnit: first(pet?.unit ?? null)?.unit_number ?? null,
+        petOwnerName: first(pet?.owner ?? null)?.full_name ?? null,
+      }
+    })
+
+    // Photos are storage paths, not URLs. Sign them so the tiles resolve.
+    const paths = mapped.map((m) => m.petPhotoUrl).filter((p): p is string => !!p && isStoragePath(p))
+    if (paths.length > 0) {
+      const signed = await petFileSignedUrls(paths)
+      for (const m of mapped) {
+        if (m.petPhotoUrl && signed[m.petPhotoUrl]) m.petPhotoUrl = signed[m.petPhotoUrl]
+      }
+    }
+
+    setData(mapped)
+    setError(null)
     setLoading(false)
   }, [])
 

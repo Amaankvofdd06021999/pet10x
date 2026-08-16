@@ -36,6 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 import { Portal } from "@/components/ui/portal"
+import { DonateSpcaCard } from "@/components/donate-spca"
 
 const MENU_SECTIONS = [
   {
@@ -294,6 +295,14 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             </div>
           </section>
         ))}
+
+        {/* Give back.
+            Its own section rather than a row in Support, because everything in
+            Support is about Pet10x and this one leaves the app entirely. */}
+        <section className="mb-5">
+          <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase text-muted-foreground">Give back</h3>
+          <DonateSpcaCard />
+        </section>
 
         {/* Privacy & data */}
         <section className="mb-5">

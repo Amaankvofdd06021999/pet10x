@@ -5,6 +5,7 @@ import Image from "next/image"
 import { toast } from "sonner"
 import { CareTracker } from "@/components/screens/care/care-tracker"
 import { PetPhotoGallery } from "@/components/screens/pet/photo-gallery"
+import { VetRecords } from "@/components/screens/pet/vet-records"
 import {
   ArrowLeft,
   Camera,
@@ -236,7 +237,12 @@ export function PetDetailScreen({ onBack, petId, onNavigate }: PetDetailScreenPr
               targets belong to the animal, and looking at a pet is when an
               owner wants them. Same component, so the two cannot disagree. */}
           {activeTab === "care" && <CareTracker pet={pet} />}
-          {activeTab === "vaccinations" && <VaccinationsTab petId={pet.id} />}
+          {activeTab === "vaccinations" && (
+            <>
+              <VaccinationsTab petId={pet.id} />
+              <VetRecords petId={pet.id} />
+            </>
+          )}
           {activeTab === "documents" && <DocumentsTab petId={pet.id} />}
           {activeTab === "contacts" && <ContactsTab petId={pet.id} />}
         </div>
