@@ -88,7 +88,7 @@ function ManagerLogin() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
               autoCapitalize="none"
-              className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <PasswordField
@@ -116,7 +116,7 @@ function ManagerLogin() {
         </p>
         <Link
           href="/strata-portal"
-          className="mx-auto mt-4 flex w-fit items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-[12.5px] font-medium text-info transition-colors hover:border-info/50"
+          className="mx-auto mt-4 flex w-fit items-center gap-1.5 rounded-lg card-interactive px-3 py-1.5 text-[12.5px] font-medium text-info transition-colors hover:shadow-float"
         >
           <Building2 className="h-3.5 w-3.5" /> Manage multiple buildings? Open the Strata Portal
         </Link>

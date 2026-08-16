@@ -91,7 +91,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
 
     return (
       <section className="mb-5">
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="rounded-2xl card-raised p-4">
           <div className="flex items-start gap-3">
             <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
               <MapPin className="h-4.5 w-4.5 text-primary" />
@@ -133,7 +133,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
                     <button
                       onClick={saveUnit}
                       disabled={savingUnit}
-                      className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+                      className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-primary-strong px-3.5 py-2 text-[13px] font-semibold text-primary-strong-foreground disabled:opacity-60"
                     >
                       {savingUnit && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save
                     </button>
@@ -176,7 +176,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
       <section className="mb-5">
         <button
           onClick={() => setEditing(true)}
-          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+          className="flex w-full items-center gap-3 rounded-2xl card-interactive p-4 text-left transition-colors active:bg-muted"
         >
           <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
             <MapPin className="h-4.5 w-4.5 text-primary" />
@@ -206,7 +206,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
                 </p>
                 <button
                   onClick={() => onNavigate?.("link-building")}
-                  className="mt-2.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
+                  className="mt-2.5 rounded-lg bg-primary-strong px-3.5 py-2 text-[13px] font-semibold text-primary-strong-foreground"
                 >
                   I have a code
                 </button>
@@ -219,7 +219,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
   }
 
   return (
-    <section className="mb-5 rounded-2xl border border-border bg-card p-4">
+    <section className="mb-5 rounded-2xl card-raised p-4">
       <h3 className="mb-3 text-[14px] font-semibold text-foreground">Home address</h3>
       <div className="flex flex-col gap-2">
         <Row label="Street address" value={draft.streetAddress} onChange={(v) => setDraft({ ...draft, streetAddress: v })} placeholder="123 Main St" />
@@ -241,7 +241,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
         <button
           onClick={save}
           disabled={saving}
-          className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-4 py-2.5 text-[14px] font-semibold text-primary-strong-foreground disabled:opacity-60"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
         </button>

@@ -35,7 +35,7 @@ export function SuggestionCard({ suggestion, onAction, onDismiss }: SuggestionCa
   const style = SEVERITY_STYLE[suggestion.severity] ?? SEVERITY_STYLE.info
 
   return (
-    <div className="flex gap-3 rounded-2xl border border-border bg-card p-3.5">
+    <div className="flex gap-3 rounded-2xl card-raised p-3.5">
       <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${style.bg}`}>
         <Icon className={`h-4.5 w-4.5 ${style.icon}`} />
       </span>

@@ -38,7 +38,7 @@ export function ShopScreen({ onNavigate }: { onNavigate?: (screen: string) => vo
                 key={c}
                 onClick={() => setCategory(c)}
                 className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[12.5px] font-semibold capitalize transition-colors ${
-                  category === c ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  category === c ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {c}
@@ -73,7 +73,7 @@ export function ShopScreen({ onNavigate }: { onNavigate?: (screen: string) => vo
                     // noreferrer as well as noopener: the destination is a
                     // commercial third party and does not need our URL.
                     rel="noopener noreferrer nofollow sponsored"
-                    className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-transform active:scale-[0.98]"
+                    className="flex flex-col overflow-hidden rounded-2xl card-interactive transition-transform active:scale-[0.98]"
                   >
                     <div className="relative aspect-square w-full bg-muted">
                       {item.imageUrl ? (

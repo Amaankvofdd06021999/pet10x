@@ -120,7 +120,7 @@ function StrataLogin() {
           <h1 className="mt-4 text-[22px] font-semibold text-foreground sm:text-[26px]">Strata Portal</h1>
           <p className="mt-1 text-[13px] text-muted-foreground sm:text-[14px]">One login for your whole portfolio</p>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-xl shadow-foreground/5 sm:p-7">
+        <div className="rounded-2xl card-raised p-5 shadow-xl shadow-foreground/5 sm:p-7">
           <div className="flex flex-col gap-3">
             <div className="relative">
               <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

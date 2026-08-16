@@ -154,7 +154,7 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
             return (
               <div
                 key={item.key}
-                className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3.5 sm:flex-row sm:items-center"
+                className="flex flex-col gap-3 rounded-xl card-raised p-3.5 sm:flex-row sm:items-center"
               >
                 <span className={`hidden h-2 w-2 flex-shrink-0 rounded-full sm:block ${URGENCY_DOT[item.urgency]}`} />
                 <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-muted">

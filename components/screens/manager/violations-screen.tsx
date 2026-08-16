@@ -32,9 +32,9 @@ const TABS: { id: ViolationTab; label: string; count: number }[] = [
 
 const STAGE_CONFIG = {
   "investigation": { color: "bg-destructive/10 text-destructive", icon: AlertTriangle },
-  "pending-review": { color: "bg-warning/10 text-[#B8860B]", icon: Clock },
+  "pending-review": { color: "bg-warning/10 text-warning-strong", icon: Clock },
   "verbal-warning": { color: "bg-primary/10 text-primary", icon: FileText },
-  "written-warning": { color: "bg-warning/10 text-[#B8860B]", icon: Gavel },
+  "written-warning": { color: "bg-warning/10 text-warning-strong", icon: Gavel },
   "fine-issued": { color: "bg-destructive/10 text-destructive", icon: DollarSign },
 } as const
 
@@ -90,7 +90,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
               onClick={() => setActiveTab(tab.id)}
               className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
                 activeTab === tab.id
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary-strong text-primary-strong-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -104,7 +104,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
       <main className="ios-scroll flex-1 px-4 pb-24">
         {/* Fines Summary — show on fines tab */}
         {activeTab === "fines" && (
-          <div className="mb-4 rounded-xl border border-border bg-card p-3">
+          <div className="mb-4 rounded-xl card-raised p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[11px] font-medium text-muted-foreground">Total Fines Issued</p>
@@ -141,7 +141,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
               const stageInfo = STAGE_CONFIG[violation.stage]
               const StageIcon = stageInfo.icon
               return (
-                <div key={violation.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                <div key={violation.id} className="rounded-xl card-raised overflow-hidden">
                   <div className="p-3">
                     {/* Header */}
                     <div className="flex items-start justify-between gap-2">
@@ -207,7 +207,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
                       )}
                       {(violation.stage === "verbal-warning" || violation.stage === "written-warning") && (
                         <>
-                          <button onClick={() => toast("Escalated to next stage")} className="flex-1 rounded-lg bg-warning/10 py-2 text-[12px] font-semibold text-[#B8860B] active:scale-[0.97] transition-transform">
+                          <button onClick={() => toast("Escalated to next stage")} className="flex-1 rounded-lg bg-warning/10 py-2 text-[12px] font-semibold text-warning-strong active:scale-[0.97] transition-transform">
                             Escalate
                           </button>
                           <button onClick={() => toast.success("Marked resolved")} className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
@@ -235,7 +235,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
           /* Resolved list */
           <div className="grid gap-2 lg:grid-cols-2 lg:items-start">
             {resolvedViolations.map((v) => (
-              <div key={v.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+              <div key={v.id} className="flex items-center gap-3 rounded-xl card-raised p-3">
                 <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-success" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-semibold text-foreground">Unit {v.unit} — {v.type}</p>
@@ -249,7 +249,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
 
         {/* Export CRT Button */}
         <div className="mt-4">
-          <button onClick={() => toast.success("CRT evidence package exported")} className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-3 active:scale-[0.98] transition-transform">
+          <button onClick={() => toast.success("CRT evidence package exported")} className="flex w-full items-center justify-center gap-2 rounded-xl card-interactive py-3 active:scale-[0.98] transition-transform">
             <Download className="h-4 w-4 text-primary" />
             <span className="text-[13px] font-semibold text-primary">Export CRT Evidence Package</span>
           </button>

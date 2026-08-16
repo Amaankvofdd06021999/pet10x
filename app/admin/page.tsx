@@ -107,7 +107,7 @@ function AdminLogin() {
           <h1 className="mt-4 text-[22px] font-semibold text-foreground sm:text-[26px]">Pet10x Admin</h1>
           <p className="mt-1 text-[13px] text-muted-foreground sm:text-[14px]">Super-admin access only</p>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-xl shadow-foreground/5 sm:p-7">
+        <div className="rounded-2xl card-raised p-5 shadow-xl shadow-foreground/5 sm:p-7">
         <div className="flex flex-col gap-3">
           <input
             type="email"
@@ -122,7 +122,7 @@ function AdminLogin() {
           <button
             onClick={submit}
             disabled={loading}
-            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Sign in
@@ -220,7 +220,7 @@ function Buildings() {
       </button>
 
       {creating && (
-        <div className="mb-5 flex flex-col gap-2.5 rounded-xl border border-border bg-card p-4">
+        <div className="mb-5 flex flex-col gap-2.5 rounded-xl card-raised p-4">
           <AdminInput placeholder="Building name" value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} />
           <AdminInput
             placeholder="Building code (e.g. MCR2026)"
@@ -239,7 +239,7 @@ function Buildings() {
           <button
             onClick={create}
             disabled={saving}
-            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-strong-foreground disabled:opacity-60"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} Create building
           </button>
@@ -345,7 +345,7 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="rounded-xl card-raised">
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-3 p-3.5 text-left">
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/15">
           <Building2 className="h-5 w-5 text-primary" />
@@ -384,7 +384,7 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
               <button
                 onClick={saveDetails}
                 disabled={busy}
-                className="mt-1 rounded-xl bg-primary py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+                className="mt-1 rounded-xl bg-primary-strong py-2 text-[13px] font-semibold text-primary-strong-foreground disabled:opacity-60"
               >
                 Save details
               </button>
@@ -402,7 +402,7 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
             <AdminInput placeholder="Manager name (optional)" value={name} onChange={setName} />
             <div className="flex gap-2">
               <AdminInput placeholder="manager@email.com" value={email} onChange={setEmail} />
-              <button onClick={invite} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-60">
+              <button onClick={invite} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-3.5 text-[13px] font-semibold text-primary-strong-foreground disabled:opacity-60">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Invite
               </button>
             </div>
@@ -468,7 +468,7 @@ function Managers() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-col gap-2 rounded-xl border border-border bg-card p-3.5 sm:flex-row sm:items-center">
+      <div className="mb-4 flex flex-col gap-2 rounded-xl card-raised p-3.5 sm:flex-row sm:items-center">
         <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" /> Filter by location
         </div>
@@ -522,7 +522,7 @@ function Managers() {
       ) : (
         <div className="flex flex-col gap-2.5">
           {managers.map((m) => (
-            <div key={m.linkId} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
+            <div key={m.linkId} className="flex items-center gap-3 rounded-xl card-raised p-3.5">
               <div
                 className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${
                   m.isSuspended ? "bg-destructive/15" : "bg-primary/15"
@@ -620,7 +620,7 @@ function Businesses() {
   return (
     <div className="flex flex-col gap-2.5">
       {businesses.map((b) => (
-        <div key={b.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
+        <div key={b.id} className="flex items-center gap-3 rounded-xl card-raised p-3.5">
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent/15">
             <Store className="h-5 w-5 text-accent" />
           </div>

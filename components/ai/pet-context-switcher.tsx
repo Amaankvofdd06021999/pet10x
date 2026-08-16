@@ -24,7 +24,7 @@ export function PetContextSwitcher({ pets, selectedPetId, onSelect }: PetContext
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted/60">
+      <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-full card-raised px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted/60">
         <Icon className="h-4 w-4 text-primary" />
         <span className="max-w-[9rem] truncate">{selected ? `About ${selected.name}` : "General question"}</span>
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />

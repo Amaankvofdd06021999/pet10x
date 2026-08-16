@@ -50,7 +50,7 @@ export function VetRecords({ petId }: { petId: string }) {
       ) : (
         <div className="flex flex-col gap-2">
           {visits.map((v) => (
-            <div key={v.id} className="rounded-2xl border border-border bg-card p-3.5">
+            <div key={v.id} className="rounded-2xl card-raised p-3.5">
               <div className="flex items-start gap-3">
                 <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
                   <Stethoscope className="h-4.5 w-4.5 text-primary" />
@@ -140,7 +140,7 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
         <div
           role="dialog"
           aria-label="Add a vet visit"
-          className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-border bg-card p-5 shadow-xl"
+          className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-card shadow-float p-5 shadow-xl"
         >
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-[17px] font-semibold text-foreground">Add a vet visit</h2>
@@ -214,7 +214,7 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
           <button
             onClick={save}
             disabled={saving}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save visit
           </button>

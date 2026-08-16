@@ -82,7 +82,7 @@ export function ManagerIncidentsScreen({ onNavigate }: { onNavigate?: (screen: s
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search by reference, pet, unit or text"
             aria-label="Search incident reports"
-            className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-3 text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none"
+            className="w-full rounded-xl border border-input bg-card py-2.5 pl-9 pr-3 text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none"
           />
         </div>
         <div className="flex flex-wrap gap-2">
@@ -91,7 +91,7 @@ export function ManagerIncidentsScreen({ onNavigate }: { onNavigate?: (screen: s
               key={f.id}
               onClick={() => setFilter(f.id)}
               className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
-                filter === f.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                filter === f.id ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
               }`}
             >
               {f.label}

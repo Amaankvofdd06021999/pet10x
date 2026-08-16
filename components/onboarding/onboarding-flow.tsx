@@ -122,7 +122,7 @@ export function OnboardingFlow() {
           <div className="mt-8 flex flex-col gap-3">
             <button
               onClick={() => setStep("code")}
-              className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-transform active:scale-[0.98]"
+              className="flex items-center gap-3 rounded-2xl card-interactive p-4 text-left transition-transform active:scale-[0.98]"
             >
               <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
                 <Building2 className="h-5 w-5 text-primary" />
@@ -134,7 +134,7 @@ export function OnboardingFlow() {
             </button>
             <button
               onClick={() => setStep("standalone")}
-              className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-transform active:scale-[0.98]"
+              className="flex items-center gap-3 rounded-2xl card-interactive p-4 text-left transition-transform active:scale-[0.98]"
             >
               <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
                 <PawPrint className="h-5 w-5 text-primary" />
@@ -179,7 +179,7 @@ export function OnboardingFlow() {
                 autoComplete="off"
                 maxLength={12}
                 onKeyDown={(e) => e.key === "Enter" && linkBuilding()}
-                className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-4 text-[16px] font-mono font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[16px] font-mono font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
             {error && <p className="mt-1.5 text-[13px] text-destructive">{error}</p>}
@@ -188,7 +188,7 @@ export function OnboardingFlow() {
           <button
             onClick={linkBuilding}
             disabled={loading}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Request to join
@@ -222,7 +222,7 @@ export function OnboardingFlow() {
               placeholder="e.g. 2104"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && saveUnitAndContinue()}
-              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-[16px] font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[16px] font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             {error && <p className="mt-1.5 text-[13px] text-destructive">{error}</p>}
           </div>
@@ -230,7 +230,7 @@ export function OnboardingFlow() {
           <button
             onClick={saveUnitAndContinue}
             disabled={loading}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Continue
@@ -258,7 +258,7 @@ export function OnboardingFlow() {
           <button
             onClick={finish}
             disabled={loading}
-            className="mt-8 flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+            className="mt-8 flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Continue to Pet10x
@@ -282,7 +282,7 @@ export function OnboardingFlow() {
             can link a building anytime from your profile.
           </p>
 
-          <div className="mt-7 rounded-2xl border border-border bg-card p-4">
+          <div className="mt-7 rounded-2xl card-raised p-4">
             <div className="flex items-center gap-2">
               <Building2 className="h-4.5 w-4.5 text-info" />
               <p className="text-[14px] font-semibold text-foreground">Does your building manage pets?</p>
@@ -303,7 +303,7 @@ export function OnboardingFlow() {
             <button
               onClick={finish}
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Continue to Pet10x

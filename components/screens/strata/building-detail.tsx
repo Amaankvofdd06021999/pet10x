@@ -157,7 +157,7 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
         <SectionCard title={`Pending requests (${pending.length})`}>
           <div className="space-y-2">
             {pending.map((r) => (
-              <div key={r.linkId} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+              <div key={r.linkId} className="flex items-center gap-3 rounded-lg card-raised p-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13.5px] font-semibold text-foreground">{r.residentName}</p>
                   <p className="truncate text-[12px] text-muted-foreground">{r.residentEmail ?? "—"}</p>
@@ -189,7 +189,7 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
         ) : (
           <div className="space-y-2">
             {members.map((r) => (
-              <div key={r.linkId} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+              <div key={r.linkId} className="flex items-center gap-3 rounded-lg card-raised p-3">
                 <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-info/15 text-[13px] font-semibold text-info">
                   {r.residentName.slice(0, 1)}
                 </div>
@@ -279,7 +279,7 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
             {scopedOpen.map((v) => {
               const next = nextStage(v.stage)
               return (
-                <div key={v.id} className="rounded-lg border border-border bg-card p-3">
+                <div key={v.id} className="rounded-lg card-raised p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-[13.5px] font-semibold capitalize text-foreground">{v.type}</p>
@@ -413,7 +413,7 @@ function EmergencyPanel({ buildingId }: { buildingId: string }) {
       ) : (
         <div className="space-y-2">
           {tokens.map((t) => (
-            <div key={t.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+            <div key={t.id} className="flex items-center gap-3 rounded-lg card-raised p-3">
               <span
                 className={`h-2 w-2 flex-shrink-0 rounded-full ${t.isActive ? "bg-success" : "bg-muted-foreground/50"}`}
               />

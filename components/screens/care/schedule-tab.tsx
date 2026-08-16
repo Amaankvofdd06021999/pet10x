@@ -183,7 +183,7 @@ export function ScheduleTab({
   return (
     <div className="flex flex-col gap-4">
       {/* Today's progress */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl card-raised p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-primary" />
@@ -304,14 +304,14 @@ export function ScheduleTab({
 
       <button
         onClick={() => setDraft({ ...EMPTY })}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[14px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[14px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98]"
       >
         <Plus className="h-4 w-4" /> Add to schedule
       </button>
 
       {/* Editor */}
       {draft && (
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="rounded-2xl card-raised p-4">
           <p className="text-[14px] font-semibold text-foreground">{draft.id ? "Edit task" : "New task"}</p>
 
           <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">Name</label>
@@ -319,7 +319,7 @@ export function ScheduleTab({
             value={draft.label}
             onChange={(e) => setDraft({ ...draft, label: e.target.value })}
             placeholder="Evening walk"
-            className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+            className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
           />
 
           <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">Type</label>
@@ -329,7 +329,7 @@ export function ScheduleTab({
                 key={k.value}
                 onClick={() => setDraft({ ...draft, kind: k.value })}
                 className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                  draft.kind === k.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  draft.kind === k.value ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {k.label}
@@ -352,7 +352,7 @@ export function ScheduleTab({
               <select
                 value={draft.targetId}
                 onChange={(e) => setDraft({ ...draft, targetId: e.target.value })}
-                className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-[15px] text-foreground outline-none focus:border-primary"
+                className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] text-foreground outline-none focus:border-primary"
               >
                 <option value="">Just a reminder — don&apos;t log anything</option>
                 {targets.map((t) => (
@@ -375,7 +375,7 @@ export function ScheduleTab({
                     value={draft.logAmount}
                     onChange={(e) => setDraft({ ...draft, logAmount: e.target.value })}
                     placeholder={`e.g. 1 ${targets.find((t) => t.id === draft.targetId)?.unit ?? ""}`}
-                    className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+                    className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
                   />
                 </>
               )}
@@ -410,7 +410,7 @@ export function ScheduleTab({
                     onClick={() => setDraft({ ...draft, intervalDays: c.intervalDays })}
                     className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
                       draft.intervalDays === c.intervalDays
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary-strong text-primary-strong-foreground"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -424,7 +424,7 @@ export function ScheduleTab({
                 type="date"
                 value={draft.nextDueOn || todayIso()}
                 onChange={(e) => setDraft({ ...draft, nextDueOn: e.target.value })}
-                className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+                className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
               />
 
               <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
@@ -437,7 +437,7 @@ export function ScheduleTab({
                     onClick={() => setDraft({ ...draft, durationDays: d.days })}
                     className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
                       draft.durationDays === d.days
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary-strong text-primary-strong-foreground"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -453,7 +453,7 @@ export function ScheduleTab({
                 value={draft.dose}
                 onChange={(e) => setDraft({ ...draft, dose: e.target.value })}
                 placeholder="1 tablet, 0.5 ml…"
-                className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+                className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
               />
             </>
           )}
@@ -467,7 +467,7 @@ export function ScheduleTab({
             type="time"
             value={draft.scheduledAt}
             onChange={(e) => setDraft({ ...draft, scheduledAt: e.target.value })}
-            className="mt-1 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+            className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
           />
 
           <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
@@ -487,7 +487,7 @@ export function ScheduleTab({
                   }
                   aria-pressed={on}
                   className={`h-9 flex-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                    on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    on ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {d[0]}
@@ -505,7 +505,7 @@ export function ScheduleTab({
                 key={m}
                 onClick={() => setDraft({ ...draft, remind: m })}
                 className={`flex-1 rounded-lg py-2 text-[12px] font-semibold transition-colors ${
-                  draft.remind === m ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  draft.remind === m ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {m === 0 ? "On time" : `${m}m early`}
@@ -524,7 +524,7 @@ export function ScheduleTab({
             <button
               onClick={save}
               disabled={saving}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-strong-foreground disabled:opacity-60"
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
             </button>

@@ -50,7 +50,7 @@ const TYPE_TO_DB: Record<IncidentType, DbIncidentType> = {
 }
 
 const INCIDENT_TYPES: { id: IncidentType; label: string; icon: typeof AlertTriangle; color: string }[] = [
-  { id: "noise", label: "Noise Complaint", icon: Volume2, color: "bg-warning/10 text-[#FFCC00]" },
+  { id: "noise", label: "Noise Complaint", icon: Volume2, color: "bg-warning/10 text-warning-strong" },
   { id: "aggressive", label: "Aggressive Behaviour", icon: ShieldAlert, color: "bg-destructive/10 text-destructive" },
   { id: "off-leash", label: "Off-Leash Violation", icon: PawPrint, color: "bg-primary/10 text-primary" },
   { id: "waste", label: "Waste / Cleanup", icon: Trash2, color: "bg-accent/10 text-accent" },
@@ -179,7 +179,7 @@ export function GuestReportScreen() {
                 setPhotos([])
                 setReference(null)
               }}
-              className="w-full rounded-xl bg-primary py-3.5 text-[17px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+              className="w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98]"
             >
               File Another Report
             </button>
@@ -238,7 +238,7 @@ export function GuestReportScreen() {
             <div key={s} className="flex-1">
               <div
                 className={`h-1 rounded-full transition-all ${
-                  ["type", "evidence", "pet", "summary"].indexOf(step) >= i ? "bg-destructive" : "bg-muted"
+                  ["type", "evidence", "pet", "summary"].indexOf(step) >= i ? "bg-primary-strong" : "bg-muted"
                 }`}
               />
             </div>
@@ -261,10 +261,14 @@ export function GuestReportScreen() {
                   <button
                     key={type.id}
                     onClick={() => setSelectedType(type.id)}
-                    className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-4 transition-all active:scale-[0.97] ${
+                    /* Selection is a ring, not a border swap. A permanent
+                       2px outline on every unselected tile competes with the
+                       one tile that is selected, and on the tinted ground the
+                       card already reads as a card without it. */
+                    className={`flex flex-col items-center gap-3 rounded-2xl p-4 transition-all active:scale-[0.97] ${
                       isSelected
-                        ? "border-destructive bg-destructive/5"
-                        : "border-border bg-card"
+                        ? "bg-primary-strong/5 ring-2 ring-primary-strong"
+                        : "card-interactive"
                     }`}
                   >
                     <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${type.color}`}>
@@ -281,7 +285,7 @@ export function GuestReportScreen() {
               disabled={!selectedType}
               className={`mt-6 w-full rounded-xl py-3.5 text-[17px] font-semibold transition-all active:scale-[0.98] ${
                 selectedType
-                  ? "bg-destructive text-destructive-foreground"
+                  ? "bg-primary-strong text-primary-strong-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -310,7 +314,7 @@ export function GuestReportScreen() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe the incident in detail..."
                   rows={4}
-                  className="w-full rounded-xl border border-border bg-card p-3 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-input bg-card p-3 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
@@ -327,14 +331,14 @@ export function GuestReportScreen() {
                     value={location}
                     onChange={(e) => { setLocation(e.target.value); setGeoError(null) }}
                     placeholder="e.g. Lobby, Floor 12, Parking B2"
-                    className="w-full rounded-xl border border-border bg-card py-3 pl-10 pr-4 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-xl border border-input bg-card py-3 pl-10 pr-4 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleUseLocation}
                   disabled={locating}
-                  className="mt-2 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-[13px] font-semibold text-primary transition-transform active:scale-[0.98] disabled:opacity-60"
+                  className="mt-2 flex items-center gap-2 rounded-xl card-interactive px-3 py-2 text-[13px] font-semibold text-primary transition-transform active:scale-[0.98] disabled:opacity-60"
                 >
                   {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
                   {locating ? "Locating…" : "Use my current location"}
@@ -388,7 +392,7 @@ export function GuestReportScreen() {
               disabled={!description.trim()}
               className={`mt-6 w-full rounded-xl py-3.5 text-[17px] font-semibold transition-all active:scale-[0.98] ${
                 description.trim()
-                  ? "bg-destructive text-destructive-foreground"
+                  ? "bg-primary-strong text-primary-strong-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -461,7 +465,7 @@ export function GuestReportScreen() {
 
             <button
               onClick={() => setStep("summary")}
-              className="mt-6 w-full rounded-xl bg-destructive py-3.5 text-[17px] font-semibold text-destructive-foreground transition-all active:scale-[0.98]"
+              className="mt-6 w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-strong-foreground transition-all active:scale-[0.98]"
             >
               {petId ? "Continue" : "Skip — I don't recognise them"}
             </button>
@@ -477,7 +481,7 @@ export function GuestReportScreen() {
             </p>
 
             {/* Summary */}
-            <div className="mb-6 rounded-2xl border border-border bg-card p-4">
+            <div className="mb-6 rounded-2xl card-raised p-4">
               <h3 className="mb-3 text-[15px] font-semibold text-foreground">Report Summary</h3>
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between">
@@ -520,7 +524,7 @@ export function GuestReportScreen() {
             </div>
 
             {/* Anonymous toggle */}
-            <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border bg-card p-4">
+            <label className="flex cursor-pointer items-center justify-between rounded-xl card-raised p-4">
               <div>
                 <p className="text-[15px] font-medium text-foreground">Submit anonymously</p>
                 <p className="text-[13px] text-muted-foreground">Your identity will be hidden from the report</p>
@@ -544,7 +548,7 @@ export function GuestReportScreen() {
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="w-full rounded-xl bg-destructive py-3.5 text-[17px] font-semibold text-destructive-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+              className="w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
             >
               {submitting ? "Filing report…" : "Submit Report"}
             </button>

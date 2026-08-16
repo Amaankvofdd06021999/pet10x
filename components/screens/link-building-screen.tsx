@@ -113,7 +113,7 @@ export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
                   autoComplete="off"
                   maxLength={12}
                   onKeyDown={(e) => e.key === "Enter" && submit()}
-                  className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-4 text-[16px] font-mono font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[16px] font-mono font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               {error && <p className="mt-1.5 text-[13px] text-destructive">{error}</p>}
@@ -122,7 +122,7 @@ export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
             <button
               onClick={submit}
               disabled={loading}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Request to join

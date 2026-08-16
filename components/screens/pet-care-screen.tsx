@@ -37,7 +37,7 @@ export function PetCareScreen({ onBack, onNavigate, initialKind }: PetCareScreen
           </p>
           <button
             onClick={() => onNavigate?.("add-pet")}
-            className="mt-5 flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+            className="mt-5 flex items-center gap-2 rounded-xl bg-primary-strong px-5 py-3 text-[15px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98]"
           >
             <Plus className="h-4.5 w-4.5" /> Add a pet
           </button>

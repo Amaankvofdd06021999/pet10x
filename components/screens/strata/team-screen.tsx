@@ -117,7 +117,7 @@ function BuildingTeam({
           const isSelf = m.profileId === myId
           const canRemove = isPrimary && !isSelf && members.length > 1
           return (
-            <div key={m.linkId} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+            <div key={m.linkId} className="flex items-center gap-3 rounded-lg card-raised p-3">
               <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-info/15 text-[13px] font-semibold text-info">
                 {m.name.slice(0, 1)}
               </span>

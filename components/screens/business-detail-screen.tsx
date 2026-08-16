@@ -82,7 +82,7 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
             href={mapsUrl({ address: formatAddress(biz), latitude: biz.latitude, longitude: biz.longitude })}
             target="_blank"
             rel="noopener noreferrer"
-            className="mb-3 flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 transition-colors hover:border-accent/50"
+            className="mb-3 flex items-center gap-3 rounded-2xl card-interactive p-3.5 transition-colors hover:shadow-float"
           >
             <MapPin className="h-4.5 w-4.5 flex-shrink-0 text-accent" />
             <span className="min-w-0 flex-1">
@@ -122,7 +122,7 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
         ) : (
           <div className="space-y-2">
             {active.map((s) => (
-              <div key={s.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
+              <div key={s.id} className="flex items-center gap-3 rounded-2xl card-raised p-3.5">
                 <div className="min-w-0 flex-1">
                   <p className="text-[14.5px] font-semibold text-foreground">{s.name}</p>
                   {s.description && <p className="text-[12.5px] text-muted-foreground">{s.description}</p>}
@@ -150,7 +150,7 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
         {biz.hours && (
           <>
             <h2 className="mb-2 mt-6 text-[16px] font-semibold text-foreground">Hours</h2>
-            <div className="rounded-2xl border border-border bg-card p-3.5">
+            <div className="rounded-2xl card-raised p-3.5">
               {DAY_KEYS.map((d) => {
                 const v = biz.hours?.[d]
                 const isToday = DAY_KEYS[(new Date().getDay() + 6) % 7] === d
@@ -176,7 +176,7 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
         ) : (
           <div className="space-y-2">
             {reviews.map((r) => (
-              <div key={r.id} className="rounded-2xl border border-border bg-card p-3.5">
+              <div key={r.id} className="rounded-2xl card-raised p-3.5">
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-0.5">
                     {[1, 2, 3, 4, 5].map((i) => (
@@ -257,7 +257,7 @@ function BookSheet({
     <Portal>
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 sm:items-center" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-t-3xl border border-border bg-card p-5 sm:rounded-3xl"
+        className="w-full max-w-md rounded-t-3xl bg-card shadow-float p-5 sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         {done ? (

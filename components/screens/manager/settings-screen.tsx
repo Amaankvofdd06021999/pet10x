@@ -89,7 +89,7 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
 
         {/* Profile Card */}
         <section className="mb-5">
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl card-raised p-4">
             <div className="flex items-center gap-3">
               <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-full bg-muted">
                 {user?.avatar ? (
@@ -127,7 +127,7 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : !building ? (
-          <p className="rounded-2xl border border-border bg-card px-4 py-6 text-center text-[13px] text-muted-foreground">
+          <p className="rounded-2xl card-raised px-4 py-6 text-center text-[13px] text-muted-foreground">
             You aren&apos;t assigned to a building yet. Ask a Pet10x admin to add you.
           </p>
         ) : (
@@ -275,7 +275,7 @@ function BuildingProfileSheet({
       <p className="-mt-1 mb-3 text-[11.5px] leading-relaxed text-muted-foreground">
         4–12 letters and numbers. Residents enter this to join.
         {codeChanged && (
-          <span className="mt-1 block font-semibold text-[#B8860B]">
+          <span className="mt-1 block font-semibold text-warning-strong">
             Changing it stops <span className="font-mono">{building.code}</span> working immediately. Anyone
             part-way through joining with the old code will need the new one. Residents already linked are
             unaffected.
@@ -456,7 +456,7 @@ function EmergencyQrSheet({ buildingId, onClose }: { buildingId: string; onClose
 
 function StatTile({ label, value, tone }: { label: string; value: string | null; tone?: "danger" }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-2.5 text-center">
+    <div className="rounded-xl card-raised p-2.5 text-center">
       {value === null ? (
         <Loader2 className="mx-auto h-4 w-4 animate-spin text-muted-foreground" />
       ) : (
@@ -471,7 +471,7 @@ function MenuSection({ title, children }: { title: string; children: React.React
   return (
     <section className="mb-5">
       <h3 className="mb-2 px-1 text-[11px] font-semibold uppercase text-muted-foreground">{title}</h3>
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">{children}</div>
+      <div className="overflow-hidden rounded-2xl card-raised">{children}</div>
     </section>
   )
 }
@@ -543,7 +543,7 @@ function SheetButton({ onClick, busy, label }: { onClick: () => void; busy: bool
     <button
       onClick={onClick}
       disabled={busy}
-      className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+      className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
     >
       {busy && <Loader2 className="h-4 w-4 animate-spin" />}
       {label}

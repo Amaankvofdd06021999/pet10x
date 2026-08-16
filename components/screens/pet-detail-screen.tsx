@@ -276,7 +276,7 @@ function OverviewTab({ pet, onStatus }: { pet: ReturnType<typeof usePet>["data"]
         {info.map((item) => {
           const Icon = item.icon
           return (
-            <div key={item.label} className="rounded-2xl border border-border bg-card p-3.5">
+            <div key={item.label} className="rounded-2xl card-raised p-3.5">
               <div className="flex items-center gap-2">
                 <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
                   <Icon className="h-4 w-4 text-primary" />
@@ -289,13 +289,13 @@ function OverviewTab({ pet, onStatus }: { pet: ReturnType<typeof usePet>["data"]
         })}
       </div>
       {pet.microchip && (
-        <div className="rounded-2xl border border-border bg-card p-3">
+        <div className="rounded-2xl card-raised p-3">
           <span className="text-[12px] font-medium text-muted-foreground">Microchip</span>
           <p className="mt-0.5 font-mono text-[13px] font-semibold text-foreground">{pet.microchip}</p>
         </div>
       )}
 
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl card-raised p-4">
         <h3 className="text-[15px] font-semibold text-foreground">Status</h3>
         <div className="mt-3 grid grid-cols-4 gap-2">
           {STATUSES.map((s) => (
@@ -312,7 +312,7 @@ function OverviewTab({ pet, onStatus }: { pet: ReturnType<typeof usePet>["data"]
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl card-raised p-4">
         <h3 className="text-[15px] font-semibold text-foreground">Medical</h3>
         <div className="mt-3 flex flex-col gap-2.5">
           {medicalRows.map(([label, value], i) => (
@@ -328,7 +328,7 @@ function OverviewTab({ pet, onStatus }: { pet: ReturnType<typeof usePet>["data"]
       </div>
 
       {hasVet && (
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="rounded-2xl card-raised p-4">
           <h3 className="text-[15px] font-semibold text-foreground">Veterinarian</h3>
           <p className="mt-2 text-[14px] font-medium text-foreground">{m?.vetClinic || m?.vetName || "—"}</p>
           <p className="text-[12px] text-muted-foreground">
@@ -434,7 +434,7 @@ function EditForm({
         <TextField label="Color" value={f.color} onChange={(v) => set("color", v)} />
         <TextField label="Microchip" value={f.microchip} onChange={(v) => set("microchip", v)} />
       </div>
-      <label className="flex items-center justify-between rounded-xl border border-border bg-card p-3.5">
+      <label className="flex items-center justify-between rounded-xl card-raised p-3.5">
         <span className="text-[14px] font-medium text-foreground">Spayed / Neutered</span>
         <button
           role="switch"
@@ -460,14 +460,14 @@ function EditForm({
       <div className="mt-2 flex gap-2">
         <button
           onClick={onDone}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-card py-3 text-[15px] font-semibold text-foreground"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl card-interactive py-3 text-[15px] font-semibold text-foreground"
         >
           <X className="h-4 w-4" /> Cancel
         </button>
         <button
           onClick={save}
           disabled={saving}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save
         </button>
@@ -510,7 +510,7 @@ function VaccinationsTab({ petId }: { petId: string }) {
     <div className="flex flex-col gap-3">
       <SectionHeader title="Vaccinations" onAdd={() => setAdding((v) => !v)} adding={adding} />
       {adding && (
-        <div className="flex flex-col gap-2.5 rounded-2xl border border-border bg-card p-3.5">
+        <div className="flex flex-col gap-2.5 rounded-2xl card-raised p-3.5">
           <TextField label="Vaccine" value={f.name} onChange={(v) => setF((p) => ({ ...p, name: v }))} placeholder="Rabies, DHPP…" />
           <div className="grid grid-cols-2 gap-3">
             <DateField label="Given" value={f.givenOn} onChange={(v) => setF((p) => ({ ...p, givenOn: v }))} />
@@ -524,7 +524,7 @@ function VaccinationsTab({ petId }: { petId: string }) {
       ) : vax.length === 0 ? (
         <Empty icon={Syringe} text="No vaccinations yet" hint="Add a shot to keep records handy at the vet." />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="overflow-hidden rounded-2xl card-raised">
           {vax.map((v, i) => (
             <div key={v.id} className={`flex items-center gap-3 p-3.5 ${i < vax.length - 1 ? "border-b border-border" : ""}`}>
               <Syringe className="h-5 w-5 flex-shrink-0 text-success" />
@@ -594,7 +594,7 @@ function DocumentsTab({ petId }: { petId: string }) {
     <div className="flex flex-col gap-3">
       <SectionHeader title="Documents" onAdd={() => setAdding((v) => !v)} adding={adding} />
       {adding && (
-        <div className="flex flex-col gap-2.5 rounded-2xl border border-border bg-card p-3.5">
+        <div className="flex flex-col gap-2.5 rounded-2xl card-raised p-3.5">
           <div>
             <Label>Type</Label>
             <div className="flex flex-wrap gap-2">
@@ -640,7 +640,7 @@ function DocumentsTab({ petId }: { petId: string }) {
       ) : (
         <div className="flex flex-col gap-2.5">
           {docs.map((doc) => (
-            <div key={doc.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
+            <div key={doc.id} className="flex items-center gap-3 rounded-2xl card-raised p-3.5">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
                 <FileText className="h-5 w-5 text-primary" />
               </div>
@@ -699,7 +699,7 @@ function ContactsTab({ petId }: { petId: string }) {
     <div className="flex flex-col gap-3">
       <SectionHeader title="Emergency contacts" onAdd={() => setAdding((v) => !v)} adding={adding} />
       {adding && (
-        <div className="flex flex-col gap-2.5 rounded-2xl border border-border bg-card p-3.5">
+        <div className="flex flex-col gap-2.5 rounded-2xl card-raised p-3.5">
           <TextField label="Role" value={f.role} onChange={(v) => setF((p) => ({ ...p, role: v }))} placeholder="Vet, sitter, owner…" />
           <TextField label="Name" value={f.name} onChange={(v) => setF((p) => ({ ...p, name: v }))} />
           <TextField label="Phone" value={f.phone} onChange={(v) => setF((p) => ({ ...p, phone: v }))} type="tel" />
@@ -711,7 +711,7 @@ function ContactsTab({ petId }: { petId: string }) {
       ) : contacts.length === 0 ? (
         <Empty icon={Phone} text="No contacts yet" hint="Add a vet or sitter for peace of mind." />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="overflow-hidden rounded-2xl card-raised">
           {contacts.map((c, i) => (
             <div key={c.id} className={`flex items-center gap-3 p-3.5 ${i < contacts.length - 1 ? "border-b border-border" : ""}`}>
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -777,7 +777,7 @@ function TextField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
       />
     </div>
   )
@@ -791,7 +791,7 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-border bg-card px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
       />
     </div>
   )
@@ -811,13 +811,13 @@ function SectionHeader({ title, onAdd, adding }: { title: string; onAdd: () => v
 function SaveRow({ saving, onSave, onCancel }: { saving: boolean; onSave: () => void; onCancel: () => void }) {
   return (
     <div className="flex gap-2">
-      <button onClick={onCancel} className="flex-1 rounded-xl border border-border bg-card py-2.5 text-[14px] font-semibold text-foreground">
+      <button onClick={onCancel} className="flex-1 rounded-xl card-interactive py-2.5 text-[14px] font-semibold text-foreground">
         Cancel
       </button>
       <button
         onClick={onSave}
         disabled={saving}
-        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-strong-foreground disabled:opacity-60"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save
       </button>

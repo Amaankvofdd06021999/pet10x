@@ -112,9 +112,9 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
         </p>
 
         {/* The part that matters. Stated before the contact, not after it. */}
-        <div className="mt-6 rounded-2xl border border-[#B8860B]/30 bg-[#FFF6E0] p-4">
+        <div className="mt-6 rounded-2xl border border-warning-strong/30 bg-[#FFF6E0] p-4">
           <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#B8860B]" />
+            <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning-strong" />
             <p className="text-[13px] leading-relaxed text-foreground">
               <span className="font-semibold">Pet10x has not sent this to anyone.</span> We keep the record and
               your reference — filing officially is a separate step, below.
@@ -122,7 +122,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-border bg-card p-5">
+        <div className="mt-4 rounded-2xl card-raised p-5">
           <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
             File it with {m ? m.name : "your municipality"}
           </p>
@@ -164,7 +164,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
 
         <button
           onClick={onBack}
-          className="mt-6 w-full rounded-xl border border-border bg-card py-3 text-[15px] font-semibold text-foreground"
+          className="mt-6 w-full rounded-xl card-interactive py-3 text-[15px] font-semibold text-foreground"
         >
           Done
         </button>
@@ -234,7 +234,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
         onChange={(e) => setDescription(e.target.value)}
         rows={4}
         placeholder="What did the animal look like? What happened, and when?"
-        className="mt-2 w-full rounded-xl border border-border bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="mt-2 w-full rounded-xl border border-input bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
       />
 
       <label htmlFor="mr-postal" className="mt-6 block text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -247,12 +247,12 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
           onChange={(e) => checkPostal(e.target.value.toUpperCase())}
           placeholder="Postal code, e.g. V6B 1A1"
           autoCapitalize="characters"
-          className="min-w-0 flex-1 rounded-xl border border-border bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          className="min-w-0 flex-1 rounded-xl border border-input bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
         <button
           onClick={useMyLocation}
           disabled={geoBusy}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-3 text-[13.5px] font-semibold text-primary disabled:opacity-60"
+          className="flex flex-shrink-0 items-center gap-1.5 rounded-xl card-interactive px-3.5 py-3 text-[13.5px] font-semibold text-primary disabled:opacity-60"
         >
           {geoBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
           GPS
@@ -275,11 +275,11 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
         value={location}
         onChange={(e) => setLocation(e.target.value)}
         placeholder="Street, park or intersection (optional)"
-        className="mt-2 w-full rounded-xl border border-border bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="mt-2 w-full rounded-xl border border-input bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
       />
 
       {signedIn && (
-        <label className="mt-5 flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-card p-4">
+        <label className="mt-5 flex cursor-pointer items-center justify-between rounded-2xl card-raised p-4">
           <span>
             <span className="block text-[14.5px] font-medium text-foreground">Submit anonymously</span>
             <span className="block text-[12.5px] text-muted-foreground">Your name won&apos;t be attached</span>
@@ -296,7 +296,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
       <button
         onClick={submit}
         disabled={submitting || !type || !description.trim()}
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
       >
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         Record report

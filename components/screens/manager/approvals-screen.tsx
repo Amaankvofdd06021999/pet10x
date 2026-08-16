@@ -81,7 +81,7 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
               onClick={() => setActiveTab(tab.id)}
               className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
                 activeTab === tab.id
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary-strong text-primary-strong-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -130,7 +130,7 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
               const isOpen = expandedReg === reg.id
               const SpeciesIcon = reg.species === "dog" ? Dog : Cat
               return (
-                <div key={reg.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                <div key={reg.id} className="rounded-xl card-raised overflow-hidden">
                   <button
                     onClick={() => setExpandedReg(isOpen ? null : reg.id)}
                     className="flex w-full items-center gap-3 p-3 text-left active:bg-muted/50"
@@ -154,7 +154,7 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
                         <div className="mb-3 flex flex-col gap-1.5">
                           {reg.flags.map((flag, i) => (
                             <div key={i} className="flex items-start gap-2 rounded-lg bg-warning/5 border border-warning/20 p-2">
-                              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#B8860B]" />
+                              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-warning-strong" />
                               <span className="text-[11px] text-foreground">{flag}</span>
                             </div>
                           ))}
@@ -226,7 +226,7 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
             {accommodations.map((acc) => {
               const isOpen = expandedAcc === acc.id
               return (
-                <div key={acc.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                <div key={acc.id} className="rounded-xl card-raised overflow-hidden">
                   <button
                     onClick={() => setExpandedAcc(isOpen ? null : acc.id)}
                     className="flex w-full items-center gap-3 p-3 text-left active:bg-muted/50"
@@ -329,12 +329,12 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
               />
             )}
             {documentsReview.map((doc) => (
-              <div key={doc.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+              <div key={doc.id} className="flex items-center gap-3 rounded-xl card-raised p-3">
                 <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
                   doc.status === "expiring" ? "bg-warning/10" : "bg-success/10"
                 }`}>
                   {doc.status === "expiring" ? (
-                    <Clock className="h-4 w-4 text-[#B8860B]" />
+                    <Clock className="h-4 w-4 text-warning-strong" />
                   ) : (
                     <CheckCircle2 className="h-4 w-4 text-success" />
                   )}
@@ -346,7 +346,7 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
                 <div className="text-right flex-shrink-0">
                   <Badge className={`border-0 text-[9px] ${
                     doc.status === "expiring"
-                      ? "bg-warning/10 text-[#B8860B]"
+                      ? "bg-warning/10 text-warning-strong"
                       : "bg-success/10 text-success"
                   }`}>
                     {doc.status === "expiring" ? "Expiring" : "Current"}

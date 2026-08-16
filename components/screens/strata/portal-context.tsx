@@ -62,7 +62,7 @@ export function BuildingSwitcher() {
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:border-info/50"
+        className="flex items-center gap-2 rounded-lg card-interactive px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:shadow-float"
       >
         <Building2 className="h-4 w-4 text-info" />
         <span className="max-w-[180px] truncate">{current}</span>

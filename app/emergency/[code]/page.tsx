@@ -132,7 +132,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
 
       <main className="px-4 pb-10">
         <section className="mt-4 mb-4">
-          <div className="rounded-xl border border-border bg-card p-3">
+          <div className="rounded-xl card-raised p-3">
             <p className="text-[14px] font-semibold text-foreground">{data.building.name}</p>
             {data.building.address && (
               <p className="mt-0.5 text-[12px] text-muted-foreground">{data.building.address}</p>
@@ -179,7 +179,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
                 const hasCaution = pets.some((p) => isCaution(p.notes))
 
                 return (
-                  <div key={floor.floor} className="overflow-hidden rounded-xl border border-border bg-card">
+                  <div key={floor.floor} className="overflow-hidden rounded-xl card-raised">
                     <button
                       onClick={() => setOpenFloor(isOpen ? null : floor.floor)}
                       className="flex w-full items-center gap-3 p-3 text-left active:bg-muted"
@@ -233,7 +233,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
 
 function Tally({ value, label, icon }: { value: number; label: string; icon?: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-3 text-center">
+    <div className="rounded-xl card-raised p-3 text-center">
       <div className="flex items-center justify-center gap-1">
         {icon}
         <p className="text-[22px] font-bold tabular-nums text-foreground">{value}</p>

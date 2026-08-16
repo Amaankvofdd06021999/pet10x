@@ -55,7 +55,7 @@ export function BuildingsScreen() {
           <button
             key={b.id}
             onClick={() => setOpenId(b.id)}
-            className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-info/50"
+            className="flex items-center gap-3 rounded-2xl card-interactive p-4 text-left transition-colors hover:shadow-float"
           >
             <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-info/10">
               <Building2 className="h-5 w-5 text-info" />

@@ -167,7 +167,7 @@ export function ReportsScreen() {
       <SectionCard title="Board packs (per building)">
         <div className="space-y-2">
           {metrics.map((m) => (
-            <div key={m.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+            <div key={m.id} className="flex items-center gap-3 rounded-lg card-raised p-3">
               <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-info/10">
                 <FileSpreadsheet className="h-4.5 w-4.5 text-info" />
               </span>

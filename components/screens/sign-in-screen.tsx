@@ -216,7 +216,7 @@ export function SignInScreen() {
               onKeyDown={(e) => e.key === "Enter" && handleVerify()}
               placeholder="••••••"
               aria-invalid={!!error}
-              className="w-full rounded-xl border border-border bg-card py-4 text-center font-mono text-[28px] font-bold tracking-[0.4em] text-foreground placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-input bg-card py-4 text-center font-mono text-[28px] font-bold tracking-[0.4em] text-foreground placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
 
             <div className="mt-3 flex items-center justify-between gap-3">
@@ -238,7 +238,7 @@ export function SignInScreen() {
             <button
               onClick={handleVerify}
               disabled={loading || otp.length !== 6 || codeExpired}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground transition-colors hover:bg-primary-strong/90 disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Verify &amp; create account
@@ -291,7 +291,7 @@ export function SignInScreen() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Full name"
-                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               )}
               <div className="relative">
@@ -303,7 +303,7 @@ export function SignInScreen() {
                   placeholder="Email"
                   autoCapitalize="none"
                   autoComplete="email"
-                  className="w-full rounded-xl border border-border bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               {/* Rules panel only while creating a password — showing a
@@ -323,7 +323,7 @@ export function SignInScreen() {
               <button
                 onClick={handleAuth}
                 disabled={loading}
-                className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+                className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground transition-colors hover:bg-primary-strong/90 disabled:opacity-60"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {mode === "signin" ? "Sign in" : "Create account"}
@@ -382,7 +382,7 @@ export function SignInScreen() {
       <div className="px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-4 sm:pb-2">
         <Link
           href="/manager"
-          className="block rounded-xl border border-border bg-card py-2.5 text-center text-[13px] font-semibold text-info transition-colors active:bg-muted"
+          className="block rounded-xl card-interactive py-2.5 text-center text-[13px] font-semibold text-info transition-colors active:bg-muted"
         >
           Are you a manager at a building? Sign in here
         </Link>

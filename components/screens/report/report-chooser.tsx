@@ -37,7 +37,7 @@ export function ReportChooser({
       <div className="mt-7 flex flex-col gap-3">
         <button
           onClick={onBuilding}
-          className="flex items-start gap-3.5 rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+          className="flex items-start gap-3.5 rounded-2xl card-interactive p-4 text-left transition-colors active:bg-muted"
         >
           <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
             <Building2 className="h-5 w-5 text-primary" />
@@ -59,7 +59,7 @@ export function ReportChooser({
 
         <button
           onClick={onMunicipal}
-          className="flex items-start gap-3.5 rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+          className="flex items-start gap-3.5 rounded-2xl card-interactive p-4 text-left transition-colors active:bg-muted"
         >
           <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-destructive/10">
             <Landmark className="h-5 w-5 text-destructive" />

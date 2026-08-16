@@ -48,7 +48,7 @@ export function StatTile({
             ? "text-success"
             : "text-foreground"
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div className="rounded-2xl card-raised p-4">
       <p className="text-[11.5px] font-medium text-muted-foreground">{label}</p>
       <p className={`mt-1 text-[26px] font-bold leading-none tracking-tight ${valueColor}`}>{value}</p>
       {sub ? <p className="mt-1.5 text-[11.5px] text-muted-foreground">{sub}</p> : null}
@@ -68,7 +68,7 @@ export function SectionCard({
   className?: string
 }) {
   return (
-    <section className={`rounded-2xl border border-border bg-card p-4 sm:p-5 ${className}`}>
+    <section className={`rounded-2xl card-raised p-4 sm:p-5 ${className}`}>
       {(title || action) && (
         <div className="mb-3 flex items-center justify-between gap-2">
           {typeof title === "string" ? <h3 className="text-[14px] font-semibold text-foreground">{title}</h3> : title}

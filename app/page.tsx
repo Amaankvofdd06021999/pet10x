@@ -204,7 +204,7 @@ export default function LandingPage() {
         <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-12">
           <div className="max-w-2xl">
             <Reveal>
-              <span className="inline-flex items-center gap-2 rounded-md border border-border/70 bg-card px-3 py-1 text-[12px] font-medium text-muted-foreground">
+              <span className="inline-flex items-center gap-2 rounded-md card-raised px-3 py-1 text-[12px] font-medium text-muted-foreground">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
                 For pet owners &amp; the buildings they live in
               </span>
@@ -225,14 +225,14 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link
                   href="/app"
-                  className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-6 py-3 text-[15px] font-semibold text-primary-strong-foreground transition-colors hover:bg-primary-strong/90"
                 >
                   Get started free
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </Link>
                 <Link
                   href="/app"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-6 py-3 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg card-interactive px-6 py-3 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
                 >
                   Book a demo
                 </Link>
@@ -293,7 +293,7 @@ export default function LandingPage() {
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {OWNER_FEATURES.map((f, i) => (
               <Reveal key={f.title} delay={(i % 3) * 70}>
-                <div className="group h-full rounded-2xl border border-border bg-card p-6 transition-colors hover:bg-muted/40">
+                <div className="group h-full rounded-2xl card-raised p-6 transition-colors hover:bg-muted/40">
                   <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <f.icon className="h-5 w-5" />
                   </span>
@@ -355,8 +355,8 @@ export default function LandingPage() {
           <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {CAPABILITIES.map((c, i) => (
               <Reveal key={c.title} delay={(i % 3) * 70}>
-                <div className="group h-full rounded-2xl border border-border/70 bg-card p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_8px_28px_-18px_rgba(0,0,0,0.28)]">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                <div className="group h-full rounded-2xl card-raised p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_8px_28px_-18px_rgba(0,0,0,0.28)]">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary-strong group-hover:text-primary-strong-foreground">
                     <c.icon className="h-5 w-5" />
                   </span>
                   <h3 className="mt-5 text-[16.5px] font-semibold tracking-tight">{c.title}</h3>
@@ -454,7 +454,7 @@ export default function LandingPage() {
                     p.featured ? "border-primary/40 bg-primary/[0.03]" : "border-border/70 bg-card"
                   }`}
                 >
-                  <span className={`flex h-11 w-11 items-center justify-center rounded-lg ${p.featured ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+                  <span className={`flex h-11 w-11 items-center justify-center rounded-lg ${p.featured ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-foreground"}`}>
                     <p.icon className="h-5 w-5" />
                   </span>
                   <h3 className="mt-5 text-[19px] font-semibold tracking-tight">{p.title}</h3>
@@ -471,7 +471,7 @@ export default function LandingPage() {
                     href="/app"
                     className={`mt-7 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
                       p.featured
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        ? "bg-primary-strong text-primary-strong-foreground hover:bg-primary/90"
                         : "border border-border text-foreground hover:bg-muted"
                     }`}
                   >
@@ -510,7 +510,7 @@ export default function LandingPage() {
                   {/* Badge sits on the border, as the reference does — inside
                       the card it competed with the plan name for the same row. */}
                   {tier.featured && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary-strong px-3 py-1 text-[11px] font-semibold text-primary-strong-foreground shadow-sm">
                       Most popular
                     </span>
                   )}
@@ -532,7 +532,7 @@ export default function LandingPage() {
                     href="/app"
                     className={`mt-8 inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
                       tier.featured
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        ? "bg-primary-strong text-primary-strong-foreground hover:bg-primary/90"
                         : "border border-border text-foreground hover:bg-muted"
                     }`}
                   >
@@ -588,14 +588,14 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link
                   href="/app"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-7 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-7 py-3 text-[15px] font-semibold text-primary-strong-foreground transition-colors hover:bg-primary-strong/90"
                 >
                   Get started free
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   href="/app"
-                  className="inline-flex items-center justify-center rounded-lg border border-border bg-card px-7 py-3 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
+                  className="inline-flex items-center justify-center rounded-lg card-interactive px-7 py-3 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
                 >
                   Book a demo
                 </Link>
@@ -691,7 +691,7 @@ function FeatureVisual({ index }: { index: number }) {
             { label: "Municipal license", status: "Valid", tone: "success" },
             { label: "Building registration", status: "Approved", tone: "success" },
           ].map((d) => (
-            <div key={d.label} className="flex items-center justify-between rounded-lg border border-border/70 bg-card px-4 py-3">
+            <div key={d.label} className="flex items-center justify-between rounded-lg card-raised px-4 py-3">
               <span className="text-[13px] font-medium text-foreground">{d.label}</span>
               <Tone tone={d.tone}>{d.status}</Tone>
             </div>
@@ -726,7 +726,7 @@ function FeatureVisual({ index }: { index: number }) {
 function HeroMock() {
   return (
     <div className="relative mx-auto w-full max-w-md lg:max-w-lg">
-      <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.18)]">
+      <div className="rounded-2xl card-raised p-4 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.18)]">
         <div className="mb-4 flex items-center justify-between px-1">
           <div>
             <p className="text-[11px] text-muted-foreground">Building</p>
@@ -735,7 +735,7 @@ function HeroMock() {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-info/10"><Building2 className="h-4.5 w-4.5 text-info" /></span>
         </div>
 
-        <div className="rounded-xl bg-primary p-4 text-primary-foreground">
+        <div className="rounded-xl bg-primary-strong p-4 text-primary-strong-foreground">
           <p className="text-[11px] font-medium opacity-80">Building Compliance</p>
           <p className="text-[34px] font-semibold leading-none">94%</p>
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-primary-foreground/25">
@@ -749,7 +749,7 @@ function HeroMock() {
             { v: "2", l: "Violations" },
             { v: "1", l: "Approvals" },
           ].map((s) => (
-            <div key={s.l} className="rounded-lg border border-border/70 bg-card p-2.5 text-center">
+            <div key={s.l} className="rounded-lg card-raised p-2.5 text-center">
               <p className="text-[16px] font-semibold">{s.v}</p>
               <p className="text-[10px] text-muted-foreground">{s.l}</p>
             </div>
@@ -757,7 +757,7 @@ function HeroMock() {
         </div>
 
         <div className="mt-3">
-          <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card p-3">
+          <div className="flex items-center gap-3 rounded-lg card-raised p-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><PawPrint className="h-4.5 w-4.5" /></span>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-semibold">Luna · Golden Retriever</p>
@@ -768,14 +768,14 @@ function HeroMock() {
         </div>
       </div>
 
-      <div className="absolute -left-5 bottom-8 hidden rotate-[-6deg] items-center gap-2 rounded-lg border border-border/70 bg-card px-3.5 py-2.5 shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)] sm:flex">
+      <div className="absolute -left-5 bottom-8 hidden rotate-[-6deg] items-center gap-2 rounded-lg card-raised px-3.5 py-2.5 shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)] sm:flex">
         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-success/10"><Check className="h-4 w-4 text-success" /></span>
         <div>
           <p className="text-[11px] font-semibold leading-tight">Registration approved</p>
           <p className="text-[10px] text-muted-foreground">Unit 511 · Cat</p>
         </div>
       </div>
-      <div className="absolute -right-4 top-10 hidden rotate-[6deg] items-center gap-2 rounded-lg border border-border/70 bg-card px-3.5 py-2.5 shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)] sm:flex">
+      <div className="absolute -right-4 top-10 hidden rotate-[6deg] items-center gap-2 rounded-lg card-raised px-3.5 py-2.5 shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)] sm:flex">
         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-accent/10"><Heart className="h-4 w-4 text-accent" /></span>
         <div>
           <p className="text-[11px] font-semibold leading-tight">Service animal</p>
@@ -788,7 +788,7 @@ function HeroMock() {
 
 function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-[0_20px_50px_-28px_rgba(0,0,0,0.16)] sm:p-6">
+    <div className="rounded-2xl card-raised p-5 shadow-[0_20px_50px_-28px_rgba(0,0,0,0.16)] sm:p-6">
       {children}
     </div>
   )
@@ -821,7 +821,7 @@ function Tone({ tone, children }: { tone: string; children: React.ReactNode }) {
     info: "bg-info/10 text-info",
     destructive: "bg-destructive/10 text-destructive",
     success: "bg-success/10 text-success",
-    warning: "bg-warning/15 text-[#B8860B]",
+    warning: "bg-warning/15 text-warning-strong",
   }
   return <span className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${map[tone] ?? map.info}`}>{children}</span>
 }

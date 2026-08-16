@@ -24,7 +24,7 @@ export function CitationList({ citations }: { citations: Citation[] }) {
             href={citation.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start gap-2 rounded-xl border border-border bg-card p-2.5 transition-colors hover:border-accent/50"
+            className="flex items-start gap-2 rounded-xl card-interactive p-2.5 transition-colors hover:shadow-float"
           >
             <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-accent" />
             <span className="min-w-0 flex-1">

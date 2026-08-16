@@ -85,7 +85,7 @@ export function PasswordField({
             setPinned(false)
           }}
           onKeyDown={(e) => e.key === "Enter" && onEnter?.()}
-          className={`w-full rounded-xl border border-border bg-card py-3 pl-11 text-[15px] ${showRules && dismissed ? "pr-20" : "pr-12"} focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20`}
+          className={`w-full rounded-xl border border-input bg-card py-3 pl-11 text-[15px] ${showRules && dismissed ? "pr-20" : "pr-12"} focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20`}
         />
         {/* Only when there are rules to review, and only once dismissed —
             otherwise it is a button that does nothing visible. */}

@@ -36,7 +36,7 @@ const QUICK_ACTIONS = [
   { icon: UserCheck, label: "Review Residents", tint: "bg-primary/10 text-primary", screen: "residents" },
   { icon: AlertTriangle, label: "Violations", tint: "bg-destructive/10 text-destructive", screen: "violations" },
   { icon: Shield, label: "Approvals", tint: "bg-success/10 text-success", screen: "approvals" },
-  { icon: Megaphone, label: "Incident Reports", tint: "bg-warning/10 text-[#B8860B]", screen: "incidents" },
+  { icon: Megaphone, label: "Incident Reports", tint: "bg-warning/10 text-warning-strong", screen: "incidents" },
 ] as const
 
 /** Stage → the tile shown on a violation row. */
@@ -124,7 +124,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
       <main className="ios-scroll flex-1 px-4 pb-24">
         {/* Greeting */}
         <section className="mb-5 mt-3">
-          <h1 className="text-[26px] font-semibold leading-tight text-primary">
+          <h1 className="text-[26px] font-semibold leading-tight tracking-tight text-foreground">
             Welcome back, {user?.name?.split(" ")[0]}
           </h1>
           {(building?.name || user?.building) && (
@@ -134,20 +134,20 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
 
         {/* Headline pair — the building at a glance */}
         <section className="mb-6 grid grid-cols-2 gap-3">
-          <div className="relative overflow-hidden rounded-2xl bg-primary p-4">
+          <div className="relative overflow-hidden rounded-2xl bg-primary-strong p-4">
             <PawPrint
-              className="absolute -bottom-3 -right-2 h-20 w-20 text-primary-foreground/15"
+              className="absolute -bottom-3 -right-2 h-20 w-20 text-primary-strong-foreground/20"
               fill="currentColor"
               aria-hidden
             />
-            <p className="relative text-[13px] font-medium text-primary-foreground/90">Total pets</p>
-            <p className="relative mt-0.5 text-[30px] font-bold leading-none text-primary-foreground">
+            <p className="relative text-[13px] font-medium text-primary-strong-foreground/90">Total pets</p>
+            <p className="relative mt-0.5 text-[30px] font-bold leading-none text-primary-strong-foreground">
               {loading ? "—" : pets.length}
             </p>
           </div>
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl card-raised p-4">
             <p className="text-[13px] font-medium text-muted-foreground">Residents w/ pets</p>
-            <p className="mt-0.5 text-[30px] font-bold leading-none text-primary">
+            <p className="mt-0.5 text-[30px] font-bold leading-none text-primary-strong">
               {loading ? "—" : ownersWithPets}
             </p>
           </div>
@@ -164,7 +164,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
                   <button
                     key={action.label}
                     onClick={() => handleQuickAction(action.screen)}
-                    className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card px-3 py-5 transition-transform active:scale-[0.97]"
+                    className="flex flex-col items-center justify-center gap-2 rounded-2xl card-interactive px-3 py-5 transition-transform active:scale-[0.97]"
                   >
                     <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${action.tint}`}>
                       <Icon className="h-5 w-5" />
@@ -180,7 +180,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
 
           {/* Violation tracking */}
           <section className="mb-6">
-            <div className="rounded-2xl border border-border bg-card p-4">
+            <div className="rounded-2xl card-raised p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="text-[17px] font-semibold text-foreground">Violation tracking</h2>
                 {violations.length > 0 && (
@@ -259,7 +259,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
           <section className="mb-6">
             <SectionLabel>Species breakdown</SectionLabel>
             {loading ? (
-              <div className="flex justify-center rounded-2xl border border-border bg-card py-10">
+              <div className="flex justify-center rounded-2xl card-raised py-10">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
             ) : pets.length === 0 ? (
@@ -301,7 +301,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
                 value={pending}
                 total={members + pending}
                 bar="bg-warning"
-                tone="text-[#B8860B]"
+                tone="text-warning-strong"
                 loading={loading}
               />
             </div>
@@ -310,7 +310,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
 
         {/* Building compliance */}
         <section className="mb-2">
-          <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center gap-4 rounded-2xl card-raised p-4">
             <ComplianceRing pct={loading ? 0 : avgCompliance} />
             <div className="min-w-0 flex-1">
               <p className="text-[16px] font-semibold text-foreground">Building compliance</p>
@@ -347,7 +347,7 @@ function SpeciesCard({
   value: number
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
+    <div className="flex items-center gap-3 rounded-2xl card-raised p-3.5">
       <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${tint}`}>
         <Icon className="h-5 w-5" />
       </span>
@@ -376,7 +376,7 @@ function StatBar({
 }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0
   return (
-    <div className="rounded-2xl border border-border bg-card p-3.5">
+    <div className="rounded-2xl card-raised p-3.5">
       <p className="truncate text-[13px] font-medium text-muted-foreground">{label}</p>
       <p className={`mt-0.5 text-[22px] font-bold leading-tight ${tone}`}>{loading ? "—" : value}</p>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">

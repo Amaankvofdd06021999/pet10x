@@ -69,7 +69,7 @@ export function LandingNav() {
           </Link>
           <Link
             href="/app"
-            className="rounded-lg bg-primary px-4 py-2 text-[14px] font-semibold text-primary-foreground shadow-sm shadow-primary/30 transition-all hover:scale-[1.03] hover:bg-primary/90 active:scale-[0.98]"
+            className="rounded-lg bg-primary-strong px-4 py-2 text-[14px] font-semibold text-primary-strong-foreground shadow-sm shadow-primary/30 transition-all hover:scale-[1.03] hover:bg-primary-strong/90 active:scale-[0.98]"
           >
             Get started
           </Link>
@@ -116,7 +116,7 @@ export function LandingNav() {
               </Link>
               <Link
                 href="/app"
-                className="rounded-lg bg-primary px-4 py-2.5 text-center text-[15px] font-semibold text-primary-foreground"
+                className="rounded-lg bg-primary-strong px-4 py-2.5 text-center text-[15px] font-semibold text-primary-strong-foreground"
               >
                 Get started
               </Link>

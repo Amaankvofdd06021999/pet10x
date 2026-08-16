@@ -103,9 +103,9 @@ export function ManagerResidentsScreen({ onNavigate }: { onNavigate?: (screen: s
             {/* Pending requests */}
             <section className="mb-6">
               <div className="mb-2.5 flex items-center gap-2">
-                <Clock className="h-4 w-4 text-[#B8860B]" />
+                <Clock className="h-4 w-4 text-warning-strong" />
                 <h2 className="text-[15px] font-semibold text-foreground">Pending requests</h2>
-                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-[#B8860B]">{pending.length}</span>
+                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning-strong">{pending.length}</span>
               </div>
               {pending.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-[13px] text-muted-foreground">
@@ -163,7 +163,7 @@ export function ManagerResidentsScreen({ onNavigate }: { onNavigate?: (screen: s
                         <button
                           onClick={() => act(r.linkId, denyResidentLink, "Request denied")}
                           disabled={busy === r.linkId}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-2 text-[13px] font-semibold text-foreground transition-transform active:scale-[0.97] disabled:opacity-60"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg card-interactive py-2 text-[13px] font-semibold text-foreground transition-transform active:scale-[0.97] disabled:opacity-60"
                         >
                           <X className="h-3.5 w-3.5" /> Deny
                         </button>
@@ -220,7 +220,7 @@ function MemberCard({
 }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="rounded-xl card-raised">
       <div className="flex items-center gap-3 p-3.5">
         <button
           onClick={() => setOpen((v) => !v)}
@@ -253,7 +253,7 @@ function MemberCard({
               {pets.map((p) => {
                 const Icon = p.species === "dog" ? Dog : Cat
                 const color =
-                  p.compliancePct >= 100 ? "text-success" : p.compliancePct >= 50 ? "text-[#B8860B]" : "text-destructive"
+                  p.compliancePct >= 100 ? "text-success" : p.compliancePct >= 50 ? "text-warning-strong" : "text-destructive"
                 return (
                   <div key={p.id} className="flex items-center gap-2.5 rounded-lg bg-muted/40 p-2.5">
                     <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />

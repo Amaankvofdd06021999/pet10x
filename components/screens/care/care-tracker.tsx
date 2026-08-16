@@ -230,7 +230,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                   setLabel("")
                 }}
                 className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-semibold transition-all ${
-                  on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  on ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 <Icon className="h-4 w-4" /> {k.label}
@@ -244,7 +244,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
         ) : (
           <>
           {/* Today */}
-          <section className="mb-4 rounded-2xl bg-primary p-4 text-primary-foreground">
+          <section className="mb-4 rounded-2xl bg-primary-strong p-4 text-primary-strong-foreground">
             <p className="text-[12px] font-medium opacity-80">
               {spec.label} today · {pet?.name}
             </p>
@@ -287,7 +287,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                 {targets.map((t) => {
                   const pr = progressFor(t)
                   return (
-                    <div key={t.id} className="rounded-xl border border-border bg-card p-3">
+                    <div key={t.id} className="rounded-xl card-raised p-3">
                       <div className="flex items-baseline justify-between gap-2">
                         <p className="min-w-0 truncate text-[13.5px] font-semibold text-foreground">{t.label}</p>
                         <p className={`flex-shrink-0 text-[12px] font-semibold ${pr.over ? "text-destructive" : "text-muted-foreground"}`}>
@@ -310,7 +310,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
           </section>
 
           {/* Quick log */}
-          <section className="mb-6 rounded-2xl border border-border bg-card p-3.5">
+          <section className="mb-6 rounded-2xl card-raised p-3.5">
             <h2 className="mb-2.5 text-[14px] font-semibold text-foreground">Log {spec.label.toLowerCase()}</h2>
             <input
               type="text"
@@ -360,7 +360,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
               <button
                 onClick={() => log(amount ? parseFloat(amount) : null)}
                 disabled={saving}
-                className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+                className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary-strong px-4 py-2.5 text-[14px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Log
               </button>
@@ -399,7 +399,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                 {groups.map((g) => (
                   <div key={g.label}>
                     <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{g.label}</p>
-                    <div className="overflow-hidden rounded-xl border border-border bg-card">
+                    <div className="overflow-hidden rounded-xl card-raised">
                       {g.items.map((e, i) => (
                         <div
                           key={e.id}
@@ -581,7 +581,7 @@ function TargetSheet({
         <div
           role="dialog"
           aria-label={`${spec.targetLabel} for ${spec.label}`}
-          className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-border bg-card p-5 shadow-xl"
+          className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-card shadow-float p-5 shadow-xl"
         >
           <div className="mb-1 flex items-center justify-between gap-3">
             <h2 className="text-[17px] font-semibold text-foreground">{spec.targetLabel}</h2>
@@ -607,7 +607,7 @@ function TargetSheet({
                     value={row.label}
                     onChange={(e) => patch(i, { label: e.target.value })}
                     placeholder={spec.placeholder}
-                    className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-[14px] focus:border-primary focus:outline-none"
+                    className="min-w-0 flex-1 rounded-lg border border-input bg-card px-3 py-2 text-[14px] focus:border-primary focus:outline-none"
                   />
                   {(spec.multi || rows.length > 1) && (
                     <button
@@ -633,13 +633,13 @@ function TargetSheet({
                     value={row.amount}
                     onChange={(e) => patch(i, { amount: e.target.value })}
                     placeholder="Amount"
-                    className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-[14px] focus:border-primary focus:outline-none"
+                    className="min-w-0 flex-1 rounded-lg border border-input bg-card px-3 py-2 text-[14px] focus:border-primary focus:outline-none"
                   />
                   <select
                     value={row.unit}
                     onChange={(e) => patch(i, { unit: e.target.value })}
                     aria-label="Unit"
-                    className="flex-shrink-0 rounded-lg border border-border bg-card px-2 py-2 text-[13px] font-medium text-foreground focus:border-primary focus:outline-none"
+                    className="flex-shrink-0 rounded-lg border border-input bg-card px-2 py-2 text-[13px] font-medium text-foreground focus:border-primary focus:outline-none"
                   >
                     {spec.units.map((u) => (
                       <option key={u.id} value={u.id}>
@@ -651,7 +651,7 @@ function TargetSheet({
                     value={row.period}
                     onChange={(e) => patch(i, { period: e.target.value as "day" | "week" })}
                     aria-label="Per"
-                    className="flex-shrink-0 rounded-lg border border-border bg-card px-2 py-2 text-[13px] font-medium text-foreground focus:border-primary focus:outline-none"
+                    className="flex-shrink-0 rounded-lg border border-input bg-card px-2 py-2 text-[13px] font-medium text-foreground focus:border-primary focus:outline-none"
                   >
                     <option value="day">/ day</option>
                     <option value="week">/ week</option>
@@ -673,7 +673,7 @@ function TargetSheet({
           <button
             onClick={save}
             disabled={saving}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Save
@@ -706,7 +706,7 @@ function DietPlan({ pet }: { pet: Pet }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3.5 text-left transition-colors active:bg-muted"
+        className="mb-4 flex w-full items-center gap-3 rounded-2xl card-interactive p-3.5 text-left transition-colors active:bg-muted"
       >
         <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
           <Utensils className="h-4.5 w-4.5 text-primary" />
@@ -723,7 +723,7 @@ function DietPlan({ pet }: { pet: Pet }) {
   }
 
   return (
-    <div className="mb-4 rounded-2xl border border-border bg-card p-4">
+    <div className="mb-4 rounded-2xl card-raised p-4">
       <h3 className="mb-2.5 text-[14px] font-semibold text-foreground">Diet plan</h3>
       <div className="flex flex-wrap gap-1.5">
         {DIET_TYPES.map((d) => (
@@ -732,7 +732,7 @@ function DietPlan({ pet }: { pet: Pet }) {
             onClick={() => setDietType(dietType === d.id ? "" : d.id)}
             title={d.hint}
             className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-              dietType === d.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              dietType === d.id ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
             }`}
           >
             {d.label}
@@ -749,7 +749,7 @@ function DietPlan({ pet }: { pet: Pet }) {
         <button
           onClick={save}
           disabled={saving}
-          className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-4 py-2.5 text-[14px] font-semibold text-primary-strong-foreground disabled:opacity-60"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
         </button>

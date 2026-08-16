@@ -83,7 +83,7 @@ export function PersonaSwitcher({
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-label={`Viewing as ${PERSONA_LABEL[current]}. Switch view`}
-        className={`flex items-center gap-2 rounded-xl border border-border bg-card text-left transition-colors active:bg-muted ${
+        className={`flex items-center gap-2 rounded-xl card-interactive text-left transition-colors active:bg-muted ${
           compact ? "px-2 py-1.5" : "px-3 py-2"
         } ${className}`}
       >
@@ -121,7 +121,7 @@ export function PersonaSwitcher({
             <div
               role="dialog"
               aria-label="Switch view"
-              className="relative w-full max-w-md rounded-t-3xl border border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-3xl sm:pb-5"
+              className="relative w-full max-w-md rounded-t-3xl bg-card shadow-float p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-3xl sm:pb-5"
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="text-[17px] font-semibold text-foreground">Switch view</h2>

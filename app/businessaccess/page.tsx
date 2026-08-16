@@ -154,7 +154,7 @@ function BusinessAuth() {
                 <select
                   value={f.category}
                   onChange={(e) => set("category", e.target.value)}
-                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none"
+                  className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none"
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c}>{c}</option>
@@ -289,7 +289,7 @@ function Input({
       onKeyDown={(e) => e.key === "Enter" && onEnter?.()}
       placeholder={placeholder}
       autoCapitalize={type === "email" ? "none" : undefined}
-      className="w-full min-w-0 rounded-xl border border-border bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      className="w-full min-w-0 rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
     />
   )
 }

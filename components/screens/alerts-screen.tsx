@@ -33,7 +33,7 @@ const NOTIFICATION_ICONS: Record<NotificationIconKey, typeof Syringe> = {
 }
 
 const SEVERITY_STYLES = {
-  warning: { bg: "bg-[#FFF6E0]", iconColor: "text-[#B8860B]" },
+  warning: { bg: "bg-[#FFF6E0]", iconColor: "text-warning-strong" },
   error: { bg: "bg-destructive/10", iconColor: "text-destructive" },
   info: { bg: "bg-info/10", iconColor: "text-info" },
   success: { bg: "bg-success/10", iconColor: "text-success" },
@@ -124,7 +124,7 @@ export function AlertsScreen({
               onClick={() => setActiveTab(tab.id)}
               className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
                 effectiveTab === tab.id
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary-strong text-primary-strong-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -173,7 +173,7 @@ export function AlertsScreen({
             return (
               <div
                 key={alert.id}
-                className="rounded-2xl border border-border bg-card p-3.5 transition-transform active:scale-[0.99]"
+                className="rounded-2xl card-raised p-3.5 transition-transform active:scale-[0.99]"
               >
                 <div className="flex gap-3">
                   <div className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${style.bg}`}>

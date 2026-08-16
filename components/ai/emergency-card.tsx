@@ -48,7 +48,7 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
           </p>
           <div className="flex flex-col gap-1.5">
             {card.clinics.map((clinic) => (
-              <div key={clinic.name} className="flex items-start gap-2 rounded-xl border border-border bg-card p-2.5">
+              <div key={clinic.name} className="flex items-start gap-2 rounded-xl card-raised p-2.5">
                 <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-semibold text-foreground">{clinic.name}</p>
@@ -72,7 +72,7 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
             <a
               key={line.phone}
               href={`tel:${line.phone.replace(/[^\d+]/g, "")}`}
-              className="flex items-center gap-2 rounded-xl border border-border bg-card p-2.5 transition-transform active:scale-[0.98]"
+              className="flex items-center gap-2 rounded-xl card-interactive p-2.5 transition-transform active:scale-[0.98]"
             >
               <Phone className="h-4 w-4 flex-shrink-0 text-destructive" />
               <span className="min-w-0 flex-1">

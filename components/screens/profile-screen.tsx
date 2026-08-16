@@ -186,7 +186,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
         <section className="mb-5">
           <button
             onClick={openEdit}
-            className="w-full rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+            className="w-full rounded-2xl card-interactive p-4 text-left transition-colors active:bg-muted"
           >
             <div className="flex items-center gap-3">
               {/* An <Image> with src="" makes the browser re-request the whole
@@ -250,7 +250,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
               return (
                 <div
                   key={pet.name}
-                  className="flex flex-1 items-center gap-2.5 rounded-2xl border border-border bg-card p-2.5"
+                  className="flex flex-1 items-center gap-2.5 rounded-2xl card-raised p-2.5"
                 >
                   <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-muted flex-shrink-0">
                     <Image src={pet.image} alt={pet.name} fill className="object-cover" />
@@ -274,7 +274,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase text-muted-foreground">
               {section.title}
             </h3>
-            <div className="overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="overflow-hidden rounded-2xl card-raised">
               {section.items.map((item, idx) => {
                 const Icon = item.icon
                 return (
@@ -307,7 +307,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
         {/* Privacy & data */}
         <section className="mb-5">
           <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase text-muted-foreground">Privacy &amp; data</h3>
-          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="overflow-hidden rounded-2xl card-raised">
             <button
               onClick={handleExport}
               disabled={busy !== null}
@@ -382,7 +382,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-card px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
@@ -397,7 +397,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                 <button
                   onClick={handleSaveProfile}
                   disabled={savingProfile}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-strong-foreground disabled:opacity-60"
                 >
                   {savingProfile && <Loader2 className="h-4 w-4 animate-spin" />} Save
                 </button>

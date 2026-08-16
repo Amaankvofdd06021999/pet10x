@@ -33,7 +33,7 @@ function ReportContent() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <header className="border-b border-border/60 px-5 py-3.5 sm:px-8">
+      <header className="border-b border-border bg-card px-5 py-3.5 sm:px-8">
         <Link href="/" className="flex items-center gap-2" aria-label="Pet10x home">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm shadow-primary/30">
             <PawPrint className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
@@ -135,8 +135,8 @@ function BuildingSearchStep({
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
-        <Building2 className="h-7 w-7 text-destructive" />
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+        <Building2 className="h-7 w-7 text-primary-strong" />
       </div>
       <h1 className="mt-5 text-center text-[24px] font-semibold leading-tight text-foreground">
         Which building?
@@ -162,7 +162,7 @@ function BuildingSearchStep({
             placeholder="e.g. Maple Court, or 1450 Cambie"
             autoComplete="off"
             autoFocus
-            className="w-full rounded-xl border border-border bg-card py-3.5 pl-11 pr-11 text-[16px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-input bg-card py-3.5 pl-11 pr-11 text-[16px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           {searching && (
             <Loader2 className="absolute right-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -176,7 +176,7 @@ function BuildingSearchStep({
             <li key={`${b.name}-${i}`}>
               <button
                 onClick={() => onPick(b)}
-                className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3.5 text-left transition-colors hover:border-primary"
+                className="flex w-full items-center gap-3 rounded-xl card-interactive p-3.5 text-left transition-colors hover:shadow-float"
               >
                 <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
                   <Building2 className="h-5 w-5 text-primary" />
@@ -275,7 +275,7 @@ function BuildingCodeStep({
           be looking at the right building and still be stuck here — saying
           which one is the difference between "wrong code" and "wrong place". */}
       {building?.name && (
-        <div className="mt-5 flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
+        <div className="mt-5 flex items-center gap-3 rounded-xl card-raised p-3.5">
           <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
             <Building2 className="h-5 w-5 text-primary" />
           </span>
@@ -311,7 +311,7 @@ function BuildingCodeStep({
             autoComplete="off"
             maxLength={12}
             autoFocus
-            className="w-full rounded-xl border border-border bg-card py-3.5 pl-11 pr-4 font-mono text-[16px] font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-input bg-card py-3.5 pl-11 pr-4 font-mono text-[16px] font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
         {error && <p className="mt-2 text-[13px] text-destructive">{error}</p>}
@@ -320,7 +320,7 @@ function BuildingCodeStep({
       <button
         onClick={submit}
         disabled={busy}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
       >
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
         Continue

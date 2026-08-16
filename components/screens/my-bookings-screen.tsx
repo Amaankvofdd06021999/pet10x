@@ -76,7 +76,7 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
         ) : (
           <div className="space-y-2.5">
             {bookings.map((b) => (
-              <div key={b.id} className="rounded-2xl border border-border bg-card p-3.5">
+              <div key={b.id} className="rounded-2xl card-raised p-3.5">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
                     <Store className="h-5 w-5 text-accent" />
@@ -187,7 +187,7 @@ function ReviewSheet({
     <Portal>
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 sm:items-center" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-t-3xl border border-border bg-card p-5 sm:rounded-3xl"
+        className="w-full max-w-md rounded-t-3xl bg-card shadow-float p-5 sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-[17px] font-semibold text-foreground">Review {booking.businessName}</h3>

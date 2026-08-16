@@ -93,7 +93,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
         {/* Location — device GPS only; we never guess from a building */}
         <div className="px-4 pb-2 pt-1">
           {origin ? (
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5">
+            <div className="flex items-center gap-2 rounded-xl card-raised px-3 py-2.5">
               <MapPin className="h-4 w-4 flex-shrink-0 text-primary" />
               <span className="flex-1 truncate text-[13px] text-foreground">{origin.label}</span>
               <button
@@ -106,7 +106,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
               </button>
             </div>
           ) : locLoading ? (
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5">
+            <div className="flex items-center gap-2 rounded-xl card-raised px-3 py-2.5">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               <span className="text-[13px] text-muted-foreground">Locating…</span>
             </div>
@@ -123,7 +123,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
               <button
                 onClick={() => void requestLocation()}
                 disabled={gps}
-                className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+                className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-primary-strong px-3 py-2 text-[13px] font-semibold text-primary-strong-foreground disabled:opacity-60"
               >
                 {gps ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
                 Use my location
@@ -169,7 +169,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
                     onClick={() => setMaxKm(km)}
                     className={`rounded-[10px] px-2.5 py-1 text-[12px] font-semibold transition-colors ${
                       active
-                        ? "bg-primary text-primary-foreground shadow-sm"
+                        ? "bg-primary-strong text-primary-strong-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -235,7 +235,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
                 <button
                   key={b.id}
                   onClick={() => onNavigate?.("business-detail", b.id)}
-                  className="flex items-start gap-3 rounded-2xl border border-border bg-card p-3 text-left transition-transform active:scale-[0.98]"
+                  className="flex items-start gap-3 rounded-2xl card-interactive p-3 text-left transition-transform active:scale-[0.98]"
                 >
                   <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
                     <Store className="h-6 w-6 text-accent" />

@@ -48,7 +48,7 @@ const QUICK_ACTIONS = [
 ]
 
 const ALERT_DOT = {
-  warning: "bg-[#B8860B]",
+  warning: "bg-warning-strong",
   info: "bg-info",
   success: "bg-success",
 } as const
@@ -238,7 +238,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                     <button
                       key={pet.id}
                       onClick={() => onNavigate?.("pet-detail", pet.id)}
-                      className={`flex items-center gap-4 rounded-2xl border border-border bg-card text-left shadow-sm transition-transform active:scale-[0.98] md:min-w-0 ${
+                      className={`flex items-center gap-4 rounded-2xl card-interactive text-left transition-transform active:scale-[0.98] md:min-w-0 ${
                         singlePet ? "w-full p-5" : "min-w-[280px] snap-start p-4"
                       }`}
                     >
@@ -291,7 +291,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
         {/* Today's Care — header row + the three-up status strip */}
         <section className="mb-6">
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="rounded-2xl card-raised p-5">
             <button
               onClick={() => onNavigate?.("pet-care")}
               className="mb-4 flex w-full items-center justify-between gap-3 text-left transition-transform active:scale-[0.99]"
@@ -341,7 +341,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 <button
                   key={action.label}
                   onClick={() => handleQuickAction(action.label)}
-                  className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm transition-transform active:scale-[0.97]"
+                  className="flex flex-col items-center gap-2 rounded-2xl card-interactive p-4 transition-transform active:scale-[0.97]"
                 >
                   <span className={`flex h-10 w-10 items-center justify-center rounded-full ${action.color}`}>
                     <Icon className="h-5 w-5" />
@@ -358,7 +358,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           {buildingLink?.status === "approved" ? (
             <button
               onClick={() => onNavigate?.("link-building")}
-              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-transform active:scale-[0.98]"
+              className="flex w-full items-center justify-between gap-3 rounded-2xl card-interactive p-4 text-left transition-transform active:scale-[0.98]"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-info/10">
@@ -374,9 +374,9 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
             </button>
           ) : buildingLink?.status === "pending" ? (
-            <div className="flex w-full items-center gap-3 rounded-2xl border border-[#B8860B]/25 bg-[#FFF6E0] p-4">
-              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#B8860B]/10">
-                <Clock className="h-5 w-5 text-[#B8860B]" />
+            <div className="flex w-full items-center gap-3 rounded-2xl border border-warning-strong/25 bg-[#FFF6E0] p-4">
+              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-warning-strong/10">
+                <Clock className="h-5 w-5 text-warning-strong" />
               </span>
               <div className="min-w-0">
                 <h4 className="truncate text-[15px] font-semibold text-foreground">Membership pending</h4>
@@ -437,7 +437,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             </div>
             <div className="flex flex-col gap-2">
               {alerts.map((alert) => (
-                <div key={alert.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div key={alert.id} className="rounded-2xl card-raised p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className={`h-2 w-2 flex-shrink-0 rounded-full ${ALERT_DOT[alert.type]}`} />

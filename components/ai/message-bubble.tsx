@@ -32,8 +32,8 @@ function UserBubble({ turn }: { turn: ChatTurn }) {
           </div>
         )}
         {turn.content && (
-          <div className="rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5">
-            <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-primary-foreground">{turn.content}</p>
+          <div className="rounded-2xl rounded-br-md bg-primary-strong px-3.5 py-2.5">
+            <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-primary-strong-foreground">{turn.content}</p>
           </div>
         )}
       </div>
@@ -58,7 +58,7 @@ function AssistantBubble({ turn }: { turn: ChatTurn }) {
     <div className="flex gap-2.5">
       <Avatar />
       <div className="min-w-0 flex-1">
-        <div className="rounded-2xl rounded-tl-md border border-border bg-card px-3.5 py-2.5">
+        <div className="rounded-2xl rounded-tl-md card-raised px-3.5 py-2.5">
           {turn.error ? (
             <p className="text-[14px] leading-relaxed text-destructive">{turn.error}</p>
           ) : turn.content ? (

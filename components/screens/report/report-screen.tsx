@@ -134,7 +134,7 @@ function BuildingReport({
         </p>
         <button
           onClick={onDone}
-          className="mt-7 w-full rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground"
+          className="mt-7 w-full rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground"
         >
           Done
         </button>
@@ -159,7 +159,7 @@ function BuildingReport({
             key={t}
             onClick={() => setType(t)}
             className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-              type === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              type === t ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
             }`}
           >
             {INCIDENT_TYPE_LABEL[t]}
@@ -172,13 +172,13 @@ function BuildingReport({
         onChange={(e) => setDescription(e.target.value)}
         rows={4}
         placeholder="Describe what happened…"
-        className="mt-4 w-full rounded-xl border border-border bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="mt-4 w-full rounded-xl border border-input bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
       />
       <input
         value={location}
         onChange={(e) => setLocation(e.target.value)}
         placeholder="Where in the building? (optional)"
-        className="mt-2 w-full rounded-xl border border-border bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="mt-2 w-full rounded-xl border border-input bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
       />
 
       {pets.length > 0 && (
@@ -218,7 +218,7 @@ function BuildingReport({
         </>
       )}
 
-      <label className="mt-5 flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-card p-4">
+      <label className="mt-5 flex cursor-pointer items-center justify-between rounded-2xl card-raised p-4">
         <span>
           <span className="block text-[14.5px] font-medium text-foreground">Submit anonymously</span>
           <span className="block text-[12.5px] text-muted-foreground">Your name won&apos;t be attached</span>
@@ -234,7 +234,7 @@ function BuildingReport({
       <button
         onClick={submit}
         disabled={busy || !type || !description.trim()}
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
       >
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
         Send to {building.name}

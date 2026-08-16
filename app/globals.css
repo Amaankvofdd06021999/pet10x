@@ -4,72 +4,124 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Pet10x Brand — Orange #FD9340 */
-  --background: #FFFFFF;
-  --foreground: #1F1F1F;
-  --card: #FFFFFF;
-  --card-foreground: #1F1F1F;
+  /* Pet10x Brand — Orange #FD9340
+   *
+   * Two grounds, not one. `--background` used to be #FFFFFF, identical to
+   * `--card`, so nothing in the app could sit ON anything — every card was
+   * white-on-white and only a 1px grey line said where it started. Tinting the
+   * page ground is what lets a card read as a card, and it is the single
+   * change that does most of the work here. */
+  --background: #F4F5FD; /* page ground — cards float on this */
+  --card: #FFFFFF; /* every raised surface */
   --popover: #FFFFFF;
-  --popover-foreground: #1F1F1F;
+
+  /* Type has two weights of meaning, so it gets two colours: headings carry
+   * the near-black, everything explanatory drops to grey. Applying one colour
+   * to both is what makes a dense screen read as a wall. */
+  --foreground: #2C2E30; /* headings, values, anything you scan for */
+  --card-foreground: #2C2E30;
+  --popover-foreground: #2C2E30;
+  --muted-foreground: #646569; /* body, meta, helper text */
+
   --primary: #FD9340;
   --primary-foreground: #FFFFFF;
-  --secondary: #F8F8F8;
-  --secondary-foreground: #1F1F1F;
-  --muted: #F0F0F0;
-  --muted-foreground: #787878;
+  /* The brand at full strength, for solid fills that carry white text.
+   * #FD9340 under white is 2.2:1 — below every legibility floor there is, and
+   * the main reason large orange buttons looked washed out. This is the same
+   * hue pushed into its red end (4:1), so a CTA reads as the brand and is
+   * still readable. Tints, icons and outlines keep the lighter --primary. */
+  --primary-strong: #D9541B;
+  --primary-strong-foreground: #FFFFFF;
+
+  --secondary: #EDEEF6;
+  --secondary-foreground: #2C2E30;
+  --muted: #EDEEF6;
   --accent: #2FBFB8;
   --accent-foreground: #FFFFFF;
-  --destructive: #FF3B30;
+
+  /* Reserved for genuine danger — destructive actions and error states — and
+   * deliberately not used as a CTA colour anywhere, so that seeing red in this
+   * UI always means something is wrong. */
+  --destructive: #D93A2B;
   --destructive-foreground: #FFFFFF;
-  --border: #E5E5E5;
-  --input: #E5E5E5;
+
+  /* Hairline for a card sitting ON white. Cool-tinted to belong with the
+   * ground rather than a neutral grey borrowed from a different palette. */
+  --border: #E9EAF2;
+  --input: #E1E2EC;
   --ring: #FD9340;
+
   --chart-1: #FD9340;
   --chart-2: #2FBFB8;
-  --chart-3: #34C759;
-  --chart-4: #007AFF;
-  --chart-5: #FFCC00;
-  --radius: 0.75rem;
-  /* Semantic */
-  --success: #34C759;
+  --chart-3: #1E9E62;
+  --chart-4: #2555C7;
+  --chart-5: #F0A81E;
+  --radius: 0.875rem;
+
+  /* Semantic. Deepened off the stock iOS set — #34C759, #FFCC00 and #007AFF
+   * are display colours that go chalky next to a tinted ground and cannot
+   * carry white text at any size. */
+  --success: #1E9E62;
   --success-foreground: #FFFFFF;
-  --warning: #FFCC00;
-  --warning-foreground: #1F1F1F;
-  --info: #007AFF;
+  --warning: #F0A81E;
+  --warning-foreground: #2C2E30;
+  /* Amber is unreadable as text at any usable size, so fifteen places had
+   * hardcoded #B8860B to get a legible "pending / investigating" label. That
+   * is a token wearing a disguise — and at 3.25:1 it was not legible either.
+   * Named properly, and deepened to clear 4.5:1 on both white and the amber
+   * tint it always sits on. */
+  --warning-strong: #96660A;
+  --info: #2555C7;
   --info-foreground: #FFFFFF;
+
+  /* Elevation. Two stops only: a resting card and a floating one. The tint
+   * behind them does most of the separating, so these stay very quiet —
+   * a heavy shadow on a light ground is the fastest way to look dated. */
+  --elevation-card: 0 1px 2px rgba(44, 46, 48, 0.04), 0 4px 12px rgba(44, 46, 48, 0.05);
+  --elevation-float: 0 2px 6px rgba(44, 46, 48, 0.06), 0 12px 28px rgba(44, 46, 48, 0.10);
 }
 
 .dark {
-  --background: #000000;
-  --foreground: #F5F5F5;
-  --card: #1C1C1E;
-  --card-foreground: #F5F5F5;
-  --popover: #1C1C1E;
-  --popover-foreground: #F5F5F5;
+  /* Same two-ground idea inverted: the page is the darker plane and cards lift
+   * off it. Pure #000 is dropped — it flattens against a near-black card and
+   * makes every shadow invisible. */
+  --background: #131417;
+  --foreground: #F2F3F5;
+  --card: #1C1D21;
+  --card-foreground: #F2F3F5;
+  --popover: #1C1D21;
+  --popover-foreground: #F2F3F5;
   --primary: #FD9340;
-  --primary-foreground: #FFFFFF;
-  --secondary: #2C2C2E;
-  --secondary-foreground: #F5F5F5;
-  --muted: #2C2C2E;
-  --muted-foreground: #8E8E8E;
+  --primary-foreground: #1F1F1F;
+  /* On dark the light orange already clears contrast, so "strong" lightens
+   * rather than deepens — the deep #D9541B would disappear into the ground. */
+  --primary-strong: #FF9A4D;
+  --primary-strong-foreground: #1F1F1F;
+  --secondary: #26272C;
+  --secondary-foreground: #F2F3F5;
+  --muted: #26272C;
+  --muted-foreground: #9B9CA3;
   --accent: #2FBFB8;
-  --accent-foreground: #FFFFFF;
-  --destructive: #FF453A;
+  --accent-foreground: #10201F;
+  --destructive: #F1584A;
   --destructive-foreground: #FFFFFF;
-  --border: #38383A;
-  --input: #38383A;
+  --border: #2E2F35;
+  --input: #35363D;
   --ring: #FFAB66;
   --chart-1: #FFAB66;
   --chart-2: #5FD4CF;
-  --chart-3: #30D158;
-  --chart-4: #0A84FF;
-  --chart-5: #FFD60A;
-  --success: #30D158;
-  --success-foreground: #FFFFFF;
-  --warning: #FFD60A;
+  --chart-3: #3FBF83;
+  --chart-4: #6E92F2;
+  --chart-5: #FFC94D;
+  --success: #3FBF83;
+  --success-foreground: #0F1F17;
+  --warning: #FFC94D;
   --warning-foreground: #1F1F1F;
-  --info: #0A84FF;
-  --info-foreground: #FFFFFF;
+  --warning-strong: #FFD98A;
+  --info: #6E92F2;
+  --info-foreground: #0F1524;
+  --elevation-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.32);
+  --elevation-float: 0 2px 6px rgba(0, 0, 0, 0.5), 0 12px 28px rgba(0, 0, 0, 0.45);
 }
 
 @theme inline {
@@ -83,6 +135,8 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-strong-foreground: var(--primary-strong-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -103,12 +157,68 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-strong: var(--warning-strong);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --shadow-card: var(--elevation-card);
+  --shadow-float: var(--elevation-float);
+}
+
+/* ------------------------------------------------------------------ */
+/* Surfaces                                                            */
+/*                                                                     */
+/* One rule, two utilities. What separates a card from what is behind  */
+/* it depends on what is behind it:                                    */
+/*                                                                     */
+/*   on the tinted ground → a tint step and a soft shadow, NO border.  */
+/*                          A border here is a third signal doing a    */
+/*                          job two are already doing, and it is what  */
+/*                          makes an interface look boxed-in.          */
+/*                                                                     */
+/*   on white             → a hairline, NO shadow. There is no tint    */
+/*                          step to lean on, and a shadow cast onto    */
+/*                          white with nothing behind it reads as a    */
+/*                          smudge rather than as height.              */
+/*                                                                     */
+/* Both set their own background, so they replace `bg-card` rather     */
+/* than sit alongside it.                                              */
+/* ------------------------------------------------------------------ */
+
+@utility card-raised {
+  background-color: var(--card);
+  box-shadow: var(--elevation-card);
+}
+
+@utility card-inset {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+}
+
+/* A raised card that is also pressable. Kept separate from card-raised so a
+   static panel doesn't advertise a hover it can't honour.
+
+   The transition lives inside the :hover rule rather than on the base class on
+   purpose. Most of these elements already carry a Tailwind `transition-colors`
+   or `transition-transform`, and `transition-property` is a single slot — a
+   shorthand on the base class would simply be overwritten by whichever
+   utility sorts last, and the lift would snap. Declaring it here also beats a
+   lone utility class on specificity, so it wins wherever the two meet. */
+@utility card-interactive {
+  background-color: var(--card);
+  box-shadow: var(--elevation-card);
+}
+
+/* Pointer devices only: on touch there is no hover state to return from, and
+   a sticky lift after a tap reads as a stuck button. */
+@media (hover: hover) {
+  .card-interactive:hover {
+    box-shadow: var(--elevation-float);
+    transition: box-shadow 160ms ease;
+  }
 }
 
 @layer base {

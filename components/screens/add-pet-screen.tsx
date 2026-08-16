@@ -115,7 +115,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
           <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
             <button
               onClick={() => onNavigate?.("pet-care")}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[16px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[16px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98]"
             >
               <Utensils className="h-5 w-5" /> Set up food &amp; care
             </button>
@@ -264,7 +264,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
               type="date"
               value={dob}
               onChange={(e) => setDob(e.target.value)}
-              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </Field>
           <Field label="Weight">
@@ -317,7 +317,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
                 type="button"
                 onClick={() => setSizeBand(sizeBand === b.id ? "" : b.id)}
                 className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                  sizeBand === b.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  sizeBand === b.id ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {b.label}
@@ -381,7 +381,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
                   }
                   title={r.hint}
                   className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                    on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    on ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {r.label}
@@ -393,7 +393,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
 
 
         {/* Neutered */}
-        <label className="mb-6 flex cursor-pointer items-center justify-between rounded-xl border border-border bg-card p-4">
+        <label className="mb-6 flex cursor-pointer items-center justify-between rounded-xl card-raised p-4">
           <div>
             <p className="text-[15px] font-medium text-foreground">Spayed / Neutered</p>
             <p className="text-[12px] text-muted-foreground">Helps with building compliance</p>
@@ -412,7 +412,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
           onClick={handleSubmit}
           disabled={!canSubmit || saving}
           className={`flex w-full items-center justify-center gap-2 rounded-lg py-3.5 text-[16px] font-semibold transition-all active:scale-[0.98] ${
-            canSubmit && !saving ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            canSubmit && !saving ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
           }`}
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -459,7 +459,7 @@ function Select({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-xl border border-border bg-card px-4 py-3 pr-10 text-[15px] text-foreground outline-none focus:border-primary"
+        className="w-full appearance-none rounded-xl border border-input bg-card px-4 py-3 pr-10 text-[15px] text-foreground outline-none focus:border-primary"
       >
         {placeholder && (
           <option value="" disabled>
@@ -484,7 +484,7 @@ function Input({ value, onChange, placeholder }: { value: string; onChange: (v: 
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-xl border border-border bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
     />
   )
 }

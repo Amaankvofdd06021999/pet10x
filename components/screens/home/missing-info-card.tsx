@@ -68,10 +68,10 @@ export function MissingInfoCard({ onNavigate }: { onNavigate?: (screen: string, 
   const open = (gap: Gap) => onNavigate?.(gap.target, gap.petId)
 
   return (
-    <section className="rounded-2xl border border-[#B8860B]/25 bg-[#FFF6E0] p-4">
+    <section className="rounded-2xl border border-warning-strong/25 bg-[#FFF6E0] p-4">
       <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#B8860B]/10">
-          <AlertCircle className="h-5 w-5 text-[#B8860B]" />
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-warning-strong/10">
+          <AlertCircle className="h-5 w-5 text-warning-strong" />
         </span>
 
         <div className="min-w-0 flex-1">

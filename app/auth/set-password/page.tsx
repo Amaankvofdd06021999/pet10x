@@ -89,7 +89,7 @@ export default function SetPasswordPage() {
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-secondary/40 px-5">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-7 shadow-sm">
+      <div className="w-full max-w-sm rounded-2xl card-raised p-7">
         <div className="mb-5 flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <PawPrint className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
@@ -144,7 +144,7 @@ export default function SetPasswordPage() {
               <button
                 onClick={submit}
                 disabled={saving}
-                className="mt-1 w-full rounded-lg bg-primary py-2.5 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+                className="mt-1 w-full rounded-lg bg-primary-strong py-2.5 text-[15px] font-semibold text-primary-strong-foreground transition-colors hover:bg-primary-strong/90 disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Set password & continue"}
               </button>
