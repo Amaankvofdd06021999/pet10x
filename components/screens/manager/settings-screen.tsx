@@ -543,7 +543,7 @@ function SheetButton({ onClick, busy, label }: { onClick: () => void; busy: bool
     <button
       onClick={onClick}
       disabled={busy}
-      className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+      className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
     >
       {busy && <Loader2 className="h-4 w-4 animate-spin" />}
       {label}

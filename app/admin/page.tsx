@@ -122,7 +122,7 @@ function AdminLogin() {
           <button
             onClick={submit}
             disabled={loading}
-            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Sign in
@@ -239,7 +239,7 @@ function Buildings() {
           <button
             onClick={create}
             disabled={saving}
-            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} Create building
           </button>
@@ -384,7 +384,7 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
               <button
                 onClick={saveDetails}
                 disabled={busy}
-                className="mt-1 rounded-xl bg-primary-strong py-2 text-[13px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+                className="mt-1 rounded-xl bg-primary py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
               >
                 Save details
               </button>
@@ -402,7 +402,7 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
             <AdminInput placeholder="Manager name (optional)" value={name} onChange={setName} />
             <div className="flex gap-2">
               <AdminInput placeholder="manager@email.com" value={email} onChange={setEmail} />
-              <button onClick={invite} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-3.5 text-[13px] font-semibold text-primary-strong-foreground disabled:opacity-60">
+              <button onClick={invite} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-60">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Invite
               </button>
             </div>

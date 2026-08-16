@@ -122,7 +122,7 @@ export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
             <button
               onClick={submit}
               disabled={loading}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Request to join

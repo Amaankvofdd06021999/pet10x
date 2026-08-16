@@ -81,7 +81,7 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
               onClick={() => setActiveTab(tab.id)}
               className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
                 activeTab === tab.id
-                  ? "bg-primary-strong text-primary-strong-foreground"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >

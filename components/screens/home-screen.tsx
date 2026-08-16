@@ -118,18 +118,32 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           </>
         }
         rightAction={
-          <button
-            onClick={() => onNavigate?.("alerts")}
-            className="relative p-2"
-            aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-          >
-            <Bell className="h-5 w-5 text-foreground" />
-            {unreadCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-1.5">
+            {/* Reporting is something people reach for in a hurry, so it lives
+                in the bar rather than in the scroll. Tertiary weight on
+                purpose: it has to be findable without competing with the
+                pets, the care log and everything else the home screen is
+                actually for. */}
+            <button
+              onClick={() => onNavigate?.("report")}
+              className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[12.5px] font-semibold text-foreground transition-transform active:scale-95"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+              Report
+            </button>
+            <button
+              onClick={() => onNavigate?.("alerts")}
+              className="relative p-2"
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+            >
+              <Bell className="h-5 w-5 text-foreground" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
         }
       />
 
@@ -169,24 +183,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           ) : null}
         </section>
 
-        {/* Reporting is a thing people need in a hurry — it sits above the
-            fold rather than behind a tab, and offers both destinations. */}
-        <button
-          onClick={() => onNavigate?.("report")}
-          className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-destructive/25 bg-destructive/5 p-3.5 text-left transition-transform active:scale-[0.99]"
-        >
-          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-destructive/10">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[14.5px] font-semibold text-foreground">Report an incident</span>
-            <span className="block text-[12px] text-muted-foreground">
-              To your building manager, or your local municipality
-            </span>
-          </span>
-          <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-        </button>
-
+        {/* The full-width "Report an incident" card that used to sit here has
+            moved into the nav bar. A red-tinted banner at the top of the home
+            screen made reporting your neighbour the loudest thing in an app
+            people open to log a walk. */}
         <div className="mb-6">
           <MissingInfoCard onNavigate={onNavigate} />
         </div>

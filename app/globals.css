@@ -11,7 +11,7 @@
    * white-on-white and only a 1px grey line said where it started. Tinting the
    * page ground is what lets a card read as a card, and it is the single
    * change that does most of the work here. */
-  --background: #F4F5FD; /* page ground — cards float on this */
+  --background: #F8F9FD; /* page ground — cards float on this */
   --card: #FFFFFF; /* every raised surface */
   --popover: #FFFFFF;
 
@@ -25,13 +25,6 @@
 
   --primary: #FD9340;
   --primary-foreground: #FFFFFF;
-  /* The brand at full strength, for solid fills that carry white text.
-   * #FD9340 under white is 2.2:1 — below every legibility floor there is, and
-   * the main reason large orange buttons looked washed out. This is the same
-   * hue pushed into its red end (4:1), so a CTA reads as the brand and is
-   * still readable. Tints, icons and outlines keep the lighter --primary. */
-  --primary-strong: #D9541B;
-  --primary-strong-foreground: #FFFFFF;
 
   --secondary: #EDEEF6;
   --secondary-foreground: #2C2E30;
@@ -77,8 +70,14 @@
   /* Elevation. Two stops only: a resting card and a floating one. The tint
    * behind them does most of the separating, so these stay very quiet —
    * a heavy shadow on a light ground is the fastest way to look dated. */
-  --elevation-card: 0 1px 2px rgba(44, 46, 48, 0.04), 0 4px 12px rgba(44, 46, 48, 0.05);
-  --elevation-float: 0 2px 6px rgba(44, 46, 48, 0.06), 0 12px 28px rgba(44, 46, 48, 0.10);
+  --elevation-card:
+    0 1px 2px rgba(44, 46, 48, 0.015),
+    0 6px 16px rgba(44, 46, 48, 0.028),
+    0 16px 40px rgba(44, 46, 48, 0.026);
+  --elevation-float:
+    0 2px 6px rgba(44, 46, 48, 0.025),
+    0 12px 30px rgba(44, 46, 48, 0.05),
+    0 28px 64px rgba(44, 46, 48, 0.05);
 }
 
 .dark {
@@ -93,10 +92,6 @@
   --popover-foreground: #F2F3F5;
   --primary: #FD9340;
   --primary-foreground: #1F1F1F;
-  /* On dark the light orange already clears contrast, so "strong" lightens
-   * rather than deepens — the deep #D9541B would disappear into the ground. */
-  --primary-strong: #FF9A4D;
-  --primary-strong-foreground: #1F1F1F;
   --secondary: #26272C;
   --secondary-foreground: #F2F3F5;
   --muted: #26272C;
@@ -120,8 +115,14 @@
   --warning-strong: #FFD98A;
   --info: #6E92F2;
   --info-foreground: #0F1524;
-  --elevation-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.32);
-  --elevation-float: 0 2px 6px rgba(0, 0, 0, 0.5), 0 12px 28px rgba(0, 0, 0, 0.45);
+  --elevation-card:
+    0 1px 2px rgba(0, 0, 0, 0.24),
+    0 6px 16px rgba(0, 0, 0, 0.22),
+    0 16px 40px rgba(0, 0, 0, 0.2);
+  --elevation-float:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 12px 30px rgba(0, 0, 0, 0.34),
+    0 28px 64px rgba(0, 0, 0, 0.34);
 }
 
 @theme inline {
@@ -135,8 +136,6 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-primary-strong: var(--primary-strong);
-  --color-primary-strong-foreground: var(--primary-strong-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

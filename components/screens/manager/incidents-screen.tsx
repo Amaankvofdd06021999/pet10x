@@ -91,7 +91,7 @@ export function ManagerIncidentsScreen({ onNavigate }: { onNavigate?: (screen: s
               key={f.id}
               onClick={() => setFilter(f.id)}
               className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
-                filter === f.id ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
+                filter === f.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}
             >
               {f.label}

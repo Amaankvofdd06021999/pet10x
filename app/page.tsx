@@ -225,7 +225,7 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link
                   href="/app"
-                  className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-6 py-3 text-[15px] font-semibold text-primary-strong-foreground transition-colors hover:bg-primary-strong/90"
+                  className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   Get started free
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -356,7 +356,7 @@ export default function LandingPage() {
             {CAPABILITIES.map((c, i) => (
               <Reveal key={c.title} delay={(i % 3) * 70}>
                 <div className="group h-full rounded-2xl card-raised p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_8px_28px_-18px_rgba(0,0,0,0.28)]">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary-strong group-hover:text-primary-strong-foreground">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                     <c.icon className="h-5 w-5" />
                   </span>
                   <h3 className="mt-5 text-[16.5px] font-semibold tracking-tight">{c.title}</h3>
@@ -454,7 +454,7 @@ export default function LandingPage() {
                     p.featured ? "border-primary/40 bg-primary/[0.03]" : "border-border/70 bg-card"
                   }`}
                 >
-                  <span className={`flex h-11 w-11 items-center justify-center rounded-lg ${p.featured ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-foreground"}`}>
+                  <span className={`flex h-11 w-11 items-center justify-center rounded-lg ${p.featured ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
                     <p.icon className="h-5 w-5" />
                   </span>
                   <h3 className="mt-5 text-[19px] font-semibold tracking-tight">{p.title}</h3>
@@ -471,7 +471,7 @@ export default function LandingPage() {
                     href="/app"
                     className={`mt-7 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
                       p.featured
-                        ? "bg-primary-strong text-primary-strong-foreground hover:bg-primary/90"
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
                         : "border border-border text-foreground hover:bg-muted"
                     }`}
                   >
@@ -510,7 +510,7 @@ export default function LandingPage() {
                   {/* Badge sits on the border, as the reference does — inside
                       the card it competed with the plan name for the same row. */}
                   {tier.featured && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary-strong px-3 py-1 text-[11px] font-semibold text-primary-strong-foreground shadow-sm">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
                       Most popular
                     </span>
                   )}
@@ -532,7 +532,7 @@ export default function LandingPage() {
                     href="/app"
                     className={`mt-8 inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
                       tier.featured
-                        ? "bg-primary-strong text-primary-strong-foreground hover:bg-primary/90"
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
                         : "border border-border text-foreground hover:bg-muted"
                     }`}
                   >
@@ -588,7 +588,7 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link
                   href="/app"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-7 py-3 text-[15px] font-semibold text-primary-strong-foreground transition-colors hover:bg-primary-strong/90"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-7 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   Get started free
                   <ArrowRight className="h-4 w-4" />
@@ -735,7 +735,7 @@ function HeroMock() {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-info/10"><Building2 className="h-4.5 w-4.5 text-info" /></span>
         </div>
 
-        <div className="rounded-xl bg-primary-strong p-4 text-primary-strong-foreground">
+        <div className="rounded-xl bg-primary p-4 text-primary-foreground">
           <p className="text-[11px] font-medium opacity-80">Building Compliance</p>
           <p className="text-[34px] font-semibold leading-none">94%</p>
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-primary-foreground/25">

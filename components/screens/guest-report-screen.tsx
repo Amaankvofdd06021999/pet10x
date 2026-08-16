@@ -179,7 +179,7 @@ export function GuestReportScreen() {
                 setPhotos([])
                 setReference(null)
               }}
-              className="w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98]"
+              className="w-full rounded-xl bg-primary py-3.5 text-[17px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
             >
               File Another Report
             </button>
@@ -238,7 +238,7 @@ export function GuestReportScreen() {
             <div key={s} className="flex-1">
               <div
                 className={`h-1 rounded-full transition-all ${
-                  ["type", "evidence", "pet", "summary"].indexOf(step) >= i ? "bg-primary-strong" : "bg-muted"
+                  ["type", "evidence", "pet", "summary"].indexOf(step) >= i ? "bg-primary" : "bg-muted"
                 }`}
               />
             </div>
@@ -267,7 +267,7 @@ export function GuestReportScreen() {
                        card already reads as a card without it. */
                     className={`flex flex-col items-center gap-3 rounded-2xl p-4 transition-all active:scale-[0.97] ${
                       isSelected
-                        ? "bg-primary-strong/5 ring-2 ring-primary-strong"
+                        ? "bg-primary/5 ring-2 ring-primary"
                         : "card-interactive"
                     }`}
                   >
@@ -285,7 +285,7 @@ export function GuestReportScreen() {
               disabled={!selectedType}
               className={`mt-6 w-full rounded-xl py-3.5 text-[17px] font-semibold transition-all active:scale-[0.98] ${
                 selectedType
-                  ? "bg-primary-strong text-primary-strong-foreground"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -392,7 +392,7 @@ export function GuestReportScreen() {
               disabled={!description.trim()}
               className={`mt-6 w-full rounded-xl py-3.5 text-[17px] font-semibold transition-all active:scale-[0.98] ${
                 description.trim()
-                  ? "bg-primary-strong text-primary-strong-foreground"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -465,7 +465,7 @@ export function GuestReportScreen() {
 
             <button
               onClick={() => setStep("summary")}
-              className="mt-6 w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-strong-foreground transition-all active:scale-[0.98]"
+              className="mt-6 w-full rounded-xl bg-primary py-3.5 text-[17px] font-semibold text-primary-foreground transition-all active:scale-[0.98]"
             >
               {petId ? "Continue" : "Skip — I don't recognise them"}
             </button>
@@ -548,7 +548,7 @@ export function GuestReportScreen() {
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+              className="w-full rounded-xl bg-primary py-3.5 text-[17px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
             >
               {submitting ? "Filing report…" : "Submit Report"}
             </button>

@@ -133,7 +133,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
                     <button
                       onClick={saveUnit}
                       disabled={savingUnit}
-                      className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-primary-strong px-3.5 py-2 text-[13px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+                      className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
                     >
                       {savingUnit && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save
                     </button>
@@ -206,7 +206,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
                 </p>
                 <button
                   onClick={() => onNavigate?.("link-building")}
-                  className="mt-2.5 rounded-lg bg-primary-strong px-3.5 py-2 text-[13px] font-semibold text-primary-strong-foreground"
+                  className="mt-2.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
                 >
                   I have a code
                 </button>
@@ -241,7 +241,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
         <button
           onClick={save}
           disabled={saving}
-          className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-4 py-2.5 text-[14px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
         </button>

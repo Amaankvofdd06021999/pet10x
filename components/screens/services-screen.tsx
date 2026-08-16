@@ -123,7 +123,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
               <button
                 onClick={() => void requestLocation()}
                 disabled={gps}
-                className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-primary-strong px-3 py-2 text-[13px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+                className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {gps ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
                 Use my location
@@ -169,7 +169,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
                     onClick={() => setMaxKm(km)}
                     className={`rounded-[10px] px-2.5 py-1 text-[12px] font-semibold transition-colors ${
                       active
-                        ? "bg-primary-strong text-primary-strong-foreground shadow-sm"
+                        ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >

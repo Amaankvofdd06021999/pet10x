@@ -134,20 +134,20 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
 
         {/* Headline pair — the building at a glance */}
         <section className="mb-6 grid grid-cols-2 gap-3">
-          <div className="relative overflow-hidden rounded-2xl bg-primary-strong p-4">
+          <div className="relative overflow-hidden rounded-2xl bg-primary p-4">
             <PawPrint
-              className="absolute -bottom-3 -right-2 h-20 w-20 text-primary-strong-foreground/20"
+              className="absolute -bottom-3 -right-2 h-20 w-20 text-primary-foreground/20"
               fill="currentColor"
               aria-hidden
             />
-            <p className="relative text-[13px] font-medium text-primary-strong-foreground/90">Total pets</p>
-            <p className="relative mt-0.5 text-[30px] font-bold leading-none text-primary-strong-foreground">
+            <p className="relative text-[13px] font-medium text-primary-foreground/90">Total pets</p>
+            <p className="relative mt-0.5 text-[30px] font-bold leading-none text-primary-foreground">
               {loading ? "—" : pets.length}
             </p>
           </div>
           <div className="rounded-2xl card-raised p-4">
             <p className="text-[13px] font-medium text-muted-foreground">Residents w/ pets</p>
-            <p className="mt-0.5 text-[30px] font-bold leading-none text-primary-strong">
+            <p className="mt-0.5 text-[30px] font-bold leading-none text-primary">
               {loading ? "—" : ownersWithPets}
             </p>
           </div>

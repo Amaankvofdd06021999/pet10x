@@ -136,7 +136,7 @@ function BuildingSearchStep({
       </button>
 
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-        <Building2 className="h-7 w-7 text-primary-strong" />
+        <Building2 className="h-7 w-7 text-primary" />
       </div>
       <h1 className="mt-5 text-center text-[24px] font-semibold leading-tight text-foreground">
         Which building?
@@ -320,7 +320,7 @@ function BuildingCodeStep({
       <button
         onClick={submit}
         disabled={busy}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
       >
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
         Continue

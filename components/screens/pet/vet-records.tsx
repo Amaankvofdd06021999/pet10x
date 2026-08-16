@@ -214,7 +214,7 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
           <button
             onClick={save}
             disabled={saving}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save visit
           </button>

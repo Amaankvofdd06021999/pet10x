@@ -144,7 +144,7 @@ export default function SetPasswordPage() {
               <button
                 onClick={submit}
                 disabled={saving}
-                className="mt-1 w-full rounded-lg bg-primary-strong py-2.5 text-[15px] font-semibold text-primary-strong-foreground transition-colors hover:bg-primary-strong/90 disabled:opacity-60"
+                className="mt-1 w-full rounded-lg bg-primary py-2.5 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Set password & continue"}
               </button>

@@ -397,7 +397,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                 <button
                   onClick={handleSaveProfile}
                   disabled={savingProfile}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
                 >
                   {savingProfile && <Loader2 className="h-4 w-4 animate-spin" />} Save
                 </button>

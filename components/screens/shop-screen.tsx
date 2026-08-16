@@ -38,7 +38,7 @@ export function ShopScreen({ onNavigate }: { onNavigate?: (screen: string) => vo
                 key={c}
                 onClick={() => setCategory(c)}
                 className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[12.5px] font-semibold capitalize transition-colors ${
-                  category === c ? "bg-primary-strong text-primary-strong-foreground" : "bg-muted text-muted-foreground"
+                  category === c ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {c}

@@ -467,7 +467,7 @@ function EditForm({
         <button
           onClick={save}
           disabled={saving}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save
         </button>
@@ -817,7 +817,7 @@ function SaveRow({ saving, onSave, onCancel }: { saving: boolean; onSave: () => 
       <button
         onClick={onSave}
         disabled={saving}
-        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save
       </button>

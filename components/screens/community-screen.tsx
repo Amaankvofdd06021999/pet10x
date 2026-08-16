@@ -290,7 +290,7 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
                         {item.type === "lost" ? "Lost Pet" : "Found Pet"}
                       </span>
                       {item.reward && (
-                        <Badge className="ml-auto bg-primary-strong text-primary-strong-foreground border-0 text-[10px]">
+                        <Badge className="ml-auto bg-primary text-primary-foreground border-0 text-[10px]">
                           Reward: {item.reward}
                         </Badge>
                       )}
@@ -372,7 +372,7 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
                       {event.attendees}/{event.maxAttendees} going
                     </span>
                   </div>
-                  <button onClick={() => toast.success("RSVP confirmed")} className="rounded-full bg-primary-strong px-4 py-1.5 text-[13px] font-semibold text-primary-strong-foreground transition-transform active:scale-[0.97]">
+                  <button onClick={() => toast.success("RSVP confirmed")} className="rounded-full bg-primary px-4 py-1.5 text-[13px] font-semibold text-primary-foreground transition-transform active:scale-[0.97]">
                     RSVP
                   </button>
                 </div>
@@ -413,7 +413,7 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
               <button
                 onClick={handleCreatePost}
                 disabled={posting || !composerContent.trim()}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {posting && <Loader2 className="h-4 w-4 animate-spin" />} Post
               </button>

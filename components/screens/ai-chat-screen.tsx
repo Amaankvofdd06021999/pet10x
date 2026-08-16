@@ -339,7 +339,7 @@ export function AiChatScreen({ onBack, petId, conversationId: initialConversatio
               onClick={() => void handleSend()}
               disabled={!input.trim() && images.length === 0}
               aria-label="Send"
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary-strong text-primary-strong-foreground transition-transform active:scale-95 disabled:opacity-30"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-30"
             >
               <ArrowUp className="h-5 w-5" strokeWidth={2.5} />
             </button>

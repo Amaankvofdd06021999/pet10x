@@ -296,7 +296,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
       <button
         onClick={submit}
         disabled={submitting || !type || !description.trim()}
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-strong-foreground disabled:opacity-60"
+        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
       >
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         Record report
