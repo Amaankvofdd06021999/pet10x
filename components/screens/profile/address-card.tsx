@@ -8,6 +8,7 @@ import {
   getMyAddress,
   updateMyAddress,
   buildingsMatchingMyAddress,
+  setMyUnit,
   type MyAddress,
 } from "@/lib/data/account"
 
@@ -25,12 +26,15 @@ import {
  * themselves into a building's register.
  */
 export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => void }) {
-  const { data: link } = useMyBuildingLink()
+  const { data: link, refetch: refetchLink } = useMyBuildingLink()
   const [address, setAddress] = useState<MyAddress | null>(null)
   const [matches, setMatches] = useState<string[]>([])
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [editingUnit, setEditingUnit] = useState(false)
+  const [unitDraft, setUnitDraft] = useState("")
+  const [savingUnit, setSavingUnit] = useState(false)
   const [draft, setDraft] = useState<MyAddress>({
     streetAddress: "",
     addressUnit: "",
@@ -61,6 +65,16 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
     void load()
   }
 
+  async function saveUnit() {
+    setSavingUnit(true)
+    const { error, unit } = await setMyUnit(unitDraft)
+    setSavingUnit(false)
+    if (error) return toast.error("Couldn't save", { description: error })
+    toast.success(unit ? `Unit set to ${unit}` : "Unit cleared")
+    setEditingUnit(false)
+    refetchLink()
+  }
+
   if (loading) return null
 
   /* Linked to a building: the address comes FROM the building.
@@ -71,12 +85,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
    * changes here immediately. The unit stays the resident's to give, and lives
    * in its own row above this one. */
   if (link) {
-    const buildingAddress = [
-      link.buildingAddress,
-      link.buildingCity,
-      link.buildingRegion,
-      link.buildingPostalCode,
-    ]
+    const buildingAddress = [link.buildingAddress, link.buildingCity, link.buildingRegion, link.buildingPostalCode]
       .filter(Boolean)
       .join(", ")
 
@@ -99,8 +108,57 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
                   <>From {link.buildingName}. Your manager hasn&apos;t added the building address yet.</>
                 )}
               </p>
-              <p className="mt-1.5 text-[11.5px] text-muted-foreground">
-                Kept in step with {link.buildingName} — your building manager maintains it.
+
+              {/* Unit editing lives HERE, not in a separate row.
+                  It had its own card above this one, so a linked resident saw
+                  "Unit 302" three times on one screen — in the profile header,
+                  in a row that looked like it was asking for it again, and
+                  inside this address. The building's part is the manager's to
+                  maintain; the unit is the only piece that is theirs. */}
+              {editingUnit ? (
+                <div className="mt-3">
+                  <label htmlFor="unit-number" className="mb-1 block text-[11.5px] font-semibold text-muted-foreground">
+                    Unit number
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="unit-number"
+                      value={unitDraft}
+                      onChange={(e) => setUnitDraft(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && saveUnit()}
+                      placeholder="e.g. 2104"
+                      autoFocus
+                      className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-[14px] focus:border-primary focus:outline-none"
+                    />
+                    <button
+                      onClick={saveUnit}
+                      disabled={savingUnit}
+                      className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+                    >
+                      {savingUnit && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setEditingUnit(false)}
+                    className="mt-1.5 text-[12px] font-medium text-muted-foreground"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setUnitDraft(link.unit ?? "")
+                    setEditingUnit(true)
+                  }}
+                  className="mt-2 text-[12.5px] font-semibold text-primary"
+                >
+                  {link.unit ? "Change unit number" : "Add your unit number"}
+                </button>
+              )}
+
+              <p className="mt-2 text-[11.5px] text-muted-foreground">
+                The building&apos;s address is maintained by {link.buildingName}.
               </p>
             </div>
           </div>

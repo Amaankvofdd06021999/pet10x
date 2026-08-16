@@ -1535,3 +1535,18 @@ export async function deletePetPhoto(id: string): Promise<{ error: string | null
   }
   return { error: null }
 }
+
+/** Diet plan lives with food, not with registration. */
+export async function updatePetDiet(
+  petId: string,
+  input: { dietType?: string | null; dietNotes?: string | null },
+): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase
+    .from("pets")
+    .update({ diet_type: input.dietType || null, diet_notes: input.dietNotes || null })
+    .eq("id", petId)
+  if (!error) await refreshPets()
+  return { error: error?.message ?? null }
+}

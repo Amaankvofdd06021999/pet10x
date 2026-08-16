@@ -207,8 +207,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                     separator for anyone whose link is still pending, and a bare
                     "Unit  ·" for standalone owners. */}
                 <p className="text-[12px] text-muted-foreground">
-                  {[user?.unit ? `Unit ${user.unit}` : null, user?.building || null].filter(Boolean).join(" · ") ||
-                    "Pet owner"}
+                  {user?.building || "Pet owner"}
                 </p>
                 <div className="mt-1 flex items-center gap-2">
                   <Badge className="bg-primary/10 text-primary border-0 text-[10px]">
@@ -230,8 +229,6 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             reports a building once the link is APPROVED, so gating on it hid
             this row from everyone with a pending request — precisely the
             people the banner is telling to set their unit. */}
-        <UnitRow onSaved={(u) => updateLocalUser({ unit: u ?? undefined })} />
-
         {/* Home address — shown to everyone, but it is the only route a
             standalone owner has to discover their building is on Pet10x. */}
         <AddressCard onNavigate={onNavigate} />
@@ -452,86 +449,3 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   )
 }
 
-/**
- * Add or change the resident's unit number.
- *
- * Reads as a row until tapped, so it does not look like an unfilled form on a
- * profile that is otherwise complete.
- */
-function UnitRow({ onSaved }: { onSaved: (u: string | null) => void }) {
-  const { data: link, isLoading, refetch } = useMyBuildingLink()
-  const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState("")
-  const [saving, setSaving] = useState(false)
-
-  const currentUnit = link?.unit ?? null
-
-  // A unit number only means something inside a building. Standalone owners
-  // are not shown an empty field they can never fill.
-  if (isLoading || !link) return null
-
-  async function save() {
-    setSaving(true)
-    const { error, unit } = await setMyUnit(value)
-    setSaving(false)
-    if (error) return toast.error("Couldn't save", { description: error })
-    toast.success(unit ? `Unit set to ${unit}` : "Unit cleared")
-    onSaved(unit ?? null)
-    refetch()
-    setEditing(false)
-  }
-
-  if (!editing) {
-    return (
-      <section className="mb-5">
-      <button
-        onClick={() => {
-          setValue(currentUnit ?? "")
-          setEditing(true)
-        }}
-        className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
-      >
-        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <Building2 className="h-4.5 w-4.5 text-primary" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[14px] font-semibold text-foreground">Unit number</span>
-          <span className="block truncate text-[12px] text-muted-foreground">
-            {currentUnit ? `Unit ${currentUnit} · ${link.buildingName}` : `Not set — ${link.buildingName} needs this`}
-          </span>
-        </span>
-        <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-      </button>
-      </section>
-    )
-  }
-
-  return (
-    <section className="mb-5 rounded-2xl border border-border bg-card p-4">
-      <label htmlFor="unit-number" className="mb-1.5 block text-[12px] font-semibold text-muted-foreground">
-        Unit number
-      </label>
-      <div className="flex items-center gap-2">
-        <input
-          id="unit-number"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && save()}
-          placeholder="e.g. 2104"
-          autoFocus
-          className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
-        <button
-          onClick={save}
-          disabled={saving}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
-        >
-          {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
-        </button>
-      </div>
-      <button onClick={() => setEditing(false)} className="mt-2 text-[12.5px] font-medium text-muted-foreground">
-        Cancel
-      </button>
-    </section>
-  )
-}

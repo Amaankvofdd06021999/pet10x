@@ -83,3 +83,34 @@ export const DIET_TYPES: { id: string; label: string; hint: string }[] = [
   { id: "mixed", label: "Mixed", hint: "A combination" },
   { id: "prescription", label: "Prescription", hint: "Vet-prescribed diet" },
 ]
+
+/**
+ * Which species the size chart applies to.
+ *
+ * The bands are heights at the shoulder with examples like "Beagle" and
+ * "Great Dane" — vocabulary that means nothing for a bird, a fish or a
+ * reptile, and a building's size rule is about dogs in lifts and corridors
+ * anyway. Cats are included because a strata cap can name them, but the
+ * chart is dog-shaped, so they get the band without the chart.
+ */
+export function sizeAppliesTo(species: string | null | undefined): boolean {
+  return species === "dog" || species === "cat"
+}
+
+/** The chart itself is only meaningful for dogs. */
+export function sizeChartAppliesTo(species: string | null | undefined): boolean {
+  return species === "dog"
+}
+
+/**
+ * Restraints, filtered to what the animal could plausibly use.
+ *
+ * A leash on a fish, or a muzzle on a budgie, is the same category of mistake
+ * as offering a goldfish owner a Walk tab.
+ */
+export function restraintsFor(species: string | null | undefined) {
+  if (species === "dog") return RESTRAINTS.filter((r) => r.id !== "carrier")
+  if (species === "cat") return RESTRAINTS.filter((r) => ["harnessed", "leashed", "carrier", "caged"].includes(r.id))
+  // Everything else travels in a container, not on a lead.
+  return RESTRAINTS.filter((r) => ["carrier", "caged"].includes(r.id))
+}

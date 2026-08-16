@@ -56,10 +56,20 @@ const todayIso = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
+/**
+ * A genuinely blank draft.
+ *
+ * It opened pre-filled with kind "walk" at 17:00 — an invented routine the
+ * owner had to notice and undo, and wrong for most animals: a cat does not
+ * get walked, and 5pm is a number nobody chose. Anything pre-filled here
+ * quietly becomes the default schedule for people who tap Save.
+ *
+ * Time is blank, which the field already labels as "all day".
+ */
 const EMPTY: Draft = {
   label: "",
-  kind: "walk",
-  scheduledAt: "17:00",
+  kind: "other",
+  scheduledAt: "",
   days: [],
   remind: 0,
   recurrence: "daily",

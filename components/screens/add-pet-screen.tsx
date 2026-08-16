@@ -5,7 +5,14 @@ import { useAuth } from "@/lib/auth-context"
 import { OTHER_SPECIES, OTHER_BREED, breedsFor, addPet, setPetPhoto } from "@/lib/data"
 import type { Species } from "@/lib/data"
 import { toast } from "sonner"
-import { SIZE_BANDS, RESTRAINTS, DIET_TYPES, MAX_HEIGHT_INCHES, inchesToCm } from "@/lib/data/pet-attributes"
+import {
+  SIZE_BANDS,
+  MAX_HEIGHT_INCHES,
+  inchesToCm,
+  restraintsFor,
+  sizeAppliesTo,
+  sizeChartAppliesTo,
+} from "@/lib/data/pet-attributes"
 import {
   ArrowLeft,
   ImagePlus,
@@ -44,7 +51,6 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
   const [sizeBand, setSizeBand] = useState("")
   const [heightIn, setHeightIn] = useState("")
   const [restraints, setRestraints] = useState<string[]>([])
-  const [dietType, setDietType] = useState("")
   const [showChart, setShowChart] = useState(false)
   const [dob, setDob] = useState("")
   const [gender, setGender] = useState<"Male" | "Female" | "">("")
@@ -78,7 +84,6 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
       // Collected in inches because every size chart is; stored in cm.
       heightCm: heightIn ? inchesToCm(parseFloat(heightIn)) : undefined,
       restraints,
-      dietType: dietType || undefined,
     })
     if (error || !pet) {
       setSaving(false)
@@ -295,6 +300,11 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
           <Input value={microchip} onChange={setMicrochip} placeholder="Optional" />
         </Field>
 
+        {/* Size only where it means something. Height at the shoulder is dog
+            vocabulary; a building's size rule is about animals in lifts and
+            corridors, and a fish has neither a shoulder nor a corridor. */}
+        {sizeAppliesTo(species) && (
+        <>
         {/* Size — recorded, never enforced. A building may cap size in its
             bylaws, and the manager is shown when a pet exceeds it, but a
             resident whose large dog already lives there must still be able to
@@ -313,13 +323,15 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
                 {b.label}
               </button>
             ))}
-            <button
-              type="button"
-              onClick={() => setShowChart((v) => !v)}
-              className="rounded-full px-3 py-1.5 text-[12.5px] font-semibold text-primary"
-            >
-              {showChart ? "Hide chart" : "Size chart"}
-            </button>
+            {sizeChartAppliesTo(species) && (
+              <button
+                type="button"
+                onClick={() => setShowChart((v) => !v)}
+                className="rounded-full px-3 py-1.5 text-[12.5px] font-semibold text-primary"
+              >
+                {showChart ? "Hide chart" : "Size chart"}
+              </button>
+            )}
           </div>
           {showChart && (
             <div className="mt-2 overflow-hidden rounded-xl border border-border">
@@ -341,19 +353,23 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
           )}
         </Field>
 
-        <Field label="Height at shoulder">
-          <div className="relative">
-            <Input value={heightIn} onChange={setHeightIn} placeholder="Optional, e.g. 20" />
-            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted-foreground">
-              inches
-            </span>
-          </div>
-        </Field>
+        {sizeChartAppliesTo(species) && (
+          <Field label="Height at shoulder">
+            <div className="relative">
+              <Input value={heightIn} onChange={setHeightIn} placeholder="Optional, e.g. 20" />
+              <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted-foreground">
+                inches
+              </span>
+            </div>
+          </Field>
+        )}
+        </>
+        )}
 
         {/* Several apply at once — harnessed AND muzzled is a normal answer. */}
         <Field label="In common areas">
           <div className="flex flex-wrap gap-1.5">
-            {RESTRAINTS.map((r) => {
+            {restraintsFor(species).map((r) => {
               const on = restraints.includes(r.id)
               return (
                 <button
@@ -375,23 +391,6 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
           </div>
         </Field>
 
-        <Field label="Diet">
-          <div className="flex flex-wrap gap-1.5">
-            {DIET_TYPES.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => setDietType(dietType === d.id ? "" : d.id)}
-                title={d.hint}
-                className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                  dietType === d.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-        </Field>
 
         {/* Neutered */}
         <label className="mb-6 flex cursor-pointer items-center justify-between rounded-xl border border-border bg-card p-4">

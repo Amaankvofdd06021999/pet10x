@@ -8,14 +8,17 @@ import {
   deleteCareEntry,
   upsertCareTarget,
   deleteCareTarget,
+  updatePetDiet,
 } from "@/lib/data"
 import type { CareEntry, CareEntryKind, CareTarget, Pet, Species } from "@/lib/data"
 import { careKindsFor, unitById, type CareKindSpec, type CareUnit } from "@/lib/data/care-catalog"
+import { DIET_TYPES } from "@/lib/data/pet-attributes"
 import { toast } from "sonner"
 import { Portal } from "@/components/ui/portal"
 import { ScheduleTab } from "@/components/screens/care/schedule-tab"
 import {
   Utensils,
+  ChevronRight,
   Pill,
   Cookie,
   Footprints,
@@ -250,6 +253,14 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
               <span className="text-[15px] font-medium opacity-80"> {unit.label}</span>
             </p>
           </section>
+
+          {/* Diet plan.
+              It was a chip row on the Add Pet form, asked once at registration
+              and never seen again. What a pet eats changes — a vet switches
+              them to prescription food, an adult moves off puppy kibble — and
+              the place an owner looks for that is the food tracker, not the
+              form they filled in the day they signed up. */}
+          {activeKind === "food" && <DietPlan pet={pet} />}
 
           {/* Targets — a list, because medicines and treats come in more than
               one and a single row could only ever describe the first. */}
@@ -670,5 +681,82 @@ function TargetSheet({
         </div>
       </div>
     </Portal>
+  )
+}
+
+/** What this pet eats, editable where food is tracked. */
+function DietPlan({ pet }: { pet: Pet }) {
+  const [open, setOpen] = useState(false)
+  const [dietType, setDietType] = useState(pet.dietType ?? "")
+  const [notes, setNotes] = useState(pet.dietNotes ?? "")
+  const [saving, setSaving] = useState(false)
+
+  const current = DIET_TYPES.find((d) => d.id === (pet.dietType ?? ""))
+
+  async function save() {
+    setSaving(true)
+    const { error } = await updatePetDiet(pet.id, { dietType: dietType || null, dietNotes: notes || null })
+    setSaving(false)
+    if (error) return toast.error("Couldn't save", { description: error })
+    toast.success("Diet updated")
+    setOpen(false)
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3.5 text-left transition-colors active:bg-muted"
+      >
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <Utensils className="h-4.5 w-4.5 text-primary" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14px] font-semibold text-foreground">Diet plan</span>
+          <span className="block truncate text-[12px] text-muted-foreground">
+            {current ? `${current.label}${pet.dietNotes ? ` · ${pet.dietNotes}` : ""}` : "Not set — raw, dried, wet…"}
+          </span>
+        </span>
+        <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+      </button>
+    )
+  }
+
+  return (
+    <div className="mb-4 rounded-2xl border border-border bg-card p-4">
+      <h3 className="mb-2.5 text-[14px] font-semibold text-foreground">Diet plan</h3>
+      <div className="flex flex-wrap gap-1.5">
+        {DIET_TYPES.map((d) => (
+          <button
+            key={d.id}
+            onClick={() => setDietType(dietType === d.id ? "" : d.id)}
+            title={d.hint}
+            className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+              dietType === d.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+      <input
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Brand, portion guidance, allergies to avoid…"
+        className="mt-3 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none"
+      />
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          onClick={save}
+          disabled={saving}
+          className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+        >
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
+        </button>
+        <button onClick={() => setOpen(false)} className="text-[12.5px] font-medium text-muted-foreground">
+          Cancel
+        </button>
+      </div>
+    </div>
   )
 }
