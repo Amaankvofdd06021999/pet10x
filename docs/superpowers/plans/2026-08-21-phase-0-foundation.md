@@ -864,11 +864,13 @@ One commit for all 17 files.
 ## Phase 0 done when
 
 1. `pnpm test` passes.
-2. `pnpm build` and `pnpm lint` pass.
+2. `pnpm build` passes.
+
+   **`pnpm lint` is deliberately not a gate: it cannot pass.** The `lint` script runs `eslint`, but eslint is not a dependency, is not in `node_modules`, and the repo has no eslint config — on `main` as well as here. Adding it is a real change with its own diff and is not this phase's job. (`pnpm build` is unaffected: `tsc --noEmit` is clean across the project including `lib/rbac.test.ts` and `vitest.config.ts`, and Next skips lint at build time when no config exists.)
 3. The Task 2 assertion returns `reporter_is_subject = 0`, `pet_dropped = 0`, `submit_overloads = 1`.
 4. `storage.objects` carries 13 policies, and `pet-media manager read` actually returns rows for a manager of the pet's building.
 5. `docs/RBAC_CAPABILITIES.md` exists and one of its rows has been verified by impersonation.
-6. Every applied remote migration has a local file **by name** — the remote-only list from Task 5 Step 1 is empty, and `supabase_migrations.schema_migrations` still holds 61 rows (Task 5 applies nothing).
+6. All 61 applied remote migrations are accounted for: **59 by local file, 2 by verified supersession** — `pet_media_storage_policies` (its four `pet-media owner` policies recreated in `20260821000003`, `to authenticated` preserved) and `submit_incident_with_pet` (its function recreated as the 7-arg `submit_incident_report` in `20260821000000`). `supabase_migrations.schema_migrations` still holds 61 rows; Task 5 applies nothing.
 
    **This is name-identity, not content-identity, and the difference is large.** Review hashed all 59 local files against the `statements` that actually ran: only **29 match byte-for-byte** — the 18 captures plus 11 pre-existing. **30 pre-existing files differ in content**, several substantially (`init_schema` 28078 B local vs 24750 B remote; `functions_rls` 23130 vs 20055; `ai_media_retention` 2532 vs 1046; `notification_kind_care` 454 vs 67; `public_building_search` 2190 vs 1112).
 
