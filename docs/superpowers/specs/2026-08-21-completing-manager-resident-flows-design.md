@@ -77,6 +77,8 @@ implement one act; only one of them was ever extended.
    surface to `pets[0]`. In a multi-pet household the other pets' meals,
    medication and overdue tasks do not appear anywhere on the home screen. See
    AD-10.
+7. **Escalation opens the violation against the reporter.** See AD-11. This has
+   already occurred on production data.
 
 ## Principles
 
@@ -265,6 +267,51 @@ Third, and cheapest: **name the pet wherever a per-pet sheet acts.**
 `TargetSheet` takes a `petId`, displays no name, and confirms with "Target
 saved". Every per-pet sheet header and every success toast names the pet.
 
+### AD-11 — Escalation takes its subject from the identified pet, never the reporter
+
+`escalate_incident_to_violation` currently opens the violation with
+`resident_id = v_inc.reporter_id`. That column is the person who *filed* the
+report. So filing a non-anonymous report about a neighbour's dog opens a case
+against yourself.
+
+It has already happened. Incident `IR-454B06` identified the pet **Simba**,
+owned by `de3df834`; the violation it produced
+(`5570be70-8a79-48f9-80bc-dd09d3a82e56`) names `830b348a` — the reporter — and
+carries `pet_id = null`. The one fact that identifies the subject was
+discarded, and the reporter substituted for it.
+
+Both halves are wrong in the same statement, so both are fixed together. The
+subject of a violation is the **owner of the identified pet**:
+
+```sql
+select p.owner_id, p.unit_id into v_owner, v_unit
+from public.pets p
+where p.id = v_inc.pet_id and p.deleted_at is null;
+
+insert into public.violations (
+  building_id, unit_id, resident_id, pet_id, origin_incident_id,
+  type, stage, opened_by
+) values (
+  v_inc.building_id,
+  coalesce(v_unit, v_inc.unit_id),
+  v_owner,                 -- null when no pet was identified; the manager assigns
+  v_inc.pet_id,            -- carried through, so the violation names the animal
+  v_inc.id,
+  coalesce(p_type, v_inc.type::text),
+  'investigation',         -- becomes 'open' in Migration D; that enum value
+                           -- does not exist yet when this ships in Phase 0
+  auth.uid()
+);
+```
+
+`reporter_id` is never read by this function again. Where no pet was
+identified, `resident_id` stays null and the case sits at `open` until a
+manager assigns it — which is the honest state, and what `open` is for.
+
+Existing rows are repaired in the same migration: any violation whose
+`resident_id` equals its origin incident's `reporter_id` is recomputed from the
+identified pet, and `pet_id` is backfilled from the origin incident.
+
 ## Data model
 
 ### Migration A — drift repair
@@ -274,6 +321,10 @@ saved". Every per-pet sheet header and every success toast names the pet.
   live database into a migration.
 - `drop function public.submit_incident_report(text,text,text,text,text,boolean)`
   — the stale 6-arg overload.
+- Apply the AD-11 fix to `escalate_incident_to_violation` and repair the
+  affected rows. This ships in Phase 0 rather than with the rest of the
+  enforcement work: it is a live data-integrity defect, and every later
+  migration would otherwise stack on top of wrong rows.
 
 ### Migration B — storage policies
 
@@ -479,8 +530,12 @@ Named explicitly so the boundary is not rediscovered mid-build:
 
 ## Verification
 
-- **Migrations** — `supabase db reset` against a scratch branch must produce a
-  schema that the app boots against, proving the drift is repaired.
+- **Migrations** — every function the app calls must appear in
+  `supabase/migrations/`, checked by grep, and each migration must apply
+  cleanly. Neither the Supabase CLI nor Docker is installed on the development
+  machine, so `supabase db reset` is not the gate; migrations are applied and
+  asserted through the Supabase MCP. Installing the CLI later would make a full
+  reset the stronger check, and it should become one.
 - **RLS and storage** — for each row of the capability matrix, impersonate the
   actor in SQL (`set local role` + `request.jwt.claims`) and assert allowed and
   denied, the method already used in `docs/RBAC_PERSONAS.md`. Guest cases run
