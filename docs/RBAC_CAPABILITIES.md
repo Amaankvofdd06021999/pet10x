@@ -3,8 +3,8 @@
 Companion to `RBAC_PERSONAS.md`, which explains *why* the model is grant-derived.
 This is the flat answer to *what is allowed*, and the recipe for checking it.
 
-A persona is a view, never a permission. Every row below that is *not* marked
-*(Phase N)* is enforced in the database — by an RLS policy, or by a
+A persona is a view, never a permission. A row not marked *(Phase N)* names an
+enforcer that exists in the database today — an RLS policy, or a
 `SECURITY DEFINER` function that re-checks scope by hand because it bypasses
 RLS. A marked row is a forward reference: nothing enforces it yet because
 nothing implements it yet.
@@ -12,26 +12,47 @@ nothing implements it yet.
 "anon (code only)" is a guest holding a building code and no session at all.
 `signInGuest` sets client state; it creates no auth user.
 
-**A code is not inert.** It authorises intake, and it authorises two reads —
-both through `SECURITY DEFINER` functions that anon may execute, neither gated
-on anything but the code matching.
+## What anon can already reach
 
-`resolve_building_code(p_code)` returns the building's `id` and `name`. Neither
-was supplied by the caller: a code alone turns into an internal uuid and a
-building's name.
+The ❌ marks in the anon column are about the capabilities in the matrix. They
+are not a claim that anon reads nothing. Several `SECURITY DEFINER` functions
+are granted to `anon`, and some return data the caller did not supply. These
+are the ones probed for this document — not a survey of what `anon` may
+execute, which is larger:
 
-`building_pets_for_report(p_code)` returns the building's pet roster. The guest
-reporter flow calls it (`lib/data/incidents.ts:376`) so a guest can point at the
-pet they are reporting instead of describing it. Measured as `anon` with no
-claims, `building_pets_for_report('MCR2026')` returned all 10 non-deleted pets
-in that building, each with id, name, species and breed. Nine of the ten
-carried `photo: null`; one carried a real `pet-media` path. What it withholds is
-the unit, the owner and any contact detail.
+| Function | As `anon`, no claims | Returns |
+| --- | --- | --- |
+| `resolve_building_code('MCR2026')` | `valid: true` | the building's `id` and `name` |
+| `building_pets_for_report('MCR2026')` | `valid: true`, 10 pets | every non-deleted pet in that building: id, name, species, breed. Nine carried `photo: null`; one carried a real `pet-media` path |
+| `search_buildings_public('map')` | 2 matches | name, address, city, region, postal code — **no id, no building code** |
 
-The same anon actor reading `public.pets` or `public.buildings` directly gets 0
-rows either way, so RLS is intact — these are two deliberate, scoped holes
-punched through it, not a leak. Read every ❌ in the anon column below as
-"beyond those two".
+`building_pets_for_report` is what the guest reporter flow calls
+(`lib/data/incidents.ts:376`) so a guest can point at the pet they are
+reporting instead of describing it. It withholds the unit, the owner and any
+contact detail.
+
+`search_buildings_public` needs no code at all — three characters of substring
+is enough. Its migration
+(`20260814000001_public_building_search.sql`) states the intent: it returns
+"name and address ONLY. No id, no building_code… a match is confirmation the
+building is on Pet10x — not a way to join or report." That reasoning holds, and
+it is still a read of data the caller did not supply.
+
+The same anon actor reading `public.pets` or `public.buildings` directly got 0
+rows, so RLS itself is intact; these reads arrive through the functions.
+
+### Out of scope: `emergency_directory(p_token)`
+
+Token-gated rather than code-gated, so it sits outside this matrix's domain and
+gets no row. Recorded here so a reader weighing anonymous reads knows it exists
+and does not stop at `building_pets_for_report`. Given a token that
+exists, is unrevoked and unexpired, it returns the building's name and address,
+a per-floor unit list, and for each pet its name, species, presence, status,
+notes and one emergency phone. It writes an `audit_log` row on every view and
+deliberately returns no owner identity. Its own access model — token issue,
+expiry and revocation — is where that should be reviewed, not here.
+
+## The pet photo path
 
 One observation, not a defect. Where a `photo` path *is* returned it is raw, and
 `pet-media` paths are `{ownerUid}/{petId}/…` — the convention is set client-side
@@ -74,20 +95,22 @@ Phase 2, not something this document settles.
 Rows marked *(Phase N)* are specified but not yet built. The phase that builds
 one removes its marker and adds its verification.
 
-¹ On this row no two ticks mean the same thing.
-`posts_insert` is `author_id = auth.uid() AND is_resident_of(building_id) AND
-is_premium(auth.uid())` — there is no `manages_building` disjunct and **no
-`is_admin()` disjunct either**, and `community_posts` carries no admin-all
-policy. So a manager who is not also a resident cannot post to their own
-building's feed, a resident without an entitlement cannot post at all, and a
-super-admin cannot post anywhere: verified by impersonating a real super-admin
-(`is_admin() = true`) and getting `42501` on the insert. It is not alone in
-that — see *Where the admin grant stops* below. `events_write` does accept
-`manages_building` and `is_admin`. `lost_found_insert` tests only
-`reporter_id = auth.uid()`, with no building test at all on write — the
-scoping for lost & found lives entirely in `lost_found_select`. RSVPs are one
-`FOR ALL` policy, `rsvps_self` (`profile_id = auth.uid()`); there is no
-`rsvps_select`. Splitting this row into three is Phase 6's job.
+¹ `posts_insert` is `author_id = auth.uid() AND is_resident_of(building_id) AND
+is_premium(auth.uid())` — no `manages_building` disjunct, no `is_admin()`
+disjunct, and `community_posts` has three policies of which this is the only
+INSERT. So posting turns on residency plus entitlement, and nothing else grants
+it. Probed: a manager of Maple Court Residences who is not a resident of it had
+`is_resident_of = false` and `is_premium = false`; a super-admin who was
+likewise neither resident nor premium got `42501` on the insert.
+
+`events_write` does accept `manages_building` and `is_admin`.
+
+`lost_found` has two policies: `lost_found_insert`, which tests only
+`reporter_id = auth.uid()` with no building test, and `lost_found_select`,
+which is building-scoped. `event_rsvps` has one, `rsvps_self`
+(`FOR ALL`, `profile_id = auth.uid()`); there is no `rsvps_select`.
+
+Splitting this row into three is Phase 6's job.
 
 ² `manager_advance_violation` genuinely does not exist, but do not read that as
 "no one can advance a violation yet". `violations_manager_write` is `FOR ALL`
@@ -99,40 +122,40 @@ Maple Court Residences moved all 5 of that building's violations from
 Phase 4 must close or supersede that write path, not just add the RPC beside
 it.
 
-³ Only the read half of that row carries `OR is_admin()`.
-`community-media building read` has it; `community-media uploader write` and
-`community-media uploader delete` do not. Verified: a super-admin who is
-neither resident nor manager of the building read a planted object fine, and
-got `42501` inserting one under the same building. Again, see below.
+³ The `community-media` policies are three, and only the read carries
+`OR is_admin()`: `community-media building read` has it, `community-media
+uploader write` and `community-media uploader delete` do not. Probed: a
+super-admin who was neither resident nor manager of the building read a planted
+object fine and got `42501` inserting one under that building.
 
-## Where the admin grant stops
+## Where the admin grant stopped
 
-`is_admin()` is a disjunct in most policies behind this matrix, but not all,
-and the exceptions cluster in one place: **writes scoped to the actor
-themselves**. Verified by impersonating a real super-admin, asserting
-`is_admin() = true` in the same transaction, and attempting the write:
+Probed by impersonating a real super-admin, asserting `is_admin() = true` in
+the same transaction, and attempting the write. These are individual measured
+results, not a classification of the schema:
 
 | Policy | The super-admin attempted | Result |
 | --- | --- | --- |
 | `posts_insert` | post to a building they neither live in nor manage | `42501` |
 | `community-media uploader write` | upload under that building | `42501` |
-| `accom_resident_insert` | file a request on another resident's behalf | `42501` |
+| `accom_resident_insert` | file a request naming *another* resident | `42501` |
+| `accom_resident_insert` | file a request naming **themselves**, same building | **admitted** |
 
-Three others carry no `is_admin()` disjunct in their text but were not probed
-behaviourally, so treat those as policy-text facts only:
-`community-media uploader delete`, `rsvps_self` and `lost_found_insert`. The
-last two are plain `… = auth.uid()`, which an admin acting *as themselves*
-satisfies — a different situation from the three above, which an admin cannot
-satisfy at all.
+That last row is the one to read carefully. `accom_resident_insert` is
+`WITH CHECK (resident_id = auth.uid())`. It does not block an admin; it blocks
+acting *as someone else*. The admin got their own request in despite being
+neither resident nor manager of that building. `rsvps_self`
+(`profile_id = auth.uid()`) and `lost_found_insert` (`reporter_id = auth.uid()`)
+have the same shape; neither was probed.
 
-`buildings_manager_update` also lacks the disjunct but is **not** an exception:
-`buildings_admin_all` (`FOR ALL`, `is_admin()`) sits beside it, and permissive
+`community-media uploader delete` carries no `is_admin()` in its text and was
+not probed — see the note on `storage.objects` deletes under *How to verify a
+row*.
+
+`buildings_manager_update` carries no `is_admin()` either, but
+`buildings_admin_all` (`FOR ALL`, `is_admin()`) sits beside it and permissive
 policies OR together. Absence of `is_admin()` in one policy proves nothing on
-its own — check the table's other policies for the same command before
-concluding anything.
-
-This list covers only the policies named in the matrix above. It is not a
-survey of the schema.
+its own; check the table's other policies for the same command first.
 
 ## What the storage rows depend on
 
@@ -158,8 +181,9 @@ Two things about these are worth knowing before touching them.
 
 **A malformed segment must evaluate false, not raise.** The `::uuid` casts in
 the `guest-evidence` and `community-media` read policies used to abort the
-whole query with `22P02` when segment 1 was not a UUID — which meant one bad
-object could take the bucket offline for every reader, super-admins included.
+whole query with `22P02` when segment 1 was not a UUID — so one bad object
+could take the bucket offline for readers, a super-admin included, since the
+cast raises before `is_admin()` is reached.
 `20260821000003_storage_policy_reconciliation.sql` wraps each cast in a `case`
 that shape-checks the segment first. It is a `case` and not an `and` on
 purpose: Postgres may reorder `AND` operands, so a flat chain can still reach
@@ -172,44 +196,35 @@ belongs to.
 inside `exists (select 1 from public.pets p where … (storage.foldername(name))[2] …)`
 the unqualified `name` bound to `pets.name`, not to the object path. It split
 the pet's name ("Max") into path segments — `storage.foldername('Max')` returns
-an empty array — and compared `null` to the pet id. False for every row,
-always, which is exactly the blank pet picker the policy existed to fix.
+an empty array — and compared `null` to the pet id, so it could not match.
+That is the blank pet picker the policy existed to fix.
 `20260821000002_fix_pet_media_manager_read.sql` writes
 `storage.foldername(storage.objects.name)` instead. The sibling
 `accommodation-docs` policies use the bare form and bind correctly only because
-`accommodation_requests` happens to have no `name` column to collide with —
-same code, different outcome, decided entirely by the joined table. Do not
-"simplify" the qualification away.
+`accommodation_requests` has no `name` column to collide with — same code,
+different outcome, decided by the joined table's columns. Do not "simplify" the
+qualification away.
 
 ## Two rules that keep this true
 
 **RLS is the floor, the query is the filter.** A policy guarantees a query
-cannot get *more* than it should. It does not narrow an unfiltered read. Every
-read names its scope explicitly — reading with no `WHERE` and trusting the
-policy is correct for unprivileged accounts and silently wrong for every
+cannot get *more* than it should. It does not narrow an unfiltered read. So a
+read should name its scope explicitly: reading with no `WHERE` and trusting the
+policy looks correct on an unprivileged account and can be silently wrong on a
 privileged one, which is the case least likely to be tested. See the measured
 example in `RBAC_PERSONAS.md`.
 
 **A `SECURITY DEFINER` function bypasses RLS, so it re-checks scope by hand.**
-Every one that gates a privileged action does open with
-`manages_building(...) or is_admin()`, or the equivalent ownership test. How it
-*refuses* is not yet consistent. Of the six that carry such a check, only
-`escalate_incident_to_violation` returns a structured
-`{"ok": false, "error": "forbidden"}`; `manager_decide_registration` and
-`business_mark_booking_paid` `raise exception`, as do the three `guard_*`
-functions — though those three are triggers returning `trigger`, and raising is
-the only refusal a trigger has. So the real split is two callable RPCs on the
-old raising convention against one on the new structured one. New RPCs should
-return structured, and Phase 4 onward should convert the two as it touches
-them; the guards stay as they are.
-
-**Four functions are deliberately open to a guest** — `submit_incident_report`,
-`incident_status_by_reference`, `resolve_building_code` and
-`building_pets_for_report`. The first two are intake and lookup: they return
-only the status of the thing the caller already supplied a code or a reference
-for. The other two return data the caller did not supply — a building id and
-name, and a building's pet roster — and are described at the top of this
-document.
+Scanning `pg_proc` for `SECURITY DEFINER` functions whose body mentions
+`manages_building` or `is_admin()` returned six. How they refuse is not
+consistent. `escalate_incident_to_violation` returns a structured
+`{"ok": false, "error": "forbidden"}`. `manager_decide_registration` and
+`business_mark_booking_paid` `raise exception`. So do
+`guard_business_verification`, `guard_profile_privilege` and
+`guard_review_reply` — but those three return `trigger` and are trigger-
+attached, and raising is the only refusal a trigger has. New RPCs should return
+structured, and Phase 4 onward should convert the two callable ones as it
+touches them; the guards stay as they are.
 
 ## How to verify a row
 
@@ -231,11 +246,11 @@ For a guest, use `set local role anon` and set no claims at all.
 Run the denied case against a real id from a *different* building, not a
 made-up uuid — a policy that fails open on a nonexistent row still fails open.
 
-**The control actor must not be a super-admin.** `is_admin()` is a disjunct in
-almost every policy here, so an admin control proves nothing. Assert
-`public.is_admin()` is `false` in the same transaction rather than assuming it.
-Where an admin control *is* meaningful is the self-scoped writes — see *Where
-the admin grant stops*.
+**The control actor must not be a super-admin.** Most policies here carry
+`is_admin()` as a disjunct, and for those an admin control proves nothing.
+Assert `public.is_admin()` is `false` in the same transaction rather than
+assuming it. Some policies do not carry it — check the one you are testing
+rather than the tendency, and see *Where the admin grant stopped*.
 
 **`storage.objects` DELETE cannot be probed from SQL.** A trigger,
 `storage.protect_delete()`, refuses direct deletion from storage tables
@@ -266,11 +281,11 @@ and the malformed one should be *invisible rather than fatal*.
 
 ## Verified
 
-Impersonated in SQL against production, both directions, every control actor
-confirmed `is_admin() = false` — except the *Where the admin grant stops*
-probes, where using a real super-admin was the whole point and
-`is_admin() = true` was asserted instead. Planted rows and objects were rolled
-back; nothing was written.
+Impersonated in SQL against production, both directions. Each control actor
+below was confirmed `is_admin() = false` in the same transaction; in the
+*Where the admin grant stopped* probes, `is_admin() = true` was asserted
+instead, since using a real super-admin was the point. Planted rows and objects
+were rolled back; nothing was written.
 
 **Read own violations and fines** — `violations_select`, `fines_select`.
 13 violations and 4 fines exist in total.
@@ -292,9 +307,9 @@ not, one under the literal path segment `not-a-building`.
 | Resident of Maple Court Residences (control) | 0 — residency is not enough |
 | `anon`, no claims (control) | 0 — run against the malformed object alone |
 
-No reader saw the malformed object and no reader's query raised — that is the
-`20260821000003` hardening doing its job. Before it, that third object would
-have aborted every one of these reads with
+None of these four readers saw the malformed object, and none of their queries
+raised — that is the `20260821000003` hardening doing its job. Before it, that
+third object would have aborted these reads with
 `invalid input syntax for type uuid: "not-a-building"`.
 
 **Read another resident's pet photo** — `pet-media manager read`. Four objects
@@ -314,19 +329,12 @@ exist; two belong to a pet registered to Maple Court Residences.
 | Same resident, path `not-a-building/{ownUid}/…` | insert rejected, `42501` |
 | Resident of The Wellington (control) | 0 objects visible |
 
-**What a building code alone grants.** `set local role anon`, no claims:
+**What anon reached.** `set local role anon`, no claims. Results tabulated
+under *What anon can already reach* above; the two zeroes there
+(`public.pets`, `public.buildings`) are the point — RLS held, and those reads
+arrived through the functions.
 
-| Probe | Result |
-| --- | --- |
-| `resolve_building_code('MCR2026')` | `valid: true`, plus the building's `id` and `name` — neither supplied by the caller |
-| `building_pets_for_report('MCR2026')` | `valid: true`, 10 pets — every non-deleted pet in the building, each with id, name, species and breed. 9 had `photo: null`; 1 carried a raw `pet-media` path, and that path's first segment is its owner's auth uid |
-| `select count(*) from public.pets` (same actor) | 0 |
-| `select count(*) from public.buildings` (same actor) | 0 |
-
-The two zeroes are the point: RLS is intact, and both reads arrive strictly
-through the two `SECURITY DEFINER` functions.
-
-**Where the admin grant stops.** Impersonating `admin.pet10x@gmail.com`,
+**Where the admin grant stopped.** Impersonating `admin.pet10x@gmail.com`,
 `is_admin() = true` asserted in the same transaction, and neither resident nor
 manager of the target building:
 
@@ -334,8 +342,9 @@ manager of the target building:
 | --- | --- |
 | `insert into public.community_posts` | `42501` |
 | `insert into storage.objects` at `{thatBuilding}/{ownUid}/flyer.jpg` in `community-media` | `42501` |
-| `insert into public.accommodation_requests` for another resident | `42501` |
-| `select` a planted `community-media` object | 1 row — the read half does carry `is_admin()` |
+| `insert into public.accommodation_requests` naming another resident | `42501` |
+| `insert into public.accommodation_requests` naming themselves | admitted |
+| `select` a planted `community-media` object | 1 row — the read policy does carry `is_admin()` |
 
 The `community-media` insert is the clean comparison: a *resident* of that
 building inserting the identical path shape under their own uid was admitted
