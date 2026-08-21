@@ -3,46 +3,83 @@
 Companion to `RBAC_PERSONAS.md`, which explains *why* the model is grant-derived.
 This is the flat answer to *what is allowed*, and the recipe for checking it.
 
-A persona is a view, never a permission. Every row below is enforced in the
-database — by an RLS policy, or by a `SECURITY DEFINER` function that
-re-checks scope by hand because it bypasses RLS.
+A persona is a view, never a permission. Every row below that is *not* marked
+*(Phase N)* is enforced in the database — by an RLS policy, or by a
+`SECURITY DEFINER` function that re-checks scope by hand because it bypasses
+RLS. A marked row is a forward reference: nothing enforces it yet because
+nothing implements it yet.
 
 "anon (code only)" is a guest holding a building code and no session at all.
-`signInGuest` sets client state; it creates no auth user. Possession of a code
-authorises intake and nothing else — it never grants a read of stored data.
+`signInGuest` sets client state; it creates no auth user.
+
+**A code is not inert.** It authorises intake, and it authorises exactly one
+read: the building's pet roster. `building_pets_for_report(p_code)` is
+`SECURITY DEFINER` with no gate beyond matching the code, and the guest
+reporter flow calls it (`lib/data/incidents.ts:376`) so a guest can point at
+the pet they are reporting instead of describing it. Measured as `anon` with no
+claims, `building_pets_for_report('MCR2026')` returned all 10 non-deleted pets
+in that building — id, name, species, breed and a photo path. What it withholds
+is the unit, the owner and any contact detail, and the same actor reading
+`public.pets` directly gets 0 rows. So RLS is intact and this is a deliberate,
+scoped hole punched through it, not a leak. Read every ❌ in the anon column
+below as "beyond that roster".
+
+One observation, not a defect: the `photo` value is a raw storage path, and
+`pet-media` paths are `{ownerUid}/{petId}/…`, so a guest holding a lobby code
+can also derive owner auth uids. Phase 2 plans to stop returning raw paths to
+the client in favour of server-signed URLs, which closes this as a side effect.
+Nothing should change ahead of that.
 
 | Capability | anon (code only) | resident | manager of building | super-admin | Enforced by |
 | --- | --- | --- | --- | --- | --- |
 | File an incident | ✅ | ✅ | ✅ | ✅ | `submit_incident_report` |
-| Upload evidence | ✅ | ✅ | ✅ | ✅ | signed upload URL, server-minted |
+| Upload evidence | ✅ | ✅ | ✅ | ✅ | signed upload URL, server-minted *(Phase 1)* |
 | Read evidence | ❌ | ❌ | ✅ own buildings | ✅ | `guest-evidence manager read`, hardened in `20260821000003_storage_policy_reconciliation.sql` |
 | Look up a report by reference | ✅ | ✅ | ✅ | ✅ | `incident_status_by_reference` |
 | Triage an incident | ❌ | ❌ | ✅ | ✅ | `incidents_manager_update` |
 | Escalate to a violation | ❌ | ❌ | ✅ | ✅ | `escalate_incident_to_violation` |
-| Advance a violation degree | ❌ | ❌ | ✅ | ✅ | `manager_advance_violation` *(Phase 4)* |
+| Advance a violation degree | ❌ | ❌ | ✅ | ✅ | `manager_advance_violation` *(Phase 4)* — but see ² |
 | Read own violations and fines | ❌ | ✅ own | ✅ building | ✅ | `violations_select`, `fines_select` |
 | Dispute a violation | ❌ | ✅ own | ❌ | ✅ | `dispute_violation` *(Phase 5)* |
 | Decide a dispute | ❌ | ❌ | ✅ | ✅ | `manager_resolve_dispute` *(Phase 5)* |
 | Request an accommodation | ❌ | ✅ | ✅ | ✅ | `accom_resident_insert` |
 | Decide an accommodation | ❌ | ❌ | ✅ | ✅ | `accom_manager_update` |
-| Set the fine schedule | ❌ | ❌ | ✅ | ✅ | `buildings_manager_update` *(Phase 4)* |
+| Set the fine schedule | ❌ | ❌ | ✅ | ✅ | `buildings_manager_update` (manager), `buildings_admin_all` (admin) *(Phase 4)* |
 | Write or publish a building rule | ❌ | ❌ | ✅ | ✅ | `publish_building_rule` *(Phase 6)* |
 | Read a building rule | ❌ | ✅ published, own building | ✅ all, own buildings | ✅ | `building_rules` select *(Phase 6)* |
-| Post, RSVP, report lost & found | ❌ | ✅ ¹ | ✅ ¹ | ✅ | `posts_insert`, `rsvps_self`, `lost_found_insert` and their `*_select` siblings |
+| Post, RSVP, report lost & found | ❌ | ✅ ¹ | ✅ ¹ | ✅ ¹ | `posts_insert`, `rsvps_self`, `lost_found_insert`, `events_write`, and `posts_select` / `lost_found_select` / `events_select` |
 | Upload and read community media | ❌ | ✅ own buildings | ✅ own buildings | ✅ | `community-media building read`, `community-media uploader write`, `community-media uploader delete` |
 | Read another resident's pet photo | ❌ | ❌ | ✅ own buildings | ✅ | `pet-media manager read`, as recreated in `20260821000002_fix_pet_media_manager_read.sql` |
 
 Rows marked *(Phase N)* are specified but not yet built. The phase that builds
 one removes its marker and adds its verification.
 
-¹ The community row is the one place where the three ticks are not the same
-tick. `posts_insert` requires `is_resident_of(building_id)` **and**
-`is_premium(auth.uid())`, so a manager who is not also a resident of that
-building cannot post there, and neither can a resident with no entitlement.
-`events_write` does accept `manages_building`. `lost_found_insert` tests only
-`reporter_id = auth.uid()` — the building scoping for lost & found lives
-entirely in `lost_found_select`. Splitting this into three rows is Phase 6's
-job, when community gets its own pass.
+¹ The community row is the one place where no two ticks mean the same thing.
+`posts_insert` is `author_id = auth.uid() AND is_resident_of(building_id) AND
+is_premium(auth.uid())` — there is no `manages_building` disjunct and **no
+`is_admin()` disjunct either**, and `community_posts` carries no admin-all
+policy. So a manager who is not also a resident cannot post to their own
+building's feed, a resident without an entitlement cannot post at all, and a
+super-admin cannot post anywhere: verified by impersonating a real super-admin
+(`is_admin() = true`) and getting `42501` on the insert. This is the only
+capability in the matrix with no admin escape hatch, which is worth saying out
+loud — every other ❌→✅ in the super-admin column is `is_admin()` doing the
+work, and here there is nothing to do it. `events_write` does accept
+`manages_building` and `is_admin`. `lost_found_insert` tests only
+`reporter_id = auth.uid()`, with no building test at all on write — the
+scoping for lost & found lives entirely in `lost_found_select`. RSVPs are one
+`FOR ALL` policy, `rsvps_self` (`profile_id = auth.uid()`); there is no
+`rsvps_select`. Splitting this row into three is Phase 6's job.
+
+² `manager_advance_violation` genuinely does not exist, but do not read that as
+"no one can advance a violation yet". `violations_manager_write` is `FOR ALL`
+with `manages_building(building_id) or is_admin()`, so a manager already has an
+unguarded direct write to `violations.stage`. Measured: a non-admin manager of
+Maple Court Residences moved all 5 of that building's violations from
+`investigation` / `written_warning` / `resolved` to `fine_issued` in a single
+`UPDATE`, with no degree-ordering check and no `violation_events` row written.
+Phase 4 must close or supersede that write path, not just add the RPC beside
+it.
 
 ## What the storage rows depend on
 
@@ -53,10 +90,16 @@ shares the mechanism, though no row above turns on it yet:
 
 | Bucket | Path | Segment that decides access |
 | --- | --- | --- |
-| `guest-evidence` | `{buildingId}/{draftId}/{n}.{ext}` | 1 — the building |
-| `community-media` | `{buildingId}/{uploaderUid}/{filename}` | 1 to read, 1 **and** 2 to write |
+| `guest-evidence` | `{buildingId}/{draftId}/{n}.{ext}` — *intended, see below* | 1 — the building |
+| `community-media` | `{buildingId}/{uploaderUid}/{filename}` | 1 to read, 1 **and** 2 to write, 2 alone to delete |
 | `pet-media` | `{ownerUid}/{petId}/{filename}` | 1 for the owner, 2 for the manager |
 | `accommodation-docs` | `{buildingId}/{requestId}/{filename}` | 2 — the request |
+
+The `guest-evidence` shape is a convention carried over from the Phase 1 spec,
+not an observed one. Nothing has ever been written to that bucket — it holds 0
+objects, no application code so much as names the string `guest-evidence`, and
+its single policy is the SELECT above. The convention becomes real, or gets
+corrected, when Phase 1 writes the first object.
 
 Two things about these are worth knowing before touching them.
 
@@ -95,15 +138,24 @@ privileged one, which is the case least likely to be tested. See the measured
 example in `RBAC_PERSONAS.md`.
 
 **A `SECURITY DEFINER` function bypasses RLS, so it re-checks scope by hand.**
-Every one that gates a privileged action opens with
-`manages_building(...) or is_admin()`, or the equivalent ownership test, and
-returns a structured error rather than raising —
-`escalate_incident_to_violation` returns `{"ok": false, "error": "forbidden"}`.
-The three that are deliberately open to a guest —
-`resolve_building_code`, `submit_incident_report`,
-`incident_status_by_reference` — have no such gate by design, which is why each
-returns only what the caller already supplied a code or a reference for, and
-never a listing.
+Every one that gates a privileged action does open with
+`manages_building(...) or is_admin()`, or the equivalent ownership test. How it
+*refuses* is not yet consistent. Of the six that carry such a check, only
+`escalate_incident_to_violation` returns a structured
+`{"ok": false, "error": "forbidden"}`; `manager_decide_registration` and
+`business_mark_booking_paid` `raise exception`, as do the three `guard_*`
+functions — though those three are triggers returning `trigger`, and raising is
+the only refusal a trigger has. So the real split is two callable RPCs on the
+old raising convention against one on the new structured one. New RPCs should
+return structured, and Phase 4 onward should convert the two as it touches
+them; the guards stay as they are.
+
+**Four functions are deliberately open to a guest** — `resolve_building_code`,
+`submit_incident_report`, `incident_status_by_reference` and
+`building_pets_for_report`. The first three return only what the caller already
+supplied a code or a reference for. The fourth is the exception described at
+the top of this document: it does return a listing, of one building's pets,
+because the guest reporter flow needs it.
 
 ## How to verify a row
 
@@ -128,6 +180,8 @@ made-up uuid — a policy that fails open on a nonexistent row still fails open.
 **The control actor must not be a super-admin.** `is_admin()` is a disjunct in
 almost every policy here, so an admin control proves nothing. Assert
 `public.is_admin()` is `false` in the same transaction rather than assuming it.
+The one policy where an admin control *would* have been meaningful is
+`posts_insert`, which has no `is_admin()` disjunct at all — see ¹.
 
 **A row about an empty bucket is still verifiable.** Plant the object inside
 the transaction before switching role, then roll back:
@@ -152,7 +206,9 @@ and the malformed one should be *invisible rather than fatal*.
 ## Verified
 
 Impersonated in SQL against production, both directions, every control actor
-confirmed `is_admin() = false`. Planted storage objects were rolled back.
+confirmed `is_admin() = false` — with one deliberate exception, the
+`posts_insert` probe below, where the whole point was to use a real
+super-admin. Planted rows and objects were rolled back; nothing was written.
 
 **Read own violations and fines** — `violations_select`, `fines_select`.
 13 violations and 4 fines exist in total.
@@ -195,3 +251,24 @@ exist; two belong to a pet registered to Maple Court Residences.
 | Same resident, path `{aBuildingTheyAreNotIn}/{ownUid}/…` | insert rejected, `42501` |
 | Same resident, path `not-a-building/{ownUid}/…` | insert rejected, `42501` |
 | Resident of The Wellington (control) | 0 objects visible |
+
+**What a building code alone grants** — `building_pets_for_report`.
+`set local role anon`, no claims:
+
+| Probe | Result |
+| --- | --- |
+| `building_pets_for_report('MCR2026')` | `valid: true`, 10 pets — every non-deleted pet in the building, with id, name, species, breed and one raw `pet-media` path |
+| `select count(*) from public.pets` (same actor) | 0 — RLS itself is intact; the roster comes only through the function |
+
+**Nobody may post, not even an admin** — `posts_insert`. Impersonating
+`admin.pet10x@gmail.com`, asserted `is_admin() = true` in the same transaction:
+`insert into public.community_posts (building_id, author_id, content)` →
+`ERROR 42501 new row violates row-level security policy`. The same actor's
+`is_resident_of` and `is_premium` were both false, which is the whole reason —
+`posts_insert` offers no third way in.
+
+**A manager can already advance a violation** — `violations_manager_write`.
+Non-admin manager of Maple Court Residences (`is_admin() = false`), one
+`update public.violations set stage = 'fine_issued' where building_id = …`:
+5 rows in scope moved from `investigation,resolved,written_warning` to
+`fine_issued`. Rolled back. Context for ² above.
