@@ -32,6 +32,7 @@ The rows are real, the mutations exist, and the button calls `toast()`.
 | `alerts-screen.tsx:145` | "Report an Incident" toasts *"coming soon"* while `/report` exists and Home already navigates to it |
 | `alerts-screen.tsx:196` | Notification action buttons toast their own label instead of navigating to `notifications.action_target`, a column already populated |
 | `community-screen.tsx` | Pin, share, more-options and RSVP are toasts |
+| `home-screen.tsx:103` | The "Rules" quick action toasts one hardcoded string — *"One dog or one cat · leashed in common areas"* — identical for every building on the platform |
 
 ### Shape 2 — the database is built, the write path is absent
 
@@ -72,6 +73,10 @@ implement one act; only one of them was ever extended.
 5. **Guests have no session at all.** `signInGuest` is pure client state; the
    live project has zero anonymous auth users. Guest requests execute as `anon`
    with `auth.uid()` null. This constrains the evidence design (see below).
+6. **Home shows only one pet's care.** `home-screen.tsx:70` pins every care
+   surface to `pets[0]`. In a multi-pet household the other pets' meals,
+   medication and overdue tasks do not appear anywhere on the home screen. See
+   AD-10.
 
 ## Principles
 
@@ -203,6 +208,63 @@ disputed degree.
 resident sees the amount, the due date and the status, and can dispute. Payment
 is a later phase.
 
+### AD-9 — Building rules are authored text, kept apart from the compliance toggles
+
+A manager needs to publish the building's actual house rules — parking, noise,
+common areas, pets — and have a resident read them. Today the resident's
+"Building Rules" quick action returns a hardcoded toast reading *"One dog or
+one cat · leashed in common areas"*, the same string for every building on the
+platform, and the Profile row of the same name says "coming soon".
+
+A new `building_rules` table holds manager-authored entries, each with a
+category, a title and a body. Managers write and publish; residents read what
+is published. Publishing or amending one notifies the building's residents,
+which is what makes an "update" an update rather than a silent edit.
+
+**These must not merge with `buildings.pet_rules`.** The booleans in that jsonb
+are *enforceable requirements* — they feed `computeGaps`, the resident's
+missing-info card and the manager's compliance percentages. `building_rules`
+text is *informational*. A manager typing "no dogs over 25 kg" into a notice
+must not silently move anyone's compliance score, and a resident must be able
+to tell which of the two they are looking at. One screen shows both; the screen
+distinguishes them.
+
+Categories ship as `pets`, `parking`, `noise`, `waste`, `common_areas`,
+`other` — a closed set, so a resident's rules screen groups predictably across
+buildings.
+
+### AD-10 — Household tasks aggregate; per-pet goals do not
+
+`home-screen.tsx:70` sets `primaryPet = pets[0]` and every care surface on Home
+reads only that pet. In a household with three pets, two are invisible on the
+home screen — including their overdue medication. This is a correctness defect,
+not a presentation one.
+
+Naively widening the strip to all pets would fail differently:
+`TodayScheduleStrip` renders `t.label` with no attribution, so three pets on
+morning meals produce three indistinguishable "Morning meal" rows. And summing
+targets across pets is meaningless — "2 / 4 bowls" across two dogs is true when
+one ate everything and the other ate nothing.
+
+So split the surface by what actually aggregates:
+
+- **Today's schedule → household-wide, pet-attributed.** One time-ordered list
+  across every pet, each row carrying that pet's avatar and name. This is how a
+  morning is actually run, and it is where the missed-dose risk lives.
+- **Care tiles (progress against a target) → one pet, explicitly selected.**
+  Keep the three-up strip; put a pet selector above it.
+
+The selector is already half-built: `handleRailScroll` computes `activePet`
+from the pet rail's scroll position and currently drives nothing but the dot
+indicator. Wiring it to the care card means swiping to a pet shows that pet's
+goals, and the switcher costs no new chrome. `pet-care-screen` already renders
+explicit chips for the same choice; both surfaces read one remembered
+selection.
+
+Third, and cheapest: **name the pet wherever a per-pet sheet acts.**
+`TargetSheet` takes a `petId`, displays no name, and confirms with "Target
+saved". Every per-pet sheet header and every success toast names the pet.
+
 ## Data model
 
 ### Migration A — drift repair
@@ -305,6 +367,43 @@ No DDL. `useAccommodationsLive` reads real `accommodation_documents` rows in
 place of the hardcoded checklist; `useEvents` / `useLostFound` become live
 queries; event attendance is counted from `event_rsvps`.
 
+### Migration H — building rules
+
+```sql
+create type building_rule_category as enum
+  ('pets','parking','noise','waste','common_areas','other');
+
+create table public.building_rules (
+  id           uuid primary key default gen_random_uuid(),
+  building_id  uuid not null references public.buildings(id) on delete cascade,
+  category     building_rule_category not null,
+  title        text not null,
+  body         text not null,
+  is_published boolean not null default true,
+  sort_order   integer not null default 0,
+  created_by   uuid references public.profiles(id),
+  updated_by   uuid references public.profiles(id),
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+```
+
+RLS — read for `is_resident_of(building_id)` limited to `is_published`, full
+read and write for `manages_building(building_id) or is_admin()`.
+
+`publish_building_rule(p_rule uuid)` is `SECURITY DEFINER`: it flips
+`is_published`, stamps `updated_by`, and inserts one `notifications` row per
+approved resident of the building (`kind = 'building'`). The insert policy on
+`notifications` admits only `kind = 'assistant'` for self, so a manager cannot
+do this from the browser — the same constraint that forces AD-6.
+
+### Multi-pet care — no DDL
+
+AD-10 needs no schema change. `useCareTasks(petId)` gains a sibling,
+`useHouseholdCareTasks(petIds)`, returning the same rows carrying `petName` and
+`petImage`. `care_targets` and `care_entries` stay per-pet, which is what makes
+the split in AD-10 correct.
+
 ## RBAC
 
 The persona model in `docs/RBAC_PERSONAS.md` is sound and does not change. A
@@ -327,6 +426,8 @@ storage-layer enforcement that was missing.
 | Request an accommodation | ❌ | ✅ | ✅ | ✅ | `accom_resident_insert` |
 | Decide an accommodation | ❌ | ❌ | ✅ | ✅ | `accom_manager_update` |
 | Set the fine schedule | ❌ | ❌ | ✅ | ✅ | `buildings` update policy |
+| Write or publish a building rule | ❌ | ❌ | ✅ | ✅ | `building_rules` write policy, `publish_building_rule` |
+| Read a building rule | ❌ | ✅ published, own building | ✅ all, own buildings | ✅ | `building_rules` select policy |
 | Post, RSVP, report lost & found | ❌ | ✅ | ✅ | ✅ | existing community RLS |
 
 Guest rows read "code only": possession of a building code authorises intake
@@ -342,11 +443,17 @@ where noted.
 | 0 | Foundation | Migrations A + B, capability matrix written to `docs/RBAC_CAPABILITIES.md` | — |
 | 1 | Evidence end-to-end | Migration C, sign route, upload UI, manager display, purge cron | 0 |
 | 2 | One composer | `IncidentComposer`, both shells, signed pet photos (AD-3) | 1 |
-| 3 | Enforcement ladder | Migrations D + F, manager actions real, fine schedule in bylaws, derived tab counts, CSV export | 0 |
-| 4 | Resident enforcement view | Own violations, events and fines; dispute (Migration E) | 3 |
-| 5 | Accommodations | Resident intake + docs, real manager checklist (Migration G) | 0 |
-| 6 | Community | Events, RSVP, Lost & Found, pin, share | 0 |
-| 7 | Honest cleanup | Alerts CTA to `/report`, notification actions to `action_target`, dead controls removed | — |
+| 3 | Multi-pet care | Household schedule strip, per-pet goal selector, pet named in every sheet (AD-10) | — |
+| 4 | Enforcement ladder | Migrations D + F, manager actions real, fine schedule in bylaws, derived tab counts, CSV export | 0 |
+| 5 | Resident enforcement view | Own violations, events and fines; dispute (Migration E) | 4 |
+| 6 | Building rules | Migration H, manager editor, resident rules screen (AD-9) | 0 |
+| 7 | Accommodations | Resident intake + docs, real manager checklist (Migration G) | 0 |
+| 8 | Community | Events, RSVP, Lost & Found, pin, share | 0 |
+| 9 | Honest cleanup | Alerts CTA to `/report`, notification actions to `action_target`, dead controls removed | — |
+
+Phase 3 sits early and depends on nothing: it is a correctness defect that
+affects every multi-pet household today, and it touches none of the other
+work.
 
 ## Out of scope
 
@@ -362,6 +469,13 @@ Named explicitly so the boundary is not rediscovered mid-build:
   consistent and honest.
 - **Verbal vs written warning.** Collapsed into one `warning` degree per the
   three-degree ladder.
+- **Rule versioning and acknowledgement.** `building_rules` records who last
+  edited and when, but keeps no revision history and does not ask a resident to
+  confirm they have read a rule. `buildings.bylaw_version` already exists for
+  the day that matters.
+- **Household care assignment.** AD-10 shows every pet's tasks to the account
+  holder. It does not add a second carer, task ownership, or "who fed the dog"
+  between two people in one home.
 
 ## Verification
 
@@ -376,5 +490,12 @@ Named explicitly so the boundary is not rediscovered mid-build:
   object; an unclaimed draft is gone after the purge runs.
 - **Ladder** — every illegal transition is rejected by the database, not merely
   hidden by the UI.
+- **Building rules** — a rule written by a manager of building A is invisible
+  to a resident of building B and to a signed-out visitor; an unpublished rule
+  is invisible to its own residents; publishing raises one notification per
+  approved resident and none for anyone else.
+- **Multi-pet care** — with three pets seeded, each holding one outstanding
+  task, the home schedule lists three rows and names three different pets. The
+  goal tiles change when the selected pet changes, and never sum across pets.
 - **The audit re-run** — grep for `coming soon` and for `toast(` in an
   `onClick` returns only what this document lists as out of scope.
