@@ -506,7 +506,9 @@ fresh db reset stops producing a schema the app cannot run against."
 - Consumes: `public.manages_building(uuid)` and `public.is_admin()`, both already defined.
 - Produces: the `guest-evidence` read policy that Phase 1's manager display depends on, and the `pet-media` manager read that Phase 2 uses for incident thumbnails.
 
-**Background.** `storage.objects` carries five policies, all for `avatars` and `pet-media`. `guest-evidence`, `accommodation-docs` and `community-media` have none, so no role can read or write them. `pet-media` is readable only by the owning uid, which is why the pet picker in both report flows renders no photos.
+**Background.** `storage.objects` carries six policies (`avatars` 2, `pet-media` 4). `guest-evidence`, `accommodation-docs` and `community-media` have none, so no role can read or write them. `pet-media` is readable only by the owning uid, which is why the pet picker in both report flows renders no photos.
+
+**Correction, found during execution.** The `pet-media manager read` policy below is written with an unqualified `name` inside `exists (select 1 from public.pets p …)`. Postgres binds that to `pets.name`, not the object path, so the policy can never match a row. It must be written `storage.foldername(storage.objects.name)`. The other six are unaffected — `guest-evidence` and `community-media` have no subquery, and `accommodation_requests` has no `name` column to collide. Step 5a adds the corrective migration.
 
 - [ ] **Step 1: Write the failing assertion**
 
@@ -628,7 +630,7 @@ from pg_policy where polrelid = 'storage.objects'::regclass
 order by polname;
 ```
 
-Expected: 12 rows — the 5 that existed plus the 7 added here.
+Expected: 13 rows — the 6 that existed plus the 7 added here.
 
 Then prove `guest-evidence` denies a non-manager. Substitute a profile id that manages no building:
 
@@ -783,7 +785,7 @@ prove its rows rather than assert them."
 1. `pnpm test` passes.
 2. `pnpm build` and `pnpm lint` pass.
 3. The Task 2 assertion returns `reporter_is_subject = 0`, `pet_dropped = 0`, `submit_overloads = 1`.
-4. `storage.objects` carries 12 policies.
+4. `storage.objects` carries 13 policies, and `pet-media manager read` actually returns rows for a manager of the pet's building.
 5. `docs/RBAC_CAPABILITIES.md` exists and one of its rows has been verified by impersonation.
 6. Every function the app calls appears in `supabase/migrations/`. Check with:
 
