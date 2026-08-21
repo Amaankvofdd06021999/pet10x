@@ -501,6 +501,8 @@ fresh db reset stops producing a schema the app cannot run against."
 
 **Files:**
 - Create: `supabase/migrations/20260821000001_storage_policies.sql`
+- Create: `supabase/migrations/20260821000002_fix_pet_media_manager_read.sql` (Step 5a)
+- Create: `supabase/migrations/20260821000003_storage_policy_reconciliation.sql` (Step 5b)
 
 **Interfaces:**
 - Consumes: `public.manages_building(uuid)` and `public.is_admin()`, both already defined.
@@ -508,7 +510,12 @@ fresh db reset stops producing a schema the app cannot run against."
 
 **Background.** `storage.objects` carries six policies (`avatars` 2, `pet-media` 4). `guest-evidence`, `accommodation-docs` and `community-media` have none, so no role can read or write them. `pet-media` is readable only by the owning uid, which is why the pet picker in both report flows renders no photos.
 
-**Correction, found during execution.** The `pet-media manager read` policy below is written with an unqualified `name` inside `exists (select 1 from public.pets p …)`. Postgres binds that to `pets.name`, not the object path, so the policy can never match a row. It must be written `storage.foldername(storage.objects.name)`. The other six are unaffected — `guest-evidence` and `community-media` have no subquery, and `accommodation_requests` has no `name` column to collide. Step 5a adds the corrective migration.
+**Correction, found during execution.** The `pet-media manager read` policy below is written with an unqualified `name` inside `exists (select 1 from public.pets p …)`. Postgres binds that to `pets.name`, not the object path, so the policy can never match a row. It must be written `storage.foldername(storage.objects.name)` — the code block in Step 2 now shows the corrected form. The other six are unaffected: `guest-evidence` and `community-media` have no subquery, and `accommodation_requests` has no `name` column to collide. Because `20260821000001` had already been applied remotely when this was found, the fix landed as **Step 5a**, a separate migration, rather than an edit.
+
+**Second correction, found during review.** Two further problems, closed together in **Step 5b**:
+
+1. *The `::uuid` casts raise instead of denying.* `manages_building(((storage.foldername(name))[1])::uuid)` throws `22P02` on a non-UUID segment rather than evaluating false. `community-media uploader write` constrains only segment 2, so any authenticated user could upload one object under a non-UUID first segment and thereby break **every** read of that bucket, for every reader including admins. An availability failure, not a leak — and inert only while the bucket is empty.
+2. *`storage.objects` policy state is not reproducible from migrations.* `avatars public read` is declared in `20260601000001_functions_rls.sql:400` but does not exist live, and the four live `pet-media owner {read,insert,update,delete}` policies appear in no migration at all. A fresh `db reset` produces 10 policies rather than 13, and **pet photo read and upload for owners silently vanishes** — the same drift class this phase exists to close, with a wider blast radius than the four RPCs.
 
 - [ ] **Step 1: Write the failing assertion**
 
@@ -606,13 +613,15 @@ create policy "community-media uploader delete"
 -- pet-media: a manager of the building a pet lives in may read that pet's
 -- files. The existing owner policies are untouched; this only widens SELECT.
 -- Path convention is {ownerUid}/{petId}/..., so segment 2 is the pet.
+-- NOTE: `storage.objects.name` MUST be qualified here. An unqualified `name`
+-- inside the exists() binds to `pets.name` and the policy can never match.
 create policy "pet-media manager read"
   on storage.objects for select
   using (
     bucket_id = 'pet-media'
     and exists (
       select 1 from public.pets p
-      where p.id::text = (storage.foldername(name))[2]
+      where p.id::text = (storage.foldername(storage.objects.name))[2]
         and (public.manages_building(p.building_id) or public.is_admin())
     )
   );
@@ -643,6 +652,23 @@ rollback;
 ```
 
 Expected: `should_be_false = f`. A `t` here means the policy would admit the wrong reader — stop and report.
+
+- [ ] **Step 5a: Correct the `pet-media` binding (new migration, never an edit)**
+
+`20260821000001` has already been applied remotely, so the fix is a new file, `supabase/migrations/20260821000002_fix_pet_media_manager_read.sql`: `drop policy if exists "pet-media manager read" on storage.objects;` then recreate it identically but with `storage.foldername(storage.objects.name)`. Carry a comment saying why the qualification is load-bearing, including the `accommodation-docs` contrast, so nobody simplifies it back.
+
+Verify with three actors, not one: a manager of the pet's building must go from 0 to 2 visible objects; the owning uid must still see 2; and **a manager of a different building must still see 0**. Pick that last actor carefully — it must not be a super-admin, or `is_admin()` makes the control meaningless.
+
+- [ ] **Step 5b: Make the policy set fail closed and reproduce from migrations**
+
+`supabase/migrations/20260821000003_storage_policy_reconciliation.sql`:
+
+1. Recreate `guest-evidence manager read` and `community-media building read` so a malformed path segment evaluates **false** instead of raising `22P02` — guard the cast with a UUID shape test before casting.
+2. Tighten `community-media uploader write` so segment 1 must be a building the uploader is a resident or manager of, closing the vector that lets a bad path land in the first place.
+3. Capture the four out-of-band `pet-media owner {read,insert,update,delete}` policies so a reset reproduces them. Match the live definitions exactly — `pg_get_expr` on `pg_policy` is the source.
+4. `drop policy if exists "avatars public read"` — it is declared in `20260601000001_functions_rls.sql:400` but absent live, and `avatars.public = true` makes a SELECT policy redundant anyway. Dropping it in the new migration makes a fresh reset converge on the live state instead of diverging from it.
+
+Verify: total policies still 13, a non-UUID segment returns false rather than erroring, and the four owner policies' expressions match what they were before.
 
 - [ ] **Step 5: Commit**
 
