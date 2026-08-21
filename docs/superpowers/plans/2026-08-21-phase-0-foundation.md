@@ -868,7 +868,11 @@ One commit for all 17 files.
 3. The Task 2 assertion returns `reporter_is_subject = 0`, `pet_dropped = 0`, `submit_overloads = 1`.
 4. `storage.objects` carries 13 policies, and `pet-media manager read` actually returns rows for a manager of the pet's building.
 5. `docs/RBAC_CAPABILITIES.md` exists and one of its rows has been verified by impersonation.
-6. Every applied remote migration has a local file — the remote-only list from Task 5 Step 1 is empty, and `supabase_migrations.schema_migrations` still holds 61 rows (Task 5 applies nothing).
+6. Every applied remote migration has a local file **by name** — the remote-only list from Task 5 Step 1 is empty, and `supabase_migrations.schema_migrations` still holds 61 rows (Task 5 applies nothing).
+
+   **This is name-identity, not content-identity, and the difference is large.** Review hashed all 59 local files against the `statements` that actually ran: only **29 match byte-for-byte** — the 18 captures plus 11 pre-existing. **30 pre-existing files differ in content**, several substantially (`init_schema` 28078 B local vs 24750 B remote; `functions_rls` 23130 vs 20055; `ai_media_retention` 2532 vs 1046; `notification_kind_care` 454 vs 67; `public_building_search` 2190 vs 1112).
+
+   So "every applied migration has a local file" is true; "the local files say what ran" is true for half of them. A fresh reset would replay the *local* text, which for 30 files is not what production ran. Closing that gap is its own task and is deliberately **not** in Phase 0 — recorded here so this gate is never read as more than it is.
 7. Every function the app calls appears in `supabase/migrations/`. Check with:
 
 ```bash
