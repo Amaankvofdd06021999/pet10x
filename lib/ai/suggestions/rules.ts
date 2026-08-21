@@ -13,7 +13,7 @@ import type { SuggestionKind } from "../types"
  * owner can trust and one that invents a medication schedule.
  *
  * A rule that cannot be computed from the schema does not ship. `medication_due`
- * depends on pet_medications.next_due_at, added in 20260727000000 — rows still
+ * depends on pet_medications.next_due_at, added in 20260727172837 — rows still
  * carrying only the old free-text `next_due` are skipped rather than parsed.
  */
 

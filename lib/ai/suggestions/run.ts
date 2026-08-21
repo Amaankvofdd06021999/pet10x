@@ -128,7 +128,7 @@ export async function runSuggestions(supabase: Client, ownerId: string): Promise
   let notified = 0
   if (created.length > 0) {
     // Write-through so suggestions land in the existing Alerts screen. Needs
-    // the notifs_insert_own_assistant policy from 20260727000000 — without it
+    // the notifs_insert_own_assistant policy from 20260727182832 — without it
     // RLS denies this insert.
     const { data: notifs, error: notifErr } = await supabase
       .from("notifications")
