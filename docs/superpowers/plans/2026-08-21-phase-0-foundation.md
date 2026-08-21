@@ -806,6 +806,61 @@ prove its rows rather than assert them."
 
 ---
 
+## Task 5: Capture the remaining drifted migrations
+
+**Added during execution.** Task 2 captured four RPCs and Task 3 captured the storage policies, but review then showed the drift is phase-wide: the remote project has **61 applied migrations against 43 local files**, and **17 applied migrations have no local file at all** after Tasks 2 and 3. Among them are `my_app_user_rpc`, `guest_incident_intake`, `emergency_directory_rpc`, `care_tracking`, `harden_security` and `phaseB_onboarding_building_link`.
+
+This task exists because Phase 0's headline claim — *migrations are the source of truth* — is false without it. A fresh `db reset` today still produces a database with no `my_app_user()`, no guest incident intake, and no emergency directory.
+
+It is tractable because it is a **dump, not a reconstruction**: the exact SQL that ran is stored in `supabase_migrations.schema_migrations.statements`.
+
+**Files:**
+- Create: one `supabase/migrations/<version>_<name>.sql` per uncaptured remote migration (17 files)
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: nothing new at runtime. This task must change **zero** database behaviour — it only writes down what already ran.
+
+- [ ] **Step 1: Establish the gap**
+
+```sql
+select version, name from supabase_migrations.schema_migrations order by version;
+```
+
+Compare against `ls supabase/migrations/*.sql`. Note that local filenames and remote versions do not correspond — match on the **name** portion, not the timestamp. Record the list of remote-only names. Expect 17 after excluding `submit_incident_with_pet` and `pet_media_storage_policies`, which Tasks 2 and 3 already superseded.
+
+`pet_attributes` appears local-only; it is the same migration as remote `pet_attributes_size_restraint_diet` under a different name, not a missing apply. Leave it alone.
+
+- [ ] **Step 2: Dump each one verbatim**
+
+For each remote-only migration:
+
+```sql
+select statements from supabase_migrations.schema_migrations where name = '<name>';
+```
+
+`statements` is a text array of the individual statements as executed. Write each migration to `supabase/migrations/<remote_version>_<name>.sql`, using the **remote version** as the filename prefix so local and remote finally agree. Join the statements with `;\n\n`.
+
+Add a one-line header comment to each file recording that it was captured from the remote ledger and on what date, so nobody mistakes a captured file for hand-authored intent.
+
+**Do not edit the SQL.** Not to fix style, not to add `if not exists`, not to correct anything you believe is wrong. If you find something that looks like a bug, report it — do not fix it here. This task's correctness rests entirely on the files matching what actually ran.
+
+- [ ] **Step 3: Verify the capture**
+
+For each new file, confirm its text matches the `statements` it came from. Then:
+
+```sql
+select count(*) from supabase_migrations.schema_migrations;
+```
+
+Expect 61, unchanged — **this task applies nothing**. If that number moves, something was applied by mistake; stop and report.
+
+Confirm the remote-only list is now empty when re-run against the new filenames.
+
+- [ ] **Step 4: Commit**
+
+One commit for all 17 files.
+
 ## Phase 0 done when
 
 1. `pnpm test` passes.
@@ -813,7 +868,8 @@ prove its rows rather than assert them."
 3. The Task 2 assertion returns `reporter_is_subject = 0`, `pet_dropped = 0`, `submit_overloads = 1`.
 4. `storage.objects` carries 13 policies, and `pet-media manager read` actually returns rows for a manager of the pet's building.
 5. `docs/RBAC_CAPABILITIES.md` exists and one of its rows has been verified by impersonation.
-6. Every function the app calls appears in `supabase/migrations/`. Check with:
+6. Every applied remote migration has a local file — the remote-only list from Task 5 Step 1 is empty, and `supabase_migrations.schema_migrations` still holds 61 rows (Task 5 applies nothing).
+7. Every function the app calls appears in `supabase/migrations/`. Check with:
 
 ```bash
 for fn in submit_incident_report escalate_incident_to_violation \
