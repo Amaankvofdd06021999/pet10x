@@ -12,23 +12,43 @@ nothing implements it yet.
 "anon (code only)" is a guest holding a building code and no session at all.
 `signInGuest` sets client state; it creates no auth user.
 
-**A code is not inert.** It authorises intake, and it authorises exactly one
-read: the building's pet roster. `building_pets_for_report(p_code)` is
-`SECURITY DEFINER` with no gate beyond matching the code, and the guest
-reporter flow calls it (`lib/data/incidents.ts:376`) so a guest can point at
-the pet they are reporting instead of describing it. Measured as `anon` with no
-claims, `building_pets_for_report('MCR2026')` returned all 10 non-deleted pets
-in that building — id, name, species, breed and a photo path. What it withholds
-is the unit, the owner and any contact detail, and the same actor reading
-`public.pets` directly gets 0 rows. So RLS is intact and this is a deliberate,
-scoped hole punched through it, not a leak. Read every ❌ in the anon column
-below as "beyond that roster".
+**A code is not inert.** It authorises intake, and it authorises two reads —
+both through `SECURITY DEFINER` functions that anon may execute, neither gated
+on anything but the code matching.
 
-One observation, not a defect: the `photo` value is a raw storage path, and
-`pet-media` paths are `{ownerUid}/{petId}/…`, so a guest holding a lobby code
-can also derive owner auth uids. Phase 2 plans to stop returning raw paths to
-the client in favour of server-signed URLs, which closes this as a side effect.
-Nothing should change ahead of that.
+`resolve_building_code(p_code)` returns the building's `id` and `name`. Neither
+was supplied by the caller: a code alone turns into an internal uuid and a
+building's name.
+
+`building_pets_for_report(p_code)` returns the building's pet roster. The guest
+reporter flow calls it (`lib/data/incidents.ts:376`) so a guest can point at the
+pet they are reporting instead of describing it. Measured as `anon` with no
+claims, `building_pets_for_report('MCR2026')` returned all 10 non-deleted pets
+in that building, each with id, name, species and breed. Nine of the ten
+carried `photo: null`; one carried a real `pet-media` path. What it withholds is
+the unit, the owner and any contact detail.
+
+The same anon actor reading `public.pets` or `public.buildings` directly gets 0
+rows either way, so RLS is intact — these are two deliberate, scoped holes
+punched through it, not a leak. Read every ❌ in the anon column below as
+"beyond those two".
+
+One observation, not a defect. Where a `photo` path *is* returned it is raw, and
+`pet-media` paths are `{ownerUid}/{petId}/…` — the convention is set client-side
+at `lib/supabase/storage.ts:36`, straight from `auth.uid()`. So a guest holding
+a lobby code can derive that owner's auth uid. On today's data that is one pet
+of ten; it scales with how many pets have photos.
+
+**Signing does not close this.** A Supabase signed URL carries the object path
+verbatim — `/storage/v1/object/sign/{bucket}/{path}?token=…` — and the client
+already mints them from the raw path (`lib/supabase/storage.ts:49-58`). Phase 2's
+AD-3 specifies a route that "calls the existing `building_pets_for_report` RPC
+and signs the returned paths", so afterwards the guest still receives
+`{ownerUid}/{petId}/…`, just wrapped. Signing relocates *who mints* the URL, not
+*what the path reveals*. Actually closing it needs a different mechanism —
+not deriving the path from `auth.uid()` in the first place, or proxying the
+bytes so no path reaches the client. That is an open question for whoever owns
+Phase 2, not something this document settles.
 
 | Capability | anon (code only) | resident | manager of building | super-admin | Enforced by |
 | --- | --- | --- | --- | --- | --- |
@@ -48,23 +68,21 @@ Nothing should change ahead of that.
 | Write or publish a building rule | ❌ | ❌ | ✅ | ✅ | `publish_building_rule` *(Phase 6)* |
 | Read a building rule | ❌ | ✅ published, own building | ✅ all, own buildings | ✅ | `building_rules` select *(Phase 6)* |
 | Post, RSVP, report lost & found | ❌ | ✅ ¹ | ✅ ¹ | ✅ ¹ | `posts_insert`, `rsvps_self`, `lost_found_insert`, `events_write`, and `posts_select` / `lost_found_select` / `events_select` |
-| Upload and read community media | ❌ | ✅ own buildings | ✅ own buildings | ✅ | `community-media building read`, `community-media uploader write`, `community-media uploader delete` |
+| Upload and read community media | ❌ | ✅ own buildings | ✅ own buildings | ✅ read only ³ | `community-media building read`, `community-media uploader write`, `community-media uploader delete` |
 | Read another resident's pet photo | ❌ | ❌ | ✅ own buildings | ✅ | `pet-media manager read`, as recreated in `20260821000002_fix_pet_media_manager_read.sql` |
 
 Rows marked *(Phase N)* are specified but not yet built. The phase that builds
 one removes its marker and adds its verification.
 
-¹ The community row is the one place where no two ticks mean the same thing.
+¹ On this row no two ticks mean the same thing.
 `posts_insert` is `author_id = auth.uid() AND is_resident_of(building_id) AND
 is_premium(auth.uid())` — there is no `manages_building` disjunct and **no
 `is_admin()` disjunct either**, and `community_posts` carries no admin-all
 policy. So a manager who is not also a resident cannot post to their own
 building's feed, a resident without an entitlement cannot post at all, and a
 super-admin cannot post anywhere: verified by impersonating a real super-admin
-(`is_admin() = true`) and getting `42501` on the insert. This is the only
-capability in the matrix with no admin escape hatch, which is worth saying out
-loud — every other ❌→✅ in the super-admin column is `is_admin()` doing the
-work, and here there is nothing to do it. `events_write` does accept
+(`is_admin() = true`) and getting `42501` on the insert. It is not alone in
+that — see *Where the admin grant stops* below. `events_write` does accept
 `manages_building` and `is_admin`. `lost_found_insert` tests only
 `reporter_id = auth.uid()`, with no building test at all on write — the
 scoping for lost & found lives entirely in `lost_found_select`. RSVPs are one
@@ -80,6 +98,41 @@ Maple Court Residences moved all 5 of that building's violations from
 `UPDATE`, with no degree-ordering check and no `violation_events` row written.
 Phase 4 must close or supersede that write path, not just add the RPC beside
 it.
+
+³ Only the read half of that row carries `OR is_admin()`.
+`community-media building read` has it; `community-media uploader write` and
+`community-media uploader delete` do not. Verified: a super-admin who is
+neither resident nor manager of the building read a planted object fine, and
+got `42501` inserting one under the same building. Again, see below.
+
+## Where the admin grant stops
+
+`is_admin()` is a disjunct in most policies behind this matrix, but not all,
+and the exceptions cluster in one place: **writes scoped to the actor
+themselves**. Verified by impersonating a real super-admin, asserting
+`is_admin() = true` in the same transaction, and attempting the write:
+
+| Policy | The super-admin attempted | Result |
+| --- | --- | --- |
+| `posts_insert` | post to a building they neither live in nor manage | `42501` |
+| `community-media uploader write` | upload under that building | `42501` |
+| `accom_resident_insert` | file a request on another resident's behalf | `42501` |
+
+Three others carry no `is_admin()` disjunct in their text but were not probed
+behaviourally, so treat those as policy-text facts only:
+`community-media uploader delete`, `rsvps_self` and `lost_found_insert`. The
+last two are plain `… = auth.uid()`, which an admin acting *as themselves*
+satisfies — a different situation from the three above, which an admin cannot
+satisfy at all.
+
+`buildings_manager_update` also lacks the disjunct but is **not** an exception:
+`buildings_admin_all` (`FOR ALL`, `is_admin()`) sits beside it, and permissive
+policies OR together. Absence of `is_admin()` in one policy proves nothing on
+its own — check the table's other policies for the same command before
+concluding anything.
+
+This list covers only the policies named in the matrix above. It is not a
+survey of the schema.
 
 ## What the storage rows depend on
 
@@ -150,12 +203,13 @@ old raising convention against one on the new structured one. New RPCs should
 return structured, and Phase 4 onward should convert the two as it touches
 them; the guards stay as they are.
 
-**Four functions are deliberately open to a guest** — `resolve_building_code`,
-`submit_incident_report`, `incident_status_by_reference` and
-`building_pets_for_report`. The first three return only what the caller already
-supplied a code or a reference for. The fourth is the exception described at
-the top of this document: it does return a listing, of one building's pets,
-because the guest reporter flow needs it.
+**Four functions are deliberately open to a guest** — `submit_incident_report`,
+`incident_status_by_reference`, `resolve_building_code` and
+`building_pets_for_report`. The first two are intake and lookup: they return
+only the status of the thing the caller already supplied a code or a reference
+for. The other two return data the caller did not supply — a building id and
+name, and a building's pet roster — and are described at the top of this
+document.
 
 ## How to verify a row
 
@@ -180,8 +234,15 @@ made-up uuid — a policy that fails open on a nonexistent row still fails open.
 **The control actor must not be a super-admin.** `is_admin()` is a disjunct in
 almost every policy here, so an admin control proves nothing. Assert
 `public.is_admin()` is `false` in the same transaction rather than assuming it.
-The one policy where an admin control *would* have been meaningful is
-`posts_insert`, which has no `is_admin()` disjunct at all — see ¹.
+Where an admin control *is* meaningful is the self-scoped writes — see *Where
+the admin grant stops*.
+
+**`storage.objects` DELETE cannot be probed from SQL.** A trigger,
+`storage.protect_delete()`, refuses direct deletion from storage tables
+regardless of policy (`Direct deletion from storage tables is not allowed`). So
+a delete policy such as `community-media uploader delete` can be read from
+`pg_policy` but not exercised this way; it needs the Storage API. Do not report
+a delete row as verified on the strength of the policy text alone.
 
 **A row about an empty bucket is still verifiable.** Plant the object inside
 the transaction before switching role, then roll back:
@@ -206,9 +267,10 @@ and the malformed one should be *invisible rather than fatal*.
 ## Verified
 
 Impersonated in SQL against production, both directions, every control actor
-confirmed `is_admin() = false` — with one deliberate exception, the
-`posts_insert` probe below, where the whole point was to use a real
-super-admin. Planted rows and objects were rolled back; nothing was written.
+confirmed `is_admin() = false` — except the *Where the admin grant stops*
+probes, where using a real super-admin was the whole point and
+`is_admin() = true` was asserted instead. Planted rows and objects were rolled
+back; nothing was written.
 
 **Read own violations and fines** — `violations_select`, `fines_select`.
 13 violations and 4 fines exist in total.
@@ -252,20 +314,32 @@ exist; two belong to a pet registered to Maple Court Residences.
 | Same resident, path `not-a-building/{ownUid}/…` | insert rejected, `42501` |
 | Resident of The Wellington (control) | 0 objects visible |
 
-**What a building code alone grants** — `building_pets_for_report`.
-`set local role anon`, no claims:
+**What a building code alone grants.** `set local role anon`, no claims:
 
 | Probe | Result |
 | --- | --- |
-| `building_pets_for_report('MCR2026')` | `valid: true`, 10 pets — every non-deleted pet in the building, with id, name, species, breed and one raw `pet-media` path |
-| `select count(*) from public.pets` (same actor) | 0 — RLS itself is intact; the roster comes only through the function |
+| `resolve_building_code('MCR2026')` | `valid: true`, plus the building's `id` and `name` — neither supplied by the caller |
+| `building_pets_for_report('MCR2026')` | `valid: true`, 10 pets — every non-deleted pet in the building, each with id, name, species and breed. 9 had `photo: null`; 1 carried a raw `pet-media` path, and that path's first segment is its owner's auth uid |
+| `select count(*) from public.pets` (same actor) | 0 |
+| `select count(*) from public.buildings` (same actor) | 0 |
 
-**Nobody may post, not even an admin** — `posts_insert`. Impersonating
-`admin.pet10x@gmail.com`, asserted `is_admin() = true` in the same transaction:
-`insert into public.community_posts (building_id, author_id, content)` →
-`ERROR 42501 new row violates row-level security policy`. The same actor's
-`is_resident_of` and `is_premium` were both false, which is the whole reason —
-`posts_insert` offers no third way in.
+The two zeroes are the point: RLS is intact, and both reads arrive strictly
+through the two `SECURITY DEFINER` functions.
+
+**Where the admin grant stops.** Impersonating `admin.pet10x@gmail.com`,
+`is_admin() = true` asserted in the same transaction, and neither resident nor
+manager of the target building:
+
+| Attempt | Result |
+| --- | --- |
+| `insert into public.community_posts` | `42501` |
+| `insert into storage.objects` at `{thatBuilding}/{ownUid}/flyer.jpg` in `community-media` | `42501` |
+| `insert into public.accommodation_requests` for another resident | `42501` |
+| `select` a planted `community-media` object | 1 row — the read half does carry `is_admin()` |
+
+The `community-media` insert is the clean comparison: a *resident* of that
+building inserting the identical path shape under their own uid was admitted
+(row above), so the refusal is the policy and not the statement.
 
 **A manager can already advance a violation** — `violations_manager_write`.
 Non-admin manager of Maple Court Residences (`is_admin() = false`), one
