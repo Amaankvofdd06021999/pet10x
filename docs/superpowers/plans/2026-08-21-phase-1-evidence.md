@@ -332,7 +332,9 @@ export async function uploadEvidence(
   const paths: string[] = []
   for (let i = 0; i < files.length; i++) {
     const { path, token } = json.uploads[i]
-    const { error } = await supabase.storage.from("guest-evidence").uploadToSignedUrl(path, token, files[i])
+    const { error } = await supabase.storage
+      .from("guest-evidence")
+      .uploadToSignedUrl(path, token, files[i], { contentType: files[i].type })
     // One failure must not lose the others, nor the written report.
     if (!error) paths.push(path)
   }
