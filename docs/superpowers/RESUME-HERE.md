@@ -51,6 +51,14 @@ code isn't recognised"; a signing failure returned HTTP 200 with every
 other malformed input got a 400. **It has not been reviewed** — a scoped
 re-review of `3866370..d742157` is the first thing to dispatch on resuming.
 
+**Its fix report is missing or truncated.** The agent died to an API error
+(machine slept) *after* committing but while appending the report. The code is
+complete and verified — all three fixes are present (`sign/route.ts:68-75` and
+`:59`, `pets/route.ts:38`), and `pnpm test` and `pnpm build` were both run
+green against that exact commit. Only the written report was lost. Dispatch the
+re-review against the **diff**, and tell it the report is unavailable rather
+than letting it conclude the evidence is missing because the work was sloppy.
+
 ## What to do next
 
 1. Dispatch the scoped re-review of Task 2's fix round (`3866370..d742157`).
