@@ -16,6 +16,15 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin"
  * filing the report itself.
  */
 const MAX_FILES = 5
+// MAX_BYTES and ALLOWED are the reporter-facing half of a rule the bucket is
+// the real enforcement point for. A signed upload token binds path, upsert,
+// scope and expiry — never Content-Type, never length — so a caller declaring
+// `image/jpeg` at 1 KB can still PUT arbitrary bytes to the URL handed back
+// here. What actually stops that is `guest-evidence`'s own file_size_limit and
+// allowed_mime_types, set in 20260822000001_evidence_path_hardening.sql. These
+// two constants exist to fail early with a sentence a person can act on. They
+// must be changed together with the bucket: drift either way and the browser
+// accepts a photo that storage then rejects, or refuses one it would have kept.
 const MAX_BYTES = 15 * 1024 * 1024
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -44,7 +53,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: `Between 1 and ${MAX_FILES} files.` }, { status: 400 })
   }
   for (const f of body.files) {
-    if (!f.type || !ALLOWED.has(f.type)) {
+    // `f` is typed as an object but arrives as whatever JSON was posted. A null
+    // member would throw on the property read and answer with a 500, where
+    // every other malformed body here gets a 400.
+    if (!f || !f.type || !ALLOWED.has(f.type)) {
       return NextResponse.json({ ok: false, error: "Photos only (JPEG, PNG, WebP or HEIC)." }, { status: 400 })
     }
     if (typeof f.size !== "number" || f.size <= 0 || f.size > MAX_BYTES) {
@@ -53,7 +65,15 @@ export async function POST(request: Request) {
   }
 
   // The code is the authorisation. Resolve it the same way intake does.
-  const { data: resolved } = await admin.rpc("resolve_building_code", { p_code: body.buildingCode })
+  const { data: resolved, error: resolveError } = await admin.rpc("resolve_building_code", {
+    p_code: body.buildingCode,
+  })
+  // "We couldn't check" is not "that code is wrong". Swallowing this error
+  // would answer a transient outage with a permanent, actionable and false
+  // instruction — go and find a different code — when the code was fine.
+  if (resolveError) {
+    return NextResponse.json({ ok: false, error: "Couldn't check that building code." }, { status: 502 })
+  }
   const r = resolved as unknown as { valid?: boolean; building_id?: string } | null
   if (!r?.valid || !r.building_id) {
     return NextResponse.json({ ok: false, error: "That building code isn't recognised." }, { status: 404 })

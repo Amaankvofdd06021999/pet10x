@@ -35,8 +35,29 @@ export async function GET(request: Request) {
   const paths = pets.map((p) => p.photo).filter((p): p is string => !!p && !p.startsWith("/") && !p.startsWith("http"))
   const signed: Record<string, string> = {}
   if (paths.length > 0) {
-    const { data: urls } = await admin.storage.from("pet-media").createSignedUrls(paths, 3600)
+    const { data: urls, error: signError } = await admin.storage.from("pet-media").createSignedUrls(paths, 3600)
     for (const u of urls ?? []) if (u.signedUrl && u.path) signed[u.path] = u.signedUrl
+
+    // Signing is the only thing this route adds to the RPC, so a signing
+    // failure that still answers 200 is the original bug wearing a hat: every
+    // photoUrl null reads to the caller exactly like a building whose pets
+    // have no photos. Fail instead, the same way the RPC's own error is
+    // handled above — one half of a file reporting failures while the other
+    // half hides them is how this kind of silence survives review.
+    //
+    // Both conditions are load-bearing, and that was measured rather than
+    // assumed: createSignedUrls does NOT surface a wholesale failure at the
+    // top level. A missing or unreachable bucket comes back as `error: null`
+    // with a per-entry error on every path, so keying off `signError` alone
+    // would miss precisely the outage this guard is for.
+    //
+    // Partial failure is deliberately not an error. One stale path should not
+    // cost the reporter the other nine pets, so those still degrade to null.
+    // Reaching here at all means there was at least one photo to sign; a
+    // building whose pets simply have none never enters this branch.
+    if (signError || Object.keys(signed).length === 0) {
+      return NextResponse.json({ ok: false, error: "Couldn't load pet photos." }, { status: 502 })
+    }
   }
 
   return NextResponse.json({
