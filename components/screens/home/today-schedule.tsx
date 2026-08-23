@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import Image from "next/image"
-import { Cat, Check, Clock, Dog, Loader2, PawPrint } from "lucide-react"
+import { Check, Clock, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { PetAvatar } from "@/components/screens/home/pet-avatar"
 import {
   useHouseholdCareTasks,
   setCareTaskDone,
@@ -41,6 +41,12 @@ import {
 /** Groups shown before the strip starts counting instead of listing. */
 const MAX_GROUPS = 4
 
+/* The rule that separates the household schedule from one pet's goals lives
+   HERE and not in the card, because only this component knows whether there is
+   a schedule at all. Rendered by the card, it would draw a hairline under
+   nothing on any day a household has no tasks — and on every empty account. */
+const SHELL = "mt-3 border-b border-border pb-4"
+
 export function TodayScheduleStrip({ pets }: { pets: Pet[] }) {
   const { data: tasks, isLoading, refetch } = useHouseholdCareTasks(pets.map((p) => p.id))
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -72,11 +78,13 @@ export function TodayScheduleStrip({ pets }: { pets: Pet[] }) {
     // Counts the household, but does not list it: naming three pets here is
     // the one place a wall of names buys nothing.
     return (
-      <div className="mt-3 flex items-center gap-2 rounded-xl bg-success/10 px-3 py-2.5">
-        <Check className="h-4 w-4 flex-shrink-0 text-success" strokeWidth={3} />
-        <span className="text-[12px] font-semibold text-success">
-          {`All ${todays.length} scheduled ${todays.length === 1 ? "task" : "tasks"} done today`}
-        </span>
+      <div className={SHELL}>
+        <div className="flex items-center gap-2 rounded-xl bg-success/10 px-3 py-2.5">
+          <Check className="h-4 w-4 flex-shrink-0 text-success" strokeWidth={3} />
+          <span className="text-[12px] font-semibold text-success">
+            {`All ${todays.length} scheduled ${todays.length === 1 ? "task" : "tasks"} done today`}
+          </span>
+        </div>
       </div>
     )
   }
@@ -112,7 +120,7 @@ export function TodayScheduleStrip({ pets }: { pets: Pet[] }) {
   }
 
   return (
-    <div className="mt-3 flex flex-col gap-1.5">
+    <div className={`${SHELL} flex flex-col gap-1.5`}>
       {shown.map((group) => (
         <div
           key={group.key}
@@ -161,7 +169,7 @@ function SingleRow({
   return (
     <div className="flex items-center gap-2.5 px-3 py-2">
       {pet ? (
-        <Avatar pet={pet} />
+        <PetAvatar pet={pet} />
       ) : (
         <Clock className={`h-3.5 w-3.5 flex-shrink-0 ${overdue ? "text-destructive" : "text-muted-foreground"}`} />
       )}
@@ -220,7 +228,7 @@ function GroupRows({
         const pet = byId.get(task.petId)
         return (
           <div key={task.id} className="flex items-center gap-2.5 py-1 pl-8 pr-3 last:pb-2">
-            {pet && <Avatar pet={pet} />}
+            {pet && <PetAvatar pet={pet} />}
             <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-foreground">
               {pet?.name ?? task.label}
             </span>
@@ -229,30 +237,5 @@ function GroupRows({
         )
       })}
     </>
-  )
-}
-
-/**
- * The pet's photo, or its species.
- *
- * `pet.image` comes from `usePets()`, whose storage paths have already been
- * signed and cached. Selecting `pets.image_url` in the task query instead
- * would hand this an unsigned storage path and every avatar would 404.
- * "/placeholder.svg" is what an unphotographed pet gets, and a generic paw is
- * more identifying at 20px than a generic outline of a dog photo.
- */
-function Avatar({ pet }: { pet: Pet }) {
-  if (pet.image && pet.image !== "/placeholder.svg") {
-    return (
-      <span className="relative h-5 w-5 flex-shrink-0 overflow-hidden rounded-full bg-muted">
-        <Image src={pet.image} alt="" fill sizes="20px" className="object-cover" />
-      </span>
-    )
-  }
-  const Icon = pet.species === "dog" ? Dog : pet.species === "cat" ? Cat : PawPrint
-  return (
-    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
-      <Icon className="h-3 w-3 text-primary" />
-    </span>
   )
 }

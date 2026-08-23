@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { usePets, useHomeAlerts, useMyBuildingLink, useUnreadNotificationCount } from "@/lib/data"
+import { usePets, useHomeAlerts, useMyBuildingLink, useUnreadNotificationCount, useSelectedPet } from "@/lib/data"
 import { useAiSuggestions } from "@/lib/ai/client"
 import { SuggestionCard } from "@/components/ai/suggestion-card"
 import { TodayCareTiles } from "@/components/screens/home/today-care-tiles"
 import { TodayScheduleStrip } from "@/components/screens/home/today-schedule"
+import { PetChips } from "@/components/screens/home/pet-chips"
 import { MissingInfoCard } from "@/components/screens/home/missing-info-card"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
@@ -85,7 +86,11 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const unreadCount = useUnreadNotificationCount()
   const suggestions = useAiSuggestions()
   const { greeting, icon: GreetingIcon } = getGreeting()
-  const primaryPet = pets[0]
+  /* Which pet the GOALS are about — chosen, remembered, and shared with the
+     Trackers screen. Never the first pet in the list: that was simply the
+     oldest animal, and in
+     71% of households it silently spoke for the others. */
+  const { pet: selectedPet, select: selectPet } = useSelectedPet()
   const singlePet = pets.length === 1
 
   // Re-evaluate the rules once the owner's pets are known. The runner is
@@ -186,7 +191,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               </span>
             ) : (
               <p className="ml-7 text-[14px] text-muted-foreground">
-                {primaryPet ? `${primaryPet.name} is lucky to have you.` : "Welcome to your pet family."}
+                {selectedPet ? `${selectedPet.name} is lucky to have you.` : "Welcome to your pet family."}
               </p>
             )}
           </div>
@@ -325,18 +330,19 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                     <Utensils className="h-4 w-4 flex-shrink-0 text-primary" />
                   </div>
                   <p className="truncate text-[12px] text-muted-foreground">
-                    {/* `{" "}` and not a plain space. The source DID have a
-                        space here and the browser did not: SWC trims the
-                        leading whitespace of a JSXText node that runs on to a
-                        following line, so the DOM held three text nodes —
-                        "Log ", "Mochi's", "activities & meals" — and every
-                        resident's Home screen read "Log Mochi'sactivities &
-                        meals". `truncate` hid it from nobody; it was in plain
-                        sight. This is the FIFTH time in this phase sequence a
-                        space has been eaten after a JSX expression, and the
-                        first four were all caught by looking at the page. */}
-                    Log {primaryPet?.name ? `${primaryPet.name}'s` : "your pet's"}{" "}
-                    activities &amp; meals
+                    {/* Household-level now, because it sits above a block that
+                        is not about one pet. Built as a single expression and
+                        not as JSX text: SWC trims the whitespace either side of
+                        an expression even when the source has it, and this
+                        exact line once read "Log Mochi'sactivities & meals" on
+                        every resident's home screen — the fifth time in this
+                        phase sequence a space was eaten, and the fifth caught
+                        by looking at the page rather than by any gate. */}
+                    {singlePet && selectedPet
+                      ? `Log ${selectedPet.name}'s activities & meals`
+                      : pets.length > 1
+                        ? "Everyone's schedule, and one pet's goals"
+                        : "Log your pet's activities & meals"}
                   </p>
                 </div>
               </div>
@@ -353,11 +359,24 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 infer that split; showing it puts the risk first. */}
             <TodayScheduleStrip pets={pets} />
 
-            <div className="my-4 border-t border-border" />
+            {/* Goals belong to a pet you chose. With one pet the heading says
+                whose and there are no chips — a picker with one option is
+                noise, and 8 of 28 households have exactly one pet. */}
+            <div className="mb-3 mt-4 flex items-center justify-between gap-3">
+              <h4 className="flex-shrink-0 text-[13px] font-semibold text-foreground">
+                {singlePet && selectedPet ? `${selectedPet.name}'s goals` : "Goals"}
+              </h4>
+              <PetChips
+                className="min-w-0"
+                pets={pets}
+                selectedId={selectedPet?.id}
+                onSelect={selectPet}
+              />
+            </div>
 
             <TodayCareTiles
-              petId={primaryPet?.id}
-              species={primaryPet?.species}
+              petId={selectedPet?.id}
+              species={selectedPet?.species}
               onOpen={(kind) => onNavigate?.("pet-care", kind)}
             />
           </div>

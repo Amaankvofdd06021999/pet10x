@@ -269,6 +269,16 @@ async function loadPetsInto(): Promise<void> {
     .eq("owner_id", user.id)
     .is("deleted_at", null)
     .order("created_at", { ascending: true })
+    /* Tie-break, because created_at is NOT unique.
+     *
+     * A household registered in one sitting — or seeded in one statement, as
+     * every demo household is — gets identical created_at values, and Postgres
+     * is then free to return them in any order it likes, differing between
+     * queries. That made `pets[0]` genuinely non-deterministic: Home could show
+     * a different pet's care on two consecutive loads with nothing changed.
+     * It also matters now that this order decides which pet a schedule group
+     * lists first and which pet a lost selection falls back to. */
+    .order("id", { ascending: true })
   if (error) {
     petsError = error.message
     petsCache = []
