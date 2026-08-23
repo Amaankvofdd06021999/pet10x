@@ -11,10 +11,10 @@ describe("resolveActionTarget", () => {
   })
 
   it("returns null for a screen the router does not render", () => {
-    // The three targets planned phases will write before their screens exist.
-    // Each must produce NO button until the screen is registered here.
-    expect(resolveActionTarget("my-cases", "resident")).toBeNull()
-    expect(resolveActionTarget("my-cases:35000000-0000-0000-0000-000000000004", "resident")).toBeNull()
+    // The targets planned phases will write before their screens exist. Each
+    // must produce NO button until the screen is registered here. `my-cases`
+    // WAS on this list and came off it in Phase 5, when the screen landed —
+    // see the routing test below.
     expect(resolveActionTarget("building-rules", "resident")).toBeNull()
     expect(resolveActionTarget("accommodations", "resident")).toBeNull()
   })
@@ -41,6 +41,20 @@ describe("resolveActionTarget", () => {
     })
     // ...and the seventh shape, which must produce NO button. See below.
     expect(resolveActionTarget("pet-detail", "resident")).toBeNull()
+  })
+
+  it("routes my-cases, which Phase 5 built and three RPCs now write", () => {
+    /* `manager_advance_violation`, `manager_remind_fine` and
+       `manager_resolve_dispute` all write `my-cases:<violation id>`. All three
+       address the RESIDENT, so the manager surface must get no button. */
+    expect(resolveActionTarget("my-cases:35000000-0000-4000-8000-000000000002", "resident")).toEqual({
+      screen: "my-cases",
+      id: "35000000-0000-4000-8000-000000000002",
+    })
+    expect(resolveActionTarget("my-cases:35000000-0000-4000-8000-000000000002", "manager")).toBeNull()
+    // Bare, it still routes: the screen lists every case, and the id only
+    // chooses which one opens expanded. It is ID_BEARING, not ID_REQUIRED.
+    expect(resolveActionTarget("my-cases", "resident")).toEqual({ screen: "my-cases" })
   })
 
   it("returns null for a screen whose whole subject is an id it was not given", () => {

@@ -23,6 +23,7 @@ import {
   Trash2,
   Loader2,
   Camera,
+  Scale,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
@@ -101,6 +102,7 @@ const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
     title: "Building",
     items: [
       { icon: Building2, label: "Building Rules", unbuilt: true },
+      { icon: Scale, label: "Violations & Fines" },
       { icon: FileText, label: "Accommodation Requests", unbuilt: true },
       { icon: Heart, label: "Favorite Services" },
     ],
@@ -191,6 +193,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const handleItem = (label: string) => {
     if (label.includes("Pet Profiles")) onNavigate?.("home")
     else if (label.includes("Documents")) onNavigate?.("pet-detail")
+    else if (label.includes("Violations")) onNavigate?.("my-cases")
     else if (label.includes("Favorite Services")) onNavigate?.("services")
   }
 

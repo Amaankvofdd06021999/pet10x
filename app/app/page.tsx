@@ -12,6 +12,7 @@ import { CommunityScreen } from "@/components/screens/community-screen"
 import { ServicesScreen } from "@/components/screens/services-screen"
 import { AlertsScreen } from "@/components/screens/alerts-screen"
 import { ProfileScreen } from "@/components/screens/profile-screen"
+import { MyCasesScreen } from "@/components/screens/resident/my-cases-screen"
 import { PetDetailScreen } from "@/components/screens/pet-detail-screen"
 import { AddPetScreen } from "@/components/screens/add-pet-screen"
 import { PetCareScreen } from "@/components/screens/pet-care-screen"
@@ -73,6 +74,8 @@ const CONTENT_MAX: Record<ScreenKey, string> = {
   services: "max-w-5xl",
   alerts: "max-w-2xl",
   profile: "max-w-2xl",
+  // A resident reads one case at a time, and the ledger inside it is prose.
+  "my-cases": "max-w-2xl",
   "pet-detail": "max-w-3xl",
   "add-pet": "max-w-2xl",
   "pet-care": "max-w-2xl",
@@ -110,6 +113,13 @@ function AppContent() {
   const [careKind, setCareKind] = useState<string | undefined>(undefined)
   // Which PET to open the tracker on, when arriving from a schedule row.
   const [carePetId, setCarePetId] = useState<string | undefined>(undefined)
+  /* Which bylaw case to open expanded, when arriving from a
+   * `my-cases:<violation id>` notification. Its OWN state rather than
+   * `selectedPetId`: `handleNavigate` stashes every unrecognised id into that
+   * one, so a case id would have silently become the selected pet for whatever
+   * screen opened next — the exact hazard `lib/navigation.ts`'s ID_BEARING
+   * note records against `add-pet`. */
+  const [selectedCaseId, setSelectedCaseId] = useState<string | undefined>(undefined)
 
   // Reset tabs when user/role changes (e.g. after sign-in)
   useEffect(() => {
@@ -180,6 +190,8 @@ function AppContent() {
       setCareKind(id)
       setCarePetId(petId)
     }
+    // A violation id, not a pet id.
+    else if (screen === "my-cases") setSelectedCaseId(id)
     else if (id !== undefined) setSelectedPetId(id)
     // Entering the assistant from the FAB or the sidebar carries no pet, and a
     // pet left over from an earlier screen would silently scope the answer.
@@ -252,6 +264,11 @@ function AppContent() {
               {currentScreen === "services" && <ServicesScreen onNavigate={handleNavigate} />}
               {currentScreen === "alerts" && <AlertsScreen onNavigate={handleNavigate} onBack={handleBack} />}
               {currentScreen === "profile" && <ProfileScreen onNavigate={handleNavigate} />}
+              {/* A resident surface: it shows the case from its subject's side,
+                  so it does not go in the manager block above. */}
+              {currentScreen === "my-cases" && (
+                <MyCasesScreen onBack={handleBack} focusCaseId={selectedCaseId} />
+              )}
             </>
           )}
         </div>

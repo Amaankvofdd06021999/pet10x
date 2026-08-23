@@ -20,13 +20,17 @@
  *
  * WHY IT IS A LIST AND NOT A HARDCODED SWITCH
  *
- * Three planned phases write targets for screens that do not exist yet:
- * Phase 5 retargets `manager_advance_violation` and `manager_remind_fine` at
- * `my-cases:<violation-id>`, Phase 6's rule-publish notification sets
- * `building-rules`, and Phase 7's accommodation decisions set
- * `accommodations`. None of those three should have to come back and edit
- * `alerts-screen.tsx` — and none of them should ship a dead button in the
- * window before their screen lands.
+ * Planned phases write targets for screens that do not exist yet: Phase 6's
+ * rule-publish notification sets `building-rules`, and Phase 7's accommodation
+ * decisions set `accommodations`. Neither should have to come back and edit
+ * `alerts-screen.tsx` — and neither should ship a dead button in the window
+ * before its screen lands.
+ *
+ * That is exactly how Phase 5 went. It was on this list too, as an unrendered
+ * `my-cases` target; its screen landed, `my-cases` was registered below, and
+ * `manager_advance_violation`, `manager_remind_fine` and
+ * `manager_resolve_dispute` now all write `my-cases:<violation id>` to a
+ * button that really navigates. `alerts-screen.tsx` was not touched.
  *
  * Both properties fall out of this list. An unregistered target resolves to
  * `null` (no button, today), and registering a screen here is a step each of
@@ -70,6 +74,13 @@ export const SCREEN_SURFACES = {
   community: RESIDENT,
   services: RESIDENT,
   profile: RESIDENT,
+  /* The resident's own bylaw cases. RESIDENT and not BOTH: a manager reads the
+   * same cases on their Violations screen, from the other side, and routing
+   * them here would show them the subject's view of their own enforcement
+   * action. `manager_advance_violation`, `manager_remind_fine` and
+   * `manager_resolve_dispute` all write `my-cases:<violation id>`, and all
+   * three address the RESIDENT. */
+  "my-cases": RESIDENT,
 
   // Manager block.
   dashboard: MANAGER,
@@ -98,7 +109,17 @@ export type ScreenKey = keyof typeof SCREEN_SURFACES
  * exact hazard the list exists to prevent. No writer emits that target today;
  * removed so none can.
  */
-const ID_BEARING: readonly ScreenKey[] = ["pet-detail", "pet-care", "ai-chat", "business-detail"]
+const ID_BEARING: readonly ScreenKey[] = [
+  "pet-detail",
+  "pet-care",
+  "ai-chat",
+  "business-detail",
+  /* `my-cases:<violation id>` opens the list with that case expanded.
+   * `handleNavigate` stashes it in `selectedCaseId`, NOT in `selectedPetId` —
+   * adding a screen here without giving `handleNavigate` a branch for it is the
+   * exact hazard the `add-pet` note below records. */
+  "my-cases",
+]
 
 /**
  * Screens that REQUIRE an id — the ones whose whole subject is the id, which
@@ -132,6 +153,10 @@ const ID_BEARING: readonly ScreenKey[] = ["pet-detail", "pet-care", "ai-chat", "
  *     `selectedPetId` for it, so the assistant opens unscoped rather than
  *     inheriting a pet from the previous screen.
  */
+/* `my-cases` is deliberately NOT here. With no id the screen lists every case
+ * against the resident, which is a correct and useful answer — the id only
+ * chooses which one opens expanded. Requiring one would delete the button from
+ * any notification written before this phase. */
 const ID_REQUIRED: readonly ScreenKey[] = ["pet-detail", "business-detail"]
 
 export interface ActionRoute {
