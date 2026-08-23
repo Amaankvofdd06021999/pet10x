@@ -32,10 +32,14 @@
 --
 -- `create policy` has no `or replace` form in PostgreSQL 17, and that file's
 -- three policy statements have no `if exists`, so re-running it fails at its
--- first line. Its trigger statement is the only re-runnable one. Re-issuing all
--- three here in drop-if-exists form makes the pair idempotent without editing a
--- migration that has already been applied. The two policy bodies are identical
--- to the ones they replace.
+-- first line. Its trigger statement is the only re-runnable one.
+--
+-- Re-issuing all three here in drop-if-exists form does NOT make that file
+-- re-runnable -- measured, it still fails on all three (42704 on the drop,
+-- 42710 on each create). What it does is make THIS file idempotent and have it
+-- re-establish the state that file intended, so the final state is reproducible
+-- by replaying the sequence, without editing a migration that has already been
+-- applied. The two policy bodies are identical to the ones they replace.
 -- ---------------------------------------------------------------------------
 
 drop policy if exists violations_manager_write on public.violations;
@@ -122,9 +126,16 @@ create policy fines_manager_update on public.fines
 --
 -- `updated_at` is excluded because `trg_fines_updated` rewrites it on every
 -- update; `status` because settling a fine is exactly what the manager is
--- allowed to do. `stripe_payment_intent_id` is deliberately NOT excluded:
--- nothing writes it today, and when Phase 5 does, it will be a webhook running
--- as service_role, which bypasses RLS and this trigger alike.
+-- allowed to do.
+--
+-- `stripe_payment_intent_id` is deliberately NOT excluded, and that is a
+-- decision with teeth rather than a deferral. A TRIGGER IS NOT RLS: it fires
+-- for every principal, including `service_role` (rolbypassrls) and the table
+-- owner. Measured -- as service_role, `set stripe_payment_intent_id = ...`
+-- raises 42501, alone or bundled with a legal status change. So the column is
+-- not writable BY ANYONE until this guard is amended. Phase 5's Stripe webhook
+-- must add it to the excluded set here as part of the same change that starts
+-- writing it; it will not slip through on service_role's privileges.
 create or replace function public.fines_settle_only_guard()
 returns trigger
 language plpgsql
