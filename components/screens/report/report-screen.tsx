@@ -54,13 +54,22 @@ export function ReportScreen({ onBack }: { onBack: () => void }) {
 
      Taking the viewport means taking responsibility for the tab bar. `IOSTabBar`
      is `fixed bottom-0 z-50 h-16` and `app/app/page.tsx` renders it for every
-     authenticated screen, this one included; the composer's own `<main>` is a
-     scroll container ending in `pb-8`, so at full scroll its last element — on
-     the pet step, the only Continue/Skip button — would sit under the bar. The
-     form the deleted `BuildingReport` used was `pb-24` on the shared `<main>`;
-     this is the same clearance stated the way `ai-chat-screen.tsx` states it,
-     the bar's own 64px plus the home indicator, dropped at the `md` breakpoint
-     where the bar itself is hidden. */
+     authenticated screen, this one included.
+
+     The padding sits on this wrapper, not on the composer's `<main>`, because
+     the document is what scrolls here. `main` carries `ios-scroll`, which is
+     `overflow-y: auto`, so it reads like the scroll container — but `min-h-dvh`
+     below is a minimum, not a definite height, so the flex line just grows past
+     the viewport to fit its content and never constrains `flex-1`. Measuring in
+     Task 4 gave `main` an overflow of 0 and put the whole scroll on the
+     document. Padding `main` would therefore move nothing off the bar; padding
+     the element that actually scrolls does. At full scroll the last element —
+     on the pet step, the only Continue/Skip button — would otherwise sit under
+     the bar.
+
+     The clearance itself is stated the way `ai-chat-screen.tsx` states it: the
+     bar's own 64px plus the home indicator, dropped at the `md` breakpoint
+     where the bar is hidden. A/B measurement confirmed the amount. */
   if (view === "building" && building) {
     return (
       <div className="flex min-h-dvh flex-col bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">

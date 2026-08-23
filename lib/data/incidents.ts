@@ -387,6 +387,15 @@ export async function escalateIncident(id: string): Promise<{ error: string | nu
 
 /* ------------------------- pets, for identification ------------------------ */
 
+/**
+ * A pet a reporter can point at: name, species, breed and a photo, nothing else.
+ *
+ * The shape only — fetching it lives in `reportablePetsSigned`
+ * (`lib/data/evidence.ts`), which goes through `/api/report/pets` so the photo
+ * URLs are signed on the server. Do not add a browser-side fetcher back here:
+ * a guest holds no session, so signing from the browser returns null for every
+ * photo and the pet picker renders blank — the bug that route exists to fix.
+ */
 export interface ReportablePet {
   id: string
   name: string
@@ -394,34 +403,4 @@ export interface ReportablePet {
   breed: string | null
   /** Signed URL, or null when the pet has no photo. */
   photoUrl: string | null
-}
-
-/**
- * Pets a reporter can pick from, given a building code.
- *
- * Name, species, breed and a photo — nothing else. The server function is the
- * guarantee here, not this wrapper: it never returns a unit, an owner or any
- * contact detail, and anon cannot read the pets table directly.
- */
-export async function reportablePets(code: string): Promise<ReportablePet[]> {
-  const supabase = getSupabaseBrowserClient()
-  if (!supabase) return []
-
-  const { data, error } = await supabase.rpc("building_pets_for_report", { p_code: code })
-  if (error || !data) return []
-
-  const r = data as unknown as { valid: boolean; pets?: { id: string; name: string; species: string; breed: string | null; photo: string | null }[] }
-  if (!r.valid || !r.pets) return []
-
-  // Storage paths are private; sign them in one batch.
-  const paths = r.pets.map((p) => p.photo).filter((p): p is string => !!p && isStoragePath(p))
-  const urls = paths.length > 0 ? await petFileSignedUrls(paths) : {}
-
-  return r.pets.map((p) => ({
-    id: p.id,
-    name: p.name,
-    species: p.species,
-    breed: p.breed,
-    photoUrl: p.photo ? (urls[p.photo] ?? (isStoragePath(p.photo) ? null : p.photo)) : null,
-  }))
 }

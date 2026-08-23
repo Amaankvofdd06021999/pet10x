@@ -126,6 +126,19 @@ export interface IncidentComposerProps {
    * chrome and passes nothing.
    */
   headerAction?: ReactNode
+  /**
+   * Show the SPCA donation prompt on the success screen. Off by default.
+   *
+   * Opt-in because it was reasoned about for guests specifically: someone who
+   * scanned a lobby code, has no account and no other relationship with the
+   * app. A signed-in resident filing about their own building is in a
+   * different position, and asking them for money at the end of a civic duty
+   * they performed inside a product they already use is a different ask.
+   * Consolidating the two flows into this component moved the guest success
+   * screen wholesale; this prop keeps the prompt where it was reasoned about
+   * rather than spreading it by accident.
+   */
+  showDonatePrompt?: boolean
 }
 
 export function IncidentComposer({
@@ -134,6 +147,7 @@ export function IncidentComposer({
   onDone,
   onBack,
   headerAction,
+  showDonatePrompt = false,
 }: IncidentComposerProps) {
   const [step, setStep] = useState<ReportStep>("type")
   const [selectedType, setSelectedType] = useState<IncidentType | null>(null)
@@ -444,11 +458,15 @@ export function IncidentComposer({
         </div>
 
         {/* Offered here, not before submitting — a donation prompt attached to
-            the act of reporting would read as a toll on doing the right thing. */}
-        <div className="mt-8 text-center">
-          <p className="mb-2 text-[13px] text-muted-foreground">Want to do more for animals?</p>
-          <DonateSpcaLink />
-        </div>
+            the act of reporting would read as a toll on doing the right thing.
+            And offered to guests only, which is who that reasoning was about;
+            see `showDonatePrompt`. */}
+        {showDonatePrompt && (
+          <div className="mt-8 text-center">
+            <p className="mb-2 text-[13px] text-muted-foreground">Want to do more for animals?</p>
+            <DonateSpcaLink />
+          </div>
+        )}
       </div>
     )
   }

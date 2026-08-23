@@ -32,6 +32,10 @@ export function GuestReportScreen() {
       <IncidentComposer
         building={{ code: guestSession.buildingCode, name: guestSession.buildingName }}
         defaultAnonymous
+        /* The SPCA prompt on the success screen is guest-only, and this is the
+           screen it was written for: someone who scanned a lobby code and has
+           no other relationship with the app. The resident shell leaves it off. */
+        showDonatePrompt
         onBack={signOut}
         onDone={signOut}
         headerAction={

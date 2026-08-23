@@ -8,8 +8,10 @@ import type { ReportablePet } from "./incidents"
  *
  * The report gets its id at submit time, so uploads are keyed by a
  * client-generated draft id and claimed by the RPC afterwards. Anything never
- * claimed will be swept by the purge route — that route is Task 6 and does not
- * exist yet, so until it lands, unclaimed drafts simply accumulate.
+ * claimed is swept by `app/api/incidents/evidence/purge/route.ts`, which runs
+ * daily as a cron (see vercel.json) and deletes only objects that are both
+ * unclaimed and older than 24 hours — so an upload from a report still being
+ * written is left alone, and an abandoned one does not accumulate.
  *
  * Returns rather than throws. A caller holding a written report needs a
  * sentence to show and a state to leave the form in, not an exception: the one
