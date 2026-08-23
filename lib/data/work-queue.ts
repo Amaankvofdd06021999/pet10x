@@ -146,11 +146,21 @@ export function useWorkQueue(): UseWorkQueueResult {
      * the resident started typing, not when the building was asked. Using it
      * would show a request as five days overdue the moment it arrived.
      *
-     * `subtitle` is the resident's own description of the animal, never
-     * `legal_note`. That column is manager-authored counsel — the seeded rows
-     * read "Seek legal advice before denying" — and putting it in a queue
-     * summary makes the queue read as advice rather than as a list of people
-     * waiting. */
+     * `subtitle` is NEITHER `legal_note` NOR `animal_desc`.
+     *
+     * Not `legal_note`, because that column is manager-authored counsel — the
+     * seeded rows read "Seek legal advice before denying" — and putting it in a
+     * queue summary makes the queue read as advice rather than as a list of
+     * people waiting.
+     *
+     * Not `animal_desc` either, which is what this line used to be. It is
+     * inside the confidentiality contract, so nothing was leaking — but it is
+     * the resident's free-text account of why they need the animal, i.e. their
+     * own words about a disability, and the queue is a list you SKIM. Reading
+     * it should be an act: open the request. Putting it in a scannable subtitle
+     * makes it something a manager reads by accident, over someone's shoulder,
+     * while looking for something else. The pet's name identifies the request
+     * just as well and says nothing about the person. */
     for (const a of accs.data.filter((x) => x.status === "pending" || x.status === "info_requested")) {
       const age = daysSince(a.submittedAt ?? a.createdAt)
       const urgency: Urgency = age > 5 ? "high" : "medium"
@@ -160,7 +170,7 @@ export function useWorkQueue(): UseWorkQueueResult {
         kind: "accommodation",
         buildingId: a.buildingId,
         title: `${ACCOMMODATION_TYPE_LABEL[a.type]} request`,
-        subtitle: a.animalDesc || a.petName || "No description given",
+        subtitle: a.petName || ACCOMMODATION_TYPE_LABEL[a.type],
         meta: `Unit ${a.unit} · ${a.residentName}`,
         urgency,
         sortTs: ts(a.submittedAt ?? a.createdAt),

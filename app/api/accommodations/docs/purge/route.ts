@@ -8,6 +8,8 @@ import {
   type PurgeDocument,
   type PurgeRequest,
   type PurgeVerdict,
+  redactPath,
+  reasonHistogram,
 } from "@/lib/data/accommodation-docs-purge"
 
 /**
@@ -25,6 +27,13 @@ import {
  *   orphan             an object no `accommodation_documents` row names. A
  *                      deleted account's letter, a superseded re-upload, a
  *                      removal whose storage delete failed. 24h.
+ *
+ * And a FOURTH thing that is not an object at all: a `draft` REQUEST ROW with no
+ * documents, older than 24h. The resident's screen inserts the row on the first
+ * tap of a request type, before any file is chosen, so the commonest abandoned
+ * draft has nothing in storage to find it by. That sweep reads the table
+ * directly (`abandonedDraftIds`) and runs whether or not the object sweep
+ * selected anything.
  *
  * THIS IS A SEPARATE ROUTE FROM THE INCIDENT EVIDENCE SWEEP, deliberately.
  * That one is hard-wired to one bucket and one claim table; folding a second
@@ -79,6 +88,22 @@ function isAuthorised(request: Request): boolean {
   return request.headers.get("authorization") === `Bearer ${secret}`
 }
 
+/**
+ * The summary as it may be LOGGED, which is not the summary as it is RETURNED.
+ * The response body goes to a caller holding CRON_SECRET and is the only
+ * account of what was irreversibly destroyed, so it keeps its paths. The log
+ * goes wherever logs go.
+ */
+function logView(summary: Summary) {
+  const { select, removed, ...rest } = summary
+  return {
+    ...rest,
+    selected: select.length,
+    selectedByReason: reasonHistogram(select),
+    removedCount: removed.length,
+  }
+}
+
 function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = []
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
@@ -102,7 +127,7 @@ async function listObjects(admin: Admin, prefix: string, depth: number, out: Evi
           // An object this walk never sees lives forever, which is the leak
           // this route exists to close. Said out loud rather than skipped
           // silently.
-          console.warn(`[accommodations] purge skipped unexpected folder depth at ${path}`)
+          console.warn(`[accommodations] purge skipped unexpected folder depth at ${redactPath(path)}`)
           continue
         }
         await listObjects(admin, path, depth + 1, out)
@@ -126,30 +151,123 @@ async function listObjects(admin: Admin, prefix: string, depth: number, out: Evi
  * `accommodation_documents` holds one row per (request, kind) and this table
  * will stay small — one letter per request — so reading it entire is the
  * correct trade here, unlike the incident sweep's `evidence_paths` column.
+ *
+ * "ENTIRE" NOW MEANS ENTIRE. Both reads were single unpaginated queries, which
+ * is the exact failure the paragraph above forbids: PostgREST caps a response at
+ * `db_max_rows` when that is set, and it answers a truncated set with 200 and no
+ * error, so page one of the letters would arrive looking like ALL of the letters
+ * and every object past it would classify as an orphan and be deleted. It was
+ * safe only because `pgrst.db_max_rows` happens to be unset on this project —
+ * a setting nobody wrote down, that any dashboard change or restore can set, and
+ * whose only symptom would be deleted doctor's letters. Paged explicitly instead,
+ * so the guarantee comes from this file rather than from a config nobody owns.
  */
+const ROWS = 1000
+
 async function referenceSet(admin: Admin): Promise<{ documents: PurgeDocument[]; requests: PurgeRequest[] }> {
-  const { data: docRows, error: docError } = await admin
-    .from("accommodation_documents")
-    .select("id, request_id, storage_path")
-    .not("storage_path", "is", null)
-  if (docError) throw new Error(`Couldn't read the document rows: ${docError.message}`)
+  const documents: PurgeDocument[] = []
+  for (let from = 0; ; from += ROWS) {
+    const { data, error } = await admin
+      .from("accommodation_documents")
+      .select("id, request_id, storage_path")
+      .not("storage_path", "is", null)
+      .order("id", { ascending: true })
+      .range(from, from + ROWS - 1)
+    if (error) throw new Error(`Couldn't read the document rows: ${error.message}`)
+    const page = data ?? []
+    for (const d of page) {
+      if (typeof d.storage_path !== "string") continue
+      documents.push({ id: d.id, requestId: d.request_id, storagePath: d.storage_path })
+    }
+    if (page.length < ROWS) break
+  }
 
-  const documents: PurgeDocument[] = (docRows ?? [])
-    .filter((d): d is typeof d & { storage_path: string } => typeof d.storage_path === "string")
-    .map((d) => ({ id: d.id, requestId: d.request_id, storagePath: d.storage_path }))
+  const requests: PurgeRequest[] = []
+  for (let from = 0; ; from += ROWS) {
+    const { data, error } = await admin
+      .from("accommodation_requests")
+      .select("id, status, decided_at, withdrawn_at")
+      .order("id", { ascending: true })
+      .range(from, from + ROWS - 1)
+    if (error) throw new Error(`Couldn't read the requests: ${error.message}`)
+    const page = data ?? []
+    for (const r of page) {
+      requests.push({ id: r.id, status: r.status, decidedAt: r.decided_at, withdrawnAt: r.withdrawn_at })
+    }
+    if (page.length < ROWS) break
+  }
 
-  const { data: reqRows, error: reqError } = await admin
-    .from("accommodation_requests")
-    .select("id, status, decided_at, withdrawn_at")
-  if (reqError) throw new Error(`Couldn't read the requests: ${reqError.message}`)
-
-  const requests: PurgeRequest[] = (reqRows ?? []).map((r) => ({
-    id: r.id,
-    status: r.status,
-    decidedAt: r.decided_at,
-    withdrawnAt: r.withdrawn_at,
-  }))
   return { documents, requests }
+}
+
+/**
+ * A draft nobody filed, with nothing attached to it.
+ *
+ * THIS IS A SWEEP OVER THE TABLE, NOT A FOOTNOTE TO THE OBJECT SWEEP. The
+ * previous version derived its candidate drafts from `abandoned_draft` OBJECT
+ * verdicts, so the only drafts it could ever consider were drafts that had had a
+ * file attached and had just had it deleted. The resident's screen inserts the
+ * request row on the FIRST TAP of a request type, before any upload — so the
+ * commonest abandoned draft of all, the one where somebody opened the form and
+ * changed their mind, had no object, was never a candidate, and would have sat
+ * on their Accommodations tab forever. Live count today is 0, which is why
+ * nothing showed.
+ *
+ * The rule the plan actually asked for is a fact about the ROW: a draft with no
+ * documents, older than the window, is gone. That is what this asks.
+ */
+async function abandonedDraftIds(admin: Admin, now: number): Promise<string[]> {
+  const cutoff = new Date(now - MIN_AGE_HOURS * 60 * 60 * 1000).toISOString()
+
+  const drafts: string[] = []
+  for (let from = 0; ; from += ROWS) {
+    const { data, error } = await admin
+      .from("accommodation_requests")
+      .select("id")
+      .eq("status", "draft")
+      .lt("created_at", cutoff)
+      .order("id", { ascending: true })
+      .range(from, from + ROWS - 1)
+    if (error) throw new Error(`Couldn't read the abandoned drafts: ${error.message}`)
+    const page = data ?? []
+    for (const r of page) drafts.push(r.id)
+    if (page.length < ROWS) break
+  }
+  if (drafts.length === 0) return []
+
+  // Any document row at all, whether or not it still names a file. A row whose
+  // `storage_path` has been purged is still a record that a letter was provided,
+  // and deleting the request would delete it.
+  const claimed = new Set<string>()
+  for (const group of chunk(drafts, 200)) {
+    const { data, error } = await admin
+      .from("accommodation_documents")
+      .select("request_id")
+      .in("request_id", group)
+    if (error) throw new Error(`Couldn't read the drafts' documents: ${error.message}`)
+    for (const row of data ?? []) claimed.add(row.request_id)
+  }
+  return drafts.filter((id) => !claimed.has(id))
+}
+
+/** Deletes them, re-asserting `status` and the age in the DELETE itself. */
+async function deleteAbandonedDrafts(admin: Admin, ids: string[], now: number): Promise<number> {
+  const cutoff = new Date(now - MIN_AGE_HOURS * 60 * 60 * 1000).toISOString()
+  let deleted = 0
+  for (const group of chunk(ids, 200)) {
+    // `status` and `created_at` are re-stated here on purpose. The read above is
+    // several round-trips ago, and a resident who submitted their draft in that
+    // window must not have the request deleted out from under them.
+    const { count, error } = await admin
+      .from("accommodation_requests")
+      .delete({ count: "exact" })
+      .in("id", group)
+      .eq("status", "draft")
+      .lt("created_at", cutoff)
+    if (error) throw new Error(error.message)
+    deleted += count ?? 0
+  }
+  return deleted
 }
 
 interface Summary {
@@ -170,6 +288,12 @@ interface Summary {
   rowsPurged: number
   /** Rows deleted outright, and drafts deleted with them. */
   rowsDeleted: number
+  /**
+   * Drafts with no documents at all, older than the window. Independent of the
+   * object sweep: a draft that never had a file attached is the commonest kind,
+   * and it has no object to be found by.
+   */
+  draftsSelected: number
   draftsDeleted: number
   error?: string
 }
@@ -188,7 +312,10 @@ async function purge(request: Request): Promise<Summary> {
   const result = classify(objects, requests, documents, now)
   if (result.malformed.length > 0) {
     // Never deleted, so this is a leak rather than a loss — but a silent one.
-    console.warn("[accommodations] purge left unclaimable paths alone", result.malformed)
+    console.warn("[accommodations] purge left unclaimable paths alone", {
+      count: result.malformed.length,
+      paths: result.malformed.map(redactPath),
+    })
   }
 
   const summary: Summary = {
@@ -205,9 +332,29 @@ async function purge(request: Request): Promise<Summary> {
     removed: [],
     rowsPurged: 0,
     rowsDeleted: 0,
+    draftsSelected: 0,
     draftsDeleted: 0,
   }
-  if (dryRun || result.remove.length === 0) return summary
+
+  // Asked and acted on regardless of what the object sweep found, because a
+  // draft with no documents has no object to be found by.
+  const staleDrafts = await abandonedDraftIds(admin, now)
+  summary.draftsSelected = staleDrafts.length
+
+  if (dryRun) return summary
+
+  if (staleDrafts.length > 0) {
+    try {
+      summary.draftsDeleted = await deleteAbandonedDrafts(admin, staleDrafts, now)
+    } catch (err) {
+      // Nothing irreversible has happened to a FILE yet, so this is reportable
+      // rather than fatal: carry on and sweep the objects.
+      summary.error = `Abandoned drafts could not be deleted: ${(err as Error).message}`
+      console.error("[accommodations] purge left abandoned drafts alone", logView(summary))
+    }
+  }
+
+  if (result.remove.length === 0) return summary
 
   const byPath = new Map(result.remove.map((v) => [v.path, v]))
   const done: PurgeVerdict[] = []
@@ -230,13 +377,16 @@ async function purge(request: Request): Promise<Summary> {
       live = new Set(stillClassified.remove.map((v) => v.path))
     } catch (err) {
       summary.error = (err as Error).message
-      console.error("[accommodations] purge stopped mid-sweep", summary)
+      console.error("[accommodations] purge stopped mid-sweep", logView(summary))
       return summary
     }
     const batch = group.filter((p) => live.has(p))
     const spared = group.filter((p) => !live.has(p))
     if (spared.length > 0) {
-      console.warn("[accommodations] purge spared paths reclaimed mid-sweep", spared)
+      console.warn("[accommodations] purge spared paths reclaimed mid-sweep", {
+        count: spared.length,
+        paths: spared.map(redactPath),
+      })
       summary.kept += spared.length
       summary.select = summary.select.filter((v) => !spared.includes(v.path))
     }
@@ -250,7 +400,7 @@ async function purge(request: Request): Promise<Summary> {
       // body, and the deletion cannot be undone, so what already went is only
       // knowable from the log and this summary.
       summary.error = `Couldn't remove documents: ${error.message}`
-      console.error("[accommodations] purge stopped mid-sweep", summary)
+      console.error("[accommodations] purge stopped mid-sweep", logView(summary))
       return summary
     }
     const gone = (data ?? []).map((object) => object.name)
@@ -260,7 +410,11 @@ async function purge(request: Request): Promise<Summary> {
       const verdict = byPath.get(path)
       if (verdict) done.push(verdict)
     }
-    console.info("[accommodations] purge removed", gone)
+    console.info("[accommodations] purge removed", {
+      count: gone.length,
+      byReason: reasonHistogram(gone.map((p) => byPath.get(p)).filter((v): v is PurgeVerdict => v !== undefined)),
+      paths: gone.map(redactPath),
+    })
   }
 
   // The rows, AFTER the files, and only for files storage confirmed gone.
@@ -286,31 +440,26 @@ async function purge(request: Request): Promise<Summary> {
       summary.rowsDeleted = abandoned.length
     }
 
-    // A draft with nothing left attached, older than the window, is a request
-    // nobody filed. The row is deleted; there is no record worth keeping of a
-    // request that was never made, and leaving it makes the resident's own
-    // screen list a request they abandoned a year ago.
-    const draftIds = [...new Set(abandoned.map((v) => v.requestId as string))]
-    for (const id of draftIds) {
-      const { count } = await admin
-        .from("accommodation_documents")
-        .select("id", { count: "exact", head: true })
-        .eq("request_id", id)
-      if (count && count > 0) continue
-      const cutoff = new Date(Date.now() - MIN_AGE_HOURS * 60 * 60 * 1000).toISOString()
-      const { count: deleted } = await admin
-        .from("accommodation_requests")
-        .delete({ count: "exact" })
-        .eq("id", id)
-        .eq("status", "draft")
-        .lt("created_at", cutoff)
-      summary.draftsDeleted += deleted ?? 0
+    // A draft that has JUST had its last document deleted above is now a draft
+    // with no documents, and the sweep at the top of this run asked before that
+    // was true. Ask again for exactly those requests, so a draft emptied by this
+    // run goes in this run rather than tomorrow's.
+    const emptied = [...new Set(abandoned.map((v) => v.requestId as string))].filter(
+      (id) => !staleDrafts.includes(id),
+    )
+    if (emptied.length > 0) {
+      const stillEmpty = await abandonedDraftIds(admin, now)
+      const nowGone = emptied.filter((id) => stillEmpty.includes(id))
+      if (nowGone.length > 0) {
+        summary.draftsSelected += nowGone.length
+        summary.draftsDeleted += await deleteAbandonedDrafts(admin, nowGone, now)
+      }
     }
   } catch (err) {
     // The files are gone either way. Report the bookkeeping failure rather
     // than discarding the account of what was destroyed.
     summary.error = `Files removed, but the rows could not be updated: ${(err as Error).message}`
-    console.error("[accommodations] purge left rows out of step", summary)
+    console.error("[accommodations] purge left rows out of step", logView(summary))
     return summary
   }
 

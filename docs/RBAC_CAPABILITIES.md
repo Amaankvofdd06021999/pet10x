@@ -552,7 +552,21 @@ every row of it was verified by SQL impersonation for all six actors — allowed
 without reading the provider's letter, and the storage policy permits exactly
 that. It is a decision, written down rather than left implicit, and the viewer
 that exercises it says so on screen every time: *"This document is confidential.
-Only you, other managers of this building, and the resident can see it."*
+Only this building's managers, the resident who filed the request, and a Pet10x
+administrator can open it."*
+
+**That sentence used to be false, and this document reproduced it.** Until the
+Phase 7 fix round both the viewer and the paragraph above read *"Only you, other
+managers of this building, and the resident can see it"* — printed two lines
+below the table on this page whose Super-admin column already marks the letter
+✅. `accommodation-docs read` ends in `manages_building(r.building_id) OR
+is_admin()`, and a super-admin who manages no building and lives in none reads
+every submitted request's documents: measured on production, `3` of `3` objects
+in the bucket. The policy is right; the enumeration was short by one reader.
+This is the `emergency_directory` / `p.conditions` failure — a stated audience
+narrower than the served one — reappearing in UI copy rather than in a function
+body, and it is why the row of the table and the sentence under it must be
+changed together or not at all.
 
 **A super-admin gets exactly what the building's manager gets, and nothing
 more.** No cross-building list, no export. Verified: a super-admin sees a

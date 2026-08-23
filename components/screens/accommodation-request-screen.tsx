@@ -474,6 +474,11 @@ function RequestEditor({
               Still needed before you can send this: {missing.join(", ")}.
             </p>
           )}
+          {/* Stricter than `submit_accommodation_request`, on purpose: the RPC
+              accepts a REJECTED required document because a row with a
+              storage_path exists, and this button does not. See the note above
+              `missingRequired` in lib/data/accommodations.ts — the RPC is the
+              authority, this is guidance. */}
           <button
             onClick={() => void submit()}
             disabled={busy || missing.length > 0}

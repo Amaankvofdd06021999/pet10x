@@ -188,6 +188,33 @@ function itemFor(kind: DocKind, required: boolean, doc: AccommodationDocumentRow
   return { kind, label: DOC_KIND_LABEL[kind], required, state, documentId: doc.id }
 }
 
+/**
+ * BOTH FUNCTIONS BELOW ARE STRICTER THAN THE DATABASE, DELIBERATELY, AND THE
+ * DATABASE IS THE AUTHORITY. Neither is a security boundary; do not read the
+ * matching pair of names as parity between the client and the RPCs, because
+ * there is none:
+ *
+ *   `missingRequired` treats a REJECTED required document as still missing, so
+ *   the resident's Send button stays disabled until they replace it.
+ *   `submit_accommodation_request` (20260827000003:146-153) asks only whether a
+ *   row with a non-null `storage_path` exists for each required kind, so
+ *   submitting with a rejected letter still attached SUCCEEDS if it is called
+ *   directly. That is the correct division: a manager who rejected a letter has
+ *   already seen the request, and a resident who re-sends without replacing it
+ *   has wasted a round trip rather than done something forbidden. The UI is
+ *   guidance, and guidance is allowed to be firmer than a rule.
+ *
+ *   `allRequiredVerified` gates Approve. `manager_decide_accommodation` has NO
+ *   such gate — approving with an unverified document is permitted by the
+ *   database. Again deliberate: the verdict on a document is the manager's own
+ *   bookkeeping, and a rule that a human-rights request cannot be granted until
+ *   a checkbox is ticked would make the checkbox, not the manager, the decider.
+ *   The screen explains why the button is unavailable rather than hiding it.
+ *
+ * If either rule ever needs to be a real constraint, it goes in the RPC. Adding
+ * it here only tells the honest client.
+ */
+
 /** The required items still not satisfied, as sentences a form can show. */
 export function missingRequired(items: readonly ChecklistItem[]): string[] {
   return items.filter((i) => i.required && (i.state === "missing" || i.state === "rejected")).map((i) => i.label)

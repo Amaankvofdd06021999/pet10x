@@ -397,6 +397,10 @@ function AccommodationCard({
 
   const items = checklistFor({ type: request.type, animalDesc: request.animalDesc }, documents)
   const missing = missingRequired(items)
+  // UI-ONLY. `manager_decide_accommodation` has no all-verified gate and will
+  // approve a request whose documents nobody ticked. The RPC is the authority;
+  // this is the screen declining to make the decision easy to take blind. See
+  // the note above `allRequiredVerified` in lib/data/accommodations.ts.
   const readyToApprove = allRequiredVerified(items)
   const isOpenRequest = request.status === "pending" || request.status === "info_requested"
   const viewingDoc = documents.find((d) => d.id === viewing) ?? null

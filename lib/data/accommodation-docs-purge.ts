@@ -184,3 +184,40 @@ export function classify(
   }
   return out
 }
+
+/**
+ * THE SERVER LOG IS A SURFACE, and the phase's confidentiality contract named
+ * only three (`audit_log`, `notifications`, email).
+ *
+ * A path in this bucket reads `{buildingId}/{requestId}/esa_letter-1787518255922.pdf`.
+ * `20260827000003` refuses to put `kind` into `audit_log` because *"the doc_kind
+ * label `esa_letter` contains the word 'letter' and would put the nature of the
+ * request into the one table the note was kept out of"* — and the purge route
+ * then wrote building, request and `esa_letter` into the log drain together, on
+ * every sweep. The reasoning was already written down; the list of surfaces it
+ * applied to was short by one.
+ *
+ * The FINAL SEGMENT carries the doc_kind and the resident's own filename, and it
+ * is the part that goes. The two id segments stay: `audit_log` already carries
+ * the request id, so redacting them buys nothing and leaves an operator unable
+ * to trace a leaked object to anything. The extension survives because `.pdf`
+ * says nothing clinical.
+ *
+ * It lives here rather than in the route so that it is covered by a test — a
+ * privacy guarantee nobody can assert against is a comment, not a guarantee.
+ */
+export function redactPath(path: string): string {
+  const cut = path.lastIndexOf("/")
+  const file = cut < 0 ? path : path.slice(cut + 1)
+  const dot = file.lastIndexOf(".")
+  // `dot > 0`, not `>= 0`: a dotfile is all name and no extension.
+  const ext = dot > 0 ? file.slice(dot).toLowerCase() : ""
+  return cut < 0 ? `<file>${ext}` : `${path.slice(0, cut)}/<file>${ext}`
+}
+
+/** How many of each reason, which is what an operator reads the log for. */
+export function reasonHistogram(verdicts: readonly PurgeVerdict[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const v of verdicts) out[v.reason] = (out[v.reason] ?? 0) + 1
+  return out
+}

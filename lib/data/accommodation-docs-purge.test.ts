@@ -7,6 +7,9 @@ import {
   type EvidenceObject,
   type PurgeDocument,
   type PurgeRequest,
+  type PurgeVerdict,
+  redactPath,
+  reasonHistogram,
 } from "./accommodation-docs-purge"
 import { MS_PER_DAY } from "./accommodations"
 
@@ -176,5 +179,59 @@ describe("classify", () => {
       new Set(["abandoned_draft", "retention_expired", "orphan"]),
     )
     expect(out.remove.length).toBe(3)
+  })
+})
+
+describe("redactPath — the doc_kind must not reach a log", () => {
+  /* The whole point. `esa_letter` is the label 20260827000003 refuses to write
+     into audit_log, and a real path carries it in the clear. */
+  it("drops the doc_kind and the filename, keeps both ids and the extension", () => {
+    expect(redactPath(`${B}/${R1}/esa_letter-1787518255922.pdf`)).toBe(`${B}/${R1}/<file>.pdf`)
+    expect(redactPath(`${B}/${R2}/vaccination-1787518454994.png`)).toBe(`${B}/${R2}/<file>.png`)
+  })
+
+  it("leaks no substring of the original filename, whatever it was named", () => {
+    for (const name of [
+      "esa_letter-1.pdf",
+      "anxiety-diagnosis-final.PDF",
+      "Dr Okonkwo psychiatric assessment.pdf",
+      "guide_dog_certification.jpeg",
+    ]) {
+      const out = redactPath(`${B}/${R1}/${name}`)
+      const stem = name.replace(/\.[^.]*$/, "")
+      expect(out.includes(stem)).toBe(false)
+      expect(out.startsWith(`${B}/${R1}/`)).toBe(true)
+    }
+  })
+
+  it("lowercases the extension so casing cannot smuggle a name through", () => {
+    expect(redactPath(`${B}/${R1}/esa_letter.PDF`)).toBe(`${B}/${R1}/<file>.pdf`)
+  })
+
+  it("redacts a bare filename with no folders, which is what a malformed path is", () => {
+    expect(redactPath("esa_letter-stray.pdf")).toBe("<file>.pdf")
+    expect(redactPath("esa_letter")).toBe("<file>")
+  })
+
+  it("treats a dotfile as all name and no extension", () => {
+    expect(redactPath(`${B}/${R1}/.esa_letter`)).toBe(`${B}/${R1}/<file>`)
+  })
+
+  it("redacts the last segment of a folder path too", () => {
+    expect(redactPath(`${B}/${R1}/esa_letter`)).toBe(`${B}/${R1}/<file>`)
+  })
+})
+
+describe("reasonHistogram", () => {
+  const v = (reason: PurgeVerdict["reason"], path: string): PurgeVerdict => ({ path, reason })
+
+  it("counts each reason", () => {
+    expect(
+      reasonHistogram([v("orphan", "a"), v("orphan", "b"), v("retention_expired", "c")]),
+    ).toEqual({ orphan: 2, retention_expired: 1 })
+  })
+
+  it("is empty for nothing selected, rather than absent", () => {
+    expect(reasonHistogram([])).toEqual({})
   })
 })

@@ -631,7 +631,9 @@ What it becomes:
 | *(new)* A withdrawn request | Shown, greyed, with its `withdrawn_at`. Not silently dropped from the queue |
 | Tab count (`:63`) | Already derived from `accommodations.length`; confirm it counts non-`draft` only |
 
-The viewer opens a PDF and an image in a sheet. It must not download to disk by default, must not put the signed URL in the address bar, and must not log it. It carries one line of standing text: **"This document is confidential. Only you, other managers of this building, and the resident can see it."** — which is true because Task 4 makes it true, and Task 10 proves it.
+The viewer opens a PDF and an image in a sheet. It must not download to disk by default, must not put the signed URL in the address bar, and must not log it. It carries one line of standing text: **"This document is confidential. Only this building's managers, the resident who filed the request, and a Pet10x administrator can open it."**
+
+> **Corrected in the Phase 7 fix round.** This line originally specified *"Only you, other managers of this building, and the resident can see it"* and asserted it was "true because Task 4 makes it true, and Task 10 proves it". It was not true and Task 10 did not prove it. Task 4's storage policy ends in `manages_building(r.building_id) OR is_admin()`, so a super-admin who manages no building reads every submitted request's documents — measured, 3 of 3 objects. The plan specified a sentence narrower than the policy it also specified, and the implementation faithfully shipped the sentence. The enumeration now names the super-admin; see `docs/RBAC_CAPABILITIES.md`.
 
 The violations badge: for each case with a `pet_id`, if an `approved` accommodation names that pet, show it. It reads through the resident-safe fields only — type and status — never `animal_desc` and never a document.
 
@@ -837,7 +839,9 @@ git commit -m "Say who may read a doctor's letter, and prove nobody else can"
 1. `PATH="$HOME/.corepack-bin:$PATH" pnpm test` and `pnpm build` both exit 0. (`pnpm lint` is excluded — it has never worked on this repository.)
 2. Every object this phase created appears in `supabase/migrations/`, and the two new `accommodation_status` values live in a migration that contains nothing else.
 3. A resident can file a request, attach a real PDF **and** a real photo from a browser, and both land in `accommodation-docs` with the mime type and byte size recorded on the row **matching `storage.objects.metadata`** — the `contentType` check.
-4. `grep -n "letterFromProvider" lib/data/*.ts components/screens/manager/*.tsx` returns nothing, and no accommodation checklist value in the codebase is a literal `true`.
+4. `grep -n "letterFromProvider" lib/data/*.ts components/screens/manager/*.tsx` returns **only comment lines that quote the deleted code as history** — today exactly two, `lib/data/accommodations.ts:9` and `lib/data/accommodations.test.ts:46`, both of which exist to say what the hardcoded checklist used to be and why it was wrong. No line the compiler reads mentions the identifier, and no accommodation checklist value in the codebase is a literal `true`.
+
+   *Corrected in the fix round.* As originally written this criterion said the grep "returns nothing", and it fails literally: those two comments are the record of the defect the phase was filed to remove, and deleting them to satisfy a grep would delete the explanation and keep the criterion. The criterion was wrong, not the comments — a criterion should name what is allowed, not forbid a string.
 5. `insert into accommodation_requests` naming a building the caller has no approved link to is refused, for a resident, a manager and a super-admin alike.
 6. `update accommodation_requests set status = …` from any client session **raises**; the four RPCs succeed; and a plain UPDATE attempted in the same transaction *after* a successful RPC call still raises — the token is spent, not a mode.
 7. `animal_desc`, `resident_id` and `building_id` cannot be changed by a manager or a super-admin at all, and cannot be changed by the resident after submission.

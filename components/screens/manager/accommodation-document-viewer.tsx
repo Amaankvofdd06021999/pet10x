@@ -9,6 +9,20 @@
  * also where the confidentiality contract is stated to the person exercising
  * it — the standing line below is rendered every time, not once in a tooltip.
  *
+ * THE LINE NAMES THE SUPER-ADMIN, AND IT HAS TO. It previously read "Only you,
+ * other managers of this building, and the resident can see it", which was a
+ * false statement about the database made by the UI. `accommodation-docs read`
+ * ends in `manages_building(r.building_id) OR is_admin()`, and a super-admin who
+ * manages no building and lives in none reads every submitted request's
+ * documents — measured on production, 3 of 3 objects. The POLICY is correct and
+ * deliberate; `docs/RBAC_CAPABILITIES.md` marks the letter allowed for
+ * Super-admin in its own contract table. It was this sentence that was wrong,
+ * and it was wrong in exactly the `emergency_directory` / `p.conditions` shape
+ * this phase was written to avoid — a stated audience narrower than the served
+ * one — restated in the UI instead of in a function body. If the enumeration
+ * ever falls out of step with that policy again, change the enumeration or drop
+ * it; do not leave a reassurance the database does not keep.
+ *
  * Three properties, each chosen against a specific way a private document leaks:
  *
  *   1. IT DOES NOT DOWNLOAD BY DEFAULT. No `<a download>`, no `window.open`,
@@ -112,8 +126,8 @@ export function AccommodationDocumentViewer({ document, onVerdict, onClose }: Ac
           <div className="flex items-start gap-2 border-b border-border bg-primary/5 px-4 py-2.5">
             <Lock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
             <p className="text-[11px] leading-relaxed text-foreground break-words">
-              This document is confidential. Only you, other managers of this building, and the resident can see
-              it.
+              This document is confidential. Only this building&rsquo;s managers, the resident who filed the
+              request, and a Pet10x administrator can open it.
             </p>
           </div>
 
