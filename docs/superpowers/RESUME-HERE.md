@@ -130,3 +130,38 @@ Validate by stating a **positive grammar for what is allowed**, never a denylist
 of what is not. When probing a guard, test the *shape* of the attack rather than
 the one instance that was reported — and treat any confident "this is
 sufficient", including your own, as the sentence most worth probing.
+
+## 2026-08-23 — machine slept again, four agents lost
+
+Second occurrence. The first is recorded in commit 55e886d. Lost mid-flight:
+the Task 5 review, the Phase 4 planner (and a helper it had spawned), and the
+Phase 5 planner. None had produced output. All relaunched from the same briefs.
+
+Two operational lessons, both cheap to apply:
+  - A planner or reviewer that spawns its own helper doubles the blast radius
+    of a sleep -- both die together and neither reports. Every planning and
+    review brief now says "do all of this yourself".
+  - Nothing was lost that had been committed. Task 5 was committed (4b58dd9)
+    before the sleep, so the phase lost only review time, not work.
+
+State at the time of the sleep, all committed and safe:
+  Phase 0  merged to main, pushed
+  Phase 1  complete on this branch
+  Phase 2  CODE-COMPLETE at 4b58dd9, under review
+  Phase 3  planned (docs/superpowers/plans/2026-08-21-phase-3-honest-cleanup.md)
+  Phase 4-8  being planned now
+
+## Migration number allocation (set 2026-08-23 after a real collision)
+
+Phases 4-8 were planned in parallel and two plans claimed the same number.
+Phase 6 originally took 20260823000006, which the Task 5 fix round had already
+created on disk as `reminder_throttle_and_opening_event`. Renumbered.
+
+  20260821000* - 20260823000006   on disk, Phases 0-2
+  20260824000*                    Phase 5, disputes
+  20260825000*                    Phase 6, building rules
+  20260826000*                    Phase 8, community
+  20260827000*                    Phase 7, accommodations
+
+`ls supabase/migrations/` is the ground truth. Do not assume a number is free
+because the design doc used it -- the doc predates every phase.
