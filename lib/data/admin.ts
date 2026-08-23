@@ -141,7 +141,31 @@ export async function updateBuildingDetails(
   return { error: error?.message ?? null }
 }
 
-/** Delete a building. Cascades to units, resident_links, building_managers rows. */
+/**
+ * Delete a building.
+ *
+ * The doc line here used to read "Cascades to units, resident_links,
+ * building_managers rows", which described a call that in practice ALWAYS
+ * FAILS on any building anyone has used. Measured against the live schema
+ * 2026-08-23 — four foreign keys into `buildings` are NO ACTION, not cascade:
+ *
+ *   business_listings_building_id_fkey   notifications_building_id_fkey
+ *   fines_building_id_fkey               payouts_building_id_fkey
+ *
+ * and since Phase 2 a fifth route is closed too: `violations` cascades, but
+ * `violation_events_violation_id_fkey` is ON DELETE RESTRICT, so a building
+ * holding any enforcement case cannot be deleted either. That restriction is
+ * deliberate — it is what stopped an admin erasing a building's entire
+ * enforcement history through this very button.
+ *
+ * So this succeeds only on a genuinely empty building, and otherwise surfaces
+ * raw Postgres 23503 constraint text to the admin. Deciding what "delete a
+ * building" should mean — archive, transfer, or refuse with a readable reason
+ * — is a product question no phase currently owns; recorded in
+ * docs/superpowers/2026-08-21-deferred-controls.md. The doc line is corrected
+ * here because a comment that says a call cascades, when it raises, is how
+ * somebody comes to rely on the cascade.
+ */
 export async function deleteBuilding(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }

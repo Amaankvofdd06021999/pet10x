@@ -198,11 +198,27 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
                           className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
                           Deny
                         </button>
-                        <button
-                          onClick={() => toast("Info requested", { description: "Messaging the resident isn't built yet." })}
-                          className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary active:scale-[0.97] transition-transform">
-                          Request Info
-                        </button>
+                        {/* No "Request Info" here.
+                            It toasted "Messaging the resident isn't built yet",
+                            which was a claim about the product rather than
+                            about this button: asking a resident for details IS
+                            built and works — `RequestInfoButton` on the
+                            Residents screen posts to /api/manager/request-info,
+                            stamps `resident_links.info_requested_at`, notifies
+                            in-app and emails.
+
+                            It could not be reused HERE without building
+                            something new. That endpoint is keyed on
+                            `resident_links.id`; this row is a PET
+                            (`decideRegistration` takes a pet id) and
+                            `useRegistrationsLive` selects no owner id and no
+                            link id, so there is nothing to resolve a link from.
+                            Adding that is a data-layer change no phase owns —
+                            recorded in
+                            docs/superpowers/2026-08-21-deferred-controls.md.
+                            Removed rather than disabled because the capability
+                            is not missing, only its shortcut: the manager
+                            reaches it in two taps from Residents. */}
                       </div>
                     </div>
                   )}

@@ -143,7 +143,15 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
           </MenuSection>
         )}
 
-        {/* Not built yet — say so rather than pretending. */}
+        {/* Not built yet — say so rather than pretending.
+            These eleven rows already carried an honest "Not available yet" and
+            an honest toast. Phase 3 makes them DISABLED as well, because the
+            phase's rule is that an unbuilt control must not be clickable: a row
+            that highlights, depresses and answers is a control, and reading
+            "This isn't built yet" is a worse way to learn that than seeing it
+            before you press. None of the eleven has an owning phase — the spec
+            lists the settings-menu stubs as explicitly out of scope for every
+            one of Phases 4-8. */}
         {["Administration", "Account", "Support"].map((section) => (
           <MenuSection key={section} title={section}>
             {UNBUILT.filter((i) => i.section === section).map((item, idx, arr) => (
@@ -152,7 +160,7 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
                 icon={item.icon}
                 label={item.label}
                 detail="Not available yet"
-                onClick={() => toast(item.label, { description: "This isn't built yet." })}
+                disabled
                 last={idx === arr.length - 1}
               />
             ))}
@@ -482,24 +490,30 @@ function MenuRow({
   detail,
   onClick,
   last,
+  disabled,
 }: {
   icon: typeof Bell
   label: string
   detail?: string
-  onClick: () => void
+  /** Omitted for a `disabled` row — there is nothing for it to do. */
+  onClick?: () => void
   last?: boolean
+  disabled?: boolean
 }) {
   return (
     <button
-      onClick={onClick}
-      className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors active:bg-muted ${
-        last ? "" : "border-b border-border"
-      }`}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className={`flex w-full items-center gap-3 px-3 py-2.5 text-left ${
+        disabled ? "opacity-50" : "transition-colors active:bg-muted"
+      } ${last ? "" : "border-b border-border"}`}
     >
       <Icon className="h-5 w-5 text-primary" />
       <span className="flex-1 text-[14px] text-foreground">{label}</span>
       {detail && <span className="truncate text-[12px] text-muted-foreground">{detail}</span>}
-      <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+      {/* No chevron on a row that goes nowhere — the arrow is the strongest
+          "this leads somewhere" signal on the row. */}
+      {!disabled && <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />}
     </button>
   )
 }

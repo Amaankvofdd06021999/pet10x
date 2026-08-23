@@ -8,7 +8,6 @@ import { SuggestionCard } from "@/components/ai/suggestion-card"
 import { TodayCareTiles } from "@/components/screens/home/today-care-tiles"
 import { TodayScheduleStrip } from "@/components/screens/home/today-schedule"
 import { MissingInfoCard } from "@/components/screens/home/missing-info-card"
-import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
   Bell,
@@ -39,9 +38,28 @@ const STATUS_CONFIG = {
   vacation: { label: "On Vacation", pill: "bg-primary/10 text-primary" },
 } as const
 
-/** 2×2 grid per the design reference, single row from `md` up. */
-const QUICK_ACTIONS = [
-  { icon: Building2, label: "Building Rules", color: "bg-info/10 text-info" },
+/**
+ * 2×2 grid per the design reference, single row from `md` up.
+ *
+ * `unbuilt` marks a tile whose destination does not exist yet. It renders
+ * visibly disabled and says so, rather than doing something that looks like
+ * the feature.
+ *
+ * Building Rules is the one such tile, and it was the worst control on this
+ * screen: it toasted "One dog or one cat · leashed in common areas" as though
+ * that were the viewer's building's policy. It is a string literal, identical
+ * for all six buildings, and it is measurably WRONG for the flagship one:
+ * Maple Court Residences' `buildings.pet_rules` records
+ * `max_pets_per_unit: 2` (read live 2026-08-23). A resident was being told
+ * their building allows one pet when its own record allows two. Fabricated
+ * data is worse than an admitted gap.
+ *
+ * PHASE 6 OWNS THIS. Its plan (`2026-08-22-phase-6-building-rules.md:657`)
+ * builds a real `building-rules` screen and rewires this exact handler to
+ * `onNavigate?.("building-rules")`. Re-enabling is deleting `unbuilt: true`.
+ */
+const QUICK_ACTIONS: { icon: typeof Building2; label: string; color: string; unbuilt?: true }[] = [
+  { icon: Building2, label: "Building Rules", color: "bg-info/10 text-info", unbuilt: true },
   { icon: AlertTriangle, label: "Report Incident", color: "bg-destructive/10 text-destructive" },
   { icon: Calendar, label: "Pet Events", color: "bg-primary/10 text-primary" },
   { icon: ShoppingBag, label: "Shop", color: "bg-accent/10 text-accent" },
@@ -98,11 +116,12 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     onNavigate?.(screen, id)
   }
 
+  // Only reached for tiles that are not `unbuilt`; the disabled ones have no
+  // onClick at all. No fallback branch — a label with no destination must not
+  // silently become a claim.
   const handleQuickAction = (label: string) => {
-    if (label.includes("Rules"))
-      toast("Building pet rules", { description: "One dog or one cat · leashed in common areas." })
     // Was a "coming soon" toast while the screen existed above it.
-    else if (label.includes("Report")) onNavigate?.("report")
+    if (label.includes("Report")) onNavigate?.("report")
     else if (label.includes("Shop")) onNavigate?.("shop")
     else if (label.includes("Events")) onNavigate?.("community")
   }
@@ -306,7 +325,18 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                     <Utensils className="h-4 w-4 flex-shrink-0 text-primary" />
                   </div>
                   <p className="truncate text-[12px] text-muted-foreground">
-                    Log {primaryPet?.name ? `${primaryPet.name}'s` : "your pet's"} activities &amp; meals
+                    {/* `{" "}` and not a plain space. The source DID have a
+                        space here and the browser did not: SWC trims the
+                        leading whitespace of a JSXText node that runs on to a
+                        following line, so the DOM held three text nodes —
+                        "Log ", "Mochi's", "activities & meals" — and every
+                        resident's Home screen read "Log Mochi'sactivities &
+                        meals". `truncate` hid it from nobody; it was in plain
+                        sight. This is the FIFTH time in this phase sequence a
+                        space has been eaten after a JSX expression, and the
+                        first four were all caught by looking at the page. */}
+                    Log {primaryPet?.name ? `${primaryPet.name}'s` : "your pet's"}{" "}
+                    activities &amp; meals
                   </p>
                 </div>
               </div>
@@ -324,14 +354,12 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
         {/* Quick Actions — 2×2 on compact, 4-up from md */}
         <section className="mb-6">
-          <div className="mb-3 flex items-center justify-between">
+          {/* No "Customize". It toasted "Coming soon." and there is no
+              preference store anywhere in the app to hold a customised set —
+              not a table, not a column on `profiles`, not localStorage. The
+              four actions below are a constant in this file. */}
+          <div className="mb-3">
             <h3 className="text-[17px] font-semibold text-foreground">Quick Actions</h3>
-            <button
-              onClick={() => toast("Customise quick actions", { description: "Coming soon." })}
-              className="text-[14px] font-medium text-primary"
-            >
-              Customize
-            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -340,13 +368,21 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               return (
                 <button
                   key={action.label}
-                  onClick={() => handleQuickAction(action.label)}
-                  className="flex flex-col items-center gap-2 rounded-2xl card-interactive p-4 transition-transform active:scale-[0.97]"
+                  onClick={action.unbuilt ? undefined : () => handleQuickAction(action.label)}
+                  disabled={action.unbuilt}
+                  className={`flex flex-col items-center gap-2 rounded-2xl p-4 ${
+                    action.unbuilt
+                      ? "card-raised opacity-50"
+                      : "card-interactive transition-transform active:scale-[0.97]"
+                  }`}
                 >
                   <span className={`flex h-10 w-10 items-center justify-center rounded-full ${action.color}`}>
                     <Icon className="h-5 w-5" />
                   </span>
                   <span className="text-center text-[12px] font-semibold leading-tight text-foreground">{action.label}</span>
+                  {action.unbuilt && (
+                    <span className="text-center text-[10px] leading-tight text-muted-foreground">Not available yet</span>
+                  )}
                 </button>
               )
             })}
@@ -381,7 +417,8 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               <div className="min-w-0">
                 <h4 className="truncate text-[15px] font-semibold text-foreground">Membership pending</h4>
                 <p className="truncate text-[12px] text-muted-foreground">
-                  {buildingLink.buildingName} will review your request
+                  {buildingLink.buildingName}{" "}
+                  will review your request
                 </p>
               </div>
             </div>
