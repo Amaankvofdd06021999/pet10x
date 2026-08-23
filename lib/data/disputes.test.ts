@@ -167,9 +167,33 @@ describe("describeWhyNot", () => {
   })
 
   it("names the closing date and the window length when the window closed", () => {
-    const s = describeWhyNot("window", at(14))
+    /*
+     * THE EXPECTED DATE IS COMPUTED, NOT WRITTEN OUT, and that is the fix.
+     *
+     * This assertion used to read `toContain("August 15, 2026")`. The deadline
+     * is an INSTANT — 14 days after `violation_events.created_at`, a
+     * `timestamptz` — and rendering an instant in the reader's zone is correct.
+     * So the literal was only true in zones where 2026-08-15T09:00Z is still
+     * the 15th: green at UTC-7, `1 failed | 26 passed` at UTC-10, where it is
+     * the evening of the 14th. A test written to catch a timezone bug that
+     * itself only passes in the author's zone proves nothing anywhere else.
+     *
+     * The property that is true in every zone is "the sentence names the
+     * deadline it was handed, in this module's long-date format" — so that is
+     * what is asserted, against the same `Date` the caller passed in.
+     */
+    const deadline = at(14)
+    const s = describeWhyNot("window", deadline)
     expect(s).toContain("14-day")
-    expect(s).toContain("August 15, 2026")
+    expect(s).toContain(
+      deadline.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+    )
+  })
+
+  it("names a date exactly DISPUTE_WINDOW_DAYS after the anchor", () => {
+    // The zone-free half of the same claim: whatever it renders, the deadline
+    // it renders is 14 calendar days on from the anchor.
+    expect(disputeDeadline(ANCHOR).getTime() - anchorMs).toBe(DISPUTE_WINDOW_DAYS * DAY_MS)
   })
 
   it("does not claim a date it does not have", () => {

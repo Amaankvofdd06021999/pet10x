@@ -23,6 +23,7 @@ import {
   type Persona,
   type PersonaGrants,
 } from "@/lib/rbac"
+import { parseDbDate } from "@/lib/dates"
 
 export type AuthMode = "full" | "guest"
 
@@ -45,10 +46,11 @@ const ROLE_LABEL: Record<UserRole, string> = {
   business: "Business",
 }
 
+/* A `date` column, read through the one rule rather than a second spelling of
+ * it. The `T00:00:00` splice this replaced was already correct. */
 function formatMonthYear(d: string | null | undefined): string {
-  if (!d) return ""
-  const dt = new Date(`${d}T00:00:00`)
-  return isNaN(dt.getTime()) ? "" : dt.toLocaleDateString("en-US", { month: "short", year: "numeric" })
+  const dt = parseDbDate(d)
+  return dt === null ? "" : dt.toLocaleDateString("en-US", { month: "short", year: "numeric" })
 }
 
 function sanitizeAuthError(message: string): string {

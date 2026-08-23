@@ -15,6 +15,7 @@ import { useCallback, useEffect, useReducer, useState } from "react"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client"
 import { petFileSignedUrls, isStoragePath, uploadPetFile, deletePetFile } from "@/lib/supabase/storage"
 import type { Database } from "@/lib/supabase/database.types"
+import { daysUntil, parseDbDate } from "@/lib/dates"
 import { PETS as MOCK_PETS } from "./mock-data"
 import { defaultTargetsFor, defaultScheduleFor } from "./care-catalog"
 import { describeWhyNot } from "./disputes"
@@ -167,9 +168,17 @@ const STATUS_MAP: Record<Database["public"]["Enums"]["pet_status"], PetStatus> =
   deceased: "away",
 }
 
+/*
+ * `pets.date_of_birth` is a `date`, and everything below it reads LOCAL parts
+ * (`getFullYear`, `getMonth`, `getDate`). Parsed bare it was a UTC midnight, so
+ * west of Greenwich the local date was the day before and a pet born on the 1st
+ * aged from the last day of the previous month. Cosmetic — it moves a month
+ * boundary by a day, never a year — but it is the same rule as the two above,
+ * and using the module costs one word.
+ */
 function computeAge(dob: string): string | undefined {
-  const birth = new Date(dob)
-  if (Number.isNaN(birth.getTime())) return undefined
+  const birth = parseDbDate(dob)
+  if (birth === null) return undefined
   const now = new Date()
   let years = now.getFullYear() - birth.getFullYear()
   let months = now.getMonth() - birth.getMonth()
@@ -517,13 +526,26 @@ export async function setPetPhoto(petId: string, file: File): Promise<{ error: s
 
 /* ---------------------- pet documents / vax / contacts ------------------ */
 
+/**
+ * A document's status from its expiry date — a COMPLIANCE BADGE, not a string.
+ *
+ * `pet_documents.expires_on` and `pet_vaccinations.expires_on` are both `date`
+ * columns: bare `YYYY-MM-DD`, a square on a calendar. This function used to do
+ * `new Date(expiresOn).getTime() < Date.now()`, comparing a UTC MIDNIGHT
+ * against a local instant — so at UTC-7 a document expiring TODAY read
+ * `expired` from local midnight until 17:00, and the resident's card and the
+ * manager's queue both said their vaccination had lapsed while it had not.
+ *
+ * `daysUntil` keys both sides to the same local calendar day, so the day of
+ * expiry is `0` and the boundary is stated in the same units the rule is
+ * written in: a thing that expires today has NOT expired.
+ */
 function docStatusFromExpiry(expiresOn?: string | null): Database["public"]["Enums"]["doc_status"] {
   if (!expiresOn) return "active"
-  const exp = new Date(expiresOn).getTime()
-  if (Number.isNaN(exp)) return "active"
-  const now = Date.now()
-  if (exp < now) return "expired"
-  if (exp < now + 30 * 86_400_000) return "expiring"
+  const days = daysUntil(expiresOn)
+  if (days === null) return "active"
+  if (days < 0) return "expired"
+  if (days <= 30) return "expiring"
   return "current"
 }
 

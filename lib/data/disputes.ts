@@ -32,6 +32,7 @@
  * only.
  */
 
+import { longDate } from "@/lib/dates"
 import type { ViolationStage } from "./types"
 
 /**
@@ -157,13 +158,6 @@ export function canDispute(input: CanDisputeInput): CanDisputeResult {
   return { ok: true }
 }
 
-/** "September 6, 2026" — the one date format this module renders. */
-function longDate(d: Date): string {
-  return Number.isNaN(d.getTime())
-    ? "an unknown date"
-    : d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-}
-
 /**
  * The sentence shown IN PLACE OF the dispute button, never instead of nothing.
  *
@@ -184,6 +178,6 @@ export function describeWhyNot(reason: DisputeBlockedReason, deadline?: Date): s
     case "open":
       return "You already have an appeal on this case waiting for a decision. The strata will respond to that one first."
     case "window":
-      return `The ${DISPUTE_WINDOW_DAYS}-day window to dispute this closed on ${longDate(deadline ?? new Date(NaN))}. Contact your strata directly if you still want to contest it.`
+      return `The ${DISPUTE_WINDOW_DAYS}-day window to dispute this closed on ${longDate(deadline ?? null, "an unknown date")}. Contact your strata directly if you still want to contest it.`
   }
 }

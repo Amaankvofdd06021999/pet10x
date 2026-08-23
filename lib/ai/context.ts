@@ -2,6 +2,7 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabase/database.types"
+import { daysUntil } from "@/lib/dates"
 
 /**
  * Pet10x — the pet dossier.
@@ -245,6 +246,15 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+/*
+ * NOT the same defect, and deliberately left alone.
+ *
+ * `new Date(dob)` is a UTC midnight here too, but the result is bucketed into
+ * 30.44-day months and then floored — a bucket wide enough to absorb any
+ * zone offset on earth. No offset can move a pet between "7 months" and
+ * "8 months", so there is nothing here to fix, and rewriting it would be churn
+ * dressed as a fix.
+ */
 function formatAge(dob: string): string {
   const birth = new Date(dob)
   const months = Math.max(0, Math.floor((Date.now() - birth.getTime()) / (30.44 * 86_400_000)))
@@ -252,8 +262,23 @@ function formatAge(dob: string): string {
   return `${Math.floor(months / 12)} years`
 }
 
+/**
+ * "today" / "in 3 days" / "5 days ago" — WRITTEN INTO AN LLM PROMPT AS FACT.
+ *
+ * Its two inputs, `pet_vaccinations.expires_on` and `pet_medications
+ * .next_due_at`, are both `date` columns. This used to be
+ * `Math.round((new Date(isoDate) - Date.now()) / 86_400_000)`, comparing a UTC
+ * midnight against a local instant, so west of Greenwich a vaccination
+ * expiring TODAY became "1 day ago" — and the model then told the owner their
+ * booster had lapsed. `daysUntil` keys both sides to the same local calendar
+ * day, which is the only reading under which "today" can ever be produced.
+ *
+ * Nothing is emitted at all when the date will not parse: an unparseable date
+ * silently became "NaN days ago" in the prompt, which is worse than silence.
+ */
 function relativeDays(isoDate: string): string {
-  const days = Math.round((new Date(isoDate).getTime() - Date.now()) / 86_400_000)
+  const days = daysUntil(isoDate)
+  if (days === null) return "on an unknown date"
   if (days === 0) return "today"
   if (days > 0) return `in ${days} day${days === 1 ? "" : "s"}`
   return `${Math.abs(days)} day${days === -1 ? "" : "s"} ago`

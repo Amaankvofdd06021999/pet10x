@@ -41,6 +41,7 @@ import { Portal } from "@/components/ui/portal"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { useMyCases, fileDispute } from "@/lib/data/live"
+import { longDate } from "@/lib/dates"
 import { STAGE_LABEL, isTerminal } from "@/lib/data/violations"
 import { DISPUTE_WINDOW_DAYS, canDispute, describeWhyNot, disputeDeadline } from "@/lib/data/disputes"
 import type { ResidentCase, ViolationStage } from "@/lib/data/types"
@@ -91,15 +92,13 @@ function money(cents: number, currency: string): string {
   return `$${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`
 }
 
-/**
- * "June 27, 2026" — every date this screen renders.
+/*
+ * DATES ON THIS SCREEN COME FROM `@/lib/dates`, and that import is the fix.
  *
- * A BARE `YYYY-MM-DD` IS A CALENDAR DATE, NOT AN INSTANT, and it has to be
- * parsed as one. `new Date("2026-06-27")` is specified to parse a date-only
- * string as UTC MIDNIGHT; `toLocaleDateString` then renders it in the viewer's
- * zone, so everyone west of UTC saw the previous day.
- *
- * MEASURED IN THE BROWSER before this fix, at UTC-7 against live data:
+ * A BARE `YYYY-MM-DD` IS A CALENDAR DATE, NOT AN INSTANT. `new Date("2026-06-27")`
+ * is specified to parse a date-only string as UTC MIDNIGHT; `toLocaleDateString`
+ * then renders it in the viewer's zone, so everyone west of UTC saw the previous
+ * day. MEASURED IN THE BROWSER before the fix, at UTC-7 against live data:
  *
  *   violation_events.occurred_on  2026-06-27  rendered  "June 26, 2026"
  *   violation_events.occurred_on  2026-08-23  rendered  "August 22, 2026"
@@ -109,21 +108,12 @@ function money(cents: number, currency: string): string {
  * screen whose whole job is to state what they owe and by when. `tsc`, the
  * build and 177 tests were all green on it.
  *
- * Building the date from its parts yields a LOCAL midnight, so a calendar date
- * stays the calendar date it was written as. Timestamps (`filed_at`,
- * `decided_at`, `created_at`) carry a zone and are parsed normally — they are
- * instants, and converting them to the viewer's zone is correct.
+ * The rule lived here as a private helper for one round. It is a MODULE now,
+ * because the review that read this fix found the same rule spelled four ways
+ * across the repo and two of the other spellings wrong in ways this one was
+ * not — one driving a compliance badge, one writing "1 day ago" about something
+ * that expires today into an LLM prompt. `longDate` is that rule, once.
  */
-function longDate(value: string | null): string {
-  if (!value) return "—"
-  const bare = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  const d = bare
-    ? new Date(Number(bare[1]), Number(bare[2]) - 1, Number(bare[3]))
-    : new Date(value)
-  return Number.isNaN(d.getTime())
-    ? "—"
-    : d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-}
 
 /**
  * What each fine status means to the person who owes it.
@@ -547,7 +537,7 @@ function DisputePanel({
             Dispute this
           </button>
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-            {`You have until ${longDate(disputeDeadline(c.anchorIso).toISOString())} to contest the ${STAGE_LABEL[
+            {`You have until ${longDate(disputeDeadline(c.anchorIso))} to contest the ${STAGE_LABEL[
               c.stage
             ].toLowerCase()} stage — ${DISPUTE_WINDOW_DAYS} days from the date it was issued.`}
           </p>

@@ -56,6 +56,7 @@ import { Portal } from "@/components/ui/portal"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { useViolations, useResolvedViolations } from "@/lib/data"
+import { shortDate } from "@/lib/dates"
 import { usePortfolioBuildings, useOutstandingFines } from "@/lib/data/portfolio"
 import {
   advanceViolation,
@@ -73,8 +74,8 @@ import {
 // bylaw default was unreachable from vitest. Same behaviour, now tested.
 import { readFineSchedule, type FineSchedule } from "@/lib/data/fine-schedule"
 import {
-  LEGAL_TRANSITIONS,
   STAGE_LABEL,
+  controlsForCase,
   describeLegalMoves,
   nextStage,
 } from "@/lib/data/violations"
@@ -194,14 +195,18 @@ function actionsFor(v: Violation): Action[] {
    * to `disputed`. The early return makes that a decision rather than a
    * coincidence.
    */
-  if (v.openDispute) {
+  // Asked of `controlsForCase`, not decided here. The strata portal calls the
+  // same two mutations and got this wrong for a whole phase by re-deriving it;
+  // see that function's header.
+  const controls = controlsForCase(v.stage, v.openDispute !== null)
+  if (controls.kind === "decide-appeal") {
     return [
       { kind: "uphold", label: "Uphold the finding", className: "bg-warning/10 text-warning-strong" },
       { kind: "overturn", label: "Overturn it", className: "bg-success/10 text-success" },
     ]
   }
 
-  const legal = LEGAL_TRANSITIONS[v.stage]
+  const legal = controls.moves
   const actions: Action[] = []
 
   if (legal.includes("warning")) {
@@ -320,6 +325,20 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   const totalFines = finedCases.reduce((sum, v) => sum + v.amount, 0)
   const unpaidFines = finedCases.reduce((sum, v) => sum + v.outstanding, 0)
   const disputedFines = finedCases.reduce((sum, v) => sum + v.disputed, 0)
+  /*
+   * THE CASES THAT MONEY IS ON — not the cases on the Disputed tab.
+   *
+   * These are two different signals and Phase 5 separated them on purpose:
+   * `disputedFines` is money, summed from `fines.status = 'disputed'`, and
+   * `disputedViolations` is the tab, driven by `violation_disputes.outcome is
+   * null`. The sentence below used one for the amount and the other for the
+   * count, which agrees on today's data and stops agreeing the moment a
+   * resident disputes a WARNING — a stage with no fine row — at which point it
+   * reads "$200.00 on 2 cases under dispute" with the second case contributing
+   * nothing to the $200. A sentence has to take both halves from the same
+   * source or it is not one sentence.
+   */
+  const casesWithDisputedMoney = finedCases.filter((v) => v.disputed > 0).length
 
   // Money still owed on cases this screen does not list, because they are
   // closed (or because the fine was issued without a case at all). The ids of
@@ -549,9 +568,14 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
             </div>
             {disputedFines > 0 && (
               <p className="mt-2 border-t border-border pt-2 text-[11px] leading-relaxed text-muted-foreground">
-                Includes <span className="font-semibold text-foreground">${disputedFines.toFixed(2)}</span> on{" "}
-                {disputedViolations.length} case{disputedViolations.length === 1 ? "" : "s"} under dispute. Still owed
-                unless the appeal succeeds, so it is counted here and listed on the Disputed tab.
+                {/*
+                  One string expression, not JSX prose: this file has twice
+                  shipped a missing space where JSX ate the whitespace after an
+                  interpolation, and `check:jsx-spaces` exists because of it.
+                */}
+                {`Includes $${disputedFines.toFixed(2)} on ${casesWithDisputedMoney} case${
+                  casesWithDisputedMoney === 1 ? "" : "s"
+                } under dispute. Still owed unless the appeal succeeds, so it is counted here and listed on the Disputed tab.`}
               </p>
             )}
             {/*
@@ -695,14 +719,6 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
 /* One case                                                            */
 /* ------------------------------------------------------------------ */
 
-/** "Aug 23, 2026" — the appeal's filing date, in one place. */
-function shortDate(iso: string): string {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime())
-    ? "an unknown date"
-    : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-}
-
 function CaseCard({ violation, onAct }: { violation: Violation; onAct: (a: Action) => void }) {
   const stageInfo = STAGE_CONFIG[violation.stage]
   const reached = LADDER.indexOf(violation.stage)
@@ -797,6 +813,7 @@ function CaseCard({ violation, onAct }: { violation: Violation; onAct: (a: Actio
             <p className="text-[11px] font-semibold text-warning-strong">
               {`Appeal against the ${STAGE_LABEL[violation.openDispute.stage].toLowerCase()} stage, filed ${shortDate(
                 violation.openDispute.filedAt,
+                "an unknown date",
               )}`}
             </p>
             <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">
@@ -1079,7 +1096,7 @@ function ActionSheet({
           {violation.openDispute && (
             <>
               <p className="text-[11px] font-semibold text-muted-foreground">
-                The resident said, on {shortDate(violation.openDispute.filedAt)}:
+                The resident said, on {shortDate(violation.openDispute.filedAt, "an unknown date")}:
               </p>
               <p className="mb-2 mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">
                 {violation.openDispute.reason}

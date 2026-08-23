@@ -9,6 +9,17 @@
  */
 
 import { useCallback, useEffect, useState } from "react"
+/*
+ * Dates through the shared rule in `@/lib/dates`, not a private helper.
+ *
+ * This file used to carry `shortDate = new Date(iso).toLocaleDateString(...)`,
+ * and most of its callers hand it a `timestamptz`, where that is right. ONE
+ * does not: `expires_on` on the document queue is a `date`, so at UTC-7 the
+ * manager's expiring-documents list showed every deadline a day early.
+ * `shortDay` reads a bare `YYYY-MM-DD` as the calendar day it names and an
+ * instant as an instant, so both callers are right for the reason they are right.
+ */
+import { localDayKey, shortDay } from "@/lib/dates"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type {
   Registration,
@@ -36,10 +47,6 @@ interface Result<T> {
   refetch: () => void
 }
 
-function shortDate(iso: string | null): string {
-  if (!iso) return ""
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-}
 
 function ageFrom(dob: string | null): string {
   if (!dob) return "—"
@@ -119,7 +126,7 @@ export function useRegistrationsLive(): Result<Registration[]> {
           breed: r.breed ?? "—",
           weight: r.weight_grams ? `${(r.weight_grams / 1000).toFixed(1)} kg` : "—",
           age: ageFrom(r.dob),
-          submitted: shortDate(r.created_at),
+          submitted: shortDay(r.created_at),
           createdAt: r.created_at,
           status: "pending" as const,
           flags,
@@ -206,7 +213,7 @@ export function useAccommodationsLive(): Result<AccommodationRequest[]> {
           resident: first(r.resident)?.full_name ?? "Unknown",
           type: r.type === "service_animal" ? ("Service Animal" as const) : ("ESA" as const),
           animal: pet ? `${pet.name}${pet.breed ? ` (${pet.breed})` : ""}` : (r.animal_desc ?? "—"),
-          submitted: shortDate(r.created_at),
+          submitted: shortDay(r.created_at),
           createdAt: r.created_at,
           status: (r.status === "approved" ? "approved" : r.status === "denied" ? "denied" : "pending") as
             | "approved"
@@ -307,7 +314,7 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
           resident: first(r.pet!.owner)?.full_name ?? "Unknown",
           pet: r.pet!.name,
           type: r.name ?? r.kind.replace(/_/g, " "),
-          expiring: r.expires_on ? shortDate(r.expires_on) : "—",
+          expiring: r.expires_on ? shortDay(r.expires_on) : "—",
           expiresOn: r.expires_on,
           status: (r.status === "expired" ? "expiring" : "expiring") as "expiring" | "current",
         })),
@@ -428,7 +435,7 @@ export function useViolationsLive(): Result<Violation[]> {
           resident: first(r.resident)?.full_name ?? "Unassigned",
           pet: first(r.pet)?.name ?? "—",
           type: r.type.replace(/_/g, " "),
-          date: shortDate(r.created_at),
+          date: shortDay(r.created_at),
           stage,
           stageLabel: STAGE_LABEL[stage],
           amount: money.totalCents / 100,
@@ -436,7 +443,7 @@ export function useViolationsLive(): Result<Violation[]> {
           disputed: money.disputedCents / 100,
           chaseable: money.chaseable,
           paid: money.fullyPaid,
-          history: [{ stage: STAGE_LABEL[stage], date: shortDate(r.created_at) }],
+          history: [{ stage: STAGE_LABEL[stage], date: shortDay(r.created_at) }],
           // The open appeal itself, so the Disputed tab can render the
           // resident's stated reason. A manager deciding an appeal they cannot
           // read is not deciding it.
@@ -503,7 +510,7 @@ export function useResolvedViolationsLive(): Result<ResolvedViolation[]> {
         buildingId: r.building_id,
         unit: first(r.unit)?.unit_number ?? "—",
         type: r.type.replace(/_/g, " "),
-        resolved: shortDate(r.resolved_at),
+        resolved: shortDay(r.resolved_at),
         outcome: r.resolution_outcome ?? "Resolved",
       })),
     )
@@ -586,7 +593,15 @@ function advanceError(r: { error?: string; from?: string; to?: string }): string
       // it, because closing a case under appeal decides the appeal by ending
       // the thing it is about. The sentence names the one way out rather than
       // only saying no.
-      return "This resident has an open appeal on this case. Decide it on the Disputed tab — uphold the finding or overturn it — before the case can move again."
+      //
+      // IT NAMES THE ACT, NOT A PLACE. It used to say "Decide it on the
+      // Disputed tab", which is a route that exists on the manager's Violations
+      // screen and NOWHERE ELSE — so on the strata portal, the one surface
+      // where this error was actually reachable and unhandled, it sent the
+      // admin looking for a tab that does not exist. This string is shared by
+      // every caller of `advanceViolation`, so it may only describe things
+      // every caller has: the case, the appeal, and the two decisions.
+      return "This resident has an open appeal on this case. Uphold the finding or overturn it before the case can move again."
     case "illegal_transition":
       // The RPC returns the from/to pair and no guidance. The guidance comes
       // from the client's mirror of the same table, so the manager is told what
@@ -1127,7 +1142,15 @@ export async function fetchCaseLedger(): Promise<{ error: string | null; rows: L
       | null
   }
   const first = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
-  const day = (iso: string | null) => (iso ? iso.slice(0, 10) : "")
+  /*
+   * The calendar day a value falls on, IN THE EXPORTER'S ZONE.
+   *
+   * This was `iso.slice(0, 10)`, which takes the UTC day off a `timestamptz` —
+   * so an appeal filed at 6pm local exported as the NEXT day, in the document a
+   * tribunal reads first. `localDayKey` returns a `date` column unchanged and
+   * keys an instant to the local day.
+   */
+  const day = (iso: string | null) => localDayKey(iso)
 
   const out: LedgerRow[] = []
   for (const r of (rows ?? []) as unknown as Row[]) {

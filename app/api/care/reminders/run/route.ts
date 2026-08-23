@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
+import { addCalendarDays, calendarDaysBetween } from "@/lib/dates"
 
 /**
  * Raise reminders for care tasks that are due and not yet done.
@@ -194,9 +195,8 @@ export async function GET(request: NextRequest) {
      * a failure above leaves the task due rather than silently skipping a
      * dose. */
     if (item.recurrence === "interval" && item.intervalDays) {
-      const next = new Date(`${item.dateKey}T00:00:00Z`)
-      next.setUTCDate(next.getUTCDate() + item.intervalDays)
-      const nextKey = next.toISOString().slice(0, 10)
+      const nextKey = addCalendarDays(item.dateKey, item.intervalDays)
+      if (!nextKey) continue
       // Past the end of the course, the task retires itself rather than
       // sitting active with a due date nobody will ever reach.
       const finished = item.endsOn != null && nextKey > item.endsOn
@@ -229,9 +229,13 @@ export async function GET(request: NextRequest) {
     // boolean means renewing the vaccination re-arms the reminder by itself.
     if (v.reminded_for === v.expires_on) continue
 
-    const daysLeft = Math.round(
-      (new Date(`${v.expires_on}T00:00:00Z`).getTime() - new Date(`${todayKey}T00:00:00Z`).getTime()) / 86_400_000,
-    )
+    /* Both sides keyed to the same midnight, through the one module that
+     * states the rule. Byte-for-byte the arithmetic this replaced — a cron has
+     * no viewer, so `todayKey` stays the SERVER's UTC calendar day rather than
+     * becoming a local one. That is deliberate: the only defensible "today" for
+     * a job that reminds residents in every zone is the one the job runs in. */
+    const daysLeft = calendarDaysBetween(todayKey, v.expires_on)
+    if (daysLeft === null) continue
     if (daysLeft > (v.remind_days_before ?? 30)) continue
 
     /* A reminder is for the transition, not the standing state.

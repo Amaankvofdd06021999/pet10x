@@ -109,6 +109,52 @@ export function nextStage(stage: ViolationStage): ViolationStage | null {
   return LEGAL_TRANSITIONS[stage].find((s) => !isTerminal(s)) ?? null
 }
 
+/* ------------------------------------------------------------------ */
+/* What a case may be offered, decided once for every surface           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The controls a manager may be shown for a case.
+ *
+ *   decide-appeal   an appeal is open. The ONLY legal next action is deciding
+ *                   it, so the ladder controls are REPLACED — not shown
+ *                   alongside — by Uphold and Overturn.
+ *   ladder          no appeal is open. `moves` is every legal transition out of
+ *                   the stage and `next` is the single escalation step, or null
+ *                   at the top of the ladder.
+ */
+export type CaseControls =
+  | { kind: "decide-appeal" }
+  | { kind: "ladder"; moves: readonly ViolationStage[]; next: ViolationStage | null }
+
+/**
+ * WHY THIS IS A FUNCTION IN A SHARED MODULE AND NOT AN `if` IN A SCREEN.
+ *
+ * Phase 5 added `dispute_open` to `manager_advance_violation` and taught the
+ * manager's Violations screen about it. `components/screens/strata/building-
+ * detail.tsx` calls the SAME two mutations and was not told, so on a case under
+ * appeal it went on rendering Advance and Resolve — two buttons the database
+ * refuses, over an error sentence pointing at a Disputed tab that does not
+ * exist on the strata portal, with no way to decide the appeal at all.
+ *
+ * That was the third time this project shipped a fix at the call site the
+ * defect was REPORTED at while a second call site went on being wrong (Phase
+ * 2's escalation gap and Phase 3's wrong-pet were the others). The rule is not
+ * "the Violations screen hides the ladder during an appeal", it is "a case
+ * under appeal has exactly one legal next action" — a fact about the case, and
+ * a fact the database enforces. So it is stated here, once, and every surface
+ * asks. A fourth screen that forgets to ask is a screen that never renders a
+ * control at all, which is a visible bug rather than a silent one.
+ *
+ * `hasOpenDispute` is a boolean rather than the dispute row for the same reason
+ * `tabFor` takes one: this module is about the ladder, and it should not need
+ * to know the shape of `violation_disputes` to answer.
+ */
+export function controlsForCase(stage: ViolationStage, hasOpenDispute: boolean): CaseControls {
+  if (hasOpenDispute) return { kind: "decide-appeal" }
+  return { kind: "ladder", moves: LEGAL_TRANSITIONS[stage], next: nextStage(stage) }
+}
+
 /**
  * The sentence a manager should see when a transition is refused.
  *

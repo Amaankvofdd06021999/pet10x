@@ -239,7 +239,22 @@ describe("relativeUpdated", () => {
   })
 
   it("falls back to an absolute date past a week, with the year", () => {
-    expect(relativeUpdated("2026-07-04T12:00:00Z", now)).toMatch(/^Updated Jul 4, 2026$/)
+    /*
+     * The expected date is COMPUTED from the same instant, not written out.
+     * `2026-07-04T12:00:00Z` is still 4 July at UTC-7 but is already the 5th at
+     * UTC+12, so the literal this replaced failed in New Zealand — the same
+     * zone-bound-test defect Phase 5's review found in `disputes.test.ts`, in a
+     * second file. `updated_at` is a `timestamptz` and rendering an instant in
+     * the reader's zone is CORRECT, so the property to assert is that the
+     * sentence names that instant's local date, whatever zone reads it.
+     */
+    const iso = "2026-07-04T12:00:00Z"
+    const local = new Date(iso).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    expect(relativeUpdated(iso, now)).toBe(`Updated ${local}`)
   })
 
   it("never renders a negative age for a clock that is behind the server", () => {

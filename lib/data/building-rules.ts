@@ -24,6 +24,7 @@
 
 import { Constants } from "@/lib/supabase/database.types"
 import type { Database } from "@/lib/supabase/database.types"
+import { shortDate } from "@/lib/dates"
 
 export type BuildingRuleCategory = Database["public"]["Enums"]["building_rule_category"]
 
@@ -150,7 +151,10 @@ export function relativeUpdated(iso: string, now: Date = new Date()): string {
   if (hours < 24) return `Updated ${hours}h ago`
   const days = Math.floor(hours / 24)
   if (days < 7) return `Updated ${days}d ago`
-  return `Updated ${new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+  // Through the shared rule. `updated_at` is a `timestamptz` and rendering an
+  // instant in the reader's zone is correct, so this is a consolidation rather
+  // than a fix — but it is one fewer place that spells the rule for itself.
+  return `Updated ${shortDate(iso, "recently")}`
 }
 
 /* ------------------------------------------------------------------------ */

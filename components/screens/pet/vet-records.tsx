@@ -5,6 +5,11 @@ import { toast } from "sonner"
 import { CalendarClock, Loader2, Plus, Stethoscope, Trash2, X } from "lucide-react"
 import { usePetVetVisits, addVetVisit, deleteVetVisit } from "@/lib/data"
 import { Portal } from "@/components/ui/portal"
+/* `visited_on` and `follow_up_on` are `date` columns. This screen already got
+ * the rule right with a `T00:00:00` splice; it is the SAME rule, so it reads it
+ * from the one module that states it. The en-CA presentation is unchanged —
+ * what was consolidated is the parse, not the wording. */
+import { parseDbDate } from "@/lib/dates"
 
 /**
  * Vet visit history for a pet.
@@ -58,11 +63,11 @@ export function VetRecords({ petId }: { petId: string }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-semibold text-foreground">{v.reason}</p>
                   <p className="mt-0.5 text-[12px] text-muted-foreground">
-                    {new Date(`${v.visitedOn}T00:00:00`).toLocaleDateString("en-CA", {
+                    {parseDbDate(v.visitedOn)?.toLocaleDateString("en-CA", {
                       day: "numeric",
                       month: "short",
                       year: "numeric",
-                    })}
+                    }) ?? "—"}
                     {v.clinic ? ` · ${v.clinic}` : ""}
                     {v.vetName ? ` · ${v.vetName}` : ""}
                   </p>
@@ -71,11 +76,11 @@ export function VetRecords({ petId }: { petId: string }) {
                     <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-medium text-primary">
                       <CalendarClock className="h-3.5 w-3.5" />
                       Follow-up{" "}
-                      {new Date(`${v.followUpOn}T00:00:00`).toLocaleDateString("en-CA", {
+                      {parseDbDate(v.followUpOn)?.toLocaleDateString("en-CA", {
                         day: "numeric",
                         month: "short",
                         year: "numeric",
-                      })}
+                      }) ?? "—"}
                     </p>
                   )}
                 </div>

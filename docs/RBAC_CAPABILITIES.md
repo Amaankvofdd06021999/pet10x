@@ -98,6 +98,53 @@ notes and one emergency phone. It writes an `audit_log` row on every view and
 deliberately returns no owner identity. Its own access model — token issue,
 expiry and revocation — is where that should be reviewed, not here.
 
+## Table-level grants: the four verbs RLS polices, and the four it does not
+
+Every row above is about RLS. RLS decides WHICH ROWS a principal may touch, and
+it is defined in terms of rows — so it governs `SELECT`, `INSERT`, `UPDATE` and
+`DELETE` and **nothing else**. `TRUNCATE`, `REFERENCES`, `TRIGGER` and
+`MAINTAIN` never consult a policy. A table-level grant of those four is a
+capability no row in this matrix describes and no policy can withdraw.
+
+Supabase's shipped `alter default privileges … grant all on tables to anon,
+authenticated, service_role` handed exactly those four to both client roles on
+every table created by every migration this project has run. `relacl` read
+`anon=arwdDxtm/postgres` on 53 of 55 tables.
+
+**Measured, not theorised.** Phase 6's review, running as
+`resident1@pet10x.com` — an ordinary signed-in resident — ran
+`truncate public.building_rules` on live production. It succeeded and erased all
+three rows. Independently reproduced on `violation_disputes`, a table with no
+client write policy at all: `set local role authenticated; truncate
+public.violation_disputes;` took it from 1 row to 0.
+
+`20260824000004_client_role_table_grants.sql` states the grammar positively:
+**`anon` and `authenticated` hold exactly {SELECT, INSERT, UPDATE, DELETE} on
+the tables they touch, and nothing outside RLS's reach.** It resets every
+existing table and changes the default privileges so the next `create table`
+inherits the decision. `service_role` is unchanged and that is a decision, not
+an omission: it is the trusted server identity, it bypasses RLS by design, and
+it already holds `DELETE` on every row.
+
+| Verb | `anon` | `authenticated` | `service_role` | Policed by RLS? |
+| --- | --- | --- | --- | --- |
+| SELECT / INSERT / UPDATE / DELETE | ✅ where already granted | ✅ where already granted | ✅ | ✅ — every row above |
+| TRUNCATE | ❌ 42501 | ❌ 42501 | ✅ | ❌ never |
+| REFERENCES | ❌ | ❌ | ✅ | ❌ never |
+| TRIGGER | ❌ | ❌ | ✅ | ❌ never |
+| MAINTAIN | ❌ | ❌ | ✅ | ❌ never |
+
+Verified after the migration across all 56 `public` tables: 0 hold TRUNCATE,
+REFERENCES, TRIGGER or MAINTAIN for either client role, while `authenticated`
+retains all four DML verbs on the 55 it had them on. `truncate` probed directly
+as both roles against `violations`, `violation_events`, `fines`,
+`violation_disputes`, `building_rules`, `audit_log`, `profiles` and `pets` —
+**16 of 16 refused with 42501.**
+
+Two tables keep narrower grants, and the migration preserves them rather than
+levelling them up: `pending_signups` (postgres and `service_role` only) and
+`building_rules`, where `20260825000000` had already revoked `anon` outright.
+
 ## The pet photo path
 
 One observation, not a defect. Where a `photo` path *is* returned it is raw, and
@@ -125,7 +172,7 @@ Phase 2, not something this document settles.
 | Look up a report by reference | ✅ | ✅ | ✅ | ✅ | `incident_status_by_reference` |
 | Triage an incident | ❌ | ❌ | ✅ | ✅ | `incidents_manager_update` |
 | Escalate to a violation | ❌ | ❌ | ✅ | ✅ | `escalate_incident_to_violation` |
-| Advance a violation degree | ❌ | ❌ | ✅ | ✅ | `manager_advance_violation` *(Phase 4)* — but see ² |
+| Advance a violation degree | ❌ | ❌ | ✅ | ✅ | `manager_advance_violation` ² |
 | Read own violations and fines | ❌ | ✅ own | ✅ building | ✅ | `violations_select`, `fines_select` |
 | Dispute a violation | ❌ | ✅ own | ❌ | ❌ ⁴ | `dispute_violation` |
 | Decide a dispute | ❌ | ❌ | ✅ | ✅ | `manager_resolve_dispute` |
@@ -216,15 +263,39 @@ manager DELETE policy on `building_rules`, so a manager's `DELETE` affects zero
 rows (RLS filters rather than errors); measured for the manager of the building,
 a manager of another building and a resident.
 
-² `manager_advance_violation` genuinely does not exist, but do not read that as
-"no one can advance a violation yet". `violations_manager_write` is `FOR ALL`
-with `manages_building(building_id) or is_admin()`, so a manager already has an
-unguarded direct write to `violations.stage`. Measured: a non-admin manager of
-Maple Court Residences moved all 5 of that building's violations from
-`investigation` / `written_warning` / `resolved` to `fine_issued` in a single
-`UPDATE`, with no degree-ordering check and no `violation_events` row written.
-Phase 4 must close or supersede that write path, not just add the RPC beside
-it.
+² **This footnote used to say the RPC "genuinely does not exist" and the row was
+marked *(Phase 4)*. Both were true when written and neither is true now.** Phase
+2 built `manager_advance_violation` (`20260823000001`, recreated with a sixth
+argument by `20260824000002`) and Phase 5 taught it to refuse a case under
+appeal. It is deployed, it is the only path that moves a stage, and the row
+above no longer carries a phase marker because there is nothing left to wait
+for.
+
+What the footnote correctly warned about was the unguarded direct write beside
+it: `violations_manager_write` was `FOR ALL` with `manages_building(building_id)
+or is_admin()`, and a non-admin manager of Maple Court Residences moved all 5 of
+that building's violations to a fine stage in a single `UPDATE`, with no
+degree-ordering check and no `violation_events` row. That path is CLOSED.
+Measured on the live database:
+
+- The `FOR ALL` policy is gone. `violations` now carries three narrow policies —
+  `violations_select` (read), `violations_manager_insert` (`INSERT` only, and
+  its `WITH CHECK` pins `stage = 'open'`, so a case cannot be born mid-ladder),
+  and `violations_manager_update` (`UPDATE` only).
+- The remaining `UPDATE` cannot move a stage. `trg_violations_stage_guard`
+  (`20260823000002`) is a `BEFORE UPDATE` that raises **42501** on any `stage`
+  change not carrying the single-use `pet10x.stage_change` token, which only
+  `manager_advance_violation` mints. Re-measured 2026-08-23 as the real building
+  manager: a direct `UPDATE ... SET stage='fine_2'` raises `42501 violations.stage
+  cannot be changed by a direct UPDATE`.
+
+One caveat, recorded rather than hidden: the token is a transaction-local GUC,
+so a caller who can execute arbitrary SQL can mint it by hand
+(`set_config('pet10x.stage_change','ok',true)`) and then perform the `UPDATE`
+directly — bypassing the transition table, the `dispute_open` refusal and the
+event ledger. `set_config` lives in `pg_catalog`, which PostgREST cannot reach,
+so this is not available to the app or to any browser session; it is available
+to anyone holding a SQL connection. See the Phase 5 ledger for the measurement.
 
 ⁴ **The super-admin column on "Dispute a violation" was ✅ in the design spec
 (`2026-08-21-completing-manager-resident-flows-design.md:475`) and Phase 5
