@@ -5,6 +5,7 @@ import Image from "next/image"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import {
+  Camera,
   CheckCircle2,
   Clock,
   Gavel,
@@ -93,6 +94,42 @@ export function IncidentCard({ incident, onChange }: { incident: ManagerIncident
             )}
           </div>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{incident.description}</p>
+
+          {/* What the reporter photographed. Most reports carry nothing, so this
+              renders only when there is something to show — an empty state here
+              would be noise on the majority of cards. A report that *does* carry
+              photos we couldn't sign says so instead of going quiet, because a
+              silent strip and an empty one would otherwise read the same. */}
+          {incident.evidenceCount > 0 && (
+            <div className="mt-2.5">
+              <p className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                <Camera className="h-3 w-3" />
+                {incident.evidenceUrls.length === 0
+                  ? `${incident.evidenceCount} photo${incident.evidenceCount === 1 ? "" : "s"} attached — couldn't load ${incident.evidenceCount === 1 ? "it" : "them"} just now`
+                  : `${incident.evidenceUrls.length} photo${incident.evidenceUrls.length === 1 ? "" : "s"} from the reporter`}
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {incident.evidenceUrls.map((url, i) => (
+                  <a
+                    key={url}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open full size"
+                    className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-muted"
+                  >
+                    <Image
+                      src={url}
+                      alt={`Evidence photo ${i + 1} of ${incident.evidenceUrls.length}`}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Who was reported.
               The reporter picks the pet from photos and never sees a unit; the

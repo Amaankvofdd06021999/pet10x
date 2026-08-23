@@ -208,6 +208,14 @@ export interface ManagerIncident {
   /** The unit the identified pet lives in — the manager may see this; the reporter may not. */
   petUnit: string | null
   petOwnerName: string | null
+  /** Photos the reporter attached, signed for an hour. Empty for most reports. */
+  evidenceUrls: string[]
+  /**
+   * How many photos the report actually carries. Kept alongside the signed
+   * URLs so the card can tell "the reporter sent none" (say nothing) apart
+   * from "signing failed" (say so) — those must not look the same.
+   */
+  evidenceCount: number
 }
 
 /**
@@ -256,7 +264,7 @@ export function useIncidents() {
       .from("incident_reports")
       .select(
         `id, building_id, type, status, description, location_text, unit_involved, is_anonymous,
-         reference_code, created_at, pet_id,
+         reference_code, created_at, pet_id, evidence_paths,
          building:buildings!incident_reports_building_id_fkey ( name ),
          pet:pets!incident_reports_pet_id_fkey (
            id, name, breed, species, image_url,
@@ -291,6 +299,7 @@ export function useIncidents() {
           owner: { full_name: string | null } | { full_name: string | null }[] | null
         } | null,
       )
+      const evidencePaths = ((r.evidence_paths as string[] | null) ?? []).filter(Boolean)
       return {
         id: r.id as string,
         buildingId: (r.building_id as string) ?? null,
@@ -310,6 +319,9 @@ export function useIncidents() {
         petPhotoUrl: pet?.image_url ?? null,
         petUnit: first(pet?.unit ?? null)?.unit_number ?? null,
         petOwnerName: first(pet?.owner ?? null)?.full_name ?? null,
+        evidencePaths,
+        evidenceUrls: [] as string[],
+        evidenceCount: evidencePaths.length,
       }
     })
 
@@ -320,6 +332,17 @@ export function useIncidents() {
       for (const m of mapped) {
         if (m.petPhotoUrl && signed[m.petPhotoUrl]) m.petPhotoUrl = signed[m.petPhotoUrl]
       }
+    }
+
+    // The reporter's photos live in a different bucket from the pet photos above:
+    // `guest-evidence`, foldered by building, readable only by that building's
+    // manager. One batch for the whole queue.
+    const evidencePaths = mapped.flatMap((m) => m.evidencePaths)
+    if (evidencePaths.length > 0) {
+      const { data: urls } = await supabase.storage.from("guest-evidence").createSignedUrls(evidencePaths, 3600)
+      const signed: Record<string, string> = {}
+      for (const u of urls ?? []) if (u.signedUrl && u.path) signed[u.path] = u.signedUrl
+      for (const m of mapped) m.evidenceUrls = m.evidencePaths.map((p) => signed[p]).filter(Boolean)
     }
 
     setData(mapped)
