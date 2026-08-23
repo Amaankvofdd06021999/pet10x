@@ -232,7 +232,20 @@ async function purge(request: Request): Promise<Summary> {
     // submitted in that window would otherwise have its photos deleted out from
     // under the report that had just claimed them. This narrows the exposure
     // from the length of the whole run to the length of one query.
-    const stillClaimed = await claimedAmong(admin, group)
+    //
+    // This check throws on a PostgREST error, and by the time it runs, earlier
+    // batches are already irreversibly gone. Letting that escape would discard
+    // the summary — the same failure the `remove()` branch below exists to
+    // prevent — so it is caught and handled the same way. Every path out of
+    // this loop carries the account of what was destroyed.
+    let stillClaimed: Set<string>
+    try {
+      stillClaimed = await claimedAmong(admin, group)
+    } catch (err) {
+      summary.error = (err as Error).message
+      console.error("[incidents] evidence purge stopped mid-sweep", summary)
+      return summary
+    }
     const { remove: batch, spared: lateClaims } = unclaimed(group, stillClaimed)
     if (lateClaims.length > 0) {
       console.warn("[incidents] evidence purge spared paths claimed mid-sweep", lateClaims)
@@ -271,8 +284,13 @@ export async function POST(request: Request) {
     // A sweep that stopped part-way still answers with what it destroyed.
     return NextResponse.json({ ok: !summary.error, ...summary }, { status: summary.error ? 500 : 200 })
   } catch (err) {
-    // Only reachable before anything was deleted: listing and the first claim
-    // check throw, the removal loop does not.
+    // Reached only when the run failed before its first removal — the listing
+    // and the pre-loop claim check throw. Once the removal loop is running,
+    // every failure inside it returns a partial summary instead of throwing,
+    // so what was already destroyed is still reported rather than discarded
+    // here. That is a property of the loop, not of this handler: a new
+    // throwing call added inside it would silently move back into this branch
+    // and take the account of an irreversible delete with it.
     console.error("[incidents] evidence purge failed", err)
     return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }

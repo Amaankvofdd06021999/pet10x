@@ -75,6 +75,27 @@ describe("ageEligible", () => {
     expect(out.malformed).toHaveLength(hostile.length)
   })
 
+  it("refuses junk prefixed before the first uuid, not just junk inside it", () => {
+    // Every hostile path above varies *after* a well-formed first segment, so
+    // they all still match a regex that lost its leading `^`. These do not:
+    // unanchored, the trailing `{uuid}/{uuid}/name` would match and let a
+    // comma through into the `&&` operand — the whole bug this filter stops.
+    const prefixed = [
+      `a,b/${B}/${D}/x.jpg`,
+      `../${B}/${D}/x.jpg`,
+      `{evil}/${B}/${D}/x.jpg`,
+      `x ${B}/${D}/x.jpg`,
+    ]
+    for (const path of prefixed) expect(CLAIMABLE_PATH.test(path)).toBe(false)
+
+    const out = ageEligible(
+      prefixed.map((path) => ({ path, createdAt: at(NOW - 2 * DAY) })),
+      cutoff,
+    )
+    expect(out.candidates).toEqual([])
+    expect(out.malformed).toHaveLength(prefixed.length)
+  })
+
   it("accepts the shape the sign route actually mints", () => {
     expect(CLAIMABLE_PATH.test(p("0-1787468271228.jpg"))).toBe(true)
     expect(CLAIMABLE_PATH.test(p("1-1787468271564.heic"))).toBe(true)
