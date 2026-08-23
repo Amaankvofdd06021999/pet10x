@@ -173,7 +173,11 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
       toast.error("Couldn't save", { description: error })
       return
     }
-    toast.success(`${spec.label} logged`, { description: `${amt} ${unit.label} · ${entryLabel}` })
+    // Names the animal, as the care reminder that led here already does
+    // ("Breakfast for Lola"). A confirmation you cannot check is not one.
+    toast.success(`${spec.label} logged for ${pet?.name ?? "your pet"}`, {
+      description: `${amt} ${unit.label} · ${entryLabel}`,
+    })
     setAmount("")
     setLabel("")
     refetch()
@@ -185,7 +189,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
       toast.error("Couldn't remove", { description: error })
       return
     }
-    toast("Entry removed")
+    toast(pet?.name ? `Removed from ${pet.name}` : "Entry removed")
     refetch()
   }
 
@@ -436,6 +440,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
       {targetSheet && (
         <TargetSheet
           petId={petId}
+          petName={pet.name}
           spec={spec}
           kind={activeKind}
           species={pet.species}
@@ -464,6 +469,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
  */
 function TargetSheet({
   petId,
+  petName,
   spec,
   kind,
   species,
@@ -472,6 +478,9 @@ function TargetSheet({
   onSaved,
 }: {
   petId: string
+  /** Whose goals these are. A sheet that edits one animal's targets and does
+   *  not say which is a confirmation the owner cannot check. */
+  petName: string
   spec: CareKindSpec
   kind: CareEntryKind
   species?: Species
@@ -552,7 +561,9 @@ function TargetSheet({
     }
     setSaving(false)
     if (failed > 0) return toast.error(`${failed} target${failed === 1 ? "" : "s"} couldn't be saved`)
-    toast.success(filled.length === 1 ? "Target saved" : `${filled.length} targets saved`)
+    toast.success(
+      filled.length === 1 ? `Target saved for ${petName}` : `${filled.length} targets saved for ${petName}`,
+    )
     onSaved()
   }
 
@@ -568,7 +579,7 @@ function TargetSheet({
     setRemoving(null)
     if (error) return toast.error("Couldn't remove", { description: error })
     setRows((prev) => prev.filter((_, idx) => idx !== i))
-    toast("Target removed")
+    toast(`Removed from ${petName}`)
   }
 
   return (
@@ -580,11 +591,16 @@ function TargetSheet({
         <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]" />
         <div
           role="dialog"
-          aria-label={`${spec.targetLabel} for ${spec.label}`}
+          /* Was `for ${spec.label}` — the KIND, not the animal, so a screen
+             reader heard "Daily target for Food" in a three-pet household and
+             was told nothing it did not already know. */
+          aria-label={`${spec.targetLabel} for ${petName}`}
           className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-card shadow-float p-5 shadow-xl"
         >
           <div className="mb-1 flex items-center justify-between gap-3">
-            <h2 className="text-[17px] font-semibold text-foreground">{spec.targetLabel}</h2>
+            <h2 className="text-[17px] font-semibold text-foreground">
+              {`${spec.targetLabel} · ${petName}`}
+            </h2>
             <button
               onClick={onClose}
               aria-label="Close"
@@ -698,7 +714,7 @@ function DietPlan({ pet }: { pet: Pet }) {
     const { error } = await updatePetDiet(pet.id, { dietType: dietType || null, dietNotes: notes || null })
     setSaving(false)
     if (error) return toast.error("Couldn't save", { description: error })
-    toast.success("Diet updated")
+    toast.success(`${pet.name}'s diet updated`)
     setOpen(false)
   }
 

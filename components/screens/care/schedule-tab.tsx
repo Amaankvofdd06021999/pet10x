@@ -156,7 +156,12 @@ export function ScheduleTab({
       : await addCareTask({ petId, ...payload })
     setSaving(false)
     if (error) return toast.error("Couldn't save", { description: error })
-    toast.success(draft.id ? "Task updated" : "Added to the schedule")
+    // petName is already a prop of this component; it was simply not used.
+    toast.success(
+      draft.id
+        ? `${petName ? `${petName}'s task updated` : "Task updated"}`
+        : `${petName ? `Added to ${petName}'s schedule` : "Added to the schedule"}`,
+    )
     setDraft(null)
     refetch()
   }
@@ -172,7 +177,7 @@ export function ScheduleTab({
   async function remove(t: ScheduledCareTask) {
     const { error } = await deleteCareTask(t.id)
     if (error) return toast.error("Couldn't remove", { description: error })
-    toast("Task removed")
+    toast(petName ? `Removed from ${petName}` : "Task removed")
     refetch()
   }
 
