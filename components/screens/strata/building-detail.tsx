@@ -11,8 +11,8 @@ import {
   useViolations,
   useResolvedViolations,
 } from "@/lib/data"
-import { advanceViolation, resolveViolation } from "@/lib/data/manager-queues"
-import { STAGE_LABEL, nextStage } from "@/lib/data/violations"
+import { advanceViolation, readFineSchedule, resolveViolation } from "@/lib/data/manager-queues"
+import { STAGE_LABEL, isFineStage, nextStage } from "@/lib/data/violations"
 import type { ViolationStage } from "@/lib/data/types"
 import {
   useEmergencyTokens,
@@ -233,33 +233,75 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
 function ViolationsPanel({ buildingId }: { buildingId: string }) {
   const { data: open, isLoading, refetch } = useViolations()
   const { data: resolved, refetch: refetchResolved } = useResolvedViolations()
+  const { buildings } = useStrata()
   const [busy, setBusy] = useState<string | null>(null)
+  /** The case whose fine amount is being asked for, and the figure so far. */
+  const [asking, setAsking] = useState<string | null>(null)
+  const [amount, setAmount] = useState("")
 
   const scopedOpen = open.filter((v) => v.buildingId === buildingId)
   const scopedResolved = resolved.filter((v) => v.buildingId === buildingId)
 
-  async function advance(id: string, stage: ViolationStage) {
+  /*
+   * What the building's bylaws price a fine at (AD-5), or nothing.
+   *
+   * Measured 2026-08-23: 0 of 6 buildings carry `fine_1_cents`/`fine_2_cents`
+   * in `pet_rules`, and three of the thirteen live violations sit at `warning`.
+   * So this button's next step was `warning -> fine_1` with no amount, which
+   * `manager_advance_violation` refuses with `no_fine_amount` — three
+   * guaranteed-failing buttons. It now asks for the amount when the bylaws do
+   * not supply one, and only then advances.
+   */
+  const schedule = readFineSchedule(buildings.find((b) => b.id === buildingId)?.rules)
+
+  function bylawCentsFor(stage: ViolationStage): number | null {
+    const next = nextStage(stage)
+    if (!next || !isFineStage(next)) return null
+    return next === "fine_1" ? schedule.fine_1 : schedule.fine_2
+  }
+
+  /** True when advancing this case mints a fine the bylaws do not price. */
+  function needsAmount(stage: ViolationStage): boolean {
+    const next = nextStage(stage)
+    return !!next && isFineStage(next) && bylawCentsFor(stage) === null
+  }
+
+  async function advance(id: string, stage: ViolationStage, amountCents?: number) {
     const next = nextStage(stage)
     if (!next) return
     setBusy(id)
-    // No amount is passed, so a fine degree takes the building's bylaw
-    // schedule (AD-5). With no schedule the RPC returns `no_fine_amount` and
-    // the toast says so — the amount sheet that lets a manager override it is
-    // Task 5's, on the manager's own Violations screen.
-    const { error, notified } = await advanceViolation(id, next)
+    // With a bylaw schedule, no amount is passed and the DATABASE applies the
+    // schedule (AD-5) rather than the client echoing a figure back at it.
+    const { error, notified } = await advanceViolation(id, next, { amountCents })
     setBusy(null)
     if (error) return toast.error("Couldn't advance", { description: error })
+    setAsking(null)
+    setAmount("")
     toast.success(`Advanced to ${STAGE_LABEL[next]}`, {
       description: notified ? undefined : "No resident is assigned, so nobody was notified.",
     })
     refetch()
   }
+
+  function startAdvance(id: string, stage: ViolationStage) {
+    if (needsAmount(stage)) {
+      setAmount("")
+      setAsking(asking === id ? null : id)
+      return
+    }
+    void advance(id, stage)
+  }
+
   async function resolve(id: string) {
     setBusy(id)
-    const { error } = await resolveViolation(id, "Remedied — closed by manager")
+    const { error, notified } = await resolveViolation(id, "Remedied — closed by manager")
     setBusy(null)
     if (error) return toast.error("Couldn't resolve", { description: error })
-    toast.success("Violation resolved")
+    // `notified` was dropped here while `advance` two functions up surfaced it,
+    // so resolving an unassigned case implied a letter had gone out.
+    toast.success("Violation resolved", {
+      description: notified ? undefined : "No resident is assigned, so nobody was notified.",
+    })
     refetch()
     refetchResolved()
   }
@@ -296,7 +338,7 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                   <div className="mt-2.5 flex flex-wrap gap-1.5">
                     {next && (
                       <button
-                        onClick={() => advance(v.id, v.stage)}
+                        onClick={() => startAdvance(v.id, v.stage)}
                         disabled={busy === v.id}
                         className="flex items-center gap-1 rounded-lg bg-info/15 px-2.5 py-1.5 text-[12px] font-semibold text-info disabled:opacity-50"
                       >
@@ -312,6 +354,41 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                       <ShieldCheck className="h-3.5 w-3.5" /> Resolve
                     </button>
                   </div>
+                  {asking === v.id && next && (
+                    <div className="mt-2 rounded-lg border border-warning/40 bg-warning/5 p-2.5">
+                      <p className="text-[11.5px] leading-relaxed text-foreground">
+                        This building has no fine schedule in its bylaws, so there is no amount to apply. Enter what
+                        this {STAGE_LABEL[next].toLowerCase()} should be.
+                      </p>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={amount}
+                          placeholder="0.00"
+                          onChange={(e) => setAmount(e.target.value)}
+                          className="w-28 rounded-lg border border-border bg-background px-2 py-1.5 text-[12.5px] text-foreground focus:border-primary focus:outline-none"
+                        />
+                        <button
+                          onClick={() => {
+                            const n = Number(amount.replace(/[^0-9.]/g, ""))
+                            if (!Number.isFinite(n) || n <= 0) return toast.error("Enter an amount above $0.")
+                            void advance(v.id, v.stage, Math.round(n * 100))
+                          }}
+                          disabled={busy === v.id}
+                          className="rounded-lg bg-destructive/15 px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
+                        >
+                          Issue fine
+                        </button>
+                        <button
+                          onClick={() => setAsking(null)}
+                          className="rounded-lg bg-muted px-2.5 py-1.5 text-[12px] font-semibold text-muted-foreground"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}

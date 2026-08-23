@@ -44,7 +44,7 @@ const TABS: readonly ViolationTab[] = ["active", "warnings", "fines", "disputed"
  * Deliberately a flat list of pairs rather than a copy of `LEGAL_TRANSITIONS`'s
  * shape: a test that restates the implementation's data structure passes when
  * both are wrong together. This is transcribed from the table in
- * `supabase/migrations/20260823000002_violations_stage_guard.sql:203-215`,
+ * `supabase/migrations/20260823000002_violations_stage_guard.sql:169-176`,
  * which is the specification, and from the plan's own transition table.
  */
 const LEGAL_PAIRS: ReadonlyArray<readonly [ViolationStage, ViolationStage]> = [
@@ -230,12 +230,26 @@ describe("tabFor", () => {
     }
   })
 
-  it("puts a dispute in front of everything else", () => {
+  it("puts a dispute in front of every LIVE stage", () => {
     // An appeal is what the manager must decide; filing it under the fine it
     // disputes is how it gets missed.
-    for (const stage of VIOLATION_STAGES) {
+    for (const stage of VIOLATION_STAGES.filter((s) => !isTerminal(s))) {
       for (const hasFine of [false, true]) {
         expect(tabFor(stage, hasFine, true), `${stage}/${hasFine}`).toBe("disputed")
+      }
+    }
+  })
+
+  it("lets a closed case leave Disputed even while its fine reads disputed", () => {
+    // Regression. `disputed` used to be tested before `isTerminal`, so a case
+    // resolved or dismissed while its fine still carried status='disputed'
+    // stayed on the Disputed tab permanently — asking the manager to decide an
+    // appeal on a case that was already closed, and never appearing under
+    // Resolved. The fine's status is a fact about the money; the stage is the
+    // fact about whether the case is still live, and it wins.
+    for (const stage of ["resolved", "dismissed"] as const) {
+      for (const hasFine of [false, true]) {
+        expect(tabFor(stage, hasFine, true), `${stage}/${hasFine}`).toBe("resolved")
       }
     }
   })

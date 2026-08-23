@@ -3403,6 +3403,10 @@ export type Database = {
         Args: { p_approve: boolean; p_pet: string }
         Returns: undefined
       }
+      manager_remind_fine: {
+        Args: { p_note?: string; p_violation: string }
+        Returns: Json
+      }
       manages_building: { Args: { b: string }; Returns: boolean }
       my_app_user: { Args: never; Returns: Json }
       my_building_link: { Args: never; Returns: Json }

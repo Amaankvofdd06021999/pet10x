@@ -22,7 +22,6 @@ import type {
 import {
   STAGE_LABEL,
   describeLegalMoves,
-  isFineStage,
   tabFor,
   toViolationStage,
   type FineStage,
@@ -539,7 +538,13 @@ function advanceError(r: { error?: string; from?: string; to?: string }): string
     case "no_fine_amount":
       return "This building has no fine schedule yet — enter an amount for this fine."
     default:
-      return "Couldn't move this case."
+      // Never swallow a code this client has not been taught. The RPC's
+      // rejection vocabulary can grow, and a manager reading "Couldn't move
+      // this case." with no trace of WHY has nothing to report and nothing to
+      // search for.
+      return r.error
+        ? `Couldn't move this case (${r.error}).`
+        : "Couldn't move this case."
   }
 }
 
@@ -622,6 +627,349 @@ export async function issueFine(
   degree: FineStage,
   options: AdvanceOptions = {},
 ): Promise<AdvanceResult> {
-  if (!isFineStage(degree)) return { error: "Not a fine degree." }
+  // No `if (!isFineStage(degree))` guard: `degree: FineStage` is already the
+  // whole of that check, so the branch was unreachable and the string inside it
+  // was dead copy pretending to be a safety net.
   return advanceViolation(id, degree, options)
+}
+
+/**
+ * Re-notify the resident that a fine on this case is still outstanding.
+ *
+ * A reminder is not a rung of the ladder — it moves no stage, so it cannot go
+ * through `manager_advance_violation` (which would reject `fine_1 -> fine_1` as
+ * an illegal transition, correctly). It is its own SECURITY DEFINER function
+ * for the same reason the advance is one: the `notifications` insert policy
+ * admits only `kind = 'assistant'` for the caller's own profile, so a manager
+ * cannot tell a resident anything from the browser.
+ *
+ * `no_outstanding_fine` covers the case where the only fine is `disputed`,
+ * `paid` or `waived` — deliberately, since chasing money that is under appeal
+ * is the wrong message to send while Phase 5 has not decided it.
+ */
+export interface RemindResult {
+  error: string | null
+  fineCount?: number
+  amountCents?: number
+  currency?: string
+}
+
+export async function remindAboutFine(id: string, note?: string): Promise<RemindResult> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+
+  const { data, error } = await supabase.rpc("manager_remind_fine", {
+    p_violation: id,
+    p_note: note?.trim() ? note.trim() : undefined,
+  })
+  if (error) return { error: transportError(error) }
+
+  const r = data as unknown as {
+    ok: boolean
+    error?: string
+    fine_count?: number
+    amount_cents?: number
+    currency?: string
+  }
+  if (!r.ok) {
+    switch (r.error) {
+      case "forbidden":
+        return { error: "You don't manage this building." }
+      case "not_found":
+        return { error: "That case no longer exists." }
+      case "no_outstanding_fine":
+        return { error: "There is no unpaid fine on this case to remind anyone about." }
+      case "no_resident":
+        return { error: "No resident is attached to this case, so there is nobody to remind." }
+      default:
+        return { error: r.error ? `Couldn't send the reminder (${r.error}).` : "Couldn't send the reminder." }
+    }
+  }
+  return {
+    error: null,
+    fineCount: r.fine_count,
+    amountCents: r.amount_cents,
+    currency: r.currency,
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Opening a case                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The subjects a new case can be filed against: every pet in a building the
+ * caller manages, with the resident and unit that pet is attached to.
+ *
+ * Choosing a PET rather than picking building/resident/unit/pet independently
+ * is what keeps a fabricated case out of the table: the pet already carries the
+ * building, the owner and the unit, so the four cannot be made to disagree.
+ * A case with no identified pet is still possible — that is what `open` is for
+ * — and the composer offers it as an explicit choice rather than as the result
+ * of leaving fields blank.
+ */
+export interface ViolationSubject {
+  petId: string
+  petName: string
+  buildingId: string
+  residentId: string | null
+  residentName: string
+  unitId: string | null
+  unitNumber: string
+}
+
+export function useViolationSubjects(): Result<ViolationSubject[]> {
+  const [data, setData] = useState<ViolationSubject[]>([])
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) return setLoading(false)
+    setLoading(true)
+
+    // No building filter: RLS already scopes `pets` to the buildings the caller
+    // manages, so one unfiltered query is the manager's whole portfolio. The
+    // composer filters the fetched array in memory when a building is picked.
+    const { data: rows, error: err } = await supabase
+      .from("pets")
+      .select(
+        `id, name, building_id, unit_id,
+         owner:profiles!pets_owner_id_fkey ( id, full_name ),
+         unit:units ( unit_number )`,
+      )
+      .not("building_id", "is", null)
+      .is("deleted_at", null)
+      .order("name")
+
+    if (err) {
+      setError(err.message)
+      setData([])
+      setLoading(false)
+      return
+    }
+
+    type Row = {
+      id: string
+      name: string
+      building_id: string | null
+      unit_id: string | null
+      owner: { id: string; full_name: string | null } | { id: string; full_name: string | null }[] | null
+      unit: { unit_number: string } | { unit_number: string }[] | null
+    }
+    const first = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
+
+    setData(
+      ((rows ?? []) as unknown as Row[])
+        .filter((r) => r.building_id !== null)
+        .map((r) => ({
+          petId: r.id,
+          petName: r.name,
+          buildingId: r.building_id as string,
+          residentId: first(r.owner)?.id ?? null,
+          residentName: first(r.owner)?.full_name ?? "Unassigned",
+          unitId: r.unit_id,
+          unitNumber: first(r.unit)?.unit_number ?? "—",
+        })),
+    )
+    setError(null)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+export interface NewViolationInput {
+  buildingId: string
+  /** Stored verbatim in `violations.type`, which is free text, not an enum. */
+  type: string
+  petId?: string | null
+  residentId?: string | null
+  unitId?: string | null
+}
+
+/**
+ * Open a case at `open` — a plain INSERT, deliberately.
+ *
+ * `violations_manager_insert` (20260823000004) permits exactly
+ * `manages_building(building_id) and stage = 'open'`, so the database refuses a
+ * case fabricated straight into `warning` or `fine_2`. That is the whole reason
+ * this needs no RPC: there is nothing to validate that the policy does not, no
+ * fine to mint, and nobody to notify — a case that has only just been opened is
+ * not yet an accusation the resident has been served with. The first message a
+ * resident gets is the warning, which goes through the ladder and writes an
+ * event row.
+ */
+export async function openViolation(input: NewViolationInput): Promise<{ error: string | null; id?: string }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { data, error } = await supabase
+    .from("violations")
+    .insert({
+      building_id: input.buildingId,
+      type: input.type,
+      pet_id: input.petId ?? null,
+      resident_id: input.residentId ?? null,
+      unit_id: input.unitId ?? null,
+      opened_by: user?.id ?? null,
+      // stage is left to its `'open'` default rather than named, so this insert
+      // satisfies violations_manager_insert without restating the policy.
+    })
+    .select("id")
+    .single()
+
+  if (error) return { error: transportError(error) }
+  return { error: null, id: data?.id }
+}
+
+/* ------------------------------------------------------------------ */
+/* The evidence ledger (CSV export)                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Every case in the manager's portfolio with its full stage history, one row
+ * per recorded event.
+ *
+ * This is a one-shot fetch rather than a hook: it runs when the manager presses
+ * Export, and holding a second copy of every case in component state for a
+ * button that may never be pressed would be a worse trade. Cases with no events
+ * yet still produce one row, with the event columns blank — an export that
+ * silently omitted the newest cases would be the worst possible failure for a
+ * document whose purpose is completeness.
+ */
+export interface LedgerRow extends Record<string, unknown> {
+  case_id: string
+  unit: string
+  resident: string
+  pet: string
+  type: string
+  stage: string
+  opened_on: string
+  closed_on: string
+  outcome: string
+  fine_amount: string
+  fine_status: string
+  event_on: string
+  event_from: string
+  event_to: string
+  event_note: string
+}
+
+export async function fetchCaseLedger(): Promise<{ error: string | null; rows: LedgerRow[] }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured.", rows: [] }
+
+  const { data: rows, error: err } = await supabase
+    .from("violations")
+    .select(
+      `id, type, stage, created_at, resolved_at, resolution_outcome,
+       resident:profiles!violations_resident_id_fkey ( full_name ),
+       unit:units ( unit_number ),
+       pet:pets ( name ),
+       fines ( amount_cents, currency, status ),
+       violation_events ( from_stage, to_stage, note, occurred_on, created_at )`,
+    )
+    .order("created_at", { ascending: false })
+
+  if (err) return { error: err.message, rows: [] }
+
+  type Row = {
+    id: string
+    type: string
+    stage: string
+    created_at: string
+    resolved_at: string | null
+    resolution_outcome: string | null
+    resident: { full_name: string | null } | { full_name: string | null }[] | null
+    unit: { unit_number: string } | { unit_number: string }[] | null
+    pet: { name: string } | { name: string }[] | null
+    fines: { amount_cents: number; currency: string; status: string }[] | null
+    violation_events:
+      | { from_stage: string | null; to_stage: string; note: string | null; occurred_on: string | null; created_at: string }[]
+      | null
+  }
+  const first = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
+  const day = (iso: string | null) => (iso ? iso.slice(0, 10) : "")
+
+  const out: LedgerRow[] = []
+  for (const r of (rows ?? []) as unknown as Row[]) {
+    const fines = r.fines ?? []
+    const stage = toViolationStage(r.stage)
+    const base = {
+      case_id: r.id,
+      unit: first(r.unit)?.unit_number ?? "—",
+      resident: first(r.resident)?.full_name ?? "Unassigned",
+      pet: first(r.pet)?.name ?? "—",
+      type: r.type.replace(/_/g, " "),
+      stage: STAGE_LABEL[stage],
+      opened_on: day(r.created_at),
+      closed_on: day(r.resolved_at),
+      outcome: r.resolution_outcome ?? "",
+      fine_amount: fines.length
+        ? (fines.reduce((s, f) => s + (f.amount_cents ?? 0), 0) / 100).toFixed(2)
+        : "",
+      fine_status: fines.map((f) => f.status).join("; "),
+    }
+    const events = [...(r.violation_events ?? [])].sort((a, b) =>
+      a.created_at.localeCompare(b.created_at),
+    )
+    if (events.length === 0) {
+      out.push({ ...base, event_on: "", event_from: "", event_to: "", event_note: "" })
+      continue
+    }
+    for (const e of events) {
+      out.push({
+        ...base,
+        event_on: e.occurred_on ?? day(e.created_at),
+        event_from: e.from_stage ? STAGE_LABEL[toViolationStage(e.from_stage)] : "(opened)",
+        event_to: STAGE_LABEL[toViolationStage(e.to_stage)],
+        event_note: e.note ?? "",
+      })
+    }
+  }
+  return { error: null, rows: out }
+}
+
+/* ------------------------------------------------------------------ */
+/* The bylaw fine schedule (AD-5)                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * What `buildings.pet_rules` says a fine of each degree should cost.
+ *
+ * AD-5 puts the schedule under `fine_1_cents` / `fine_2_cents` /
+ * `fine_currency`, which is where `manager_advance_violation` reads it from
+ * (`20260823000001:129-146`). **Measured 2026-08-23: 0 of 6 buildings have any
+ * of those keys**, so `null` is the normal answer today, not the exception, and
+ * the caller has to treat "no schedule configured" as a first-class state
+ * rather than as a missing default it can quietly substitute for.
+ *
+ * The reader is deliberately narrow — a number, or nothing. The RPC applies the
+ * same rule (`jsonb_typeof(...) = 'number'`), so a schedule the client is
+ * willing to display is exactly a schedule the database is willing to charge.
+ */
+export interface FineSchedule {
+  fine_1: number | null
+  fine_2: number | null
+  currency: string
+}
+
+export function readFineSchedule(rules: unknown): FineSchedule {
+  const r = (rules ?? {}) as Record<string, unknown>
+  const cents = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.floor(v) : null
+  const currency = typeof r.fine_currency === "string" && r.fine_currency.trim() ? r.fine_currency.trim() : "CAD"
+  return {
+    fine_1: cents(r.fine_1_cents),
+    fine_2: cents(r.fine_2_cents),
+    currency: currency.toUpperCase(),
+  }
 }

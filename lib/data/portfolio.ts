@@ -379,29 +379,14 @@ export async function setFineStatus(id: string, status: "paid" | "waived"): Prom
   return { error: error?.message ?? null }
 }
 
-/* ------------------------------------------------------------------ */
-/* CSV export (pure client-side)                                       */
-/* ------------------------------------------------------------------ */
-
-export function toCsv(rows: Record<string, unknown>[], columns: { key: string; label: string }[]): string {
-  const escape = (v: unknown): string => {
-    const s = v === null || v === undefined ? "" : String(v)
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-  }
-  const header = columns.map((c) => escape(c.label)).join(",")
-  const body = rows.map((row) => columns.map((c) => escape(row[c.key])).join(",")).join("\n")
-  return `${header}\n${body}`
-}
-
-export function downloadCsv(filename: string, csv: string): void {
-  if (typeof window === "undefined") return
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
+/*
+ * CSV export lives in `lib/csv.ts` now.
+ *
+ * `toCsv`/`downloadCsv` were defined here and imported by the strata reports
+ * screen and the business earnings tab. The manager's Violations screen needs
+ * them too and reads none of this file's data, so having it import a string
+ * joiner out of the strata portfolio layer would have been the wrong
+ * dependency. Moved verbatim; both existing call sites now import
+ * `@/lib/csv` directly, so there is one definition and no re-export to keep
+ * in step.
+ */

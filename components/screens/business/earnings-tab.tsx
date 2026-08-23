@@ -2,7 +2,7 @@
 
 import { toast } from "sonner"
 import { useOwnerBookings, computeEarnings, COMMISSION_RATE, BOOKING_STATUS_LABEL } from "@/lib/data/bookings"
-import { toCsv, downloadCsv } from "@/lib/data/portfolio"
+import { toCsv, downloadCsv } from "@/lib/csv"
 import { StatTile, SectionCard, Spinner, EmptyState } from "./business-ui"
 import { Download, DollarSign } from "lucide-react"
 

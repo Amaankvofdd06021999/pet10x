@@ -44,7 +44,7 @@ export const TERMINAL_STAGES = ["resolved", "dismissed"] as const
 
 /**
  * The 11 legal transitions, mirroring `manager_advance_violation`'s table
- * (`supabase/migrations/20260823000002_violations_stage_guard.sql:203`).
+ * (`supabase/migrations/20260823000002_violations_stage_guard.sql:169-176`).
  *
  * Written out rather than derived from the enum's sort order. Ordering alone
  * would permit `resolved -> dismissed` and forbid nothing that matters — the
@@ -132,12 +132,19 @@ export function describeLegalMoves(from: ViolationStage): string {
  *
  * Order matters, and it is the order of what a manager must act on:
  *
- *  - A dispute outranks everything. It is an appeal waiting on a decision, and
- *    burying it under the fine it disputes is how it gets missed.
- *  - A closed case is closed, fine or no fine. `hasFine` used to win over the
- *    stage, which would have filed a dismissed case under Fines — money to
- *    chase on a case that was dropped.
- *  - Then the fine degrees, and any case carrying a fine row.
+ *  - A closed case is closed, dispute or no dispute, fine or no fine. This
+ *    test used to sit BELOW the dispute test, which meant a case resolved or
+ *    dismissed while its fine still read `status='disputed'` never reached the
+ *    Resolved tab and sat on Disputed forever, asking for a decision that had
+ *    already been made. Terminal wins: the ladder's own terminals are the
+ *    strongest statement about a case there is, and the fine's status is a
+ *    fact about the money, not about whether the case is still live.
+ *  - Then a dispute, which outranks the fine it disputes. It is an appeal
+ *    waiting on a decision, and burying it under the fine is how it gets
+ *    missed.
+ *  - Then the fine degrees, and any case carrying a fine row. `hasFine` used
+ *    to win over the stage, which would have filed a dismissed case under
+ *    Fines — money to chase on a case that was dropped.
  *
  * `disputed` is derived from the fines attached to the case (`fines.status =
  * 'disputed'`), which is the only dispute signal that exists today.
@@ -145,8 +152,8 @@ export function describeLegalMoves(from: ViolationStage): string {
  * lands, it becomes the input to this argument and nothing else changes.
  */
 export function tabFor(stage: ViolationStage, hasFine: boolean, disputed = false): ViolationTab {
-  if (disputed) return "disputed"
   if (isTerminal(stage)) return "resolved"
+  if (disputed) return "disputed"
   if (isFineStage(stage) || hasFine) return "fines"
   if (stage === "warning") return "warnings"
   return "active"
