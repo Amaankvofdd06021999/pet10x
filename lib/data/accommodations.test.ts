@@ -110,8 +110,8 @@ describe("checklistFor — where the four hardcoded booleans died", () => {
 
 describe("missingRequired / allRequiredVerified", () => {
   it("names what is still missing, and counts a rejected document as missing", () => {
-    expect(missingRequired(checklistFor(ESA, []))).toEqual(["Letter from your provider"])
-    expect(missingRequired(checklistFor(ESA, [doc({ status: "rejected" })]))).toEqual(["Letter from your provider"])
+    expect(missingRequired(checklistFor(ESA, []))).toEqual(["Provider's letter"])
+    expect(missingRequired(checklistFor(ESA, [doc({ status: "rejected" })]))).toEqual(["Provider's letter"])
     expect(missingRequired(checklistFor(ESA, [doc()]))).toEqual([])
   })
 

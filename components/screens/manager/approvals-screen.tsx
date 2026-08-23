@@ -364,6 +364,16 @@ const CHECK_WORD: Record<ChecklistItem["state"], string> = {
   rejected: "Rejected",
   missing: "Not provided",
 }
+/* `animal_desc` is not a document and cannot be verified — there is no file to
+ * open and no verdict to record. It read "Provided, not yet verified", which
+ * described a review step that does not exist and cannot be completed, leaving
+ * a manager looking for a control that was never there. */
+const DESC_WORD: Record<ChecklistItem["state"], string> = {
+  verified: "Provided",
+  provided: "Provided",
+  rejected: "Provided",
+  missing: "Not provided",
+}
 
 function AccommodationCard({
   request,
@@ -427,7 +437,17 @@ function AccommodationCard({
             <Badge className="border-0 bg-accent/10 text-[9px] text-accent">{STATUS_LABEL[request.status]}</Badge>
           </div>
           <p className="text-[11px] text-muted-foreground break-words">
-            {request.petName ?? "No pet named"} &middot; Unit {request.unit}
+            {/* Three different facts, said as three different things. A request
+                may name no pet at all; it may name one whose record this
+                manager cannot read (measured: a live MCR request names a pet
+                whose `building_id` is null, so `manages_building` is false and
+                `pets_select` returns nothing); or it may name one they can.
+                Rendering the middle case as "No pet named" would be this screen
+                asserting something about the request that is not true — the
+                same shape as `emergency_directory` documenting that it withheld
+                medical history while returning it. */}
+            {request.petName ?? (request.petId ? "Names a pet you can't open" : "No pet named")} &middot; Unit{" "}
+            {request.unit}
           </p>
         </div>
         {isOpen ? (
@@ -490,7 +510,9 @@ function AccommodationCard({
                         {item.label}
                         {item.required ? "" : " (optional)"}
                       </p>
-                      <p className={`text-[11px] ${CHECK_TONE[item.state]}`}>{CHECK_WORD[item.state]}</p>
+                      <p className={`text-[11px] ${CHECK_TONE[item.state]}`}>
+                        {item.kind === "animal_desc" ? DESC_WORD[item.state] : CHECK_WORD[item.state]}
+                      </p>
                       {doc && (
                         <p className="mt-0.5 break-words text-[10px] text-muted-foreground">
                           {doc.label ?? "Untitled"} &middot; {fileSize(doc.sizeBytes)}

@@ -11,8 +11,18 @@
  *
  * Three properties, each chosen against a specific way a private document leaks:
  *
- *   1. IT DOES NOT DOWNLOAD BY DEFAULT. No `<a download>`, no `window.open`.
- *      The bytes render inside the sheet and go nowhere else.
+ *   1. IT DOES NOT DOWNLOAD BY DEFAULT. No `<a download>`, no `window.open`,
+ *      no `Content-Disposition: attachment`. Opening a letter reads it; it does
+ *      not put a copy in the manager's Downloads folder.
+ *
+ *      SAID EXACTLY, because an earlier version of this note overclaimed:
+ *      Chrome's own embedded PDF viewer draws a toolbar with Download and
+ *      Print, and that is a user-agent affordance this component cannot remove
+ *      and deliberately does not try to. `#toolbar=0` would hide it — along
+ *      with zoom and paging, which a manager reading a two-page letter needs —
+ *      and a manager assembling a CRT filing has a legitimate reason to print.
+ *      What is guaranteed here is that NOTHING IN THIS PRODUCT initiates a
+ *      download; a deliberate act by the reader is a different thing.
  *   2. THE SIGNED URL NEVER REACHES THE ADDRESS BAR. It is held in state and
  *      handed to one element. A URL in `location` survives in history, in a
  *      screenshot, and in whatever syncs the browser's tabs.

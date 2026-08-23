@@ -376,45 +376,76 @@ function RequestEditor({
       </div>
 
       <section>
-        <label htmlFor="accom-animal-desc" className="mb-1 block text-[13px] font-semibold text-foreground">
-          Describe the animal and why you need it
-        </label>
-        <p className="mb-1.5 break-words text-[12px] text-muted-foreground">
-          Your building manager will read this. Write it in your own words — there is no form to fill in and
-          nothing you have to name.
-        </p>
-        <textarea
-          id="accom-animal-desc"
-          value={desc}
-          disabled={!editable}
-          onChange={(e) => setDesc(e.target.value)}
-          rows={5}
-          className="w-full rounded-xl border border-border bg-card p-3 text-[14px] text-foreground disabled:opacity-70"
-        />
+        {/* `htmlFor` ONLY when there is a form control to bind to. Once the
+            request is decided this section is a record, and a label pointing at
+            a <p> binds to nothing — the same shape as the id-with-a-space that
+            silently unbound a control in Phase 5. */}
+        {editable ? (
+          <label htmlFor="accom-animal-desc" className="mb-1 block text-[13px] font-semibold text-foreground">
+            Describe the animal and why you need it
+          </label>
+        ) : (
+          <h2 className="mb-1 text-[13px] font-semibold text-foreground">What you told your building</h2>
+        )}
+        {editable && (
+          <p className="mb-1.5 break-words text-[12px] text-muted-foreground">
+            Your building manager will read this. Write it in your own words — there is no form to fill in and
+            nothing you have to name.
+          </p>
+        )}
+        {editable ? (
+          <textarea
+            id="accom-animal-desc"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            rows={5}
+            className="w-full rounded-xl border border-border bg-card p-3 text-[14px] text-foreground"
+          />
+        ) : (
+          /* Once it is decided this is a RECORD, not a field. A disabled
+             textarea would keep a fixed five-row box with the rest of the
+             resident's own words behind an internal scrollbar — reachable, but
+             clipped out of the page's flow, which is the shape of the defect
+             Phase 6 shipped. Prose with `break-words` shows all of it and wraps
+             an unbroken token; `pre-wrap` alone wraps only at spaces. */
+          <p className="w-full whitespace-pre-wrap break-words rounded-xl border border-border bg-card p-3 text-[14px] text-foreground">
+            {desc}
+          </p>
+        )}
       </section>
 
       <section>
-        <label htmlFor="accom-pet" className="mb-1 block text-[13px] font-semibold text-foreground">
-          Which animal? (optional)
-        </label>
-        <p className="mb-1.5 break-words text-[12px] text-muted-foreground">
-          An animal you have not registered yet is exactly what a request may be about, so this can be left
-          blank.
-        </p>
-        <select
-          id="accom-pet"
-          value={petId ?? ""}
-          disabled={!editable}
-          onChange={(e) => setPetId(e.target.value || null)}
-          className="w-full rounded-xl border border-border bg-card p-3 text-[14px] text-foreground disabled:opacity-70"
-        >
-          <option value="">Not one of my registered pets</option>
-          {pets.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+        {editable ? (
+          <>
+            <label htmlFor="accom-pet" className="mb-1 block text-[13px] font-semibold text-foreground">
+              Which animal? (optional)
+            </label>
+            <p className="mb-1.5 break-words text-[12px] text-muted-foreground">
+              An animal you have not registered yet is exactly what a request may be about, so this can be
+              left blank.
+            </p>
+            <select
+              id="accom-pet"
+              value={petId ?? ""}
+              onChange={(e) => setPetId(e.target.value || null)}
+              className="w-full rounded-xl border border-border bg-card p-3 text-[14px] text-foreground"
+            >
+              <option value="">Not one of my registered pets</option>
+              {pets.map((pet) => (
+                <option key={pet.id} value={pet.id}>
+                  {pet.name}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : (
+          <>
+            <h2 className="mb-1 text-[13px] font-semibold text-foreground">Which animal</h2>
+            <p className="break-words text-[14px] text-foreground">
+              {request.petName ?? "Not one of your registered pets"}
+            </p>
+          </>
+        )}
       </section>
 
       <section>

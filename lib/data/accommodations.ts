@@ -58,9 +58,17 @@ export const OPTIONAL_KINDS: Record<AccommodationType, readonly DocKind[]> = {
   service_animal: ["esa_letter", "vaccination", "other"],
 }
 
+/**
+ * One label set, phrased so it is TRUE ON BOTH SURFACES.
+ *
+ * These were "Letter from your provider" and read correctly on the resident's
+ * form and wrongly on the manager's checklist, where "your provider" is not the
+ * reader's provider at all. A shared string that is only true for one of its
+ * two audiences is a small lie told to the other one every time it renders.
+ */
 export const DOC_KIND_LABEL: Record<DocKind, string> = {
-  esa_letter: "Letter from your provider",
-  provider_license: "Provider licence",
+  esa_letter: "Provider's letter",
+  provider_license: "Provider's licence",
   vaccination: "Vaccination record",
   other: "Other supporting document",
 }
