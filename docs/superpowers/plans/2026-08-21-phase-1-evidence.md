@@ -288,7 +288,9 @@ git commit -m "Mint the upload, sign the photo"
 **Interfaces:**
 - Consumes: `POST /api/incidents/evidence/sign` and `GET /api/report/pets` from Task 2; `submit_incident_report`'s new parameter from Task 1.
 - Produces: `<IncidentComposer building={{ code, name }} onDone={() => void} onBack={() => void} />` — a complete four-step report flow. Both report screens render it.
-- Produces from `lib/data/evidence.ts`: `uploadEvidence(buildingCode: string, draftId: string, files: File[]): Promise<{ paths: string[]; error: string | null }>` and `reportablePetsSigned(code: string): Promise<ReportablePet[]>`.
+- Produces from `lib/data/evidence.ts`: `uploadEvidence(buildingCode: string, draftId: string, files: File[]): Promise<{ paths: string[]; error: string | null }>` and `reportablePetsSigned(code: string): Promise<{ pets: ReportablePet[]; error: string | null }>`.
+
+  **Signature corrected during execution.** `reportablePetsSigned` originally returned a bare `ReportablePet[]`, mapping every failure to `[]`. Review showed that renders a signing outage as *"No registered pets to choose from"* — telling a reporter who could have identified the dog that there was nothing to identify. The information simply was not in the old return type, so the honest fix was to widen it. Only the composer consumes this.
 
 - [ ] **Step 1: Write `lib/data/evidence.ts`**
 
@@ -346,7 +348,10 @@ export async function uploadEvidence(
 export async function reportablePetsSigned(code: string): Promise<ReportablePet[]> {
   const res = await fetch(`/api/report/pets?code=${encodeURIComponent(code)}`)
   const json = (await res.json().catch(() => null)) as { ok: boolean; pets?: ReportablePet[] } | null
-  return json?.ok ? (json.pets ?? []) : []
+  // A failure is not "no pets". Returning [] for both tells someone who could
+  // have identified the animal that there was nothing to identify.
+  if (!json?.ok) return { pets: [], error: "Couldn't load the pets for this building." }
+  return { pets: json.pets ?? [], error: null }
 }
 ```
 
