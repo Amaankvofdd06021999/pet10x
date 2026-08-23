@@ -438,7 +438,7 @@ describe("uploadEvidence", () => {
 
 - [ ] **Step 4: Run it, watch it fail, then pass**
 
-`PATH="$HOME/.corepack-bin:$PATH" pnpm test` — expect failure before `lib/data/evidence.ts` exists, then 4 passing (19 total).
+`PATH="$HOME/.corepack-bin:$PATH" pnpm test` — expect failure before `lib/data/evidence.ts` exists, then 4 passing. (The suite finished the phase at **39** — Task 6 added a purge-partition module with 14 more, plus one anchor case.)
 
 - [ ] **Step 5: Commit**
 
@@ -474,7 +474,7 @@ Delete the entire `BuildingReport` function (lines 84-244) and render the compos
 {view === "building" && building && (
   <IncidentComposer
     building={building}
-    defaultAnonymous={false}
+    defaultAnonymous
     onBack={() => setView("choose")}
     onDone={onBack}
   />
@@ -485,7 +485,9 @@ The loading state, `myBuildingCode()` lookup, `ReportChooser` and municipal bran
 
 - [ ] **Step 3: Reduce `guest-report-screen.tsx` to a shell**
 
-Keep the nav bar, the building name, the sign-out button and the post-submit success screen with its reference code and SPCA link — those are guest-specific. Replace the four step bodies with the composer, passing `defaultAnonymous={true}` and the building from `guestSession`.
+Keep the nav bar, the building name and the sign-out button.
+
+   **Corrected during execution.** The success screen moved into the composer rather than staying here, so both flows share the reference code, "keep this", File Another Report and Done. Only the **SPCA donation prompt** stayed guest-specific — it is opt-in via `showDonatePrompt`, which the guest shell passes and the resident shell does not. A donation ask attached to the act of reporting reads as a toll on doing the right thing, and the spec reasoned about that for guests; extending it to residents was an accident of consolidation. Replace the four step bodies with the composer, passing `defaultAnonymous={true}` and the building from `guestSession`.
 
 - [ ] **Step 4: Verify in the running app**
 
@@ -586,7 +588,7 @@ git commit -m "Sweep the photos nobody sent"
 
 ## Phase 1 done when
 
-1. `pnpm test` passes (19 tests) and `pnpm build` exits 0.
+1. `pnpm test` passes (**39** tests by the end of the phase) and `pnpm build` exits 0.
 2. A **guest** with only a building code can attach photos to a report, and those paths land in `incident_reports.evidence_paths`.
 3. A **signed-in resident** gets the same four steps — the flow that previously had no evidence step at all.
 4. Both screens render the same `IncidentComposer`; `BuildingReport` no longer exists.

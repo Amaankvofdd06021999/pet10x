@@ -19,7 +19,7 @@ forward, so the order is:
 
 | # | Phase | Plan | State |
 | --- | --- | --- | --- |
-| 1 | Evidence, in one composer | [`phase-1-evidence`](./plans/2026-08-21-phase-1-evidence.md) | **in progress — 2 of 6 tasks done** |
+| 1 | Evidence, in one composer | [`phase-1-evidence`](./plans/2026-08-21-phase-1-evidence.md) | **complete — 6 of 6, reviewed clean** |
 | 2 | Enforcement ladder (violations) | [`phase-2-enforcement`](./plans/2026-08-21-phase-2-enforcement.md) | planned, not started |
 | 3 | Honest cleanup ("coming soon") | [`phase-3-honest-cleanup`](./plans/2026-08-21-phase-3-honest-cleanup.md) | planned, not started |
 | 4 | Multi-pet care | roadmap only | not planned |
