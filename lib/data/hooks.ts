@@ -19,7 +19,6 @@ import type {
   LostFoundItem,
   ManagerActivityEntry,
   Registration,
-  Resident,
   ResolvedViolation,
   ServiceProvider,
   UrgentItem,
@@ -98,11 +97,9 @@ export function useHomeAlerts(): QueryResult<HomeAlert[]> {
 }
 
 /* ------------------------- Manager: residents --------------------- */
-/* The real resident queue lives in ./live (useBuildingResidents). */
-
-export function useResidents(): QueryResult<Resident[]> {
-  return resolved([])
-}
+/* The real resident queue is `live.ts:useBuildingResidents()`. `useResidents`
+ * lived here as a stub returning [] and had NO CALLERS; it was the only thing
+ * keeping the `Resident` mock type alive, and both went in Phase 5. */
 
 /* ------------------------- Manager: approvals --------------------- */
 

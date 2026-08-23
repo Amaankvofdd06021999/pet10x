@@ -3176,6 +3176,81 @@ export type Database = {
           },
         ]
       }
+      violation_disputes: {
+        Row: {
+          decided_at: string | null
+          decided_by: string | null
+          decided_note: string | null
+          filed_at: string
+          filed_by: string
+          id: string
+          outcome: Database["public"]["Enums"]["dispute_outcome"] | null
+          reason: string
+          stage: Database["public"]["Enums"]["violation_stage_v2"]
+          violation_id: string
+        }
+        Insert: {
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_note?: string | null
+          filed_at?: string
+          filed_by: string
+          id?: string
+          outcome?: Database["public"]["Enums"]["dispute_outcome"] | null
+          reason: string
+          stage: Database["public"]["Enums"]["violation_stage_v2"]
+          violation_id: string
+        }
+        Update: {
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_note?: string | null
+          filed_at?: string
+          filed_by?: string
+          id?: string
+          outcome?: Database["public"]["Enums"]["dispute_outcome"] | null
+          reason?: string
+          stage?: Database["public"]["Enums"]["violation_stage_v2"]
+          violation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "violation_disputes_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "violation_disputes_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "violation_disputes_filed_by_fkey"
+            columns: ["filed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "violation_disputes_filed_by_fkey"
+            columns: ["filed_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "violation_disputes_violation_id_fkey"
+            columns: ["violation_id"]
+            isOneToOne: false
+            referencedRelation: "violations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       violation_events: {
         Row: {
           actor_id: string | null
@@ -3375,6 +3450,10 @@ export type Database = {
         Args: { p_booking: string }
         Returns: string
       }
+      dispute_violation: {
+        Args: { p_reason: string; p_violation: string }
+        Returns: Json
+      }
       email_is_registered: { Args: { p_email: string }; Returns: boolean }
       emergency_directory: { Args: { p_token: string }; Returns: Json }
       escalate_incident_to_violation: {
@@ -3394,6 +3473,7 @@ export type Database = {
           p_amount_cents?: number
           p_due_on?: string
           p_note?: string
+          p_notify?: boolean
           p_to_stage: Database["public"]["Enums"]["violation_stage_v2"]
           p_violation: string
         }
@@ -3405,6 +3485,14 @@ export type Database = {
       }
       manager_remind_fine: {
         Args: { p_note?: string; p_violation: string }
+        Returns: Json
+      }
+      manager_resolve_dispute: {
+        Args: {
+          p_note?: string
+          p_outcome: Database["public"]["Enums"]["dispute_outcome"]
+          p_violation: string
+        }
         Returns: Json
       }
       manages_building: { Args: { b: string }; Returns: boolean }
@@ -3486,6 +3574,7 @@ export type Database = {
         | "play"
         | "outing"
       care_kind: "meal" | "medication" | "water" | "walk" | "grooming" | "other"
+      dispute_outcome: "upheld" | "overturned"
       doc_kind:
         | "vaccination"
         | "municipal_license"
@@ -3732,6 +3821,7 @@ export const Constants = {
         "outing",
       ],
       care_kind: ["meal", "medication", "water", "walk", "grooming", "other"],
+      dispute_outcome: ["upheld", "overturned"],
       doc_kind: [
         "vaccination",
         "municipal_license",

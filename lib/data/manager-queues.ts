@@ -14,6 +14,7 @@ import type {
   Registration,
   AccommodationRequest,
   DocumentReviewItem,
+  DisputeOutcome,
   Violation,
   ResolvedViolation,
   Species,
@@ -353,7 +354,8 @@ export function useViolationsLive(): Result<Violation[]> {
          resident:profiles!violations_resident_id_fkey ( full_name ),
          unit:units ( unit_number ),
          pet:pets ( name ),
-         fines ( amount_cents, status )`,
+         fines ( amount_cents, status ),
+         disputes:violation_disputes ( stage, reason, filed_at, outcome, decided_note, decided_at )`,
       )
       .is("resolved_at", null)
       .order("created_at", { ascending: false })
@@ -375,6 +377,16 @@ export function useViolationsLive(): Result<Violation[]> {
       unit: { unit_number: string } | { unit_number: string }[] | null
       pet: { name: string } | { name: string }[] | null
       fines: { amount_cents: number; status: string }[] | null
+      disputes:
+        | {
+            stage: string
+            reason: string
+            filed_at: string
+            outcome: DisputeOutcome | null
+            decided_note: string | null
+            decided_at: string | null
+          }[]
+        | null
     }
     const first = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
 
@@ -388,9 +400,26 @@ export function useViolationsLive(): Result<Violation[]> {
         // as money owed. `fine_status` has seven labels and only three of them
         // mean owed; see `FINE_STATUS_MEANING` in ./violations.
         const money = summariseFines(fines)
-        // The only dispute signal that exists today. `violations.disputed_at`
-        // is AD-7's, and not yet migrated.
-        const disputed = fines.some((f) => f.status === "disputed")
+
+        // THE dispute signal, and the only one. An open `violation_disputes`
+        // row is `outcome === null`.
+        //
+        // This used to be `fines.some(f => f.status === 'disputed')`, and that
+        // derivation is RETIRED rather than composed with this one. Two sources
+        // feeding one boolean is exactly how a WARNING-stage dispute — which
+        // has no fine row to carry the flag — became inexpressible: a resident
+        // could contest a warning and the manager's Disputed tab would never
+        // show it.
+        //
+        // `fines.status = 'disputed'` still exists and is still written, by
+        // `dispute_violation`, but it is now a CONSEQUENCE rather than an
+        // input. It is what keeps the money truthful on its own:
+        // `manager_remind_fine` refuses to chase anything but `issued`, and
+        // `portfolio.ts` counts `disputed` as outstanding. Nothing derives "is
+        // this case disputed?" from it any more.
+        const disputes = r.disputes ?? []
+        const openDispute = disputes.find((d) => d.outcome === null) ?? null
+        const disputed = openDispute !== null
 
         return {
           id: r.id,
@@ -408,6 +437,19 @@ export function useViolationsLive(): Result<Violation[]> {
           chaseable: money.chaseable,
           paid: money.fullyPaid,
           history: [{ stage: STAGE_LABEL[stage], date: shortDate(r.created_at) }],
+          // The open appeal itself, so the Disputed tab can render the
+          // resident's stated reason. A manager deciding an appeal they cannot
+          // read is not deciding it.
+          openDispute: openDispute
+            ? {
+                stage: toViolationStage(openDispute.stage),
+                reason: openDispute.reason,
+                filedAt: openDispute.filed_at,
+                outcome: openDispute.outcome,
+                decidedNote: openDispute.decided_note,
+                decidedAt: openDispute.decided_at,
+              }
+            : null,
           tab: tabFor(stage, fines.length > 0, disputed),
         }
       }),
@@ -531,13 +573,20 @@ function transportError(e: { message: string; hint?: string | null } | null): st
   return hint ? `${e.message} ${hint}` : e.message
 }
 
-/** The RPC's four rejection codes, turned into something a manager can read. */
+/** The RPC's five rejection codes, turned into something a manager can read. */
 function advanceError(r: { error?: string; from?: string; to?: string }): string {
   switch (r.error) {
     case "forbidden":
       return "You don't manage this building."
     case "not_found":
       return "That case no longer exists."
+    case "dispute_open":
+      // Added in Phase 5. `manager_advance_violation` now refuses EVERY stage
+      // move on a case with an open appeal — including resolving or dismissing
+      // it, because closing a case under appeal decides the appeal by ending
+      // the thing it is about. The sentence names the one way out rather than
+      // only saying no.
+      return "This resident has an open appeal on this case. Decide it on the Disputed tab — uphold the finding or overturn it — before the case can move again."
     case "illegal_transition":
       // The RPC returns the from/to pair and no guidance. The guidance comes
       // from the client's mirror of the same table, so the manager is told what
@@ -653,7 +702,10 @@ export async function issueFine(
  *
  * `no_outstanding_fine` covers the case where the only fine is `disputed`,
  * `paid` or `waived` — deliberately, since chasing money that is under appeal
- * is the wrong message to send while Phase 5 has not decided it.
+ * is the wrong message to send while the appeal is undecided. Phase 5 made
+ * that a state with an exit rather than a dead end: the Disputed tab's Uphold
+ * and Overturn controls call `resolveDispute` below, and upholding returns the
+ * fine to `issued`, at which point this function works on it again.
  *
  * Two rejections were added in 20260823000006 and both are worth knowing about
  * from the client side:
@@ -728,6 +780,114 @@ export async function remindAboutFine(id: string, note?: string): Promise<Remind
     fineCount: r.fine_count,
     amountCents: r.amount_cents,
     currency: r.currency,
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Deciding an appeal                                                  */
+/* ------------------------------------------------------------------ */
+
+export interface ResolveDisputeResult {
+  error: string | null
+  /** `upheld` or `overturned`, echoed back by the RPC. */
+  outcome?: DisputeOutcome
+  /** Where the case sits AFTER the decision — unchanged, or `dismissed`. */
+  stage?: ViolationStage
+  /** How many fines were moved: back to `issued`, or to `waived`. */
+  finesSettled?: number
+  /** Whether the resident was told. False only when the case names nobody. */
+  notified?: boolean
+}
+
+/**
+ * Uphold or overturn a resident's open appeal.
+ *
+ * Both outcomes are irreversible from the app: `violation_disputes` has no
+ * client UPDATE policy and `manager_resolve_dispute` refuses a dispute that
+ * already carries an outcome, so a second press returns `no_open_dispute`
+ * rather than replacing the first decision. The confirmation sheet says so
+ * before the press, which is the only place that warning can do any good.
+ *
+ * What each does, so a caller does not have to read the migration:
+ *
+ *   upheld      the case does not move. Fines go back from `disputed` to
+ *               `issued`, so `manager_remind_fine` starts working on them
+ *               again, and one self-transition event records the decision.
+ *   overturned  the case is dismissed through `manager_advance_violation` and
+ *               the fines are `waived`. Exactly ONE notification reaches the
+ *               resident, because the nested call is made with
+ *               `p_notify => false`.
+ *
+ * `note` is optional and lands in `decided_note`, which the RESIDENT READS —
+ * it is quoted into their notification and shown on their case screen. The UI
+ * says so on the field.
+ */
+export async function resolveDispute(
+  id: string,
+  outcome: DisputeOutcome,
+  note?: string,
+): Promise<ResolveDisputeResult> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+
+  const { data, error } = await supabase.rpc("manager_resolve_dispute", {
+    p_violation: id,
+    p_outcome: outcome,
+    p_note: note?.trim() ? note.trim() : undefined,
+  })
+  // `transportError` and not `error.message`, so the 42501 hints the guards
+  // raise reach the manager instead of "new row violates row-level security".
+  if (error) return { error: transportError(error) }
+
+  const r = data as unknown as {
+    ok: boolean
+    error?: string
+    outcome?: string
+    stage?: string
+    fines_restored?: number
+    fines_waived?: number
+    notified?: boolean
+    length?: number
+    max?: number
+  }
+  if (!r.ok) {
+    switch (r.error) {
+      case "forbidden":
+        return { error: "You don't manage this building." }
+      case "not_found":
+        return { error: "That case no longer exists." }
+      case "no_open_dispute":
+        // Covers "never disputed" and "already decided" — the same fact from
+        // the RPC's side. Naming both is what stops a manager who pressed
+        // twice from thinking the first press failed.
+        return {
+          error:
+            "There is no appeal waiting on this case. It was either never disputed, or the decision has already been recorded.",
+        }
+      case "outcome_required":
+        return { error: "Choose whether you are upholding or overturning the appeal." }
+      case "note_too_long":
+        return {
+          error: `Your note is ${r.length ?? 0} characters; the limit is ${r.max ?? 2000}.`,
+        }
+      default:
+        // Never swallow a code this client has not been taught. A manager
+        // reading "Couldn't record the decision." with no trace of why has
+        // nothing to report and nothing to search for.
+        return {
+          error: r.error
+            ? `Couldn't record the decision (${r.error}).`
+            : "Couldn't record the decision.",
+        }
+    }
+  }
+
+  return {
+    error: null,
+    outcome: r.outcome as DisputeOutcome | undefined,
+    stage: r.stage ? toViolationStage(r.stage) : undefined,
+    finesSettled: r.fines_restored ?? r.fines_waived ?? 0,
+    notified: r.notified ?? false,
   }
 }
 
@@ -907,6 +1067,15 @@ export interface LedgerRow extends Record<string, unknown> {
   outcome: string
   fine_amount: string
   fine_status: string
+  /* The appeal, if the resident filed one. A CRT package that omits the appeal
+   * is the wrong package — it is the half of the record where the resident
+   * speaks, and a tribunal reads it before it reads the manager's notes. */
+  dispute_stage: string
+  dispute_filed_on: string
+  dispute_reason: string
+  dispute_outcome: string
+  dispute_decided_on: string
+  dispute_note: string
   event_on: string
   event_from: string
   event_to: string
@@ -925,7 +1094,8 @@ export async function fetchCaseLedger(): Promise<{ error: string | null; rows: L
        unit:units ( unit_number ),
        pet:pets ( name ),
        fines ( amount_cents, currency, status ),
-       violation_events ( from_stage, to_stage, note, occurred_on, created_at )`,
+       violation_events ( from_stage, to_stage, note, occurred_on, created_at ),
+       disputes:violation_disputes ( stage, reason, filed_at, outcome, decided_note, decided_at )`,
     )
     .order("created_at", { ascending: false })
 
@@ -944,6 +1114,16 @@ export async function fetchCaseLedger(): Promise<{ error: string | null; rows: L
     fines: { amount_cents: number; currency: string; status: string }[] | null
     violation_events:
       | { from_stage: string | null; to_stage: string; note: string | null; occurred_on: string | null; created_at: string }[]
+      | null
+    disputes:
+      | {
+          stage: string
+          reason: string
+          filed_at: string
+          outcome: DisputeOutcome | null
+          decided_note: string | null
+          decided_at: string | null
+        }[]
       | null
   }
   const first = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
@@ -967,6 +1147,23 @@ export async function fetchCaseLedger(): Promise<{ error: string | null; rows: L
         ? (fines.reduce((s, f) => s + (f.amount_cents ?? 0), 0) / 100).toFixed(2)
         : "",
       fine_status: fines.map((f) => f.status).join("; "),
+      // The most recent appeal on the case. One row per event already
+      // multiplies this out; carrying every dispute as well would multiply
+      // again and make the export unreadable. Cases carry at most one dispute
+      // per degree and, today, at most one in total.
+      ...(() => {
+        const d = [...(r.disputes ?? [])].sort((a, b) => b.filed_at.localeCompare(a.filed_at))[0]
+        return {
+          dispute_stage: d ? STAGE_LABEL[toViolationStage(d.stage)] : "",
+          dispute_filed_on: day(d?.filed_at ?? null),
+          dispute_reason: d?.reason ?? "",
+          // "pending" rather than blank: an undecided appeal is a fact about
+          // the case, and an empty cell reads as "no appeal".
+          dispute_outcome: d ? (d.outcome ?? "pending") : "",
+          dispute_decided_on: day(d?.decided_at ?? null),
+          dispute_note: d?.decided_note ?? "",
+        }
+      })(),
     }
     const events = [...(r.violation_events ?? [])].sort((a, b) =>
       a.created_at.localeCompare(b.created_at),

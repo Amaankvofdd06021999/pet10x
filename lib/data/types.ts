@@ -23,7 +23,6 @@ export type Species = "dog" | "cat" | "bird" | "small_mammal" | "fish" | "reptil
 export type PetStatus = "home" | "away" | "at-vet" | "vacation"
 export type VaccinationStatus = "current" | "expiring" | "expired"
 export type DocumentStatus = "Valid" | "Expiring" | "Approved" | "Active" | "Expired"
-export type ResidentStatus = "compliant" | "non-compliant" | "pending"
 export type ApprovalStatus = "pending" | "approved" | "denied"
 export type AccommodationType = "ESA" | "Service Animal"
 export type IncidentType = "noise" | "aggressive" | "off-leash" | "waste" | "damage" | "other"
@@ -45,10 +44,16 @@ export type LostFoundType = "lost" | "found"
  */
 export type ViolationStage = Database["public"]["Enums"]["violation_stage_v2"]
 
+/** The two ways a manager may decide an appeal. Aliased over the generated
+ *  enum for the same reason `ViolationStage` is. */
+export type DisputeOutcome = Database["public"]["Enums"]["dispute_outcome"]
+
 /**
- * `disputed` is scaffolding for Phase 5 (AD-7): cases with an appeal awaiting a
- * manager's decision are routed here so they are not buried under the fine they
- * dispute. The tab's contents are built in that phase.
+ * `disputed` holds cases whose resident has an OPEN `violation_disputes` row —
+ * an appeal awaiting a decision — so they are not buried under the fine they
+ * contest. Phase 5 built the decision controls; the signal is
+ * `outcome === null` on the dispute, NOT `fines.status = 'disputed'`, which is
+ * now only a consequence of filing one.
  */
 export type ViolationTab = "active" | "warnings" | "fines" | "disputed" | "resolved"
 
@@ -449,35 +454,24 @@ export interface HomeAlert {
 /* Manager: residents, approvals, violations                          */
 /* ------------------------------------------------------------------ */
 
-export interface ResidentPet {
-  name: string
-  species: Species
-  breed: string
-  weight: string
-  compliant: boolean
-}
-
-export interface ResidentViolationSummary {
-  type: string
-  date: string
-  stage: string
-}
-
-export interface ResidentBilling {
-  outstanding: number
-  lastPayment: string
-}
-
-export interface Resident {
-  id: number
-  unit: string
-  floor: number
-  resident: string
-  status: ResidentStatus
-  pets: ResidentPet[]
-  billing: ResidentBilling
-  violations: ResidentViolationSummary[]
-}
+/*
+ * `Resident`, `ResidentPet`, `ResidentViolationSummary` and `ResidentBilling`
+ * were DELETED here, and `ResidentStatus` with them.
+ *
+ * Phase 2's Task 4 review recorded the first two as dead mock shapes. The grep
+ * before deleting found they were not quite unreferenced, and the difference
+ * matters: `Resident` was named by `hooks.ts:useResidents()`, a stub returning
+ * `resolved([])` WITH NO CALLERS, and by an unused import in `mock-data.ts`
+ * whose residents array had already been removed. The other three were reached
+ * only through `Resident`. So the whole cluster was one closed island of dead
+ * code with a live-looking entry point, and deleting only the two named would
+ * have left three orphans plus a hook typed on a type that no longer existed.
+ *
+ * The real resident queue is `live.ts:useBuildingResidents()`, which returns
+ * `ResidentLinkRow[]`. `id: number` and the hardcoded `billing` shape are what
+ * gave these away — nothing in this database has an integer id, and there is
+ * no billing table.
+ */
 
 export interface RegistrationDocuments {
   vaccination: boolean
@@ -573,7 +567,96 @@ export interface Violation {
   /** Every fine on the case reads `paid`. Narrower than `outstanding === 0`. */
   paid: boolean
   history: ViolationHistoryStep[]
+  /**
+   * The resident's open appeal, or null. `tab === "disputed"` exactly when this
+   * is non-null — one fact, one field, so the tab and the card cannot disagree
+   * about whether an appeal exists.
+   */
+  openDispute: Dispute | null
   tab: ViolationTab
+}
+
+/* ------------------------------------------------------------------ */
+/* Resident: the cases against them, and the appeal                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One row of `violation_disputes`, as the resident's screen and the manager's
+ * Disputed tab both read it.
+ *
+ * `outcome === null` IS the open-dispute signal. There is no separate `isOpen`
+ * flag, because two representations of one fact is how Phase 2's
+ * `fines.status = 'disputed'` derivation drifted from what it was derived from.
+ *
+ * `filedBy` and `decidedBy` are deliberately ABSENT. A resident cannot read
+ * their manager's profile (`profiles_select` evaluates `manages_building` as
+ * the CALLER, which is false for them), so embedding `profiles` here would
+ * return silent nulls rather than an error, and the next hand to "fix" that
+ * writes a policy exposing the deciding manager's identity. The decision is the
+ * strata's, not a named person's.
+ */
+export interface Dispute {
+  stage: ViolationStage
+  /** The resident's own words, verbatim. */
+  reason: string
+  filedAt: string
+  outcome: DisputeOutcome | null
+  /** The manager's reason for the decision. Null when they gave none. */
+  decidedNote: string | null
+  decidedAt: string | null
+}
+
+/** One fine, as a resident sees it. No payment fields — AD-8. */
+export interface ResidentFine {
+  id: string
+  amountCents: number
+  currency: string
+  status: string
+  dueOn: string | null
+}
+
+/** One `violation_events` row, as a resident sees it. */
+export interface ResidentCaseEvent {
+  id: string
+  fromStage: ViolationStage | null
+  toStage: ViolationStage
+  /** The manager's note. Shown, because it is the reason being contested. */
+  note: string | null
+  occurredOn: string | null
+  createdAt: string
+}
+
+/**
+ * A bylaw case as its subject sees it.
+ *
+ * WHAT IS DELIBERATELY NOT HERE, and no policy is written to make it visible:
+ * the reporter's identity, the originating incident's description, any
+ * `evidence_paths` or `guest-evidence` object, the reporting unit, the
+ * `audit_log`, the deciding manager's name, and anything belonging to another
+ * resident. A strata notice tells you what you are alleged to have done and
+ * what it costs. It does not hand you your neighbour's name and photographs —
+ * that is a retaliation vector, and it is the reason complaints go to the
+ * strata rather than to the neighbour.
+ */
+export interface ResidentCase {
+  id: string
+  type: string
+  stage: ViolationStage
+  openedAt: string
+  /** Non-null once the case is closed — the honest live/closed split. */
+  resolvedAt: string | null
+  resolutionOutcome: string | null
+  /** The resident's own pet, named on the case. Null when none is identified. */
+  petName: string | null
+  fines: ResidentFine[]
+  /** Oldest first — a history reads forwards. */
+  events: ResidentCaseEvent[]
+  disputes: Dispute[]
+  /**
+   * `max(events.createdAt where toStage === stage)`, else `openedAt`. The
+   * `canDispute` window is measured from here, mirroring the RPC's `coalesce`.
+   */
+  anchorIso: string
 }
 
 export interface ResolvedViolation {

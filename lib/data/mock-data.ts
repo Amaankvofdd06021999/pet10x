@@ -29,7 +29,6 @@ import type {
   ManagerActivityEntry,
   Pet,
   Registration,
-  Resident,
   ResolvedViolation,
   ServiceProvider,
   UrgentItem,

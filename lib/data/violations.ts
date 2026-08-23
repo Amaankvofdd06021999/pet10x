@@ -146,10 +146,20 @@ export function describeLegalMoves(from: ViolationStage): string {
  *    to win over the stage, which would have filed a dismissed case under
  *    Fines — money to chase on a case that was dropped.
  *
- * `disputed` is derived from the fines attached to the case (`fines.status =
- * 'disputed'`), which is the only dispute signal that exists today.
- * `violations.disputed_at` is specified in AD-7 but not yet migrated; when it
- * lands, it becomes the input to this argument and nothing else changes.
+ * `disputed` now means "this case has a `violation_disputes` row with
+ * `outcome is null`" — an appeal the strata has not decided. It used to be
+ * derived from `fines.status = 'disputed'`, and that derivation is RETIRED
+ * rather than composed with the new one: a dispute against a WARNING has no
+ * fine row to carry a flag, so the old signal could not express it at all.
+ *
+ * AD-7 specified `violations.disputed_at`, `dispute_reason` and `dispute_stage`
+ * instead. Those columns were never applied and Phase 5 deliberately did not
+ * add them — "a resident disputes a degree once" is a uniqueness constraint,
+ * and three nullable columns cannot express one. See
+ * `supabase/migrations/20260824000000_violation_disputes.sql` for the argument.
+ *
+ * The signature still takes a boolean, so this file's blast radius from that
+ * decision is this paragraph.
  */
 export function tabFor(stage: ViolationStage, hasFine: boolean, disputed = false): ViolationTab {
   if (isTerminal(stage)) return "resolved"
@@ -201,8 +211,11 @@ export type FineStatus = (typeof FINE_STATUSES)[number]
  * `partially_paid` counts its FULL `amount_cents`, because `fines` has no
  * paid-to-date column. That overstates the remainder and is the safe direction
  * — the alternative is dropping a partly-settled fine out of the total
- * entirely — but it is an approximation, and the column that would fix it is
- * Phase 5's (payments).
+ * entirely — but it is an approximation. The column that would fix it is a
+ * paid-to-date figure, and NO PHASE OWNS IT: Phase 5 was scoped explicitly as
+ * "fine payments later, for now just see dispute or appeal" (AD-8), so it
+ * shipped no payment surface and no such column. It stays an approximation
+ * until somebody builds payments.
  */
 const FINE_STATUS_MEANING: Record<FineStatus, "owed" | "settled"> = {
   issued: "owed",

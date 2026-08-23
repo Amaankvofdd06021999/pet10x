@@ -17,6 +17,8 @@ import { petFileSignedUrls, isStoragePath, uploadPetFile, deletePetFile } from "
 import type { Database } from "@/lib/supabase/database.types"
 import { PETS as MOCK_PETS } from "./mock-data"
 import { defaultTargetsFor, defaultScheduleFor } from "./care-catalog"
+import { describeWhyNot } from "./disputes"
+import { toViolationStage } from "./violations"
 import type {
   AppNotification,
   BuildingLink,
@@ -31,9 +33,12 @@ import type {
   PetDocKind,
   PetStatus,
   PetVaccinationRecord,
+  DisputeOutcome,
+  ResidentCase,
   ResidentLinkRow,
   ResidentLinkStatus,
   Species,
+  ViolationStage,
 } from "./types"
 
 export interface BuildingRules {
@@ -1687,4 +1692,270 @@ export async function deleteVetVisit(id: string): Promise<{ error: string | null
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("pet_vet_visits").delete().eq("id", id)
   return { error: error?.message ?? null }
+}
+
+/* ------------------------------------------------------------------ */
+/* The resident's own bylaw cases (Phase 5)                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Every violation opened against the signed-in resident, newest first.
+ *
+ * `violations_select`, `vevents_select`, `fines_select` and `vdisputes_select`
+ * have all admitted `resident_id = auth.uid()` since Phase 2, and until now
+ * NOTHING HAD EVER QUERIED THEM. This is that half of the ladder.
+ *
+ * RLS IS THE FLOOR, THE QUERY IS THE FILTER. `.eq("resident_id", user.id)` is
+ * explicit and must stay explicit: `violations_select` also admits
+ * `manages_building(...) or is_admin()`, so an account holding either grant —
+ * a manager who owns a dog, an admin looking at their own resident view —
+ * would otherwise receive every case in their portfolio on their PERSONAL
+ * screen. That is exactly the defect `useNotifications` above was fixed for.
+ *
+ * EMBED NOTHING ELSE. In particular:
+ *
+ *   - NO `incident_reports`. `incidents_select` admits
+ *     `manages_building or is_admin or reporter_id = auth.uid()`, and the
+ *     subject of a violation is the PET'S OWNER, not the reporter (AD-11) — so
+ *     this embed returns silent nulls for a resident rather than an error, and
+ *     the next hand to "fix" it writes a policy that hands a resident the name
+ *     of the neighbour who reported them.
+ *   - NO `actor:profiles` on the events. `profiles_select`'s manager clause
+ *     evaluates `manages_building` AS THE CALLER, which is false for a
+ *     resident, so it fails the same silent way. The deciding manager's
+ *     identity is deliberately not shown: a strata decision is the strata's.
+ *   - NO `evidence_paths`, no `audit_log`.
+ *
+ * This is a decision, not a limitation to work around. Phase 0 found
+ * `emergency_directory` returning medical data it documented itself as
+ * withholding, which is why it is written down here rather than left to
+ * whoever edits this next.
+ */
+export function useMyCases(): LiveResult<ResidentCase[]> {
+  const [data, setData] = useState<ResidentCase[]>([])
+  const [isLoading, setLoading] = useState(ENABLED)
+  const [error, setError] = useState<string | null>(null)
+
+  const refetch = useCallback(async () => {
+    if (!ENABLED) {
+      setLoading(false)
+      return
+    }
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setData([])
+      setLoading(false)
+      return
+    }
+
+    const { data: rows, error: err } = await supabase
+      .from("violations")
+      .select(
+        `id, type, stage, created_at, resolved_at, resolution_outcome,
+         pet:pets ( name ),
+         fines ( id, amount_cents, currency, status, due_on ),
+         violation_events ( id, from_stage, to_stage, note, occurred_on, created_at ),
+         disputes:violation_disputes ( stage, reason, filed_at, outcome, decided_note, decided_at )`,
+      )
+      .eq("resident_id", user.id)
+      .order("created_at", { ascending: false })
+
+    if (err) {
+      setError(err.message)
+      setData([])
+      setLoading(false)
+      return
+    }
+
+    type Row = {
+      id: string
+      type: string
+      stage: string
+      created_at: string
+      resolved_at: string | null
+      resolution_outcome: string | null
+      pet: { name: string } | { name: string }[] | null
+      fines:
+        | { id: string; amount_cents: number; currency: string; status: string; due_on: string | null }[]
+        | null
+      violation_events:
+        | {
+            id: string
+            from_stage: string | null
+            to_stage: string
+            note: string | null
+            occurred_on: string | null
+            created_at: string
+          }[]
+        | null
+      disputes:
+        | {
+            stage: string
+            reason: string
+            filed_at: string
+            outcome: DisputeOutcome | null
+            decided_note: string | null
+            decided_at: string | null
+          }[]
+        | null
+    }
+    const first = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
+
+    setData(
+      ((rows ?? []) as unknown as Row[]).map((r) => {
+        const stage = toViolationStage(r.stage)
+        // Oldest first. A history reads forwards, and the dispute self-
+        // transition has to land after the event it contests.
+        const events = [...(r.violation_events ?? [])]
+          .sort((a, b) => a.created_at.localeCompare(b.created_at))
+          .map((e) => ({
+            id: e.id,
+            fromStage: e.from_stage ? toViolationStage(e.from_stage) : null,
+            toStage: toViolationStage(e.to_stage),
+            note: e.note,
+            occurredOn: e.occurred_on,
+            createdAt: e.created_at,
+          }))
+
+        // The dispute window's anchor: the latest event that ENTERED the case's
+        // current stage, falling back to the case's own creation. This is
+        // `dispute_violation`'s `coalesce(max(...), v.created_at)` mirrored
+        // exactly — see `lib/data/disputes.ts` for why the mirror exists and
+        // how it is kept honest.
+        //
+        // The dispute's own self-transition has `to_stage = stage` too, so once
+        // an appeal is filed the anchor moves to it. That is harmless: a case
+        // with an open dispute is blocked by `hasOpenDispute` long before the
+        // window is consulted, and one whose dispute was DECIDED has already
+        // used up that degree, so `alreadyDisputedThisStage` blocks it first.
+        const anchorIso =
+          events.filter((e) => e.toStage === stage).at(-1)?.createdAt ?? r.created_at
+
+        return {
+          id: r.id,
+          type: r.type.replace(/_/g, " "),
+          stage,
+          openedAt: r.created_at,
+          resolvedAt: r.resolved_at,
+          resolutionOutcome: r.resolution_outcome,
+          petName: first(r.pet)?.name ?? null,
+          fines: (r.fines ?? []).map((f) => ({
+            id: f.id,
+            amountCents: f.amount_cents,
+            currency: f.currency,
+            status: f.status,
+            dueOn: f.due_on,
+          })),
+          events,
+          disputes: [...(r.disputes ?? [])]
+            .sort((a, b) => a.filed_at.localeCompare(b.filed_at))
+            .map((d) => ({
+              stage: toViolationStage(d.stage),
+              reason: d.reason,
+              filedAt: d.filed_at,
+              outcome: d.outcome,
+              decidedNote: d.decided_note,
+              decidedAt: d.decided_at,
+            })),
+          anchorIso,
+        }
+      }),
+    )
+    setError(null)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+export interface FileDisputeResult {
+  error: string | null
+  stage?: ViolationStage
+  /** How many fines the filing moved from `issued` to `disputed`. */
+  finesMarked?: number
+}
+
+/**
+ * File an appeal against the degree a case currently sits on.
+ *
+ * The client check in the sheet ("say why") is a COURTESY. The enforcement is
+ * `dispute_violation`, which is the only writer `violation_disputes` has — the
+ * table carries no client INSERT policy at all — so every one of these eight
+ * codes is mapped rather than assumed unreachable. `reason_required` in
+ * particular is mapped even though the sheet refuses an empty box first: a
+ * client-side check that is treated as the guarantee is how a guard gets
+ * deleted in a refactor and nobody notices.
+ */
+export async function fileDispute(
+  violationId: string,
+  reason: string,
+): Promise<FileDisputeResult> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+
+  const { data, error } = await supabase.rpc("dispute_violation", {
+    p_violation: violationId,
+    p_reason: reason,
+  })
+  if (error) {
+    const hint = error.hint?.trim()
+    return { error: hint ? `${error.message} ${hint}` : error.message }
+  }
+
+  const r = data as unknown as {
+    ok: boolean
+    error?: string
+    stage?: string
+    fines_marked?: number
+    length?: number
+    max?: number
+    closed_at?: string
+  }
+  if (!r.ok) {
+    switch (r.error) {
+      case "not_found":
+        return { error: "That case no longer exists." }
+      case "forbidden":
+        // The RPC authorises on `resident_id = auth.uid()` and nothing else —
+        // no manager branch, no admin branch. Reaching this from this screen
+        // means the case is not the signed-in resident's.
+        return { error: "This case is not yours to dispute." }
+      case "stage_not_disputable":
+        return { error: describeWhyNot("stage") }
+      case "already_disputed":
+        return { error: describeWhyNot("already") }
+      case "dispute_open":
+        return { error: describeWhyNot("open") }
+      case "window_closed":
+        return {
+          error: describeWhyNot("window", r.closed_at ? new Date(r.closed_at) : undefined),
+        }
+      case "reason_required":
+        return { error: "Say why you are disputing this before submitting." }
+      case "reason_too_long":
+        return {
+          error: `Your reason is ${r.length ?? 0} characters; the limit is ${r.max ?? 2000}.`,
+        }
+      default:
+        return {
+          error: r.error ? `Couldn't file the dispute (${r.error}).` : "Couldn't file the dispute.",
+        }
+    }
+  }
+
+  return {
+    error: null,
+    stage: r.stage ? toViolationStage(r.stage) : undefined,
+    finesMarked: r.fines_marked ?? 0,
+  }
 }
