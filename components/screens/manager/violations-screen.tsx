@@ -28,7 +28,7 @@
  *    the label and styling of each act, which is presentation, not the ladder.
  *
  * 2. **Nothing is described as done that was not measured.** The Disputed tab
- *    lists appeals and says plainly that deciding one arrives in Phase 5; the
+ *    lists appeals and decides them; the
  *    amount sheet says the building has no fine schedule when it has none
  *    (measured 2026-08-23: 0 of 6 buildings do) instead of implying a default
  *    it would then fail to apply.
@@ -65,6 +65,7 @@ import {
   openViolation,
   readFineSchedule,
   remindAboutFine,
+  resolveDispute,
   resolveViolation,
   useViolationSubjects,
   type FineSchedule,
@@ -155,7 +156,7 @@ const VIOLATION_TYPES: { value: string; label: string }[] = [
 /* Which controls a case gets — derived, never mapped                  */
 /* ------------------------------------------------------------------ */
 
-type ActionKind = "warning" | "fine" | "resolve" | "dismiss" | "remind"
+type ActionKind = "warning" | "fine" | "resolve" | "dismiss" | "remind" | "uphold" | "overturn"
 
 interface Action {
   kind: ActionKind
@@ -176,6 +177,28 @@ interface Action {
  * still gets the reminder the old `isFineStage(stage)` gate withheld from it.
  */
 function actionsFor(v: Violation): Action[] {
+  /*
+   * A case under appeal has EXACTLY ONE legal next action, and it is deciding
+   * the appeal. `manager_advance_violation` now returns `dispute_open` for
+   * every stage move on such a case — including Resolve and Dismiss, because
+   * closing a case under appeal decides the appeal by ending the thing it is
+   * about — so the ladder controls are REPLACED here rather than shown
+   * alongside the decision controls. Offering them would be offering a move
+   * the database refuses, which is the one thing this file's first rule
+   * forbids.
+   *
+   * Send Reminder goes too, and it would have gone on its own: `chaseable` is
+   * "at least one fine reads `issued`", and `dispute_violation` moved them all
+   * to `disputed`. The early return makes that a decision rather than a
+   * coincidence.
+   */
+  if (v.openDispute) {
+    return [
+      { kind: "uphold", label: "Uphold the finding", className: "bg-warning/10 text-warning-strong" },
+      { kind: "overturn", label: "Overturn it", className: "bg-success/10 text-success" },
+    ]
+  }
+
   const legal = LEGAL_TRANSITIONS[v.stage]
   const actions: Action[] = []
 
@@ -563,9 +586,11 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
             <div className="flex items-start gap-2">
               <Scale className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                A case appears here while a fine against it is marked disputed. <span className="font-semibold text-foreground">Upholding
-                or cancelling an appeal is not built yet</span> — that arrives in Phase 5. Until then the ladder still
-                applies: you can resolve or dismiss the case, and reminders are withheld while the money is contested.
+                A case appears here while its resident has an open appeal.{" "}
+                <span className="font-semibold text-foreground">The ladder is paused until you decide it</span> — the
+                case cannot be escalated, resolved or dismissed, and no reminder is sent while the money is contested.
+                Upholding leaves the case where it is and makes the fine payable again; overturning dismisses the case
+                and waives the fine. Both are final.
               </p>
             </div>
           </div>
@@ -668,6 +693,14 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
 /* One case                                                            */
 /* ------------------------------------------------------------------ */
 
+/** "Aug 23, 2026" — the appeal's filing date, in one place. */
+function shortDate(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime())
+    ? "an unknown date"
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
 function CaseCard({ violation, onAct }: { violation: Violation; onAct: (a: Action) => void }) {
   const stageInfo = STAGE_CONFIG[violation.stage]
   const reached = LADDER.indexOf(violation.stage)
@@ -748,6 +781,25 @@ function CaseCard({ violation, onAct }: { violation: Violation; onAct: (a: Actio
                   ? "Disputed"
                   : "Unpaid"}
             </Badge>
+          </div>
+        )}
+
+        {/*
+          The resident's stated reason, IN FULL. A manager deciding an appeal
+          they cannot read is not deciding it, and this is the document a
+          tribunal reads first. `whitespace-pre-wrap` because the resident may
+          have written paragraphs and collapsing them changes what they said.
+        */}
+        {violation.openDispute && (
+          <div className="mt-2 rounded-lg border border-warning/30 bg-warning/5 p-2.5">
+            <p className="text-[11px] font-semibold text-warning-strong">
+              {`Appeal against the ${STAGE_LABEL[violation.openDispute.stage].toLowerCase()} stage, filed ${shortDate(
+                violation.openDispute.filedAt,
+              )}`}
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">
+              {violation.openDispute.reason}
+            </p>
           </div>
         )}
 
@@ -880,6 +932,8 @@ const SHEET_TITLE: Record<ActionKind, string> = {
   resolve: "Resolve this case",
   dismiss: "Dismiss this case",
   remind: "Send a reminder",
+  uphold: "Uphold the finding",
+  overturn: "Overturn the finding",
 }
 
 /**
@@ -962,6 +1016,25 @@ function ActionSheet({
       success = r.notified
         ? "Case dismissed and the resident notified."
         : "Case dismissed. No resident is assigned, so nobody was notified."
+    } else if (action.kind === "uphold" || action.kind === "overturn") {
+      const upheld = action.kind === "uphold"
+      const r = await resolveDispute(violation.id, upheld ? "upheld" : "overturned", note.trim() || undefined)
+      error = r.error
+      // Built by assembling whole clauses rather than by patching a template
+      // with string replaces — the plural and the "no fine" case are separate
+      // sentences, not edits to one.
+      const n = r.finesSettled ?? 0
+      const fineClause =
+        n === 0
+          ? "No fine was attached to it."
+          : upheld
+            ? `${n} fine${n === 1 ? " is" : "s are"} payable again.`
+            : `${n} fine${n === 1 ? " was" : "s were"} waived.`
+      const head = upheld
+        ? `Appeal upheld. The case stays at ${violation.stageLabel.toLowerCase()}.`
+        : "Appeal overturned. The case is dismissed."
+      const tail = r.notified ? "" : " No resident is assigned, so nobody was notified."
+      success = `${head} ${fineClause}${tail}`
     } else {
       const r = await remindAboutFine(violation.id, note.trim() || undefined)
       error = r.error
@@ -988,12 +1061,55 @@ function ActionSheet({
         </p>
         {/* Composed from the mirrored ladder, not written out here — the same
             sentence `advanceError` shows if the database refuses a move. */}
-        {action.kind !== "remind" && (
+        {action.kind !== "remind" && action.kind !== "uphold" && action.kind !== "overturn" && (
           <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
             {describeLegalMoves(violation.stage)}
           </p>
         )}
       </div>
+
+      {(action.kind === "uphold" || action.kind === "overturn") && (
+        <div
+          className={`mb-3 rounded-xl p-3 ${
+            action.kind === "uphold" ? "bg-warning/5 border border-warning/40" : "bg-success/5 border border-success/40"
+          }`}
+        >
+          {violation.openDispute && (
+            <>
+              <p className="text-[11px] font-semibold text-muted-foreground">
+                The resident said, on {shortDate(violation.openDispute.filedAt)}:
+              </p>
+              <p className="mb-2 mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">
+                {violation.openDispute.reason}
+              </p>
+            </>
+          )}
+          {/*
+            The consequence, stated with the real number, before the press. The
+            outstanding figure comes from `summariseFines`, so it is the same
+            money the card and the strata overview report.
+          */}
+          <p className="text-[11px] leading-relaxed text-foreground">
+            <span className="font-semibold">
+              {action.kind === "uphold"
+                ? `The case stays at ${violation.stageLabel.toLowerCase()}`
+                : "The case is dismissed and closed"}
+            </span>
+            {violation.disputed > 0
+              ? action.kind === "uphold"
+                ? `, and the $${violation.disputed.toFixed(2)} under appeal becomes payable again — reminders resume.`
+                : `, and the $${violation.disputed.toFixed(2)} under appeal is waived.`
+              : action.kind === "uphold"
+                ? ". No fine is attached, so no money changes."
+                : ". No fine is attached, so no money changes."}
+            {" The resident is notified either way. "}
+            <span className="font-semibold">This cannot be undone</span>
+            {action.kind === "uphold"
+              ? " — the resident can only dispute a later stage, not this one again."
+              : " — a dismissed case cannot be reopened; a further breach would be a new case."}
+          </p>
+        </div>
+      )}
 
       {action.kind === "fine" && (
         <>
@@ -1046,9 +1162,11 @@ function ActionSheet({
               ? "Reason for dismissal"
               : action.kind === "remind"
                 ? "Message to the resident (optional)"
-                : noteRequired
-                  ? "Why this amount (required)"
-                  : "Note (optional)"}
+                : action.kind === "uphold" || action.kind === "overturn"
+                  ? "Your reasons (optional)"
+                  : noteRequired
+                    ? "Why this amount (required)"
+                    : "Note (optional)"}
         </label>
         <textarea
           value={note}
@@ -1061,7 +1179,9 @@ function ActionSheet({
                 ? "Reported in error; no bylaw breach"
                 : action.kind === "remind"
                   ? "Added to the end of the reminder the resident receives."
-                  : "Kept with the case and shown to the resident."
+                  : action.kind === "uphold" || action.kind === "overturn"
+                    ? "Why you decided this way. The resident reads it."
+                    : "Kept with the case and shown to the resident."
           }
           className="w-full rounded-xl border border-border bg-background px-3 py-2 text-[14px] text-foreground focus:border-primary focus:outline-none"
         />
@@ -1069,6 +1189,13 @@ function ActionSheet({
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
             This becomes the case&apos;s outcome on the Resolved tab, and the resident is told. Closing a case is final
             — reopening means logging a new one.
+          </p>
+        )}
+        {(action.kind === "uphold" || action.kind === "overturn") && (
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            THE RESIDENT READS THIS. It is quoted in the notification they receive and shown on their own case screen
+            beside the appeal, so it is the answer to what they wrote. Leaving it blank records &ldquo;no reason
+            given&rdquo;.
           </p>
         )}
       </div>
@@ -1086,7 +1213,11 @@ function ActionSheet({
                 ? "Resolve case"
                 : action.kind === "dismiss"
                   ? "Dismiss case"
-                  : "Send reminder"
+                  : action.kind === "uphold"
+                    ? "Uphold the finding"
+                    : action.kind === "overturn"
+                      ? "Overturn and dismiss"
+                      : "Send reminder"
         }
       />
       {blocked && (
