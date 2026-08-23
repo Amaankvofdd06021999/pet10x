@@ -6,7 +6,7 @@
 -- Idempotent: safe to re-run. Applied to the live project via the Supabase MCP.
 
 -- ===========================================================================
--- 1. Demo auth users (manager + co-manager + 15 residents). The
+-- 1. Demo auth users (manager + co-manager + 16 residents). The
 --    handle_new_user trigger creates their public.profiles automatically.
 -- ===========================================================================
 do $$
@@ -29,7 +29,8 @@ declare
     {"id":"a5000000-0000-4000-8000-000000000022","email":"benjamin.cole@pet10x.com","name":"Benjamin Cole"},
     {"id":"a5000000-0000-4000-8000-000000000023","email":"charlotte.diaz@pet10x.com","name":"Charlotte Diaz"},
     {"id":"a5000000-0000-4000-8000-000000000024","email":"henry.ito@pet10x.com","name":"Henry Ito"},
-    {"id":"a5000000-0000-4000-8000-000000000025","email":"amelia.novak@pet10x.com","name":"Amelia Novak"}
+    {"id":"a5000000-0000-4000-8000-000000000025","email":"amelia.novak@pet10x.com","name":"Amelia Novak"},
+    {"id":"a5000000-0000-4000-8000-000000000026","email":"priya.raman@pet10x.com","name":"Priya Raman"}
   ]'::jsonb;
 begin
   for u in select * from jsonb_array_elements(demo_users)
@@ -263,4 +264,81 @@ insert into public.fines (id, violation_id, building_id, unit_id, resident_id, a
   ('45000000-0000-4000-8000-000000000002','35000000-0000-4000-8000-000000000002','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000006'),'a5000000-0000-4000-8000-000000000013',15000,'cad','issued','a5000000-0000-4000-8000-000000000001',(now()+interval '10 days')::date, now()-interval '8 days'),
   ('45000000-0000-4000-8000-000000000003','35000000-0000-4000-8000-000000000007','b5000000-0000-4000-8000-000000000004',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000021'),'a5000000-0000-4000-8000-000000000020',20000,'cad','disputed','a5000000-0000-4000-8000-000000000001',(now()+interval '5 days')::date, now()-interval '6 days'),
   ('45000000-0000-4000-8000-000000000004','35000000-0000-4000-8000-000000000006','b5000000-0000-4000-8000-000000000003',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000018'),'a5000000-0000-4000-8000-000000000019',10000,'cad','paid','a5000000-0000-4000-8000-000000000001',(now()-interval '20 days')::date, now()-interval '40 days')
+on conflict (id) do nothing;
+
+-- ===========================================================================
+-- 5. Care fixtures — the multi-pet households this app is actually used by.
+--
+--    71% of live owners keep two or three pets, and until this section existed
+--    the seed had 34 pets and not one care task, so nothing on Today's Care
+--    could be looked at with a demo login. Three households cover the whole
+--    live range:
+--
+--      Isabella Fournier (…0019) — Buddy, Lola, Zoe.  Three pets whose
+--        Breakfast and Dinner are at the SAME time with the SAME label, which
+--        is the collision that makes an unattributed schedule unreadable.
+--        Lola alone takes a medication; before the household query she was
+--        invisible on Home, because she is not pets[0].
+--      Sofia Nguyen (…0011)     — Biscuit, Mochi.  Two pets, deliberately
+--        disjoint routines, so no (label, time) pair repeats and nothing
+--        groups. The control for "did we invent a header that isn't needed".
+--      Priya Raman (…0026)      — Nutmeg.  One pet, and no building at all:
+--        pets.building_id / unit_id are nullable and Home has an unlinked
+--        state. Leaving her unlinked is what guarantees this section cannot
+--        move any building's engineered compliance spread.
+--
+--    Every row carries an explicit id and `on conflict (id) do nothing`.
+--    Neither pet_care_tasks nor care_targets has a natural unique key, so
+--    without that a second run would silently double every schedule.
+--
+--    Two enums, two vocabularies: task.kind is care_kind
+--    (meal|medication|water|walk|grooming|other — there is no 'play'), and
+--    target.kind is care_entry_kind (food|water|treat|medicine|walk|play|…).
+--    days_of_week is smallint[]; "every day" is stored as NULL, which is the
+--    representation addCareTask and taskRunsOn both rely on.
+-- ===========================================================================
+
+-- Priya's pet. No building_id, no unit_id — see above.
+insert into public.pets (id, owner_id, building_id, unit_id, name, species, breed, neutered, weight_grams, registration_status, status)
+values ('c5000000-0000-4000-8000-000000000035','a5000000-0000-4000-8000-000000000026', null, null,
+        'Nutmeg','dog','Shiba Inu', true, 11000, 'draft', 'home')
+on conflict (id) do nothing;
+
+-- Targets first: pet_care_tasks.target_id is a real FK to care_targets(id).
+-- The amounts differ per pet on purpose — identical targets are exactly why
+-- feeding the second cat moved nothing visible on the old home screen.
+insert into public.care_targets (id, pet_id, kind, label, target_amount, unit, period, sort_order, is_active) values
+  ('d6000000-0000-4000-8000-000000000001','c5000000-0000-4000-8000-000000000018','food','Kibble',3,'cup','day',0,true),
+  ('d6000000-0000-4000-8000-000000000002','c5000000-0000-4000-8000-000000000019','food','Wet food',2,'can','day',0,true),
+  ('d6000000-0000-4000-8000-000000000003','c5000000-0000-4000-8000-000000000019','medicine','Thyroid tablet',1,'dose','day',1,true),
+  ('d6000000-0000-4000-8000-000000000004','c5000000-0000-4000-8000-000000000020','food','Kibble',2,'cup','day',0,true),
+  ('d6000000-0000-4000-8000-000000000005','c5000000-0000-4000-8000-000000000001','food','Kibble',2,'cup','day',0,true),
+  ('d6000000-0000-4000-8000-000000000006','c5000000-0000-4000-8000-000000000002','food','Wet food',3,'can','day',0,true),
+  ('d6000000-0000-4000-8000-000000000007','c5000000-0000-4000-8000-000000000035','food','Kibble',2,'cup','day',0,true)
+on conflict (id) do nothing;
+
+-- The schedule. recurrence 'daily' with interval_days null, per
+-- pet_care_tasks_interval_shape_check. log_amount on each Breakfast is half
+-- the daily target, so one tick visibly moves that pet's tile to halfway.
+insert into public.pet_care_tasks
+  (id, pet_id, label, kind, scheduled_at, time_label, days_of_week, sort_order, recurrence, interval_days, dose, target_id, log_amount) values
+  -- Isabella · Buddy (dog)
+  ('d7000000-0000-4000-8000-000000000001','c5000000-0000-4000-8000-000000000018','Breakfast','meal','07:30','7:30 AM',null,0,'daily',null,null,'d6000000-0000-4000-8000-000000000001',1.5),
+  ('d7000000-0000-4000-8000-000000000002','c5000000-0000-4000-8000-000000000018','Evening walk','walk','17:00','5:00 PM',null,1,'daily',null,null,null,null),
+  ('d7000000-0000-4000-8000-000000000003','c5000000-0000-4000-8000-000000000018','Dinner','meal','18:00','6:00 PM',null,2,'daily',null,null,null,null),
+  -- Isabella · Lola (cat) — the only medication fixture anywhere in the seed
+  ('d7000000-0000-4000-8000-000000000004','c5000000-0000-4000-8000-000000000019','Breakfast','meal','07:30','7:30 AM',null,0,'daily',null,null,'d6000000-0000-4000-8000-000000000002',1),
+  ('d7000000-0000-4000-8000-000000000005','c5000000-0000-4000-8000-000000000019','Thyroid tablet','medication','08:00','8:00 AM',null,1,'daily',null,'1 tablet','d6000000-0000-4000-8000-000000000003',1),
+  ('d7000000-0000-4000-8000-000000000006','c5000000-0000-4000-8000-000000000019','Dinner','meal','18:00','6:00 PM',null,2,'daily',null,null,null,null),
+  -- Isabella · Zoe (dog)
+  ('d7000000-0000-4000-8000-000000000007','c5000000-0000-4000-8000-000000000020','Breakfast','meal','07:30','7:30 AM',null,0,'daily',null,null,'d6000000-0000-4000-8000-000000000004',1),
+  ('d7000000-0000-4000-8000-000000000008','c5000000-0000-4000-8000-000000000020','Evening walk','walk','17:00','5:00 PM',null,1,'daily',null,null,null,null),
+  ('d7000000-0000-4000-8000-000000000009','c5000000-0000-4000-8000-000000000020','Dinner','meal','18:00','6:00 PM',null,2,'daily',null,null,null,null),
+  -- Sofia · Biscuit (dog) and Mochi (cat) — four distinct (label, time) pairs
+  ('d7000000-0000-4000-8000-000000000010','c5000000-0000-4000-8000-000000000001','Morning walk','walk','06:45','6:45 AM',null,0,'daily',null,null,null,null),
+  ('d7000000-0000-4000-8000-000000000011','c5000000-0000-4000-8000-000000000001','Dinner','meal','18:30','6:30 PM',null,1,'daily',null,null,'d6000000-0000-4000-8000-000000000005',1),
+  ('d7000000-0000-4000-8000-000000000012','c5000000-0000-4000-8000-000000000002','Supper','meal','19:00','7:00 PM',null,0,'daily',null,null,'d6000000-0000-4000-8000-000000000006',1.5),
+  ('d7000000-0000-4000-8000-000000000013','c5000000-0000-4000-8000-000000000002','Brush','grooming','20:00','8:00 PM',null,1,'daily',null,null,null,null),
+  -- Priya · Nutmeg (dog) — the single-pet control
+  ('d7000000-0000-4000-8000-000000000014','c5000000-0000-4000-8000-000000000035','Breakfast','meal','08:00','8:00 AM',null,0,'daily',null,null,'d6000000-0000-4000-8000-000000000007',1)
 on conflict (id) do nothing;
