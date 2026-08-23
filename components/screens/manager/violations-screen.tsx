@@ -13,11 +13,19 @@
  * TWO RULES THIS FILE FOLLOWS:
  *
  * 1. **Ask `LEGAL_TRANSITIONS` what to offer.** No stage-to-button mapping is
- *    written here. `actionsFor()` reads the mirrored ladder, so a control the
- *    database would refuse cannot render, and a transition added to the ladder
- *    appears here without this file being edited. Task 4 deleted exactly this
- *    kind of duplicated truth from three screens; re-introducing it on the one
- *    screen that is *about* the ladder would have been the worst place to.
+ *    written here: `actionsFor()` reads the mirrored ladder, so **a control the
+ *    database would refuse cannot render**. That is the guarantee, and it is
+ *    the one that matters — a manager never presses a button and gets a 42501.
+ *
+ *    The converse does NOT hold, and an earlier version of this comment claimed
+ *    it did. `actionsFor` tests the ladder's answer against five hardcoded
+ *    labels (`warning`, `fine_1`, `fine_2`, `resolved`, `dismissed`), so a
+ *    SIXTH rung added to `LEGAL_TRANSITIONS` would render no button here until
+ *    this file is edited. The direction is deliberate: an unknown stage silently
+ *    offering nothing is a missing feature, whereas deriving a button for it
+ *    would be this screen inventing a control it knows nothing about. Task 4
+ *    deleted duplicated ladder truth from three screens; what is left here is
+ *    the label and styling of each act, which is presentation, not the ladder.
  *
  * 2. **Nothing is described as done that was not measured.** The Disputed tab
  *    lists appeals and says plainly that deciding one arrives in Phase 5; the
@@ -48,7 +56,7 @@ import { Portal } from "@/components/ui/portal"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { useViolations, useResolvedViolations } from "@/lib/data"
-import { usePortfolioBuildings } from "@/lib/data/portfolio"
+import { usePortfolioBuildings, useOutstandingFines } from "@/lib/data/portfolio"
 import {
   advanceViolation,
   dismissViolation,
@@ -188,11 +196,17 @@ function actionsFor(v: Violation): Action[] {
       })
     }
   }
-  // Follows the money. `paid` is true only when every fine on the case is
-  // settled, and a case sitting on the Disputed tab is under appeal — Phase 5
-  // decides it, and `manager_remind_fine` refuses it in the meantime, so the
-  // control is not offered rather than offered and refused.
-  if (v.amount > 0 && !v.paid && v.tab !== "disputed") {
+  // Follows the money, on the RPC's own predicate.
+  //
+  // `chaseable` is "at least one fine on this case reads `issued`" — exactly
+  // what `manager_remind_fine` selects. The old gate was
+  // `amount > 0 && !paid && tab !== "disputed"`, which rendered the button on a
+  // case whose only fine had been WAIVED (`amount` sums every fine regardless
+  // of status), where the RPC could only ever return `no_outstanding_fine`.
+  // A control that cannot act must not exist, so the client asks the same
+  // question the database will. The disputed exclusion is not lost — a
+  // `disputed` fine is not `issued`, so it fails this test on its own.
+  if (v.chaseable) {
     actions.push({ kind: "remind", label: "Send Reminder", className: "bg-primary/10 text-primary" })
   }
   if (legal.includes("resolved")) {
@@ -228,6 +242,9 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   const { data: resolvedViolations, refetch: refetchResolved } = useResolvedViolations()
   const { data: buildings } = usePortfolioBuildings()
   const { data: subjects } = useViolationSubjects()
+  // The strata overview's own query, reused rather than re-derived. It is the
+  // only source on this screen that survives a case being closed.
+  const { data: portfolioFines, refetch: refetchFines } = useOutstandingFines()
 
   const byTab = useCallback(
     (tab: ViolationTab) => violations.filter((v) => v.tab === tab),
@@ -252,19 +269,40 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   ]
 
   /*
-   * The money, counted over every LIVE case that carries a fine — not over the
-   * Fines tab.
+   * The money.
    *
-   * These used to be summed from `fineViolations`, which meant that the moment
-   * a case moved to the Disputed tab its fine vanished from the Unpaid figure.
-   * A disputed fine is not paid and not waived: the strata is still owed it
-   * unless the appeal succeeds, so it stays counted here, and is called out
-   * separately so the manager knows part of the total is contested.
+   * Two bugs lived here, and they pointed in opposite directions.
+   *
+   *  - `!v.paid` treated a fine as outstanding unless EVERY fine on the case
+   *    read `paid`. `fine_status` has seven labels, so waiving a fine — a
+   *    one-click control on the strata queue screen — left its amount in the
+   *    Outstanding figure and left the card badged "Unpaid". Measured before
+   *    this fix: waive 45…0001 and this screen said $600 where the strata
+   *    overview said $350. `v.outstanding` now comes from `summariseFines`,
+   *    which is the same table `useOutstandingFines` filters on, so the two
+   *    surfaces agree by construction rather than by nobody having waived
+   *    anything yet.
+   *
+   *  - `violations` is `useViolations`, which filters `.is("resolved_at", null)`.
+   *    Resolving a fined case therefore took its unpaid fine off this screen
+   *    entirely — $600 on the strata overview against $350 here. Closing a case
+   *    does not cancel the fine, so the money is followed to where it went:
+   *    `closedCaseOutstanding` below reads the fines table directly, through the
+   *    very hook the overview uses, and the card states the remainder instead of
+   *    losing it.
    */
   const finedCases = violations.filter((v) => v.amount > 0)
   const totalFines = finedCases.reduce((sum, v) => sum + v.amount, 0)
-  const unpaidFines = finedCases.filter((v) => !v.paid).reduce((sum, v) => sum + v.amount, 0)
-  const disputedFines = disputedViolations.reduce((sum, v) => sum + v.amount, 0)
+  const unpaidFines = finedCases.reduce((sum, v) => sum + v.outstanding, 0)
+  const disputedFines = finedCases.reduce((sum, v) => sum + v.disputed, 0)
+
+  // Money still owed on cases this screen does not list, because they are
+  // closed (or because the fine was issued without a case at all). The ids of
+  // every live case are known, so this is an exact partition, not a subtraction
+  // of two floating-point totals.
+  const liveCaseIds = new Set(violations.map((v) => v.id))
+  const offScreenFines = portfolioFines.filter((f) => !f.violationId || !liveCaseIds.has(f.violationId))
+  const closedCaseOutstanding = offScreenFines.reduce((sum, f) => sum + f.amount, 0)
 
   const currentList = useMemo(() => {
     switch (activeTab) {
@@ -309,7 +347,11 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   const refetchAll = useCallback(() => {
     void refetch()
     void refetchResolved()
-  }, [refetch, refetchResolved])
+    // Issuing a fine, or closing a case that carries one, changes what is owed
+    // off-screen too. Leaving this out would put the Outstanding figure a
+    // refresh behind the act that changed it.
+    void refetchFines()
+  }, [refetch, refetchResolved, refetchFines])
 
   /** The building's fine schedule, or null when the case's building is unknown. */
   const scheduleFor = useCallback(
@@ -357,7 +399,18 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
           stage: v.stageLabel,
           opened: v.date,
           fine: v.amount > 0 ? v.amount.toFixed(2) : "",
-          settled: v.amount > 0 ? (v.paid ? "paid" : "outstanding") : "",
+          // Three-way, matching the badge. "outstanding" for a waived fine was
+          // wrong in an export a tribunal may be shown.
+          settled:
+            v.amount === 0
+              ? ""
+              : v.outstanding === 0
+                ? v.paid
+                  ? "paid"
+                  : "settled"
+                : v.disputed > 0
+                  ? "disputed"
+                  : "outstanding",
         })),
         [
           { key: "unit", label: "Unit" },
@@ -442,7 +495,8 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
       </div>
 
       <main className="ios-scroll flex-1 px-4 pb-24">
-        {(activeTab === "fines" || activeTab === "disputed") && finedCases.length > 0 && (
+        {(activeTab === "fines" || activeTab === "disputed") &&
+          (finedCases.length > 0 || closedCaseOutstanding > 0) && (
           <div className="mb-4 rounded-xl card-raised p-3">
             <div className="flex items-center justify-between">
               <div>
@@ -450,7 +504,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
                 <p className="text-[22px] font-bold text-foreground">${totalFines.toFixed(2)}</p>
               </div>
               <div className="text-right">
-                <p className="text-[11px] font-medium text-muted-foreground">Outstanding</p>
+                <p className="text-[11px] font-medium text-muted-foreground">Outstanding on live cases</p>
                 <p className="text-[22px] font-bold text-destructive">${unpaidFines.toFixed(2)}</p>
               </div>
             </div>
@@ -459,6 +513,28 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
                 Includes <span className="font-semibold text-foreground">${disputedFines.toFixed(2)}</span> on{" "}
                 {disputedViolations.length} case{disputedViolations.length === 1 ? "" : "s"} under dispute. Still owed
                 unless the appeal succeeds, so it is counted here and listed on the Disputed tab.
+              </p>
+            )}
+            {/*
+              Closing a case does not cancel its fine. This screen only lists
+              live cases, so without this line the money would simply disappear
+              from it the moment a fined case was resolved — while the strata
+              overview went on reporting it. Both figures come from the same
+              query now, and $X + $Y is what that overview shows.
+            */}
+            {closedCaseOutstanding > 0 && (
+              <p className="mt-2 border-t border-border pt-2 text-[11px] leading-relaxed text-muted-foreground">
+                {/*
+                  One string expression rather than JSX prose, because JSX ate
+                  the space after `fine{plural}` and this rendered as
+                  "1 finewhose case is already closed" in the browser. It is the
+                  second time this phase that a missing space after a JSX
+                  expression passed tsc, the build and the suite and was caught
+                  only by opening the page.
+                */}
+                A further <span className="font-semibold text-foreground">${closedCaseOutstanding.toFixed(2)}</span>
+                {` is owed on ${offScreenFines.length} fine${offScreenFines.length === 1 ? "" : "s"} whose case is already closed. Resolving a case does not cancel its fine, so it is still counted in the strata portal’s total of `}
+                <span className="font-semibold text-foreground">${(unpaidFines + closedCaseOutstanding).toFixed(2)}</span>.
               </p>
             )}
           </div>
@@ -629,16 +705,30 @@ function CaseCard({ violation, onAct }: { violation: Violation; onAct: (a: Actio
               <DollarSign className="h-3.5 w-3.5 text-destructive" />
               <span className="text-[13px] font-bold text-destructive">${violation.amount.toFixed(2)}</span>
             </div>
+            {/*
+              Three states, not two. `paid` means every fine reads `paid`;
+              `outstanding === 0` with `paid` false means the money went away
+              some other way — waived, remitted or written off — and calling
+              that "Unpaid", as this badge did, is the same error the totals
+              had. The amount beside it is still what was ISSUED, which is why
+              a settled case shows a figure and no debt.
+            */}
             <Badge
               className={`border-0 text-[9px] ${
-                violation.paid
+                violation.outstanding === 0
                   ? "bg-success/10 text-success"
-                  : violation.tab === "disputed"
+                  : violation.disputed > 0
                     ? "bg-warning/10 text-warning-strong"
                     : "bg-destructive/10 text-destructive"
               }`}
             >
-              {violation.paid ? "Paid" : violation.tab === "disputed" ? "Disputed" : "Unpaid"}
+              {violation.outstanding === 0
+                ? violation.paid
+                  ? "Paid"
+                  : "Settled"
+                : violation.disputed > 0
+                  ? "Disputed"
+                  : "Unpaid"}
             </Badge>
           </div>
         )}

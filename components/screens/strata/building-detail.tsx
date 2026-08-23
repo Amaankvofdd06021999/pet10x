@@ -332,7 +332,21 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                   </div>
                   {v.amount > 0 && (
                     <p className="mt-1 text-[12px] font-medium text-foreground">
-                      Fine ${v.amount.toFixed(2)} · {v.paid ? "paid" : "unpaid"}
+                      {/*
+                        `!paid` is not "unpaid": `fine_status` has seven labels
+                        and a waived fine satisfies neither. `outstanding` is
+                        the status-aware figure from `summariseFines`, so a fine
+                        that was waived reads "settled" here rather than
+                        chasing money nobody owes.
+                      */}
+                      Fine ${v.amount.toFixed(2)} ·{" "}
+                      {v.outstanding === 0
+                        ? v.paid
+                          ? "paid"
+                          : "settled"
+                        : v.disputed > 0
+                          ? `$${v.outstanding.toFixed(2)} disputed`
+                          : `$${v.outstanding.toFixed(2)} unpaid`}
                     </p>
                   )}
                   <div className="mt-2.5 flex flex-wrap gap-1.5">

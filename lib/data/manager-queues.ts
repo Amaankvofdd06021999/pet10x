@@ -22,6 +22,7 @@ import type {
 import {
   STAGE_LABEL,
   describeLegalMoves,
+  summariseFines,
   tabFor,
   toViolationStage,
   type FineStage,
@@ -381,8 +382,12 @@ export function useViolationsLive(): Result<Violation[]> {
       ((rows ?? []) as unknown as Row[]).map((r) => {
         const stage = toViolationStage(r.stage)
         const fines = r.fines ?? []
-        const amount = fines.reduce((s, f) => s + (f.amount_cents ?? 0), 0) / 100
-        const paid = fines.length > 0 && fines.every((f) => f.status === "paid")
+        // `summariseFines` is the single answer to "what does this case owe?".
+        // This used to be `fines.every(f => f.status === 'paid')` with the
+        // screen reading `!paid` as "outstanding", which counted a WAIVED fine
+        // as money owed. `fine_status` has seven labels and only three of them
+        // mean owed; see `FINE_STATUS_MEANING` in ./violations.
+        const money = summariseFines(fines)
         // The only dispute signal that exists today. `violations.disputed_at`
         // is AD-7's, and not yet migrated.
         const disputed = fines.some((f) => f.status === "disputed")
@@ -397,8 +402,11 @@ export function useViolationsLive(): Result<Violation[]> {
           date: shortDate(r.created_at),
           stage,
           stageLabel: STAGE_LABEL[stage],
-          amount,
-          paid,
+          amount: money.totalCents / 100,
+          outstanding: money.outstandingCents / 100,
+          disputed: money.disputedCents / 100,
+          chaseable: money.chaseable,
+          paid: money.fullyPaid,
           history: [{ stage: STAGE_LABEL[stage], date: shortDate(r.created_at) }],
           tab: tabFor(stage, fines.length > 0, disputed),
         }
@@ -646,12 +654,32 @@ export async function issueFine(
  * `no_outstanding_fine` covers the case where the only fine is `disputed`,
  * `paid` or `waived` — deliberately, since chasing money that is under appeal
  * is the wrong message to send while Phase 5 has not decided it.
+ *
+ * Two rejections were added in 20260823000006 and both are worth knowing about
+ * from the client side:
+ *
+ *  - `reminded_recently` — one reminder per case per 24 hours. The RPC was
+ *    measured sending three identical notifications to one resident from three
+ *    calls in a single statement; the only limit on it was how fast a manager
+ *    could click. The sentence names the wait rather than just refusing.
+ *  - `mixed_currency` — the outstanding fines on the case are not all in one
+ *    currency, and there is no FX rate anywhere in this system. The RPC refuses
+ *    rather than inventing one inside a resident-facing money statement.
  */
 export interface RemindResult {
   error: string | null
   fineCount?: number
   amountCents?: number
   currency?: string
+}
+
+/** "in about 3 hours" / "in about 20 minutes" — for the throttle's refusal. */
+function inAbout(seconds: number): string {
+  if (seconds <= 90) return "in a moment"
+  const minutes = Math.ceil(seconds / 60)
+  if (minutes < 60) return `in about ${minutes} minutes`
+  const hours = Math.ceil(minutes / 60)
+  return hours === 1 ? "in about an hour" : `in about ${hours} hours`
 }
 
 export async function remindAboutFine(id: string, note?: string): Promise<RemindResult> {
@@ -670,6 +698,8 @@ export async function remindAboutFine(id: string, note?: string): Promise<Remind
     fine_count?: number
     amount_cents?: number
     currency?: string
+    currencies?: string[]
+    retry_after_seconds?: number
   }
   if (!r.ok) {
     switch (r.error) {
@@ -681,6 +711,14 @@ export async function remindAboutFine(id: string, note?: string): Promise<Remind
         return { error: "There is no unpaid fine on this case to remind anyone about." }
       case "no_resident":
         return { error: "No resident is attached to this case, so there is nobody to remind." }
+      case "reminded_recently":
+        return {
+          error: `This resident was already reminded about this case in the last 24 hours. You can send another ${inAbout(r.retry_after_seconds ?? 0)}.`,
+        }
+      case "mixed_currency":
+        return {
+          error: `This case has outstanding fines in more than one currency (${(r.currencies ?? []).map((c) => c.toUpperCase()).join(" and ")}), and Pet10x holds no exchange rate. Settle or reissue them in one currency first.`,
+        }
       default:
         return { error: r.error ? `Couldn't send the reminder (${r.error}).` : "Couldn't send the reminder." }
     }
@@ -800,8 +838,20 @@ export interface NewViolationInput {
  * this needs no RPC: there is nothing to validate that the policy does not, no
  * fine to mint, and nobody to notify — a case that has only just been opened is
  * not yet an accusation the resident has been served with. The first message a
- * resident gets is the warning, which goes through the ladder and writes an
- * event row.
+ * resident gets is the warning, which goes through the ladder.
+ *
+ * It used to be true that this was the one act on the Violations screen that
+ * recorded NOTHING: no `violation_events` row and no `audit_log` row, so a case
+ * opened here came out of the evidence export with its Event date / From / To /
+ * Note columns blank. Neither table has a client INSERT policy (20260823000004
+ * removed the last one deliberately), so this function could not have written
+ * them even if it tried.
+ *
+ * `trg_violations_opening_event` (20260823000006) writes both, as an AFTER
+ * INSERT trigger rather than as part of an RPC — which also closed the same gap
+ * in `escalate_incident_to_violation`, and closes it for whatever opens a case
+ * next. So this stays a plain INSERT, and the record is not something this call
+ * site has to remember.
  */
 export async function openViolation(input: NewViolationInput): Promise<{ error: string | null; id?: string }> {
   const supabase = getSupabaseBrowserClient()

@@ -20,17 +20,23 @@
 
 import { describe, expect, it } from "vitest"
 import {
+  CHASEABLE_FINE_STATUSES,
   FINE_STAGES,
+  FINE_STATUSES,
   LEGAL_TRANSITIONS,
+  OUTSTANDING_FINE_STATUSES,
   STAGE_LABEL,
   TERMINAL_STAGES,
   VIOLATION_STAGES,
   canAdvance,
   describeLegalMoves,
+  isChaseableFine,
   isFineStage,
+  isOutstandingFine,
   isTerminal,
   isViolationStage,
   nextStage,
+  summariseFines,
   tabFor,
   toViolationStage,
 } from "./violations"
@@ -252,5 +258,105 @@ describe("tabFor", () => {
         expect(tabFor(stage, hasFine, true), `${stage}/${hasFine}`).toBe("resolved")
       }
     }
+  })
+})
+
+/* ------------------------------------------------------------------ */
+/* The money                                                           */
+/* ------------------------------------------------------------------ */
+
+describe("which fine statuses mean money is owed", () => {
+  // The bug these exist for: `outstanding` was derived as "not every fine reads
+  // paid", so waiving a fine left its amount in the manager's Outstanding
+  // figure and badged the card "Unpaid", while the strata overview — which
+  // filtered on the correct three statuses — reported a different number for
+  // the same rows. Measured live before the fix: $600 here against $350 there.
+
+  it("covers all seven statuses, so a new one cannot be silently ignored", () => {
+    // The point of the Record in violations.ts is that adding an eighth
+    // fine_status is a compile error. This is the runtime half: every value the
+    // generated enum carries must be classified one way or the other.
+    expect(FINE_STATUSES).toHaveLength(7)
+    for (const status of FINE_STATUSES) {
+      const owed = isOutstandingFine(status)
+      expect(typeof owed, status).toBe("boolean")
+    }
+    const settled = FINE_STATUSES.filter((s) => !isOutstandingFine(s))
+    expect([...OUTSTANDING_FINE_STATUSES].sort()).toEqual(["disputed", "issued", "partially_paid"])
+    expect([...settled].sort()).toEqual(["paid", "remitted", "waived", "written_off"])
+  })
+
+  it("does not treat a waived, remitted or written-off fine as owed", () => {
+    // Named individually because each was counted as outstanding by the old
+    // `!== "paid"` predicate, and `waived` is the one a shipping button writes:
+    // queue-screen.tsx's Waive control calls setFineStatus(id, "waived").
+    for (const status of ["waived", "remitted", "written_off"] as const) {
+      expect(isOutstandingFine(status), status).toBe(false)
+      expect(summariseFines([{ amount_cents: 25000, status }]).outstandingCents, status).toBe(0)
+    }
+  })
+
+  it("still counts a disputed fine as owed", () => {
+    // An appeal is not a payment. Hiding it would understate the ledger, and it
+    // is what the strata overview's query has always done.
+    expect(isOutstandingFine("disputed")).toBe(true)
+    const money = summariseFines([{ amount_cents: 20000, status: "disputed" }])
+    expect(money.outstandingCents).toBe(20000)
+    expect(money.disputedCents).toBe(20000)
+  })
+
+  it("only offers to chase a fine the RPC will actually chase", () => {
+    // manager_remind_fine selects `status = 'issued'`. Anything wider renders a
+    // button whose only possible outcome is `no_outstanding_fine` — which is
+    // exactly what shipped: Send Reminder rendered on a case whose only fine
+    // had been waived.
+    expect([...CHASEABLE_FINE_STATUSES]).toEqual(["issued"])
+    for (const status of FINE_STATUSES) {
+      expect(isChaseableFine(status), status).toBe(status === "issued")
+      expect(summariseFines([{ amount_cents: 100, status }]).chaseable, status).toBe(status === "issued")
+    }
+    // Chaseable is a subset of owed, never the other way round.
+    for (const status of FINE_STATUSES) {
+      if (isChaseableFine(status)) expect(isOutstandingFine(status), status).toBe(true)
+    }
+  })
+
+  it("separates what was issued from what is still owed", () => {
+    const money = summariseFines([
+      { amount_cents: 25000, status: "issued" },
+      { amount_cents: 15000, status: "waived" },
+      { amount_cents: 10000, status: "paid" },
+      { amount_cents: 20000, status: "disputed" },
+    ])
+    expect(money.totalCents).toBe(70000)
+    expect(money.outstandingCents).toBe(45000)
+    expect(money.disputedCents).toBe(20000)
+    expect(money.chaseable).toBe(true)
+    expect(money.fullyPaid).toBe(false)
+  })
+
+  it("reports a case with no fines as owing nothing and not fully paid", () => {
+    // `fullyPaid` on an empty array must be false, or a case that was never
+    // fined would badge itself "Paid".
+    const money = summariseFines([])
+    expect(money).toEqual({
+      totalCents: 0,
+      outstandingCents: 0,
+      disputedCents: 0,
+      chaseable: false,
+      fullyPaid: false,
+    })
+  })
+
+  it("tolerates a null amount", () => {
+    expect(summariseFines([{ amount_cents: null, status: "issued" }]).outstandingCents).toBe(0)
+  })
+
+  it("distinguishes fully paid from merely not owed", () => {
+    // Both settle the money; only one may be called "Paid" on screen.
+    expect(summariseFines([{ amount_cents: 100, status: "paid" }]).fullyPaid).toBe(true)
+    const waived = summariseFines([{ amount_cents: 100, status: "waived" }])
+    expect(waived.fullyPaid).toBe(false)
+    expect(waived.outstandingCents).toBe(0)
   })
 })

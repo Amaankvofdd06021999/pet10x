@@ -543,7 +543,24 @@ export interface Violation {
   date: string
   stage: ViolationStage
   stageLabel: string
+  /** Every fine on the case, whatever its status. This is "issued", not "owed". */
   amount: number
+  /**
+   * The part of `amount` still owed — computed by `summariseFines`, which is
+   * also what `useOutstandingFines` filters on, so the manager's screen and the
+   * strata overview cannot disagree. `amount - outstanding` is what has been
+   * paid, waived, remitted or written off.
+   */
+  outstanding: number
+  /** The part of `outstanding` under appeal (`fines.status = 'disputed'`). */
+  disputed: number
+  /**
+   * True when at least one fine reads `issued` — the exact predicate
+   * `manager_remind_fine` applies. Gates "Send Reminder", so the button renders
+   * only where the RPC will act.
+   */
+  chaseable: boolean
+  /** Every fine on the case reads `paid`. Narrower than `outstanding === 0`. */
   paid: boolean
   history: ViolationHistoryStep[]
   tab: ViolationTab

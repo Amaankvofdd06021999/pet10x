@@ -158,3 +158,141 @@ export function tabFor(stage: ViolationStage, hasFine: boolean, disputed = false
   if (stage === "warning") return "warnings"
   return "active"
 }
+
+/* ------------------------------------------------------------------ */
+/* The money: which fine statuses mean "still owed"                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Every fine status, taken from the generated enum rather than retyped — the
+ * same load-bearing import as `VIOLATION_STAGES` above, for the same reason.
+ */
+export const FINE_STATUSES = Constants.public.Enums.fine_status
+export type FineStatus = (typeof FINE_STATUSES)[number]
+
+/**
+ * What each of the seven statuses means for the money, stated once.
+ *
+ * This exists because two surfaces were answering "is this fine still owed?"
+ * in two different ways and both were wrong. `manager-queues.ts` derived a
+ * boolean `paid` as `fines.every(f => f.status === 'paid')` and the Violations
+ * screen then read `!paid` as "outstanding" — so a **waived** fine still
+ * counted as money owed, and the screen showed $600 against the strata
+ * overview's $350 on the same data. The overview's own query
+ * (`portfolio.ts:useOutstandingFines`) carried the right list as a literal
+ * `.in(...)`, so the two agreed only for as long as nobody waived anything.
+ * Both now read this table.
+ *
+ * It is a `Record` over the generated enum on purpose. A denylist (`!== 'paid'`)
+ * silently swallows every status added later — which is exactly how `waived`
+ * got counted as owed. An exhaustive `Record` cannot: an eighth `fine_status`
+ * is a **compile error here**, and whoever adds it has to say what it means for
+ * the money before anything builds.
+ *
+ * The two verdicts:
+ *
+ *  - `owed`      the strata is still owed this money. `disputed` is owed —
+ *                an appeal is not a payment, and hiding it understates the
+ *                ledger — but see `CHASEABLE_FINE_STATUSES` for whether the
+ *                resident may be *asked* for it.
+ *  - `settled`   the strata is not owed it any more, whether it was paid,
+ *                given up (`waived`, `remitted`) or abandoned (`written_off`).
+ *
+ * `partially_paid` counts its FULL `amount_cents`, because `fines` has no
+ * paid-to-date column. That overstates the remainder and is the safe direction
+ * — the alternative is dropping a partly-settled fine out of the total
+ * entirely — but it is an approximation, and the column that would fix it is
+ * Phase 5's (payments).
+ */
+const FINE_STATUS_MEANING: Record<FineStatus, "owed" | "settled"> = {
+  issued: "owed",
+  partially_paid: "owed",
+  disputed: "owed",
+  paid: "settled",
+  waived: "settled",
+  remitted: "settled",
+  written_off: "settled",
+}
+
+/**
+ * The statuses that mean money is still owed, as a positive grammar.
+ *
+ * Derived from the table above rather than written out again, so the list and
+ * the meanings cannot drift. `useOutstandingFines` filters its query with this
+ * and the manager's screen sums with it, which is what makes the two surfaces
+ * agree by construction instead of by coincidence.
+ */
+export const OUTSTANDING_FINE_STATUSES: readonly FineStatus[] = FINE_STATUSES.filter(
+  (s) => FINE_STATUS_MEANING[s] === "owed",
+)
+
+/**
+ * The statuses a resident may be chased about — the exact predicate
+ * `manager_remind_fine` applies (`status = 'issued'`).
+ *
+ * Narrower than "owed" by one status: a `disputed` fine is still owed, but
+ * demanding payment for it while the appeal is undecided is the wrong message,
+ * so the RPC refuses and the button is not offered. `partially_paid` is
+ * excluded because the RPC would state the full amount as outstanding, which is
+ * a resident-facing money claim this codebase cannot currently make truthfully.
+ *
+ * The point of naming it here is that the "Send Reminder" button now renders on
+ * exactly the cases the RPC will act on. Before this, the button was gated on
+ * `amount > 0 && !paid`, so it rendered on a case whose only fine had been
+ * waived and could do nothing but return `no_outstanding_fine`.
+ */
+export const CHASEABLE_FINE_STATUSES: readonly FineStatus[] = ["issued"]
+
+export function isOutstandingFine(status: string): boolean {
+  return (OUTSTANDING_FINE_STATUSES as readonly string[]).includes(status)
+}
+
+export function isChaseableFine(status: string): boolean {
+  return (CHASEABLE_FINE_STATUSES as readonly string[]).includes(status)
+}
+
+/** Just enough of a `fines` row to answer the money questions. */
+export interface FineLike {
+  amount_cents: number | null
+  status: string
+}
+
+export interface FineSummary {
+  /** Every fine on the case, whatever its status. "Issued", not "owed". */
+  totalCents: number
+  /** The subset still owed — `OUTSTANDING_FINE_STATUSES`. */
+  outstandingCents: number
+  /** The subset owed AND under appeal, called out separately on screen. */
+  disputedCents: number
+  /** True when at least one fine can be chased — gates "Send Reminder". */
+  chaseable: boolean
+  /** True when every fine on the case reads `paid`. Not the same as "nothing owed". */
+  fullyPaid: boolean
+}
+
+/**
+ * The one function that answers "what does this case owe?".
+ *
+ * Cents in, cents out: rounding to dollars is the caller's last step, so
+ * summing never happens on already-divided numbers.
+ */
+export function summariseFines(fines: readonly FineLike[]): FineSummary {
+  let totalCents = 0
+  let outstandingCents = 0
+  let disputedCents = 0
+  let chaseable = false
+  for (const f of fines) {
+    const cents = f.amount_cents ?? 0
+    totalCents += cents
+    if (isOutstandingFine(f.status)) outstandingCents += cents
+    if (f.status === "disputed") disputedCents += cents
+    if (isChaseableFine(f.status)) chaseable = true
+  }
+  return {
+    totalCents,
+    outstandingCents,
+    disputedCents,
+    chaseable,
+    fullyPaid: fines.length > 0 && fines.every((f) => f.status === "paid"),
+  }
+}

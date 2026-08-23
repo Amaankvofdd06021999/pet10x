@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { LiveResult } from "./live"
 import type { PetRules, InviteResult } from "./admin"
+import { OUTSTANDING_FINE_STATUSES, type FineStatus } from "./violations"
 
 /* ------------------------------------------------------------------ */
 /* Buildings I manage                                                  */
@@ -123,16 +124,31 @@ export function usePortfolioBuildings(): LiveResult<PortfolioBuilding[]> {
 
 export interface OutstandingFine {
   id: string
+  /** The case this fine belongs to, or null for a fine issued without one. */
+  violationId: string | null
   buildingId: string | null
   unit: string
   resident: string
   amount: number
-  status: "issued" | "partially_paid" | "disputed"
+  /**
+   * Narrowed to `FineStatus` rather than restating the three outstanding
+   * labels: the query filters on `OUTSTANDING_FINE_STATUSES`, so writing them
+   * again here would be a third copy of the same list to keep in step.
+   */
+  status: FineStatus
   createdAt: string
   dueOn: string | null
 }
 
-/** Fines still owed (issued / partially paid / disputed). RLS-scoped. */
+/**
+ * Fines still owed. RLS-scoped.
+ *
+ * The status list is `OUTSTANDING_FINE_STATUSES`, not a literal. It used to be
+ * the literal `["issued", "partially_paid", "disputed"]` here and a different,
+ * wrong predicate (`!every(status === 'paid')`) on the manager's Violations
+ * screen, so the two surfaces reported different money for the same fines the
+ * moment one was waived. One list, one meaning, both surfaces.
+ */
 export function useOutstandingFines(): LiveResult<OutstandingFine[]> {
   const [data, setData] = useState<OutstandingFine[]>([])
   const [isLoading, setLoading] = useState(true)
@@ -145,9 +161,9 @@ export function useOutstandingFines(): LiveResult<OutstandingFine[]> {
     const { data: rows, error: err } = await supabase
       .from("fines")
       .select(
-        "id, building_id, amount_cents, status, created_at, due_on, unit:units ( unit_number ), resident:profiles!fines_resident_id_fkey ( full_name )",
+        "id, violation_id, building_id, amount_cents, status, created_at, due_on, unit:units ( unit_number ), resident:profiles!fines_resident_id_fkey ( full_name )",
       )
-      .in("status", ["issued", "partially_paid", "disputed"])
+      .in("status", OUTSTANDING_FINE_STATUSES)
       .order("created_at", { ascending: true })
 
     if (err) {
@@ -159,6 +175,7 @@ export function useOutstandingFines(): LiveResult<OutstandingFine[]> {
 
     type Row = {
       id: string
+      violation_id: string | null
       building_id: string | null
       amount_cents: number
       status: string
@@ -172,11 +189,12 @@ export function useOutstandingFines(): LiveResult<OutstandingFine[]> {
     setData(
       ((rows ?? []) as unknown as Row[]).map((r) => ({
         id: r.id,
+        violationId: r.violation_id,
         buildingId: r.building_id,
         unit: first(r.unit)?.unit_number ?? "—",
         resident: first(r.resident)?.full_name ?? "Unassigned",
         amount: (r.amount_cents ?? 0) / 100,
-        status: r.status as OutstandingFine["status"],
+        status: r.status as FineStatus,
         createdAt: r.created_at,
         dueOn: r.due_on,
       })),
