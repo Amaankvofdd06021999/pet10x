@@ -88,6 +88,23 @@ const MAX_FILES = 5
  */
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 
+/**
+ * A uuid that does not need a secure context.
+ *
+ * `crypto.randomUUID` is secure-context gated; `crypto.getRandomValues` is
+ * not. Same 122 bits either way, which is the only property this id is asked
+ * to have.
+ */
+function newDraftId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID()
+  const b = new Uint8Array(16)
+  crypto.getRandomValues(b)
+  b[6] = (b[6] & 0x0f) | 0x40 // version 4
+  b[8] = (b[8] & 0x3f) | 0x80 // variant 1
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("")
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+
 interface PendingPhoto {
   /** The bytes that will actually be uploaded — downscaled, JPEG. */
   file: File
@@ -135,6 +152,7 @@ export function IncidentComposer({
   const [petId, setPetId] = useState<string | null>(null)
   const [pets, setPets] = useState<ReportablePet[]>([])
   const [petsLoading, setPetsLoading] = useState(true)
+  const [petsError, setPetsError] = useState<string | null>(null)
 
   const [photos, setPhotos] = useState<PendingPhoto[]>([])
   const [preparing, setPreparing] = useState(false)
@@ -145,27 +163,35 @@ export function IncidentComposer({
   const [submitting, setSubmitting] = useState(false)
   const [uploadFailed, setUploadFailed] = useState<string | null>(null)
   const [reference, setReference] = useState<string | null>(null)
+  /** What was actually sent, against what was attached. Set at submit time. */
+  const [sent, setSent] = useState<{ photos: number; attached: number } | null>(null)
 
   /**
    * The report has no id until it is submitted, so evidence is uploaded under
    * a client-minted draft id and claimed by the RPC afterwards.
    * `crypto.randomUUID` is not decoration: the RPC's guard bounds evidence to
    * one building, and *within* a building it is the unguessability of this id
-   * that stops one reporter attaching another's photos. Minted lazily so it is
-   * never generated during a server render, and reused across a retry so a
-   * second attempt does not orphan the uploads the first one landed.
+   * that stops one reporter attaching another's photos. Minted lazily, so it
+   * is never generated during a server render, and held for the life of the
+   * draft so every photo on one report shares a folder.
+   *
+   * `crypto.randomUUID` is secure-context only and is simply absent on an
+   * http:// origin — a LAN-IP dev server, say — where it throws TypeError
+   * rather than returning. `getRandomValues` carries no such restriction, and
+   * it is the unguessability that is load-bearing here, not the API.
    */
   const draftIdRef = useRef<string | null>(null)
-  const draftId = () => (draftIdRef.current ??= crypto.randomUUID())
+  const draftId = () => (draftIdRef.current ??= newDraftId())
 
   /* Pets are signed server-side: a guest holds no Supabase session, so
      `createSignedUrl` from the browser would return nothing for any of them. */
   useEffect(() => {
     let active = true
     setPetsLoading(true)
-    void reportablePetsSigned(building.code).then((list) => {
+    void reportablePetsSigned(building.code).then((res) => {
       if (!active) return
-      setPets(list)
+      setPets(res.pets)
+      setPetsError(res.error)
       setPetsLoading(false)
     })
     return () => {
@@ -231,6 +257,9 @@ export function IncidentComposer({
    */
   const handleFiles = async (list: FileList | null) => {
     setPhotoError(null)
+    // The recovery panel describes a send that is no longer the send being
+    // made. Leaving it up implies a failure that is not live any more.
+    setUploadFailed(null)
     const picked = Array.from(list ?? [])
     if (picked.length === 0) return
 
@@ -269,6 +298,7 @@ export function IncidentComposer({
     if (doomed) URL.revokeObjectURL(doomed.url)
     setPhotos((prev) => prev.filter((_, i) => i !== idx))
     setPhotoError(null)
+    setUploadFailed(null)
   }
 
   /**
@@ -280,36 +310,53 @@ export function IncidentComposer({
    * lose it because their camera roll would not cooperate.
    */
   const handleSubmit = async (withoutPhotos = false) => {
-    if (!selectedType || !description.trim()) return
+    if (!selectedType || !description.trim() || submitting) return
     setSubmitting(true)
     setUploadFailed(null)
 
-    let paths: string[] = []
-    if (photos.length > 0 && !withoutPhotos) {
-      const up = await uploadEvidence(building.code, draftId(), photos.map((p) => p.file))
-      if (up.error) {
-        setSubmitting(false)
-        setUploadFailed(up.error)
+    // Everything below is inside try/catch/finally, and that is the whole
+    // point. `submitting` disables the only button that can send this report,
+    // so anything that escapes this function leaves the reporter's typed
+    // account behind a permanently dead button — recoverable only by reloading
+    // the page, which discards it. `finally` is what guarantees the button
+    // comes back; `catch` is what makes the escape hatch below appear instead
+    // of nothing at all.
+    try {
+      let paths: string[] = []
+      if (photos.length > 0 && !withoutPhotos) {
+        const up = await uploadEvidence(building.code, draftId(), photos.map((p) => p.file))
+        if (up.error) {
+          setUploadFailed(up.error)
+          return
+        }
+        paths = up.paths
+      }
+
+      const res = await submitIncident({
+        buildingCode: building.code,
+        type: TYPE_TO_DB[selectedType],
+        description: description.trim(),
+        location: location.trim() || undefined,
+        petId: petId ?? undefined,
+        evidencePaths: paths.length > 0 ? paths : undefined,
+        anonymous: isAnonymous,
+      })
+      if (!res.ok) {
+        toast.error("Couldn't file the report", { description: res.error })
         return
       }
-      paths = up.paths
+      // Recorded before the success screen renders, because the success screen
+      // has to be able to say "2 of 3 photos sent". `uploadEvidence` treats a
+      // partial send as a success — correctly, the report should still go —
+      // which makes disclosing it this caller's job. Saying nothing would let
+      // the reporter walk away believing the manager has photos they do not.
+      setSent({ photos: paths.length, attached: photos.length })
+      setReference(res.reference ?? null)
+    } catch {
+      setUploadFailed("Something went wrong sending your report.")
+    } finally {
+      setSubmitting(false)
     }
-
-    const res = await submitIncident({
-      buildingCode: building.code,
-      type: TYPE_TO_DB[selectedType],
-      description: description.trim(),
-      location: location.trim() || undefined,
-      petId: petId ?? undefined,
-      evidencePaths: paths.length > 0 ? paths : undefined,
-      anonymous: isAnonymous,
-    })
-    setSubmitting(false)
-    if (!res.ok) {
-      toast.error("Couldn't file the report", { description: res.error })
-      return
-    }
-    setReference(res.reference ?? null)
   }
 
   const startOver = () => {
@@ -325,6 +372,7 @@ export function IncidentComposer({
     setPhotoError(null)
     setUploadFailed(null)
     setIsAnonymous(defaultAnonymous)
+    setSent(null)
     setReference(null)
   }
 
@@ -349,6 +397,23 @@ export function IncidentComposer({
           <span className="font-semibold text-foreground">{building.name}</span> management. They will
           investigate and follow up as needed.
         </p>
+        {/* What was sent, when it is not what was attached. `uploadEvidence`
+            keeps the photos that succeeded and calls that a success, so
+            without this line the reporter walks away believing the manager has
+            three photos when two arrived — and the two that did not may be the
+            ones that showed the incident. */}
+        {sent && sent.photos < sent.attached && (
+          <p className="mt-4 w-full max-w-sm rounded-xl border border-warning/30 bg-warning/5 p-3 text-center text-[13px] leading-relaxed text-foreground">
+            {sent.photos === 0
+              ? `Sent without your ${sent.attached === 1 ? "photo" : `${sent.attached} photos`} — the description went through on its own.`
+              : `${sent.photos} of ${sent.attached} photos sent. The ${
+                  sent.attached - sent.photos === 1 ? "other one didn't" : "others didn't"
+                } upload — you can file a second report with ${
+                  sent.attached - sent.photos === 1 ? "it" : "them"
+                } if it matters.`}
+          </p>
+        )}
+
         <p className="mt-2 text-center text-[13px] text-muted-foreground">
           Reference #: <span className="font-mono font-semibold text-foreground">{reference}</span>
           <br />
@@ -604,6 +669,19 @@ export function IncidentComposer({
               <div className="flex justify-center py-10">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
+            ) : petsError ? (
+              /* Not the same sentence as "there are none". The route answers
+                 502 when it cannot sign the photos, and telling someone who
+                 recognised the dog that no pets are registered is a false
+                 statement about the building. The step is skippable either
+                 way, so this informs rather than blocks. */
+              <p
+                role="status"
+                className="rounded-xl border border-warning/30 bg-warning/5 p-4 text-center text-[13px] leading-relaxed text-foreground"
+              >
+                {petsError} You can still send the report — your description is what the manager will go
+                on.
+              </p>
             ) : pets.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border bg-card p-4 text-center text-[13px] text-muted-foreground">
                 No registered pets to choose from — your description is what the manager will go on.
@@ -763,8 +841,9 @@ export function IncidentComposer({
               <div role="alert" className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
                 <p className="text-[13.5px] font-semibold text-destructive">{uploadFailed}</p>
                 <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-                  Your report is still here. Try the photos again, or send what you wrote without them — the
-                  manager will still see it.
+                  {photos.length > 0
+                    ? "Your report is still here. Try the photos again, or send what you wrote without them — the manager will still see it."
+                    : "Your report is still here — nothing you typed was lost. Try again."}
                 </p>
                 <div className="mt-3 flex gap-2">
                   <button
@@ -772,15 +851,17 @@ export function IncidentComposer({
                     disabled={submitting}
                     className="flex-1 rounded-lg bg-primary py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
                   >
-                    Try the photos again
+                    {photos.length > 0 ? "Try the photos again" : "Try again"}
                   </button>
-                  <button
-                    onClick={() => void handleSubmit(true)}
-                    disabled={submitting}
-                    className="flex-1 rounded-lg border border-border py-2.5 text-[13.5px] font-semibold text-foreground disabled:opacity-60"
-                  >
-                    Send without photos
-                  </button>
+                  {photos.length > 0 && (
+                    <button
+                      onClick={() => void handleSubmit(true)}
+                      disabled={submitting}
+                      className="flex-1 rounded-lg border border-border py-2.5 text-[13.5px] font-semibold text-foreground disabled:opacity-60"
+                    >
+                      Send without photos
+                    </button>
+                  )}
                 </div>
               </div>
             )}
