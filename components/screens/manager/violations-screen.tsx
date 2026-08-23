@@ -81,7 +81,10 @@ import {
 } from "@/lib/data/violations"
 import { toCsv, downloadCsv } from "@/lib/csv"
 import type { Violation, ViolationStage, ViolationTab } from "@/lib/data/types"
+import { useAccommodationsLive } from "@/lib/data/accommodations-live"
+import { ACCOMMODATION_TYPE_LABEL, type AccommodationType } from "@/lib/data/accommodations"
 import {
+  Accessibility,
   AlertTriangle,
   ArrowRight,
   Bell,
@@ -275,6 +278,17 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   // The strata overview's own query, reused rather than re-derived. It is the
   // only source on this screen that survives a case being closed.
   const { data: portfolioFines, refetch: refetchFines } = useOutstandingFines()
+  /* Approved accommodations, keyed by the pet they name. The hook filters
+     drafts out and the policies bound it to this manager's buildings, so a pet
+     in another portfolio can never land in this map. */
+  const { data: accommodations } = useAccommodationsLive()
+  const accommodatedPets = useMemo(() => {
+    const map = new Map<string, AccommodationType>()
+    for (const a of accommodations) {
+      if (a.status === "approved" && a.petId) map.set(a.petId, a.type)
+    }
+    return map
+  }, [accommodations])
 
   const byTab = useCallback(
     (tab: ViolationTab) => violations.filter((v) => v.tab === tab),
@@ -646,6 +660,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
               <CaseCard
                 key={violation.id}
                 violation={violation}
+                accommodated={violation.petId ? accommodatedPets.get(violation.petId) ?? null : null}
                 onAct={(action) => setPending({ action, violation })}
               />
             ))}
@@ -719,7 +734,16 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
 /* One case                                                            */
 /* ------------------------------------------------------------------ */
 
-function CaseCard({ violation, onAct }: { violation: Violation; onAct: (a: Action) => void }) {
+function CaseCard({
+  violation,
+  accommodated,
+  onAct,
+}: {
+  violation: Violation
+  /** The TYPE of an approved accommodation naming this case's pet, or null. */
+  accommodated: AccommodationType | null
+  onAct: (a: Action) => void
+}) {
   const stageInfo = STAGE_CONFIG[violation.stage]
   const reached = LADDER.indexOf(violation.stage)
   const actions = actionsFor(violation)
@@ -738,6 +762,21 @@ function CaseCard({ violation, onAct }: { violation: Violation; onAct: (a: Actio
                 <p className="truncate text-[11px] text-muted-foreground">
                   {violation.resident} &middot; {violation.pet}
                 </p>
+                {/* THE EXEMPTION, BEFORE THE ACTION. A manager about to warn or
+                    fine an `unregistered_pet` or `excess_pets` case must see
+                    that the building has already approved this animal.
+                    It reads through the resident-safe fields ONLY — the type
+                    and the fact of approval. Never `animal_desc`, never a
+                    document, never the decision note: a bylaw screen is not a
+                    place a resident's disability information belongs. */}
+                {accommodated && (
+                  <div className="mt-1 flex items-center gap-1">
+                    <Accessibility className="h-3 w-3 flex-shrink-0 text-accent" />
+                    <span className="break-words text-[10px] font-semibold text-accent">
+                      {ACCOMMODATION_TYPE_LABEL[accommodated]} approved
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

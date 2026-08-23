@@ -3,13 +3,26 @@
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
-import { useRegistrations, useAccommodations, useDocumentsReview } from "@/lib/data"
+import { useRegistrations, useDocumentsReview } from "@/lib/data"
+import { useRegistrationsLive, decideRegistration } from "@/lib/data/manager-queues"
 import {
-  useRegistrationsLive,
   useAccommodationsLive,
-  decideRegistration,
+  useAccommodationDocuments,
   decideAccommodation,
-} from "@/lib/data/manager-queues"
+  verifyAccommodationDocument,
+  type AccommodationRequestView,
+} from "@/lib/data/accommodations-live"
+import {
+  checklistFor,
+  missingRequired,
+  allRequiredVerified,
+  fileSize,
+  ACCOMMODATION_TYPE_LABEL,
+  STATUS_LABEL,
+  type ChecklistItem,
+} from "@/lib/data/accommodations"
+import { AccommodationDocumentViewer } from "@/components/screens/manager/accommodation-document-viewer"
+import { shortDate } from "@/lib/dates"
 import { useIncidents, isOpenIncident } from "@/lib/data/incidents"
 import { IncidentCard } from "@/components/screens/manager/incident-card"
 import { toast } from "sonner"
@@ -29,6 +42,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Portal } from "@/components/ui/portal"
 
 type ApprovalTab = "incidents" | "registrations" | "accommodations" | "documents"
 
@@ -228,108 +242,9 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
           </div>
         )}
 
-        {/* Accommodations Tab */}
-        {activeTab === "accommodations" && (
-          <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
-            {accommodations.length === 0 && (
-              <div className="lg:col-span-2">
-                <ApprovalsEmptyState
-                  title="Nothing pending"
-                  subtext="No ESA or service animal accommodation requests are awaiting review."
-                />
-              </div>
-            )}
-            {accommodations.map((acc) => {
-              const isOpen = expandedAcc === acc.id
-              return (
-                <div key={acc.id} className="rounded-xl card-raised overflow-hidden">
-                  <button
-                    onClick={() => setExpandedAcc(isOpen ? null : acc.id)}
-                    className="flex w-full items-center gap-3 p-3 text-left active:bg-muted/50"
-                  >
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
-                      {acc.type === "ESA" ? <Heart className="h-5 w-5 text-accent" /> : <Shield className="h-5 w-5 text-accent" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-[14px] font-semibold text-foreground">{acc.type}</p>
-                        <Badge className="bg-accent/10 text-accent border-0 text-[9px]">{acc.type}</Badge>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">{acc.animal} &middot; Unit {acc.unit}</p>
-                    </div>
-                    {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                  </button>
-
-                  {isOpen && (
-                    <div className="border-t border-border bg-muted/30 px-3 pb-3 pt-2.5">
-                      <p className="text-[11px] text-muted-foreground mb-2">Submitted by {acc.resident} on {acc.submitted}</p>
-
-                      {/* Legal Guidance */}
-                      <div className="mb-3 rounded-lg bg-primary/5 border border-primary/20 p-2.5">
-                        <div className="flex items-start gap-2">
-                          <Scale className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
-                          <div>
-                            <p className="text-[11px] font-semibold text-primary">Legal Guidance</p>
-                            <p className="mt-0.5 text-[11px] leading-relaxed text-foreground">{acc.legalNote}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Documents */}
-                      <p className="mb-1.5 text-[11px] font-semibold uppercase text-muted-foreground">Documentation</p>
-                      <div className="flex flex-col gap-1 mb-3">
-                        {Object.entries(acc.documents).map(([key, ok]) => (
-                          <div key={key} className="flex items-center gap-2">
-                            {ok ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                            ) : (
-                              <XCircle className="h-3.5 w-3.5 text-destructive" />
-                            )}
-                            <span className="text-[12px] text-foreground capitalize">{key.replace(/([A-Z])/g, " $1")}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={async () => {
-                            const { error } = await decideAccommodation(acc.id, "approved")
-                            if (error) return toast.error("Couldn't approve", { description: error })
-                            toast.success("Accommodation approved", { description: "Decision logged for the audit trail." })
-                            refetchAcc()
-                          }}
-                          className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
-                          Approve
-                        </button>
-                        <button
-                          onClick={async () => {
-                            const { error } = await decideAccommodation(acc.id, "denied")
-                            if (error) return toast.error("Couldn't deny", { description: error })
-                            toast("Accommodation denied", { description: "Document your reasoning — this is CRT-relevant." })
-                            refetchAcc()
-                          }}
-                          className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
-                          Deny
-                        </button>
-                        <button
-                          onClick={async () => {
-                            const { error } = await decideAccommodation(acc.id, "info_requested")
-                            if (error) return toast.error("Couldn't update", { description: error })
-                            toast("More information requested")
-                            refetchAcc()
-                          }}
-                          className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary active:scale-[0.97] transition-transform">
-                          Verify Docs
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
+        {/* Accommodations Tab — every control reaches the database, and every
+            state shown is derived from a row that exists. See AccommodationsTab. */}
+        {activeTab === "accommodations" && <AccommodationsTab requests={accommodations} refetch={refetchAcc} />}
 
         {/* Documents Tab */}
         {activeTab === "documents" && (
@@ -375,5 +290,386 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
         )}
       </main>
     </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Accommodations                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * WHAT THIS REPLACED.
+ *
+ * The old tab rendered `Object.entries(acc.documents)` — four booleans, two of
+ * them LITERAL `true` at their producer — so every manager saw green ticks for
+ * an ESA letter and a vaccination record that nobody had uploaded and nobody
+ * could have. Beneath them sat three buttons that called a bare `.update()` and
+ * toasted "Decision logged for the audit trail". There was no audit row, no
+ * notification, and no column to record why.
+ *
+ * Now: `checklistFor` derives every state from documents that exist,
+ * `manager_decide_accommodation` writes the audit row and the notification, and
+ * a denial cannot be submitted without a reason — asked for by the sheet, and
+ * enforced by a CHECK constraint underneath it, so the two cannot disagree.
+ *
+ * `legal_note` is rendered as SHARED guidance, not as private counsel.
+ * `accom_select` admits `resident_id = auth.uid()`, so the resident can read
+ * that column today and nothing in this phase changed that. Labelling it
+ * "private" would be this screen making a false statement about the database.
+ */
+function AccommodationsTab({
+  requests,
+  refetch,
+}: {
+  requests: AccommodationRequestView[]
+  refetch: () => void
+}) {
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  if (requests.length === 0) {
+    return (
+      <div className="lg:col-span-2">
+        <ApprovalsEmptyState
+          title="Nothing pending"
+          subtext="No ESA or service animal accommodation requests are awaiting review."
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
+      {requests.map((req) => (
+        <AccommodationCard
+          key={req.id}
+          request={req}
+          isOpen={expanded === req.id}
+          onToggle={() => setExpanded(expanded === req.id ? null : req.id)}
+          refetch={refetch}
+        />
+      ))}
+    </div>
+  )
+}
+
+const CHECK_TONE: Record<ChecklistItem["state"], string> = {
+  verified: "text-success",
+  provided: "text-warning",
+  rejected: "text-destructive",
+  missing: "text-muted-foreground",
+}
+const CHECK_WORD: Record<ChecklistItem["state"], string> = {
+  verified: "Verified",
+  provided: "Provided, not yet verified",
+  rejected: "Rejected",
+  missing: "Not provided",
+}
+
+function AccommodationCard({
+  request,
+  isOpen,
+  onToggle,
+  refetch,
+}: {
+  request: AccommodationRequestView
+  isOpen: boolean
+  onToggle: () => void
+  refetch: () => void
+}) {
+  /* The documents are fetched only for the card that is open. A manager's queue
+     can hold dozens of requests, and a doctor's letter is not something to
+     prefetch for every one of them on the chance somebody expands it. */
+  const { data: documents, refetch: refetchDocs } = useAccommodationDocuments(isOpen ? request.id : undefined)
+  const [viewing, setViewing] = useState<string | null>(null)
+  const [decision, setDecision] = useState<null | "approved" | "denied" | "info_requested">(null)
+  const [note, setNote] = useState("")
+  const [busy, setBusy] = useState(false)
+
+  const items = checklistFor({ type: request.type, animalDesc: request.animalDesc }, documents)
+  const missing = missingRequired(items)
+  const readyToApprove = allRequiredVerified(items)
+  const isOpenRequest = request.status === "pending" || request.status === "info_requested"
+  const viewingDoc = documents.find((d) => d.id === viewing) ?? null
+
+  async function runDecision(outcome: "approved" | "denied" | "info_requested", text: string) {
+    setBusy(true)
+    const res = await decideAccommodation(request.id, outcome, text || undefined)
+    setBusy(false)
+    if (!res.ok) return toast.error("That decision didn't go through", { description: res.error ?? undefined })
+    setDecision(null)
+    setNote("")
+    toast.success(
+      outcome === "approved" ? "Accommodation approved" : outcome === "denied" ? "Accommodation denied" : "More information requested",
+      {
+        description: res.petRegistrationApproved
+          ? "The resident has been notified, and the named pet is now registered."
+          : "The resident has been notified.",
+      },
+    )
+    refetch()
+    refetchDocs()
+  }
+
+  return (
+    <div className={`rounded-xl card-raised overflow-hidden ${request.status === "withdrawn" ? "opacity-60" : ""}`}>
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center gap-3 p-3 text-left active:bg-muted/50"
+      >
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
+          {request.type === "esa" ? <Heart className="h-5 w-5 text-accent" /> : <Shield className="h-5 w-5 text-accent" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="text-[14px] font-semibold text-foreground break-words">
+              {ACCOMMODATION_TYPE_LABEL[request.type]}
+            </p>
+            <Badge className="border-0 bg-accent/10 text-[9px] text-accent">{STATUS_LABEL[request.status]}</Badge>
+          </div>
+          <p className="text-[11px] text-muted-foreground break-words">
+            {request.petName ?? "No pet named"} &middot; Unit {request.unit}
+          </p>
+        </div>
+        {isOpen ? (
+          <ChevronUp className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="border-t border-border bg-muted/30 px-3 pb-3 pt-2.5">
+          <p className="mb-2 text-[11px] text-muted-foreground break-words">
+            {request.residentName}
+            {request.submittedAt ? ` · submitted ${shortDate(request.submittedAt)}` : ""}
+            {request.withdrawnAt ? ` · withdrawn ${shortDate(request.withdrawnAt)}` : ""}
+          </p>
+
+          {request.animalDesc && (
+            <div className="mb-3 rounded-lg border border-border bg-background p-2.5">
+              <p className="text-[11px] font-semibold uppercase text-muted-foreground">In the resident&apos;s words</p>
+              {/* break-words, not pre-wrap alone. `whitespace-pre-wrap` wraps at
+                  spaces only, and Phase 6 clipped 3526px of a resident's text
+                  out of view because the clipping ancestor is overflow-x:auto. */}
+              <p className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-foreground">
+                {request.animalDesc}
+              </p>
+            </div>
+          )}
+
+          {request.legalNote && (
+            <div className="mb-3 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
+              <div className="flex items-start gap-2">
+                <Scale className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-primary">Guidance (the resident can read this)</p>
+                  <p className="mt-0.5 break-words text-[11px] leading-relaxed text-foreground">{request.legalNote}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <p className="mb-1.5 text-[11px] font-semibold uppercase text-muted-foreground">Documentation</p>
+          <div className="mb-3 flex flex-col gap-1.5">
+            {items.map((item) => {
+              const doc = item.documentId ? documents.find((d) => d.id === item.documentId) : undefined
+              return (
+                <div key={item.kind} className="rounded-lg border border-border bg-background p-2">
+                  <div className="flex items-start gap-2">
+                    {item.state === "verified" ? (
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-success" />
+                    ) : item.state === "rejected" ? (
+                      <XCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-destructive" />
+                    ) : item.state === "provided" ? (
+                      <Clock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-warning" />
+                    ) : (
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-[12px] font-medium text-foreground">
+                        {item.label}
+                        {item.required ? "" : " (optional)"}
+                      </p>
+                      <p className={`text-[11px] ${CHECK_TONE[item.state]}`}>{CHECK_WORD[item.state]}</p>
+                      {doc && (
+                        <p className="mt-0.5 break-words text-[10px] text-muted-foreground">
+                          {doc.label ?? "Untitled"} &middot; {fileSize(doc.sizeBytes)}
+                          {doc.uploadedAt ? ` · ${shortDate(doc.uploadedAt)}` : ""}
+                        </p>
+                      )}
+                    </div>
+                    {doc && doc.storagePath && (
+                      <button
+                        onClick={() => setViewing(doc.id)}
+                        className="flex-shrink-0 rounded-lg bg-muted px-2 py-1 text-[11px] font-semibold text-foreground"
+                      >
+                        Open
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {isOpenRequest ? (
+            <>
+              {!readyToApprove && (
+                <p className="mb-2 break-words text-[11px] text-muted-foreground">
+                  {missing.length > 0
+                    ? `Approve is unavailable until this is provided: ${missing.join(", ")}.`
+                    : "Approve is unavailable until every required document is verified. Open each one and record a verdict."}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  disabled={!readyToApprove || busy}
+                  onClick={() => runDecision("approved", "")}
+                  className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success transition-transform active:scale-[0.97] disabled:opacity-50"
+                >
+                  Approve
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => setDecision("denied")}
+                  className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive transition-transform active:scale-[0.97] disabled:opacity-50"
+                >
+                  Deny
+                </button>
+                {/* Was "Verify Docs". It never verified anything — it set
+                    info_requested. Renamed to what it does, and it now carries
+                    the note that makes "we need more" actionable. */}
+                <button
+                  disabled={busy}
+                  onClick={() => setDecision("info_requested")}
+                  className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary transition-transform active:scale-[0.97] disabled:opacity-50"
+                >
+                  Request more information
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-lg border border-border bg-background p-2.5">
+              <p className="text-[11px] font-semibold text-muted-foreground">
+                {STATUS_LABEL[request.status]}
+                {request.decidedAt ? ` · ${shortDate(request.decidedAt)}` : ""}
+              </p>
+              {request.decisionNote && (
+                <p className="mt-1 whitespace-pre-wrap break-words text-[12px] text-foreground">
+                  {request.decisionNote}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {viewingDoc && (
+        <AccommodationDocumentViewer
+          document={viewingDoc}
+          onClose={() => setViewing(null)}
+          onVerdict={async (verified, verdictNote) => {
+            const res = await verifyAccommodationDocument(viewingDoc.id, verified, verdictNote || undefined)
+            if (!res.ok) {
+              toast.error("That verdict didn't save", { description: res.error ?? undefined })
+              return
+            }
+            toast.success(verified ? "Document verified" : "Document rejected")
+            setViewing(null)
+            refetchDocs()
+          }}
+        />
+      )}
+
+      {decision && (
+        <DecisionSheet
+          outcome={decision}
+          note={note}
+          setNote={setNote}
+          busy={busy}
+          onCancel={() => {
+            setDecision(null)
+            setNote("")
+          }}
+          onSubmit={() => runDecision(decision, note)}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * The reason sheet.
+ *
+ * A DENIAL CANNOT BE SUBMITTED WITHOUT ONE, and that is asked for here rather
+ * than discovered as an error. The database says the same thing —
+ * `accommodation_requests_denial_note_ck`, and `note_required` from the RPC —
+ * so this control cannot be the only thing standing between a manager and an
+ * unreasoned denial, and it is not pretending to be.
+ *
+ * The blank test is `/\S/`, matching `public.text_present`. A note of "\n\n"
+ * would otherwise pass here and be refused there.
+ */
+function DecisionSheet({
+  outcome,
+  note,
+  setNote,
+  busy,
+  onCancel,
+  onSubmit,
+}: {
+  outcome: "approved" | "denied" | "info_requested"
+  note: string
+  setNote: (v: string) => void
+  busy: boolean
+  onCancel: () => void
+  onSubmit: () => void
+}) {
+  const needsNote = outcome === "denied"
+  const hasNote = /\S/.test(note)
+  return (
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onCancel}>
+        <div
+          className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-card p-5 sm:rounded-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-[17px] font-semibold text-foreground">
+            {outcome === "denied" ? "Deny this request" : "Ask for more information"}
+          </h3>
+          <p className="mt-1 break-words text-[12px] leading-relaxed text-muted-foreground">
+            {outcome === "denied"
+              ? "The reasoning is what defends this decision. The resident will be able to read it."
+              : "Say what is still needed. The resident will be able to read it."}
+          </p>
+          <label htmlFor="accom-decision-note" className="mt-3 mb-1 block text-[11px] font-semibold text-muted-foreground">
+            {needsNote ? "Reason (required)" : "What is needed"}
+          </label>
+          <textarea
+            id="accom-decision-note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={4}
+            className="w-full rounded-lg border border-border bg-background p-2 text-[13px] text-foreground"
+          />
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={onCancel}
+              className="flex-1 rounded-xl bg-muted py-3 text-[15px] font-semibold text-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onSubmit}
+              disabled={busy || (needsNote && !hasNote)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+              {outcome === "denied" ? "Deny" : "Send"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Portal>
   )
 }
