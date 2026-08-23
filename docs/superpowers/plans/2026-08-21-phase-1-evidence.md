@@ -368,7 +368,9 @@ What changes from that file:
 3. **Upload on submit, not on pick.** Call `uploadEvidence` first, then `submitIncident` with the returned paths. If upload fails but the description exists, tell the reporter and let them send without photos — never lose a written report over a failed image.
 4. **Pets from `reportablePetsSigned`**, not `reportablePets`.
 5. **`building` is a prop**, so the screen above decides whether a code was needed.
-6. **Anonymous defaults to `false`** for a signed-in resident and `true` for a guest — pass it in as `defaultAnonymous`.
+6. **Anonymous defaults to `true` for both flows** — pass it in as `defaultAnonymous`.
+
+   **Corrected during execution.** This originally specified `false` for a signed-in resident. The form it replaced defaulted to anonymous, and flipping a privacy default from protective to exposed as a side effect of a refactor is not something to do quietly — this reporter lives in the same building as the person they are reporting, and will keep living there. The safer default is the one they opt *out* of, and the summary step shows the toggle plainly before sending.
 
 The summary step must show the real photo count from state, not a hardcoded number, and the description text itself.
 
@@ -438,7 +440,7 @@ describe("uploadEvidence", () => {
 
 - [ ] **Step 4: Run it, watch it fail, then pass**
 
-`PATH="$HOME/.corepack-bin:$PATH" pnpm test` — expect failure before `lib/data/evidence.ts` exists, then 4 passing. (The suite finished the phase at **39** — Task 6 added a purge-partition module with 14 more, plus one anchor case.)
+`PATH="$HOME/.corepack-bin:$PATH" pnpm test` — expect failure before `lib/data/evidence.ts` exists, then 4 passing. (This file finished the phase at **9**, after the error-boundary and network-throw cases. Whole suite at the end: 15 `rbac` + 9 `evidence` + 15 `evidence-purge` = **39**.)
 
 - [ ] **Step 5: Commit**
 

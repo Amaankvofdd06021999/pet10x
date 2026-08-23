@@ -7,8 +7,9 @@ Paused 2026-08-21. Read this first; it is the whole handover.
 **Phase 0 is done, merged to `main`, and pushed** (`f0118b9`). The database
 migrations from it are live on `Pet10x` and have been since before the push.
 
-**Phase 1 is in progress on branch `pet10x-completion`**, 7 commits ahead of
-`origin/main`. Nothing from Phase 1 is merged or pushed.
+**Phase 1 is complete on branch `pet10x-completion`** — all six tasks, reviewed
+clean, whole-branch review returned no blocking code findings. Nothing from
+Phase 1 is merged or pushed; the branch awaits a merge decision.
 
 ## The plan
 
@@ -36,51 +37,38 @@ implement the same feature twice, and that duplication is what caused the bug.
 
 | Task | State | Commit |
 | --- | --- | --- |
-| 1. `p_evidence_paths` on the intake RPC | **complete**, reviewed clean after 1 fix round | `5775b80`, `e6ab9a4` |
-| 2. Sign + pets server routes | **complete**, approved, fix round landed | `1e8f305`, `d742157` |
-| 3. The `IncidentComposer` | **next** | — |
-| 4. Both screens become shells | queued | — |
-| 5. Manager sees the evidence | queued | — |
-| 6. Purge unclaimed drafts | queued | — |
+| 1. `p_evidence_paths` on the intake RPC | complete, 1 fix round | `5775b80`, `e6ab9a4` |
+| 2. Sign + pets server routes | complete, 1 fix round | `1e8f305`, `d742157` |
+| 3. The `IncidentComposer` | complete, 1 fix round | `c89fbc9`, `40ea1e6` |
+| 4. Both screens become shells | complete, 1 fix round | `f1643ae`, `1a89859` |
+| 5. Manager sees the evidence | complete, clean first pass | `f7e7ec5` |
+| 6. Purge unclaimed drafts | complete, 2 fix rounds | `b2dea99`, `4d5f7fe`, `1a57f31` |
+| Final review fix wave | complete | `8fbb4ea` |
 
-Task 2's fix round landed at `d742157` just before the pause. It closed two
-findings: two discarded Supabase `error` values that turned a real failure into
-a misleading success (an infrastructure outage told the reporter "that building
-code isn't recognised"; a signing failure returned HTTP 200 with every
-`photoUrl` null), and a `{"files":[null]}` payload that threw a 500 where every
-other malformed input got a 400. **It has not been reviewed** — a scoped
-re-review of `3866370..d742157` is the first thing to dispatch on resuming.
-
-**Its fix report is missing or truncated.** The agent died to an API error
-(machine slept) *after* committing but while appending the report. The code is
-complete and verified — all three fixes are present (`sign/route.ts:68-75` and
-`:59`, `pets/route.ts:38`), and `pnpm test` and `pnpm build` were both run
-green against that exact commit. Only the written report was lost. Dispatch the
-re-review against the **diff**, and tell it the report is unavailable rather
-than letting it conclude the evidence is missing because the work was sloppy.
+Tests went 15 → 39. `pnpm build` exits 0.
 
 ## What to do next
 
-1. Dispatch the scoped re-review of Task 2's fix round (`3866370..d742157`).
-2. Start **Task 3** — write `components/screens/report/incident-composer.tsx`
-   and `lib/data/evidence.ts`. The plan has the complete code for
-   `lib/data/evidence.ts` and its four tests.
+**Decide whether to merge Phase 1.** The whole-branch review said merge, with
+one non-code gate: six test incidents sit in Maple Court's live triage queue
+(`IR-C4DF60`, `IR-E04C1E`, `IR-CC086C`, `IR-6549F4`, `IR-3A10BE`, `IR-816E7B`),
+clearly labelled, four carrying real photos. They are *claimed*, so the purge
+route will never remove them — they are permanent unless deleted deliberately.
 
-### Two things Task 3 must not miss
+Then **Phase 2** — the manager's violation actions, planned and not started.
 
-**Pass `contentType` on every upload.** `uploadToSignedUrl` defaults the PUT
-`Content-Type` to `text/plain;charset=UTF-8`, and a signed upload token binds
-path, upsert, scope and exp — never Content-Type. `guest-evidence` now enforces
-an image allow-list, so an uploader that omits `{ contentType: file.type }` is
-rejected at storage, with the cause three layers from the symptom. The plan's
-snippet is already corrected; keep it that way.
+### Two things that cost real time, kept because they will recur
 
-**Prove the vitest `@` alias.** `vitest.config.ts` resolves `@` to a path with a
-trailing slash, so `@/lib/x` becomes `<root>//lib/x`. POSIX collapses it and it
-should work, but nothing has ever exercised it. `lib/data/evidence.test.ts` is
-the first test with a runtime `@/` import, so it either proves the alias or
-fails. If it fails, the fix is
-`path.dirname(fileURLToPath(import.meta.url))`.
+**Pass `contentType` on every storage upload.** `uploadToSignedUrl` defaults the
+PUT to `text/plain;charset=UTF-8`, and a signed upload token binds path, upsert,
+scope and expiry — never Content-Type. `guest-evidence` enforces an image
+allow-list, so an uploader omitting `{ contentType: file.type }` is rejected at
+storage with the cause three layers from the symptom. Measured: the default
+returns `415 invalid_mime_type`.
+
+**The vitest `@` alias is proven and fine.** Phase 0 deferred a worry that it
+resolved to a doubled separator. Phase 1's first runtime `@/` import exercised
+it and it resolves. No action needed.
 
 ## Standing environment facts
 

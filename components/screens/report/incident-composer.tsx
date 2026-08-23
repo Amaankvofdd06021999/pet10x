@@ -114,7 +114,7 @@ interface PendingPhoto {
 export interface IncidentComposerProps {
   /** The building being filed against. The screen above decides how it was resolved. */
   building: { code: string; name: string }
-  /** True for a guest with only a lobby code, false for a signed-in resident. */
+  /** Defaults true for both flows — see the reasoning at report-screen.tsx's call site. */
   defaultAnonymous?: boolean
   /** Called when the reporter is finished — after submitting, or from the last screen. */
   onDone: () => void

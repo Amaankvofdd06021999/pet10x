@@ -62,10 +62,15 @@ export function ReportScreen({ onBack }: { onBack: () => void }) {
      below is a minimum, not a definite height, so the flex line just grows past
      the viewport to fit its content and never constrains `flex-1`. Measuring in
      Task 4 gave `main` an overflow of 0 and put the whole scroll on the
-     document. Padding `main` would therefore move nothing off the bar; padding
-     the element that actually scrolls does. At full scroll the last element —
-     on the pet step, the only Continue/Skip button — would otherwise sit under
-     the bar.
+     document. At full scroll the last element — on the pet step, the only
+     Continue/Skip button — would otherwise sit under the bar.
+
+     Padding `main` would clear it just as well, since the document grows to
+     fit. The clearance sits here instead because `main` belongs to the shared
+     composer, and the guest shell that also renders it has no tab bar to
+     clear — `/report` is standalone and the guest branch returns before
+     `IOSTabBar`. Padding `main` would leak 64px of dead space into every
+     guest report.
 
      The clearance itself is stated the way `ai-chat-screen.tsx` states it: the
      bar's own 64px plus the home indicator, dropped at the `md` breakpoint
