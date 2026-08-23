@@ -16,7 +16,6 @@
  */
 
 import type {
-  AccommodationRequest,
   AppNotification,
   AppUser,
   Building,

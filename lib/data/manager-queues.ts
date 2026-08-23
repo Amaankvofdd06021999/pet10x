@@ -23,7 +23,6 @@ import { localDayKey, shortDay } from "@/lib/dates"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type {
   Registration,
-  AccommodationRequest,
   DocumentReviewItem,
   DisputeOutcome,
   Violation,
@@ -158,104 +157,19 @@ export async function decideRegistration(
   return { error: error?.message ?? null }
 }
 
-/* ------------------------------------------------------------------ */
-/* Accommodation requests (ESA / service animal)                       */
-/* ------------------------------------------------------------------ */
-
-export function useAccommodationsLive(): Result<AccommodationRequest[]> {
-  const [data, setData] = useState<AccommodationRequest[]>([])
-  const [isLoading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const refetch = useCallback(async () => {
-    const supabase = getSupabaseBrowserClient()
-    if (!supabase) return setLoading(false)
-    setLoading(true)
-
-    const { data: rows, error: err } = await supabase
-      .from("accommodation_requests")
-      .select(
-        `id, building_id, type, status, animal_desc, legal_note, created_at,
-         resident:profiles!accommodation_requests_resident_id_fkey ( full_name ),
-         unit:units ( unit_number ),
-         pet:pets ( name, breed )`,
-      )
-      .order("created_at", { ascending: false })
-
-    if (err) {
-      setError(err.message)
-      setData([])
-      setLoading(false)
-      return
-    }
-
-    type Row = {
-      id: string
-      building_id: string | null
-      type: string
-      status: string
-      animal_desc: string | null
-      legal_note: string | null
-      created_at: string
-      resident: { full_name: string | null } | { full_name: string | null }[] | null
-      unit: { unit_number: string } | { unit_number: string }[] | null
-      pet: { name: string; breed: string | null } | { name: string; breed: string | null }[] | null
-    }
-    const first = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
-
-    setData(
-      ((rows ?? []) as unknown as Row[]).map((r) => {
-        const pet = first(r.pet)
-        return {
-          id: r.id,
-          buildingId: r.building_id,
-          unit: first(r.unit)?.unit_number ?? "—",
-          resident: first(r.resident)?.full_name ?? "Unknown",
-          type: r.type === "service_animal" ? ("Service Animal" as const) : ("ESA" as const),
-          animal: pet ? `${pet.name}${pet.breed ? ` (${pet.breed})` : ""}` : (r.animal_desc ?? "—"),
-          submitted: shortDay(r.created_at),
-          createdAt: r.created_at,
-          status: (r.status === "approved" ? "approved" : r.status === "denied" ? "denied" : "pending") as
-            | "approved"
-            | "denied"
-            | "pending",
-          documents: {
-            letterFromProvider: true,
-            providerLicense: r.type === "service_animal",
-            animalDescription: !!r.animal_desc,
-            vaccination: true,
-          },
-          legalNote: r.legal_note ?? "",
-        }
-      }),
-    )
-    setError(null)
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    void refetch()
-  }, [refetch])
-  return { data, isLoading, error, refetch }
-}
-
-/** Decide an accommodation request. The reasoning is what defends this at the CRT. */
-export async function decideAccommodation(
-  id: string,
-  status: "approved" | "denied" | "info_requested",
-): Promise<{ error: string | null }> {
-  const supabase = getSupabaseBrowserClient()
-  if (!supabase) return { error: "Not configured." }
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const { error } = await supabase
-    .from("accommodation_requests")
-    .update({ status, decided_by: user?.id ?? null, decided_at: new Date().toISOString() })
-    .eq("id", id)
-  return { error: error?.message ?? null }
-}
+/* Accommodation requests moved OUT of this file in Phase 7.
+ *
+ * `useAccommodationsLive` is now lib/data/accommodations-live.ts — it reads the
+ * ladder columns, excludes drafts explicitly, and returns database labels
+ * rather than display strings. `decideAccommodation` is there too, and now
+ * calls `manager_decide_accommodation` instead of a bare `.update()`.
+ *
+ * The bare update was not merely untidy. It stamped `status`, `decided_by` and
+ * `decided_at` and then toasted "Decision logged for the audit trail" — there
+ * was no audit row, no notification, and nowhere to record why. And the policy
+ * it wrote through, `accom_manager_update`, was FOR UPDATE over every column:
+ * measured on production, one statement rewrote `animal_desc`, self-approved,
+ * and moved `building_id` to another building. */
 
 /* ------------------------------------------------------------------ */
 /* Documents needing a decision                                        */
@@ -357,7 +271,7 @@ export function useViolationsLive(): Result<Violation[]> {
     const { data: rows, error: err } = await supabase
       .from("violations")
       .select(
-        `id, building_id, type, stage, created_at,
+        `id, building_id, type, stage, created_at, pet_id,
          resident:profiles!violations_resident_id_fkey ( full_name ),
          unit:units ( unit_number ),
          pet:pets ( name ),
@@ -380,6 +294,7 @@ export function useViolationsLive(): Result<Violation[]> {
       type: string
       stage: string
       created_at: string
+      pet_id: string | null
       resident: { full_name: string | null } | { full_name: string | null }[] | null
       unit: { unit_number: string } | { unit_number: string }[] | null
       pet: { name: string } | { name: string }[] | null
@@ -434,6 +349,7 @@ export function useViolationsLive(): Result<Violation[]> {
           unit: first(r.unit)?.unit_number ?? "—",
           resident: first(r.resident)?.full_name ?? "Unassigned",
           pet: first(r.pet)?.name ?? "—",
+          petId: r.pet_id,
           type: r.type.replace(/_/g, " "),
           date: shortDay(r.created_at),
           stage,

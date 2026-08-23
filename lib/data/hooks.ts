@@ -10,7 +10,6 @@
  */
 
 import type {
-  AccommodationRequest,
   Building,
   CommunityEvent,
   DocumentReviewItem,
@@ -106,7 +105,7 @@ export function useHomeAlerts(): QueryResult<HomeAlert[]> {
 /* These are now backed by real rows — see `./manager-queues`. They were stubs
  * returning [] while the screens displayed invented counts. */
 export { useRegistrationsLive as useRegistrations } from "./manager-queues"
-export { useAccommodationsLive as useAccommodations } from "./manager-queues"
+export { useAccommodationsLive as useAccommodations } from "./accommodations-live"
 export { useDocumentsReviewLive as useDocumentsReview } from "./manager-queues"
 
 /* ------------------------- Manager: violations -------------------- */

@@ -8,7 +8,9 @@
  */
 
 import { useCallback, useMemo } from "react"
-import { useRegistrationsLive, useAccommodationsLive, useDocumentsReviewLive } from "./manager-queues"
+import { useRegistrationsLive, useDocumentsReviewLive } from "./manager-queues"
+import { useAccommodationsLive } from "./accommodations-live"
+import { ACCOMMODATION_TYPE_LABEL } from "./accommodations"
 import { useIncidents, isOpenIncident, INCIDENT_TYPE_LABEL } from "./incidents"
 import { useBuildingResidents } from "./live"
 import { useOutstandingFines } from "./portfolio"
@@ -137,21 +139,32 @@ export function useWorkQueue(): UseWorkQueueResult {
       })
     }
 
-    // Accommodation requests (pending / info_requested) — legal, never bulk
-    for (const a of accs.data.filter((x) => x.status === "pending")) {
-      const age = daysSince(a.createdAt)
+    /* Accommodation requests still awaiting a manager — legal, never bulk.
+     *
+     * Aged from `submitted_at`, not `created_at`. Since Phase 7 a request is
+     * opened as a DRAFT and may sit unsent for days, so `created_at` is when
+     * the resident started typing, not when the building was asked. Using it
+     * would show a request as five days overdue the moment it arrived.
+     *
+     * `subtitle` is the resident's own description of the animal, never
+     * `legal_note`. That column is manager-authored counsel — the seeded rows
+     * read "Seek legal advice before denying" — and putting it in a queue
+     * summary makes the queue read as advice rather than as a list of people
+     * waiting. */
+    for (const a of accs.data.filter((x) => x.status === "pending" || x.status === "info_requested")) {
+      const age = daysSince(a.submittedAt ?? a.createdAt)
       const urgency: Urgency = age > 5 ? "high" : "medium"
       out.push({
         key: `accommodation:${a.id}`,
         refId: a.id,
         kind: "accommodation",
         buildingId: a.buildingId,
-        title: `${a.type} accommodation request`,
-        subtitle: a.legalNote || a.animal,
-        meta: `Unit ${a.unit} · ${a.resident}`,
+        title: `${ACCOMMODATION_TYPE_LABEL[a.type]} request`,
+        subtitle: a.animalDesc || a.petName || "No description given",
+        meta: `Unit ${a.unit} · ${a.residentName}`,
         urgency,
-        sortTs: ts(a.createdAt),
-        ageLabel: ageLabel(a.createdAt),
+        sortTs: ts(a.submittedAt ?? a.createdAt),
+        ageLabel: ageLabel(a.submittedAt ?? a.createdAt),
         safeToBulk: false,
       })
     }

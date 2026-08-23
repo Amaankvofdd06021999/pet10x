@@ -24,7 +24,10 @@ export type PetStatus = "home" | "away" | "at-vet" | "vacation"
 export type VaccinationStatus = "current" | "expiring" | "expired"
 export type DocumentStatus = "Valid" | "Expiring" | "Approved" | "Active" | "Expired"
 export type ApprovalStatus = "pending" | "approved" | "denied"
-export type AccommodationType = "ESA" | "Service Animal"
+/* `AccommodationType` was "ESA" | "Service Animal" — a DISPLAY string used as a
+ * domain type. Phase 7 replaced it with the database's own labels in
+ * lib/data/accommodations.ts ("esa" | "service_animal"), which is what every
+ * query, policy and RPC actually speaks. */
 export type IncidentType = "noise" | "aggressive" | "off-leash" | "waste" | "damage" | "other"
 export type LostFoundType = "lost" | "found"
 
@@ -497,27 +500,19 @@ export interface Registration {
   documents: RegistrationDocuments
 }
 
-export interface AccommodationDocuments {
-  letterFromProvider: boolean
-  providerLicense: boolean
-  animalDescription: boolean
-  vaccination: boolean
-}
-
-export interface AccommodationRequest {
-  id: string
-  buildingId: string | null
-  unit: string
-  resident: string
-  type: AccommodationType
-  animal: string
-  submitted: string
-  /** Raw ISO created_at — used for queue urgency/aging. */
-  createdAt: string
-  status: ApprovalStatus
-  documents: AccommodationDocuments
-  legalNote: string
-}
+/* `AccommodationDocuments` and `AccommodationRequest` lived here until Phase 7.
+ *
+ * The first was four booleans, TWO OF THEM LITERAL `true` at their only
+ * producer (manager-queues.ts:207-212), so every manager was shown green ticks
+ * for documents nobody had uploaded — and nobody could have, because nothing in
+ * the product ever wrote an `accommodation_documents` row. Deleting the type is
+ * what stops it being rebuilt.
+ *
+ * Their replacements are `ChecklistItem` in lib/data/accommodations.ts, derived
+ * from documents that exist, and `AccommodationRequestView` in
+ * lib/data/accommodations-live.ts, which carries the columns the ladder needs
+ * (submitted_at, decided_at, withdrawn_at, decision_note) rather than a
+ * pre-formatted date string. */
 
 export interface DocumentReviewItem {
   id: string
@@ -543,6 +538,10 @@ export interface Violation {
   unit: string
   resident: string
   pet: string
+  /** The pet's id, or null on a case that has not identified one. Phase 7 reads
+   *  it to show an accommodation badge — a manager about to act on an
+   *  `unregistered_pet` case must see the exemption before they act. */
+  petId: string | null
   type: string
   date: string
   stage: ViolationStage
