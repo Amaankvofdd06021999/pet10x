@@ -12,6 +12,52 @@ nothing implements it yet.
 "anon (code only)" is a guest holding a building code and no session at all.
 `signInGuest` sets client state; it creates no auth user.
 
+## The enforcement ledger: what counts as an event, and what only audits
+
+*Settled in Phase 3, 2026-08-23. Phase 2's exit criterion 3 said "every STAGE
+CHANGE has a matching `violation_events` row", and opening a case is not a
+stage change — yet Phase 2's own migration wrote a `(null → stage)` row for all
+ten live cases, and `trg_violations_opening_event` writes one for every new
+case. The code decided; this is the decision written down so the next phase
+does not re-litigate it.*
+
+**`violation_events` is the ladder's ledger. One row means one rung.**
+
+| Act | `violation_events` | `audit_log` | Written by |
+| --- | --- | --- | --- |
+| A case is opened | ✅ `(null → stage)` | ✅ `violation.opened` | `trg_violations_opening_event` (AFTER INSERT), so the manager's composer, `escalate_incident_to_violation` and any future writer are all covered |
+| A stage change | ✅ `(from → to)` | ✅ `violation.advanced` | `manager_advance_violation` |
+| A fine reminder | ❌ | ✅ `violation.fine_reminded` | `manager_remind_fine` |
+| A fine is settled — paid, waived, disputed, written off | ❌ | ✅ `fine.status_changed` | `trg_fines_settlement_event` (AFTER UPDATE OF status) |
+
+The rule that generates that table, stated once:
+
+1. **An opening IS an event.** `null` is a real "from" — it says the case
+   started here, as distinct from having moved here. The alternative rule,
+   "no event ⇒ it started at the default", stops being true the first time
+   the default changes, and would make the ledger mean two different things
+   depending on a row's age. It is also what the evidence export reads: a case
+   with no opening row exports with a blank Event date, From, To and Note.
+   *Consequence to rely on: no case created since 2026-08-23 can exist without
+   an opening row, because the trigger is on the table rather than in any
+   caller. Measured today, the eventless count is **3**, not 0 — see (3).*
+
+2. **Money is not a rung.** A case at `fine_1` whose fine is paid is still at
+   `fine_1`. Recording a settlement in `violation_events` would require
+   inventing a `fine_1 → fine_1` self-transition — exactly the shape Phase 2
+   made illegal. Money acts write to `audit_log` and nowhere else.
+   *Consequence to rely on: the number of `violation_events` rows for a case
+   equals 1 + the number of rungs it has moved, and nothing else.*
+
+3. **Three seeded cases predate the ladder and carry zero events.** Measured
+   2026-08-23: exactly 3 of the 13 live violations have no `violation_events`
+   row at all, and all three are `resolved` with `resolved_at` set. They are
+   the known exception to (1) and always have been — Task 1's backfill covered
+   the ten NON-terminal cases and deliberately left these. Any assertion of the
+   form "every case has an opening row" must exclude terminal seed rows or be
+   scoped to cases created after 2026-08-23; stated flatly it is false today
+   and will read as a regression to whoever runs it next.
+
 ## What anon can already reach
 
 The ❌ marks in the anon column are about the capabilities in the matrix. They

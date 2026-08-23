@@ -389,7 +389,33 @@ export async function removeCoManager(linkId: string): Promise<{ error: string |
   return { error: error?.message ?? null }
 }
 
-/** Waive or mark-paid an outstanding fine (RLS fines_manager_write). */
+/**
+ * Waive or mark-paid an outstanding fine. Behind "Mark paid" and "Waive" in the
+ * strata work queue (`components/screens/strata/queue-screen.tsx:74-75`).
+ *
+ * Authorised by RLS `fines_manager_update` (`manages_building or is_admin`,
+ * both USING and WITH CHECK). The line here used to cite `fines_manager_write`,
+ * a policy Phase 2 deleted; the name mattered because the next person to reason
+ * about who may settle money would have started from a policy that no longer
+ * exists.
+ *
+ * Two triggers make this narrower and better recorded than the bare
+ * `.update()` suggests, and neither needs anything from this function:
+ *
+ *   trg_fines_settle_only     BEFORE UPDATE. `status` is the ONLY column a
+ *                             client may change. Bundling an amount rewrite
+ *                             with a legal status change raises 42501; the
+ *                             guard compares whole rows as jsonb, so a column
+ *                             added later is protected on the day it is added.
+ *   trg_fines_settlement_event AFTER UPDATE OF status. Writes one
+ *                             `fine.status_changed` audit_log row per real
+ *                             change, carrying the old status, the new one and
+ *                             the amount. Before it, settling money was the one
+ *                             act on an enforcement case that left no record.
+ *
+ * Both fire for definer functions and for `service_role` too — a trigger is not
+ * RLS — so any future payment webhook is audited without asking.
+ */
 export async function setFineStatus(id: string, status: "paid" | "waived"): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }

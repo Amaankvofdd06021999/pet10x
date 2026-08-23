@@ -295,6 +295,7 @@ git commit -m "Ten buttons that do what they say"
 1. `pnpm test` and `pnpm build` pass.
 2. `grep -nE "onClick=\{\(\) => toast" components/screens/manager/violations-screen.tsx` returns nothing.
 3. Every stage change in the database has a matching `violation_events` row — no orphans.
+   *(Clarified by Phase 3, 2026-08-23: an OPENING also gets a row, `(null → stage)`, written by `trg_violations_opening_event`; a FINE SETTLEMENT does not, and writes `audit_log.fine.status_changed` instead. The full rule and the reasoning are in `docs/RBAC_CAPABILITIES.md`, "The enforcement ledger". Do not re-open it.)*
 4. A direct `update violations set stage = …` raises, for a manager and for an admin.
 5. Illegal transitions are rejected by Postgres, not merely hidden by the UI.
 6. A resident whose violation advances receives a notification; a case with no resident advances without one.
