@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
+import { ageEligible, unclaimed, type EvidenceObject } from "@/lib/data/evidence-purge"
 
 /**
  * Pet10x — sweep for incident evidence nobody ever filed.
@@ -30,6 +31,9 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin"
  * selection and deletes nothing, answering with the exact paths it would have
  * removed — that is how to inspect this before trusting it, and there is no
  * undo in storage to fall back on if it is wrong.
+ *
+ * The selection itself lives in `lib/data/evidence-purge.ts` and is covered by
+ * `lib/data/evidence-purge.test.ts`; this file is the I/O around it.
  */
 
 export const runtime = "nodejs"
@@ -48,13 +52,17 @@ const BUCKET = "guest-evidence"
  */
 const MIN_AGE_HOURS = 24
 
-/** Storage `list()` caps a page; loop on the offset until a page comes back short. */
+/**
+ * Storage `list()` caps a page at `LEAST(coalesce(limit, 100), 1500)`, so 1000
+ * is honoured exactly and a short page really does mean the end of the folder.
+ * Raising this past 1500 would silently truncate every folder to one page.
+ */
 const PAGE = 1000
 /** Storage `remove()` takes up to 1000 paths; stay well inside that. */
 const BATCH = 500
 /**
- * Paths are `{buildingId}/{draftId}/{file}` — the array of candidates goes into
- * a query string, so keep a chunk small enough that the URL stays sane.
+ * Candidates go into the `&&` operand, which PostgREST carries in the query
+ * string, and paths run ~80 characters. 50 keeps the URL around 4 KB.
  */
 const CLAIM_CHUNK = 50
 /** `{buildingId}/{draftId}/{file}`: two folder levels and no more. */
@@ -65,11 +73,6 @@ interface StorageEntry {
   /** Null for a synthesised folder — the API derives those from path segments. */
   id: string | null
   created_at: string | null
-}
-
-interface Candidate {
-  path: string
-  createdAt: string | null
 }
 
 type Admin = ReturnType<typeof getSupabaseAdmin>
@@ -88,7 +91,7 @@ function chunk<T>(items: T[], size: number): T[][] {
 }
 
 /** Walk the bucket depth-first, collecting real objects and skipping folders. */
-async function listObjects(admin: Admin, prefix: string, depth: number, out: Candidate[]): Promise<void> {
+async function listObjects(admin: Admin, prefix: string, depth: number, out: EvidenceObject[]): Promise<void> {
   let offset = 0
   for (;;) {
     const { data, error } = await admin.storage
@@ -123,23 +126,6 @@ async function listObjects(admin: Admin, prefix: string, depth: number, out: Can
 }
 
 /**
- * When the object was uploaded, in epoch ms, or NaN if that cannot be read.
- *
- * `created_at` and not `updated_at`, deliberately. `updated_at` looks like the
- * safer, more conservative choice — "leave it alone if anything touched it" —
- * but storage carries an `update_objects_updated_at` trigger that stamps it on
- * ANY write to the row, by anyone, for any reason. One platform-side update
- * across the table would push every abandoned object's apparent age back to
- * zero and quietly turn this sweep into a no-op, which is the exact bug it was
- * written to fix. Nothing in this flow rewrites an object anyway: every signed
- * upload mints a fresh `{i}-{Date.now()}` path and upsert is off, so a
- * re-attached photo is a new object, not a touched one.
- */
-function uploadedAt(candidate: Candidate): number {
-  return candidate.createdAt ? Date.parse(candidate.createdAt) : Number.NaN
-}
-
-/**
  * Which of these paths are attached to a filed report.
  *
  * `evidence_paths` is a `text[]` per row, so "is this path claimed" is a
@@ -152,10 +138,23 @@ function uploadedAt(candidate: Candidate): number {
  * scan, because `evidence_paths` carries no index; the difference is that `&&`
  * is exactly what a `gin (evidence_paths)` index accelerates when the table
  * gets big enough to need one, and the in-memory version could never use it.
+ *
+ * Every path of a matched row is added, not just the intersecting ones. That
+ * over-inclusiveness is deliberate: it costs nothing and it means a mistake
+ * here spares a file rather than destroying one.
+ *
+ * `incident_reports` is the only claim record for this bucket, and that is an
+ * assumption rather than a law. `municipal_reports` has an `evidence_paths`
+ * column too; it is empty, and nothing reads or writes it, and no code path
+ * puts municipal evidence in `guest-evidence`. If that ever changes, this
+ * query has to change with it, or municipal evidence is deleted a day later.
+ *
+ * Callers must have filtered paths through `CLAIMABLE_PATH` first — see the
+ * note there on why an unescaped path in the `&&` operand is a delete bug.
  */
-async function claimedAmong(admin: Admin, paths: string[]): Promise<Set<string>> {
+async function claimedAmong(admin: Admin, paths: readonly string[]): Promise<Set<string>> {
   const claimed = new Set<string>()
-  for (const group of chunk(paths, CLAIM_CHUNK)) {
+  for (const group of chunk([...paths], CLAIM_CHUNK)) {
     const { data, error } = await admin.from("incident_reports").select("evidence_paths").overlaps("evidence_paths", group)
     // Same rule as the listing, and it matters more here: not knowing which
     // paths are claimed must never be read as "none of them are".
@@ -167,7 +166,23 @@ async function claimedAmong(admin: Admin, paths: string[]): Promise<Set<string>>
   return claimed
 }
 
-async function purge(request: Request) {
+interface Summary {
+  dryRun: boolean
+  olderThanHours: number
+  scanned: number
+  tooYoung: number
+  undated: number
+  malformed: number
+  claimed: number
+  deleted: number
+  /** Selected for removal. On a dry run, what would have gone. */
+  paths: string[]
+  /** Confirmed gone, as storage reported it back. The only record that exists. */
+  removed: string[]
+  error?: string
+}
+
+async function purge(request: Request): Promise<Summary> {
   const admin = getSupabaseAdmin()
   const params = new URL(request.url).searchParams
   // Any `dry` at all means dry, and only an explicit "0"/"false" turns it off.
@@ -184,39 +199,67 @@ async function purge(request: Request) {
   const asked = raw === null || raw.trim() === "" ? Number.NaN : Number(raw)
   const olderThanHours = Number.isFinite(asked) && asked >= 0 ? asked : MIN_AGE_HOURS
 
-  const objects: Candidate[] = []
+  const objects: EvidenceObject[] = []
   await listObjects(admin, "", 0, objects)
 
   const cutoff = Date.now() - olderThanHours * 60 * 60 * 1000
-  const old = objects.filter((o) => {
-    const uploaded = uploadedAt(o)
-    // A missing or unreadable timestamp is not evidence of age. If we cannot
-    // show the object is old, it stays.
-    return Number.isFinite(uploaded) && uploaded <= cutoff
-  })
+  const { candidates, tooYoung, undated, malformed } = ageEligible(objects, cutoff)
+  if (malformed.length > 0) {
+    // Never deleted, so this is a leak rather than a loss — but a silent one.
+    console.warn("[incidents] evidence purge left unclaimable paths alone", malformed)
+  }
 
-  const claimed = old.length > 0 ? await claimedAmong(admin, old.map((o) => o.path)) : new Set<string>()
-  const doomed = old.filter((o) => !claimed.has(o.path)).map((o) => o.path)
+  const claimed = candidates.length > 0 ? await claimedAmong(admin, candidates) : new Set<string>()
+  const { remove, spared } = unclaimed(candidates, claimed)
 
-  const summary = {
+  const summary: Summary = {
     dryRun,
     olderThanHours,
     scanned: objects.length,
-    tooYoung: objects.length - old.length,
-    claimed: old.filter((o) => claimed.has(o.path)).length,
+    tooYoung,
+    undated,
+    malformed: malformed.length,
+    claimed: spared.length,
     deleted: 0,
-    paths: doomed,
+    paths: remove,
+    removed: [],
   }
-  if (dryRun || doomed.length === 0) return summary
+  if (dryRun || remove.length === 0) return summary
 
-  for (const group of chunk(doomed, BATCH)) {
-    const { data, error } = await admin.storage.from(BUCKET).remove(group)
+  for (const group of chunk(remove, BATCH)) {
+    // Ask again, immediately before deleting. The first claim check ran before
+    // the first batch, which on a large sweep is many round-trips ago; a draft
+    // submitted in that window would otherwise have its photos deleted out from
+    // under the report that had just claimed them. This narrows the exposure
+    // from the length of the whole run to the length of one query.
+    const stillClaimed = await claimedAmong(admin, group)
+    const { remove: batch, spared: lateClaims } = unclaimed(group, stillClaimed)
+    if (lateClaims.length > 0) {
+      console.warn("[incidents] evidence purge spared paths claimed mid-sweep", lateClaims)
+      summary.claimed += lateClaims.length
+      summary.paths = summary.paths.filter((p) => !lateClaims.includes(p))
+    }
+    if (batch.length === 0) continue
+
+    const { data, error } = await admin.storage.from(BUCKET).remove(batch)
     // Deleting rows from storage.objects directly would orphan the underlying
     // files, so this has to go through the Storage API.
-    if (error) throw new Error(`Couldn't remove evidence: ${error.message}`)
+    if (error) {
+      // Stop, but keep the account. Vercel Cron records the response status and
+      // not its body, and the deletion cannot be undone, so what already went
+      // is only knowable from the log and the returned summary. Throwing here
+      // would discard both and leave an operator investigating a missing photo
+      // with nothing at all to read.
+      summary.error = `Couldn't remove evidence: ${error.message}`
+      console.error("[incidents] evidence purge stopped mid-sweep", summary)
+      return summary
+    }
     // What storage says it removed, not what was asked for — a path that had
     // already gone is silently absent from the result rather than an error.
-    summary.deleted += data?.length ?? group.length
+    const gone = (data ?? []).map((object) => object.name)
+    summary.deleted += gone.length
+    summary.removed.push(...gone)
+    console.info("[incidents] evidence purge removed", gone)
   }
   return summary
 }
@@ -224,8 +267,12 @@ async function purge(request: Request) {
 export async function POST(request: Request) {
   if (!isAuthorised(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   try {
-    return NextResponse.json({ ok: true, ...(await purge(request)) })
+    const summary = await purge(request)
+    // A sweep that stopped part-way still answers with what it destroyed.
+    return NextResponse.json({ ok: !summary.error, ...summary }, { status: summary.error ? 500 : 200 })
   } catch (err) {
+    // Only reachable before anything was deleted: listing and the first claim
+    // check throw, the removal loop does not.
     console.error("[incidents] evidence purge failed", err)
     return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
