@@ -238,7 +238,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   const [composing, setComposing] = useState(false)
   const [exporting, setExporting] = useState(false)
 
-  const { data: violations, isLoading, refetch } = useViolations()
+  const { data: violations, isLoading, error: violationsError, refetch } = useViolations()
   const { data: resolvedViolations, refetch: refetchResolved } = useResolvedViolations()
   const { data: buildings } = usePortfolioBuildings()
   const { data: subjects } = useViolationSubjects()
@@ -300,9 +300,23 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   // closed (or because the fine was issued without a case at all). The ids of
   // every live case are known, so this is an exact partition, not a subtraction
   // of two floating-point totals.
+  //
+  // Gated on the case query having SUCCEEDED. `useViolationsLive` reports an
+  // error by setting `data: []`, and an empty live-case set makes every fine in
+  // the portfolio look off-screen -- so a failed case query with a healthy
+  // fines query would render "a further $600.00 is owed on 3 fines whose case
+  // is already closed" while all three cases are open. A screen that invents
+  // closed cases out of its own network error is the exact failure this phase
+  // exists to remove, so the partition is not attempted unless it is knowable.
   const liveCaseIds = new Set(violations.map((v) => v.id))
-  const offScreenFines = portfolioFines.filter((f) => !f.violationId || !liveCaseIds.has(f.violationId))
+  const offScreenFines = violationsError
+    ? []
+    : portfolioFines.filter((f) => !f.violationId || !liveCaseIds.has(f.violationId))
   const closedCaseOutstanding = offScreenFines.reduce((sum, f) => sum + f.amount, 0)
+  // A fine with no `violation_id` is off-screen too, but it is not a closed
+  // case -- so the sentence below only claims closure when every fine in the
+  // set actually has a case behind it.
+  const offScreenAllHaveCases = offScreenFines.every((f) => f.violationId)
 
   const currentList = useMemo(() => {
     switch (activeTab) {
@@ -533,7 +547,11 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
                   only by opening the page.
                 */}
                 A further <span className="font-semibold text-foreground">${closedCaseOutstanding.toFixed(2)}</span>
-                {` is owed on ${offScreenFines.length} fine${offScreenFines.length === 1 ? "" : "s"} whose case is already closed. Resolving a case does not cancel its fine, so it is still counted in the strata portal’s total of `}
+                {` is owed on ${offScreenFines.length} fine${offScreenFines.length === 1 ? "" : "s"} ${
+                  offScreenAllHaveCases
+                    ? "whose case is already closed. Resolving a case does not cancel its fine, so it is"
+                    : "this screen does not list. Resolving a case does not cancel its fine, and a fine can outlive its case entirely, so the amount is"
+                } still counted in the strata portal’s portfolio-wide total of `}
                 <span className="font-semibold text-foreground">${(unpaidFines + closedCaseOutstanding).toFixed(2)}</span>.
               </p>
             )}
