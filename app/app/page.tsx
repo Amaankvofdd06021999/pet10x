@@ -47,9 +47,25 @@ import { Loader2, PawPrint } from "lucide-react"
  *
  * Adding the type immediately surfaced that `incidents` had no entry at all,
  * so the manager's Incidents screen was falling back to `max-w-2xl` (672px)
- * while its siblings read at `max-w-5xl`. Its card list is `lg:grid-cols-2`
- * (`incidents-screen.tsx:128`) and `lg` is 1024px, so the second column had
- * never rendered on any display.
+ * while every sibling data screen read at `max-w-5xl` (1024px).
+ *
+ * WHAT THAT ACTUALLY COST, corrected. The first version of this comment said
+ * "the second column had never rendered on any display". That is false, and
+ * the mistake was reasoning from the `lg` breakpoint to the container width.
+ * `lg:` in Tailwind v4 is a VIEWPORT media query — container queries are the
+ * separate `@lg:` family — so the breakpoint has never known how wide this
+ * wrapper is. At a 1024px-or-wider viewport the second column rendered the
+ * whole time; it was the CARDS that were crushed, into two thirds of the width
+ * the manager screens are laid out for.
+ *
+ * Measured in the browser at a 1280px viewport, same page, same data, one
+ * class swapped (`incidents-screen.tsx:128`, `grid gap-2.5 lg:grid-cols-2`):
+ *
+ *   max-w-2xl (the fallback)  wrapper 672px   grid-template-columns: 315px 315px
+ *   max-w-5xl (the entry)     wrapper 1024px  grid-template-columns: 491px 491px
+ *
+ * `matchMedia("(min-width: 1024px)")` was true in both, which is the direct
+ * evidence that the breakpoint was never the thing gating the column.
  */
 const CONTENT_MAX: Record<ScreenKey, string> = {
   home: "max-w-2xl",

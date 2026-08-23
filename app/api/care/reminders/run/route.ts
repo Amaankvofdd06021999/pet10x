@@ -258,7 +258,13 @@ export async function GET(request: NextRequest) {
           ? `This ${noun} expired on ${v.expires_on}. Book a renewal and upload the new record.`
           : `This ${noun} expires on ${v.expires_on}${daysLeft > 0 ? ` — ${daysLeft} day${daysLeft === 1 ? "" : "s"} left` : " — today"}.`,
         action_label: "Open pet",
-        action_target: "pet-detail",
+        /* The id is not optional here. The title NAMES the pet, and
+         * `usePet(undefined)` falls back to the first pet in the household
+         * (`lib/data/live.ts:335`), so a bare `pet-detail` target opened
+         * "Rabies has expired for Sadie" onto a different animal's
+         * vaccination record. Six of the seven such rows already written to
+         * production belong to owners with two or three pets. */
+        action_target: `pet-detail:${pet.id}`,
       })
       .select("id")
       .single()

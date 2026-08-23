@@ -1090,13 +1090,21 @@ export function removeResident(linkId: string) {
  * Keyed on the ENUM, and that change found a live defect the moment it was made.
  *
  * As `Record<string, ...>` this map was missing `care` entirely, so every care
- * reminder fell through the `?? "alert"` default and rendered the red
- * AlertTriangle. `care` is not a rare kind: it is 144 of the 192 notifications
- * in the database (measured 2026-08-23) — three quarters of everything the
- * Alerts screen shows anybody. "Breakfast for max" has been showing an incident
- * icon since care reminders shipped, and nothing could have caught it, because
+ * reminder fell through the `?? "alert"` default and rendered an AlertTriangle
+ * — a hazard glyph on "Breakfast for max", every morning, since care reminders
+ * shipped. `care` is not a rare kind: it is 157 of the 208 notifications in the
+ * database (re-measured 2026-08-23) — three quarters of everything the Alerts
+ * screen shows anybody. Nothing could have caught it, because
  * `Record<string, X>` accepts a map that is missing a key exactly as happily as
  * one that is complete.
+ *
+ * A correction to the first version of this note, which called it "the RED
+ * AlertTriangle": the colour never came from here. The icon SHAPE comes from
+ * `iconKey`; the colour comes from `SEVERITY_STYLES[severity]`
+ * (`alerts-screen.tsx:34`), and all 157 live `care` rows are severity `info`,
+ * which is `text-info`. It was a BLUE warning triangle. The wrong glyph is the
+ * defect; the colour was an assumption, and stating it as a measurement is the
+ * same failure this phase exists to remove.
  *
  * `calendar` because that is what these are: a scheduled care task falling due
  * today. Typed over the enum, an eighth `notification_kind` is now a compile

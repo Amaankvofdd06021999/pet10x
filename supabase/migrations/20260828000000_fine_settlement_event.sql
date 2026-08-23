@@ -131,6 +131,44 @@ comment on function public.fines_settlement_event() is
 -- function; WHEN means an update setting `status` to what it already was
 -- writes nothing. Measured: re-marking an already-paid fine as paid produces
 -- zero rows.
+--
+-- THE LIMIT OF `of status`, WHICH THE ABOVE OVERSTATES (noted 2026-08-23):
+--
+-- `of status` fires on the SET CLAUSE, not on the value. It asks "did this
+-- UPDATE name the `status` column?", and the WHEN clause is only consulted
+-- for statements that did. So the two halves guard different things and only
+-- one of them is about the value:
+--
+--   update fines set status = 'paid'   -- names it, value differs -> audited
+--   update fines set status = 'issued' -- names it, value same    -> WHEN, no row
+--   update fines set amount_cents = 1  -- does not name it        -> never entered
+--
+-- The gap is the third line's cousin: a BEFORE UPDATE trigger that assigns
+-- `new.status` without the statement naming `status` in its SET clause. That
+-- write changes the status and is NEVER AUDITED, because `of status` decided
+-- at statement level that this update had nothing to do with status.
+--
+-- MEASURED, not reasoned (2026-08-23, both inside `begin ... rollback`). A
+-- temporary BEFORE UPDATE trigger assigning `new.status := 'waived'`, then the
+-- same value change reached two ways:
+--
+--   update fines set currency = currency  -- paid -> waived, 0 audit rows
+--   update fines set status   = 'waived'  -- paid -> waived, 1 audit row
+--
+-- Same table, same row, same before and after status. The only difference is
+-- whether the SET clause named the column.
+--
+-- No such trigger exists on `fines` today. `trg_fines_settle_only`
+-- (20260823000004) is BEFORE UPDATE but only RAISES; it assigns nothing. The
+-- exposure is entirely future: anyone adding a BEFORE UPDATE trigger to
+-- `fines` that touches `new.status` must drop `of status` from this trigger
+-- at the same time, or the settlement it causes goes unrecorded.
+--
+-- `of status` is kept rather than removed because it is what makes the common
+-- case free: `fines` is updated for reasons unrelated to status, and without
+-- it every one of those updates would run this function only to be discarded
+-- by WHEN. The cost of the choice is the paragraph above, which is why the
+-- paragraph is here instead of a claim that the two clauses cover everything.
 create or replace trigger trg_fines_settlement_event
   after update of status on public.fines
   for each row

@@ -152,8 +152,9 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
             /* Contacts are admin-maintained and may not be filled in yet.
                Saying "we don't have it" beats showing a number nobody checked. */
             <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
-              {`We don't have animal-control contact details for ${m ? m.name : "this area"} yet.`} Search for
-              your municipality&apos;s animal control or bylaw office, or call your city&apos;s main line.
+              {`We don't have animal-control contact details for ${m ? m.name : "this area"} yet.`}{" "}
+              Search for your municipality&apos;s animal control or bylaw office, or call your city&apos;s main
+              line.
             </p>
           )}
 

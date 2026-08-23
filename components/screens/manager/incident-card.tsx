@@ -50,8 +50,14 @@ export function locationLabel(location: string): string {
  * silently and rendered with no badge class at all. This is the same shape that
  * made the manager dashboard label every violation "Investigation" for weeks:
  * the map went stale, the compiler had nothing to check it against, and the
- * screen kept rendering. Exhaustive over `IncidentStatus`, a seventh label is a
- * compile error here on the day it is added. */
+ * screen kept rendering.
+ *
+ * `IncidentStatus` is now an alias of `Database["public"]["Enums"]
+ * ["incident_status"]` (`lib/data/incidents.ts:19`), so the chain that makes a
+ * seventh value a compile error here is complete: migration -> regenerate
+ * `database.types.ts` -> this map is missing a key. Until 2026-08-23 it was a
+ * hand-written union with the same six members, and this comment claimed a
+ * guarantee that stopped at the hand. */
 const INCIDENT_STATUS_STYLE: Record<IncidentStatus, string> = {
   submitted: "bg-destructive/10 text-destructive",
   triaged: "bg-primary/10 text-primary",

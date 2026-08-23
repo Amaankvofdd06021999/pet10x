@@ -83,16 +83,56 @@ export const SCREEN_SURFACES = {
 export type ScreenKey = keyof typeof SCREEN_SURFACES
 
 /**
- * Screens that read the second half of a `screen:id` target.
+ * Screens that READ the second half of a `screen:id` target.
  *
- * `handleNavigate` (`app/app/page.tsx:130`) stashes any id it is handed into
+ * `handleNavigate` (`app/app/page.tsx:159`) stashes any id it is handed into
  * `selectedPetId` unless the screen is `business-detail` or `pet-care`. Handing
  * it an id for a screen that does not consume one therefore leaves a stale pet
  * selected for the NEXT screen that does. Naming the screens that take an id,
  * rather than denying the ones that do not, means a screen added later gets no
  * id until somebody decides it should have one.
+ *
+ * `add-pet` was on this list and should not have been: `AddPetScreen` takes no
+ * id prop at all, so an `add-pet:<uuid>` target would have stashed a pet
+ * nothing on that screen reads and handed it to whatever opened next — the
+ * exact hazard the list exists to prevent. No writer emits that target today;
+ * removed so none can.
  */
-const ID_BEARING: readonly ScreenKey[] = ["pet-detail", "add-pet", "pet-care", "ai-chat", "business-detail"]
+const ID_BEARING: readonly ScreenKey[] = ["pet-detail", "pet-care", "ai-chat", "business-detail"]
+
+/**
+ * Screens that REQUIRE an id — the ones whose whole subject is the id, which
+ * therefore cannot answer honestly without one. A target naming one of these
+ * with no id resolves to `null`, so the alert renders NO button.
+ *
+ * This is a strict subset of `ID_BEARING`, and the difference is the point.
+ *
+ * `pet-detail` is here because `usePet(undefined)` falls back to `pets[0]`
+ * (`lib/data/live.ts:335`). `/api/care/reminders/run` wrote `pet-detail` with
+ * no id while naming the pet in the title, so "Rabies has expired for Sadie"
+ * opened whichever pet sorted first — and six of the seven such rows live on
+ * production belong to owners with two or three pets. The writer is fixed, but
+ * those seven rows are real data that will not rewrite themselves, so the
+ * CLIENT has to be the thing that refuses. An honest absence beats a confident
+ * wrong answer.
+ *
+ * `business-detail` is here because `usePublicBusiness(undefined)` never
+ * queries and the screen renders "This business isn't available." — a button
+ * that navigates to a dead end, which the plan rates no better than a toast.
+ * No writer emits it today.
+ *
+ * The other two ID_BEARING screens are deliberately NOT here, and would be
+ * wrong here:
+ *   - `pet-care` is **157 of the 208** live rows and every one of them is
+ *     bare. Its id is a care KIND, not a pet, and with none the tracker opens
+ *     on the household's selected pet and its default tab — a correct answer.
+ *     Requiring an id would silently delete the button on three quarters of
+ *     the notifications in the database.
+ *   - `ai-chat` with no id is a deliberate case: `handleNavigate` CLEARS
+ *     `selectedPetId` for it, so the assistant opens unscoped rather than
+ *     inheriting a pet from the previous screen.
+ */
+const ID_REQUIRED: readonly ScreenKey[] = ["pet-detail", "business-detail"]
 
 export interface ActionRoute {
   screen: ScreenKey
@@ -110,12 +150,13 @@ export function isScreenKey(value: string): value is ScreenKey {
  * `null` if this viewer cannot get there.
  *
  * `null` is returned for a target that is absent, empty, unknown to the router,
- * or registered to the other surface. The caller must render NO control when it
- * gets `null` — that is the whole point of the function.
+ * registered to the other surface, or naming an `ID_REQUIRED` screen with no
+ * id. The caller must render NO control when it gets `null` — that is the
+ * whole point of the function.
  *
  * The target grammar is `screen` or `screen:id`, which is what every writer
  * already emits: `'profile'` (`/api/manager/request-info:89`), `'pet-care'`
- * and `'pet-detail'` (`/api/care/reminders/run:171,261`), `'approvals'`
+ * and `'pet-detail:<uuid>'` (`/api/care/reminders/run:171,261`), `'approvals'`
  * (`20260801000003:64`), `'services'` and `'pet-detail:<uuid>'`
  * (`lib/ai/suggestions/rules.ts`), and `'pet-detail:<uuid>' | 'profile'`
  * (`manager_advance_violation`, `manager_remind_fine`).
@@ -135,6 +176,10 @@ export function resolveActionTarget(
   if (!SCREEN_SURFACES[screen].includes(surface)) return null
 
   const id = rawId.trim()
-  if (!id || !ID_BEARING.includes(screen)) return { screen }
+  if (!id || !ID_BEARING.includes(screen)) {
+    // A screen whose subject IS the id cannot be opened without one.
+    if (ID_REQUIRED.includes(screen)) return null
+    return { screen }
+  }
   return { screen, id }
 }

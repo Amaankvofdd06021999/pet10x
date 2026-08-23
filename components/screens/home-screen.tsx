@@ -333,12 +333,22 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                   <p className="truncate text-[12px] text-muted-foreground">
                     {/* Household-level now, because it sits above a block that
                         is not about one pet. Built as a single expression and
-                        not as JSX text: SWC trims the whitespace either side of
-                        an expression even when the source has it, and this
-                        exact line once read "Log Mochi'sactivities & meals" on
-                        every resident's home screen — the fifth time in this
-                        phase sequence a space was eaten, and the fifth caught
-                        by looking at the page rather than by any gate. */}
+                        not as JSX text, because this exact line once read
+                        "Log Mochi'sactivities & meals" on every resident's home
+                        screen — the fifth time in this phase sequence a space
+                        was eaten, and the fifth caught by looking at the page
+                        rather than by any gate.
+
+                        NOT because "SWC trims the whitespace either side of an
+                        expression", which is what this comment used to say and
+                        is false: `Log {name} activities & meals` on one line
+                        keeps its space in every compiler. What ate THIS line
+                        was the `&amp;` in it — SWC drops the leading whitespace
+                        of a JSXText node containing an HTML entity, and tsc
+                        does not, so nothing local could see it. The full rule
+                        and the bisection are in `today-schedule.tsx:34` and
+                        `scripts/jsx-space-drift.mjs`. A template literal has no
+                        JSXText node, so it is immune either way. */}
                     {singlePet && selectedPet
                       ? `Log ${selectedPet.name}'s activities & meals`
                       : pets.length > 1

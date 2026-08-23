@@ -13,16 +13,23 @@
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { petFileSignedUrls, isStoragePath } from "@/lib/supabase/storage"
+import type { Database } from "@/lib/supabase/database.types"
 
-export type IncidentType = "noise" | "aggressive" | "off_leash" | "waste" | "damage" | "unregistered" | "other"
+/* DERIVED from the generated enums, not retyped from them.
+ *
+ * Both of these were hand-written unions that happened to match
+ * `incident_type` and `incident_status`. Every `Record<IncidentStatus, …>` in
+ * the app is described as exhaustive over the database enum and gets its
+ * compile error from that — but a hand-written union only proves the map
+ * matches the HAND, so a seventh SQL value would have compiled silently until
+ * someone remembered to edit this file too. That is the same drift the maps
+ * exist to prevent, moved one file upstream.
+ *
+ * Derived, regenerating `database.types.ts` after a migration is what breaks
+ * the build, which is the only moment anyone is looking. */
+export type IncidentType = Database["public"]["Enums"]["incident_type"]
 
-export type IncidentStatus =
-  | "submitted"
-  | "triaged"
-  | "investigating"
-  | "linked_to_violation"
-  | "dismissed"
-  | "resolved"
+export type IncidentStatus = Database["public"]["Enums"]["incident_status"]
 
 export const INCIDENT_TYPE_LABEL: Record<IncidentType, string> = {
   noise: "Noise / barking",

@@ -130,7 +130,13 @@ All three helpers already exclude suspended profiles internally (`is_resident_of
 
 ### Phase 3 overlaps this file and must be reconciled
 
-`docs/superpowers/plans/2026-08-21-phase-3-honest-cleanup.md` Task 3 removes Pin, More-options and Share from `community-screen.tsx` and leaves RSVP for this phase. **Phase 8 supersedes it.** If Phase 3 has already run, those controls are gone and Task 6 re-adds two of them as real (Pin, Share-on-lost-and-found) and leaves More-options removed. If Phase 3 has not run, **drop its Task 3** rather than removing and re-adding. Check `git log --oneline -- components/screens/community-screen.tsx` first and say which world you are in.
+`docs/superpowers/plans/2026-08-21-phase-3-honest-cleanup.md` Task 3 removes Pin, More-options and Share from `community-screen.tsx` and leaves RSVP for this phase. **Phase 8 supersedes it.**
+
+**PHASE 3 HAS RUN, AND IT DELIVERED A THIRD WORLD THIS NOTE DID NOT ANTICIPATE (recorded 2026-08-23, commit `411b4c0`).** This paragraph used to offer two: "Phase 3 ran → the controls are gone" and "Phase 3 did not run → drop its Task 3". Neither is what is on the branch. Phase 3 read this plan's own `:772` ("prefer dropping Phase 3's Task 3 if it has not yet run"), confirmed via `git log` that it had not, and therefore **kept all four controls in place and disabled them** rather than deleting them — three of the four were `toast.success` calls asserting an action that never happened, and a false success is not made acceptable by being scheduled.
+
+So **you will find handlers to swap back in, not controls to add.** Each of the four is a native `<button disabled>` carrying an `aria-label="… — not available yet"` and a source comment naming this phase. Concretely, at the head of `community-screen.tsx` and at each site: Pin `:282`, More `:291`, Share `:335`, RSVP `:453`, and the Search `<span>` `:220` (untouched, and see the row for it in Task 6). Your job at each is to remove `disabled`, remove the `aria-label`, and attach the real handler — or, for the two Task 6 marks as **Removed**, delete the element.
+
+**Do not delete the disabled controls first and re-add them.** The comments at those five sites record what each one used to claim and why it was a lie; that is the only place that history is written down.
 
 ### Test subjects (verified live, 2026-08-23)
 
@@ -769,7 +775,7 @@ Recorded so the next reader does not re-derive it. **The schema won every one of
 ## What changes this phase's scope
 
 - **Task 1 was not in the roadmap line and is now most of the phase.** "Events, RSVP, Lost & Found, pin, share" assumed the tables were usable. Two of them are open and one is shut, and no UI on top of that is worth building. If time runs short, Task 1 alone is a shippable phase and Tasks 5–6 are not shippable without it.
-- **Phase 3's Task 3 is superseded.** It removes Pin, More-options and Share from this file; this phase makes two of the three real. Whichever runs second wins — reconcile explicitly, and prefer dropping Phase 3's Task 3 if it has not yet run.
+- **Phase 3's Task 3 is superseded, and Phase 3 has now run.** It was to remove Pin, More-options and Share from this file. What it actually did — having read this line and confirmed Task 3 had not yet run — was DISABLE all four controls in place rather than delete them. See the reconciliation note above; the delivered state is "present but disabled", not "gone". This phase makes three of the four real (Pin, More-options and RSVP) and deletes Share, per the Task 6 table.
 - **Resident-created events are in; resident-created *broadcasts* are out.** A resident may organise an event in their own building; only a manager may ring every neighbour about it. This was a judgement call, not a constraint.
 - **Attendee identity becomes visible to the building.** `rsvps_read` is what makes "12 going" possible, and it necessarily discloses *who*. Task 6 shows the names rather than hiding them behind a number, so the disclosure is legible to the person making it.
 - **Premium as a quota is named and deferred.** If community is to be monetised, the mechanism is a bounded quota inside an RPC that can explain itself, not an RLS denial surfacing as `42501`. Not built here.

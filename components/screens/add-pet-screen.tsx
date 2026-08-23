@@ -117,7 +117,8 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
               onClick={() => onNavigate?.("pet-care")}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[16px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
             >
-              <Utensils className="h-5 w-5" /> Set up food &amp; care
+              <Utensils className="h-5 w-5" />{" "}
+              Set up food &amp; care
             </button>
             <button
               onClick={() => {

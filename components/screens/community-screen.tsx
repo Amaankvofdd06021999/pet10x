@@ -90,8 +90,22 @@ function EmptyState({
  * copied", "RSVP confirmed" — and a false success does not become acceptable by
  * having a scheduled fix.
  *
- * The five sites, all Phase 8's: Pin `:223`, More `:228`, Share `:257`,
- * RSVP `:375`, Search `:171`.
+ * The five sites, all Phase 8's. Line numbers as of 2026-08-23 — the first
+ * version of this comment cited the numbers from BEFORE its own change and was
+ * wrong about all five, so each is given with the string to grep for as well:
+ *
+ *   Pin     `:282`  aria-label="Pin post — not available yet"
+ *   More    `:291`  aria-label="More options — not available yet"
+ *   Share   `:335`  aria-label="Share — not available yet"
+ *   RSVP    `:467`  aria-label="RSVP — not available yet"
+ *   Search  `:220`  the `<span>Search community...</span>` — not a button at
+ *                   all, which is why it is decoration rather than a lie, and
+ *                   why both of the plan's greps walked past it.
+ *
+ * The four buttons are native `<button disabled>`: not focusable, no Enter or
+ * Space, and no ancestor of any of them carries a click handler that could
+ * catch a press on the dead region. The disabled state is a mechanism, not a
+ * styling convention.
  *
  * Not controls, so not changed, but the same debt and the same owner: the
  * `EmptyState` CTA lines "Report a lost or found pet" and "Suggest an event"
@@ -453,6 +467,7 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
                   <button
                     disabled
                     className="rounded-full bg-primary px-4 py-1.5 text-[13px] font-semibold text-primary-foreground opacity-50"
+                    aria-label="RSVP — not available yet"
                   >
                     RSVP
                   </button>

@@ -31,11 +31,32 @@ import {
  * judgement in the owner's stored timezone, so a task that reads "overdue"
  * here is the one that raised the notification.
  *
- * EVERY COMPOSED STRING IN THIS FILE IS BUILT IN JS, NOT IN JSX. `{a} · {b}`
- * across a line break is how this project has shipped "firstfine", "1 finewhose"
- * and "Log Mochi'sactivities" past a clean build five times: SWC trims the
- * whitespace of a JSXText node even when the source has it. A template literal
- * is one expression and has nothing to trim.
+ * EVERY COMPOSED STRING IN THIS FILE IS BUILT IN JS, NOT IN JSX. That is how
+ * this project shipped "firstfine", "1 finewhose" and "Log Mochi'sactivities"
+ * past a clean build five times, and the practice is right — but the reason
+ * first recorded for it was wrong, and this is the corrected one (measured
+ * 2026-08-23 against this repo's own toolchain; `scripts/jsx-space-drift.mjs`
+ * has the bisection):
+ *
+ *   `{a} text`, all on ONE line, keeps its space in tsc AND in SWC. It is not
+ *   true that SWC trims the whitespace around an expression. Two rules bite,
+ *   and neither is that one:
+ *
+ *     1. JSX strips leading whitespace that spans a NEWLINE, so `{a}` ending a
+ *        line and text beginning the next loses the space between them. This
+ *        is ordinary JSX and is identical in tsc, SWC and Babel.
+ *     2. SWC ONLY: a JSXText node containing an HTML ENTITY loses its leading
+ *        whitespace even on the same line, where rule 1 does not apply and
+ *        every quotable rule says it survives.
+ *            `Log {name} activities & meals`    -> both keep the space
+ *            `Log {name} activities &amp; meals` -> SWC drops it, tsc keeps it
+ *        This one produced every defect actually observed here, because this
+ *        codebase writes `&apos;` and `&amp;` in almost every sentence. `tsc
+ *        --noEmit` emits the correct string, so nothing local can see it.
+ *
+ * A template literal is one expression and produces no JSXText node, so
+ * neither rule can reach it. The mitigation was always sound; only the
+ * explanation needed fixing.
  */
 
 /** Groups shown before the strip starts counting instead of listing. */

@@ -211,7 +211,8 @@ function Portal() {
         <Store className="h-10 w-10 text-muted-foreground" />
         <p className="text-[16px] font-semibold text-foreground">No business on this account</p>
         <p className="max-w-xs text-[13px] text-muted-foreground">
-          {user?.email} doesn&apos;t have a business record yet. Sign up again with your business details, or ask Pet10x
+          {user?.email}{" "}
+          doesn&apos;t have a business record yet. Sign up again with your business details, or ask Pet10x
           support to link one.
         </p>
         <button onClick={() => signOut()} className="mt-1 rounded-lg bg-muted px-4 py-2 text-[14px] font-semibold text-foreground">

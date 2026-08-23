@@ -30,15 +30,50 @@ describe("resolveActionTarget", () => {
   })
 
   it("routes every action_target value live in the database today", () => {
-    // Measured 2026-08-23: these are the only six shapes across 192 rows.
+    // Measured 2026-08-23: these are the only six shapes across 208 rows.
     expect(resolveActionTarget("pet-care", "resident")).toEqual({ screen: "pet-care" })
     expect(resolveActionTarget("services", "resident")).toEqual({ screen: "services" })
-    expect(resolveActionTarget("pet-detail", "resident")).toEqual({ screen: "pet-detail" })
     expect(resolveActionTarget("profile", "resident")).toEqual({ screen: "profile" })
     expect(resolveActionTarget("approvals", "manager")).toEqual({ screen: "approvals" })
     expect(resolveActionTarget("pet-detail:e5ceea21-5b53-4e57-b0d2-bf2222b50e5c", "resident")).toEqual({
       screen: "pet-detail",
       id: "e5ceea21-5b53-4e57-b0d2-bf2222b50e5c",
+    })
+    // ...and the seventh shape, which must produce NO button. See below.
+    expect(resolveActionTarget("pet-detail", "resident")).toBeNull()
+  })
+
+  it("returns null for a screen whose whole subject is an id it was not given", () => {
+    /* `usePet(undefined)` falls back to `pets[0]`, so a bare `pet-detail`
+       opened SOME pet's vaccination record while the notification title named
+       a different one. `/api/care/reminders/run` no longer writes this, but
+       SEVEN ROWS THAT SHAPE ARE ALREADY IN PRODUCTION and six of them belong
+       to owners with two or three pets. The client is what has to refuse. */
+    expect(resolveActionTarget("pet-detail", "resident")).toBeNull()
+    expect(resolveActionTarget("pet-detail", "manager")).toBeNull()
+    // Same reasoning, no live rows: the screen renders "This business isn't
+    // available." with no id, which is a dead end, not a destination.
+    expect(resolveActionTarget("business-detail", "resident")).toBeNull()
+  })
+
+  it("does NOT require an id from a screen that renders correctly without one", () => {
+    /* The counterpart to the test above, and the reason the two lists are
+       separate. `pet-care` is 157 of the 208 live rows and every one is bare:
+       its id is a care KIND, and with none the tracker opens on the
+       household's selected pet and its default tab. Requiring an id here
+       would delete the button on three quarters of the database. */
+    expect(resolveActionTarget("pet-care", "resident")).toEqual({ screen: "pet-care" })
+    // `handleNavigate` CLEARS selectedPetId for ai-chat, so unscoped is the
+    // designed case, not a degraded one.
+    expect(resolveActionTarget("ai-chat", "resident")).toEqual({ screen: "ai-chat" })
+  })
+
+  it("drops an id `add-pet` has no prop to read", () => {
+    // AddPetScreen takes no id. Carrying one would stash a pet into
+    // selectedPetId for whatever screen opened next -- a stale selection with
+    // no screen responsible for it.
+    expect(resolveActionTarget("add-pet:e5ceea21-5b53-4e57-b0d2-bf2222b50e5c", "resident")).toEqual({
+      screen: "add-pet",
     })
   })
 
@@ -57,8 +92,13 @@ describe("resolveActionTarget", () => {
   })
 
   it("treats a trailing colon and a whitespace id as no id", () => {
-    expect(resolveActionTarget("pet-detail:", "resident")).toEqual({ screen: "pet-detail" })
-    expect(resolveActionTarget("pet-detail:   ", "resident")).toEqual({ screen: "pet-detail" })
+    // ...which for an id-requiring screen means no button at all, exactly as
+    // if the colon had never been typed.
+    expect(resolveActionTarget("pet-detail:", "resident")).toBeNull()
+    expect(resolveActionTarget("pet-detail:   ", "resident")).toBeNull()
+    // ...and for a screen that does not require one, the screen with no id.
+    expect(resolveActionTarget("pet-care:", "resident")).toEqual({ screen: "pet-care" })
+    expect(resolveActionTarget("pet-care:   ", "resident")).toEqual({ screen: "pet-care" })
   })
 
   it("does not accept inherited Object properties as screens", () => {
