@@ -11,6 +11,7 @@ import { PERSONA_LABEL } from "@/lib/rbac"
 import { AddressCard } from "@/components/screens/profile/address-card"
 import { NavBackButton } from "@/components/nav-back-button"
 import {
+  Accessibility,
   ChevronRight,
   Dog,
   Cat,
@@ -93,7 +94,11 @@ interface MenuItem {
  *                             its manager published. NOTE FOR WHOEVER RUNS A
  *                             LATER PASS OVER THIS FILE: it is deliberately no
  *                             longer disabled.
- *   Accommodation Requests  → Phase 7 (2026-08-22-phase-7-accommodations.md:569)
+ *   Accommodation Requests  → DONE, Phase 7. The row now opens
+ *                             `accommodations`, where a resident files an ESA
+ *                             or service-animal request and attaches the
+ *                             supporting letter. SAME NOTE AS ABOVE: it is
+ *                             deliberately no longer disabled.
  */
 const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
   {
@@ -108,7 +113,7 @@ const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
     items: [
       { icon: Building2, label: "Building Rules" },
       { icon: Scale, label: "Violations & Fines" },
-      { icon: FileText, label: "Accommodation Requests", unbuilt: true },
+      { icon: Accessibility, label: "Accommodation Requests" },
       { icon: Heart, label: "Favorite Services" },
     ],
   },
@@ -200,6 +205,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
     else if (label.includes("Documents")) onNavigate?.("pet-detail")
     else if (label.includes("Building Rules")) onNavigate?.("building-rules")
     else if (label.includes("Violations")) onNavigate?.("my-cases")
+    else if (label.includes("Accommodation")) onNavigate?.("accommodations")
     else if (label.includes("Favorite Services")) onNavigate?.("services")
   }
 

@@ -30,6 +30,7 @@ import { ManagerViolationsScreen } from "@/components/screens/manager/violations
 import { ManagerApprovalsScreen } from "@/components/screens/manager/approvals-screen"
 import { ManagerIncidentsScreen } from "@/components/screens/manager/incidents-screen"
 import { ManagerSettingsScreen } from "@/components/screens/manager/settings-screen"
+import { AccommodationRequestScreen } from "@/components/screens/accommodation-request-screen"
 import { isScreenKey, type ScreenKey } from "@/lib/navigation"
 import { Loader2, PawPrint } from "lucide-react"
 
@@ -92,6 +93,10 @@ const CONTENT_MAX: Record<ScreenKey, string> = {
      entry is written rather than relied upon: `incidents` fell back for months
      to a width that was wrong for it and nobody noticed. */
   "building-rules": "max-w-2xl",
+  /* A request is a form and a decision is prose. Same column width as every
+     other resident screen — written rather than relied upon, because
+     `incidents` fell back to a wrong width for months and nobody noticed. */
+  accommodations: "max-w-2xl",
   dashboard: "max-w-5xl",
   residents: "max-w-5xl",
   violations: "max-w-5xl",
@@ -252,6 +257,11 @@ function AppContent() {
             <ShopScreen onNavigate={handleNavigate} />
           ) : currentScreen === "my-bookings" ? (
             <MyBookingsScreen onBack={handleBack} />
+          ) : currentScreen === "accommodations" ? (
+            /* Above the persona split, beside `report`, `shop` and
+               `building-rules`: a manager opens the same screen their residents
+               do, and sees the same thing. */
+            <AccommodationRequestScreen onBack={handleBack} onNavigate={handleNavigate} />
           ) : currentScreen === "building-rules" ? (
             /* Above the persona split, beside `report` and `shop`: a manager
                opens the same screen their residents do, and sees the same

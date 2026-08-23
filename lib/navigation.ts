@@ -77,6 +77,14 @@ export const SCREEN_SURFACES = {
    * above was made and not true: manager@pet10x.com holds no resident link and
    * was shown a "Link my building" button instead of their building's rules. */
   "building-rules": BOTH,
+  /* BOTH, not RESIDENT. `manager_decide_accommodation` writes this target to
+   * the requesting resident, so a resident must reach it — and a manager must
+   * be able to open it too, to see exactly what their residents see when they
+   * file one. It carries no id: the screen lists the viewer's OWN requests,
+   * resolved from their approved resident link, and a manager who is not a
+   * resident of the building they manage correctly sees the "link your
+   * building" affordance rather than a broken form. */
+  accommodations: BOTH,
   "my-bookings": BOTH,
   // Rendered in both blocks: managers have no Alerts tab, but the dashboard
   // bell routes here.

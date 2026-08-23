@@ -11,12 +11,13 @@ describe("resolveActionTarget", () => {
   })
 
   it("returns null for a screen the router does not render", () => {
-    // The targets planned phases will write before their screens exist. Each
-    // must produce NO button until the screen is registered here. `my-cases`
-    // WAS on this list and came off it in Phase 5, and `building-rules` came
-    // off it in Phase 6 — both when their screens landed. See the routing
-    // tests below.
-    expect(resolveActionTarget("accommodations", "resident")).toBeNull()
+    /* This list is now EMPTY of planned targets. `my-cases` came off it in
+       Phase 5, `building-rules` in Phase 6, and `accommodations` in Phase 7 —
+       each when its screen landed, and each with a routing test below to
+       replace this one. What is left is the property itself: an unregistered
+       string produces no button rather than a blank screen. */
+    expect(resolveActionTarget("lost-and-found", "resident")).toBeNull()
+    expect(resolveActionTarget("nonsense", "manager")).toBeNull()
   })
 
   it("returns null for a target registered to the other surface", () => {
@@ -71,6 +72,21 @@ describe("resolveActionTarget", () => {
        `selectedPetId` for whatever screen opens next. */
     expect(resolveActionTarget("building-rules:b41968f8-f45c-4a2b-a644-e94311100faf", "resident")).toEqual({
       screen: "building-rules",
+    })
+  })
+
+  it("routes accommodations, which Phase 7 built and manager_decide_accommodation writes", () => {
+    /* `manager_decide_accommodation` writes a bare `accommodations` to the
+       REQUESTING RESIDENT on every decision, and `withdraw_accommodation_
+       request` writes the same target to the building's managers. So unlike
+       `my-cases`, both surfaces must route. */
+    expect(resolveActionTarget("accommodations", "resident")).toEqual({ screen: "accommodations" })
+    expect(resolveActionTarget("accommodations", "manager")).toEqual({ screen: "accommodations" })
+    /* NOT id-bearing. The screen lists the viewer's own requests; a request id
+       stashed in `selectedPetId` would surface as the wrong pet on whatever
+       screen opens next. */
+    expect(resolveActionTarget("accommodations:25000000-0000-4000-8000-000000000001", "resident")).toEqual({
+      screen: "accommodations",
     })
   })
 
