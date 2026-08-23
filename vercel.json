@@ -8,6 +8,10 @@
     {
       "path": "/api/care/reminders/run",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/incidents/evidence/purge",
+      "schedule": "0 4 * * *"
     }
   ]
 }
