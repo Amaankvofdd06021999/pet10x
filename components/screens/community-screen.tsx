@@ -75,6 +75,31 @@ function EmptyState({
   )
 }
 
+/**
+ * PHASE 8 OWNS EVERY UNBUILT CONTROL ON THIS SCREEN.
+ * (`docs/superpowers/plans/2026-08-22-phase-8-community.md`)
+ *
+ * Phase 3's own plan said to DELETE Pin, More-options and Share from here.
+ * Phase 8 was written afterwards and supersedes that — it makes Pin and Share
+ * real rather than absent — and says so itself at `:133` and `:772`: "prefer
+ * dropping Phase 3's Task 3 if it has not yet run". It had not. So the
+ * controls stay, disabled, each with a note naming Phase 8 at the site.
+ *
+ * Disabled and not merely commented, because three of them were `toast.success`
+ * calls asserting something that had not happened — "Post pinned", "Link
+ * copied", "RSVP confirmed" — and a false success does not become acceptable by
+ * having a scheduled fix.
+ *
+ * The five sites, all Phase 8's: Pin `:223`, More `:228`, Share `:257`,
+ * RSVP `:375`, Search `:171`.
+ *
+ * Not controls, so not changed, but the same debt and the same owner: the
+ * `EmptyState` CTA lines "Report a lost or found pet" and "Suggest an event"
+ * are static text describing composers that do not exist. Phase 8 Task 6 adds
+ * both, at which point they become true. They assert nothing about an action
+ * having been taken, which is why they are left alone rather than reworded and
+ * reworded back.
+ */
 export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const { user } = useAuth()
   const isManager = user?.role === "building-manager"
@@ -167,7 +192,15 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
           ))}
         </div>
 
-        {/* Search */}
+        {/* Search — PHASE 8 OWNS THIS (its plan, Task 6: "make it a real
+            client-side filter over the loaded list, or remove it. Do not leave
+            it").
+
+            It is a <span> inside a <div> styled to look like a text input. It
+            has never been typeable, has no state and no handler, and neither of
+            this phase's two sweep greps can see it, because it is not a toast
+            and not an onClick. Kept as-is rather than restyled, so Phase 8
+            replaces one thing instead of unpicking a cosmetic patch first. */}
         <div className="mt-3 flex items-center gap-2 rounded-xl bg-muted px-3 py-2.5">
           <Search className="h-4 w-4 text-muted-foreground" />
           <span className="text-[15px] text-muted-foreground">Search community...</span>
@@ -219,13 +252,29 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
                         Unit {post.unit} &middot; {post.time}
                       </span>
                     </div>
+                    {/* PHASE 8 OWNS BOTH OF THESE — see the note at the top of
+                        this file. Disabled, not deleted: Phase 8's plan makes
+                        Pin a real manager act (a moderation migration plus a
+                        column-level trigger, because `posts_update_own` lets an
+                        AUTHOR pin their own post today) and replaces More with
+                        a real remove-post sheet. Re-enabling is swapping the
+                        handler back in.
+
+                        What could not stand another day is what they SAID.
+                        "Post pinned" was a `toast.success` over no write at
+                        all: `community_posts.is_pinned` exists, and nothing
+                        anywhere sets it. */}
                     {isManager ? (
-                      <button onClick={() => toast.success("Post pinned")} className="flex items-center gap-1 rounded-full bg-info/10 px-2.5 py-1 text-[11px] font-semibold text-info" aria-label="Pin post">
+                      <button
+                        disabled
+                        className="flex items-center gap-1 rounded-full bg-info/10 px-2.5 py-1 text-[11px] font-semibold text-info opacity-50"
+                        aria-label="Pin post — not available yet"
+                      >
                         <Pin className="h-3 w-3" />
                         Pin
                       </button>
                     ) : (
-                      <button onClick={() => toast("More options — coming soon")} className="p-1" aria-label="More options">
+                      <button disabled className="p-1 opacity-50" aria-label="More options — not available yet">
                         <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
                       </button>
                     )}
@@ -254,7 +303,22 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
                     <MessageCircle className="h-5 w-5 text-muted-foreground" />
                     <span className="text-[13px] text-muted-foreground">{post.comments}</span>
                   </button>
-                  <button onClick={() => toast.success("Link copied")} className="ml-auto">
+                  {/* PHASE 8 OWNS THIS, and its disposition is REMOVAL from
+                      the feed: there is no per-post route to copy. `/app` is
+                      one client-side screen switcher and `app/emergency/[code]`
+                      is the project's only dynamic route, so a shareable post
+                      link needs a new PUBLIC route serving building-scoped
+                      user content — the last thing to build in the phase that
+                      first ships user content. Share becomes real on Lost &
+                      Found instead, as share TEXT via navigator.share.
+
+                      Left in place per the phase reconciliation, disabled. It
+                      said `toast.success("Link copied")` and copied nothing:
+                      no clipboard call, no link, no URL. Of the three
+                      possible states — a real copy, no button, or a toast
+                      claiming a copy that did not happen — it was the worst
+                      one. */}
+                  <button disabled className="ml-auto opacity-50" aria-label="Share — not available yet">
                     <Share2 className="h-5 w-5 text-muted-foreground" />
                   </button>
                 </div>
@@ -369,10 +433,27 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
                       />
                     </div>
                     <span className="text-[12px] text-muted-foreground">
-                      {event.attendees}/{event.maxAttendees} going
+                      {event.attendees}/{event.maxAttendees}{" "}
+                      going
                     </span>
                   </div>
-                  <button onClick={() => toast.success("RSVP confirmed")} className="rounded-full bg-primary px-4 py-1.5 text-[13px] font-semibold text-primary-foreground transition-transform active:scale-[0.97]">
+                  {/* PHASE 8 OWNS THIS: `rsvpToEvent()`, toggling, with a live
+                      count. It also has to fix `event_rsvps`, whose only policy
+                      is `rsvps_self` (`profile_id = auth.uid()`) — so two
+                      seeded RSVPs on one event read as ONE to the resident AND
+                      to the manager, and the "{attendees}/{maxAttendees} going"
+                      line above can never be true until that is widened.
+
+                      Unreachable today (`useEvents()` is a `resolved([])` stub,
+                      and `events` holds 0 rows), which is exactly why
+                      `toast.success("RSVP confirmed")` had survived: nobody
+                      could ever see it lie. Disabled anyway — an unreachable
+                      false claim is still a false claim, and it is one grep
+                      away from being copied somewhere reachable. */}
+                  <button
+                    disabled
+                    className="rounded-full bg-primary px-4 py-1.5 text-[13px] font-semibold text-primary-foreground opacity-50"
+                  >
                     RSVP
                   </button>
                 </div>
