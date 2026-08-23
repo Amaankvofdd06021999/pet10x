@@ -121,6 +121,38 @@ export function groupByCategory(rules: BuildingRule[]): RuleGroup[] {
   return groups
 }
 
+/**
+ * "Updated 3d ago" — how current the thing the resident is reading is.
+ *
+ * Every rule card carries one (Decision 7). The screen does not poll and does
+ * not subscribe to realtime — text changing under a reader's eyes mid-sentence
+ * is worse for a legal document than being a minute stale — so the reader is
+ * told how old their copy is instead.
+ *
+ * `now` is injectable so this is testable without freezing the clock.
+ *
+ * `updated_at` is a `timestamptz`, NOT a date. That matters here: the last
+ * phase shipped four date-only values rendering one day early, because
+ * `new Date("2026-08-23")` is parsed as UTC midnight and then displayed in
+ * local time. A full timestamp carries its own offset and has no such hazard —
+ * but the distinction is worth stating, because the fix for a date column is
+ * different and this function must not be reused for one.
+ */
+export function relativeUpdated(iso: string, now: Date = new Date()): string {
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return "Updated recently"
+
+  const seconds = Math.max(0, (now.getTime() - then) / 1000)
+  if (seconds < 60) return "Updated just now"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `Updated ${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `Updated ${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `Updated ${days}d ago`
+  return `Updated ${new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+}
+
 /* ------------------------------------------------------------------------ */
 /* The OTHER thing — the machine-checked requirements                        */
 /* ------------------------------------------------------------------------ */

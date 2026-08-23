@@ -64,6 +64,14 @@ export const SCREEN_SURFACES = {
   "business-detail": BOTH,
   report: BOTH,
   shop: BOTH,
+  /* BOTH, not RESIDENT. `publish_building_rule` writes this target to the
+   * building's residents, so a resident must reach it — and a MANAGER must be
+   * able to open it too, to see precisely what their residents see. That is not
+   * a convenience: the manager's editor renders a preview, and a preview is a
+   * claim about another screen. Being able to open the real one is how the
+   * claim gets checked. It carries no id: the screen's subject is the viewer's
+   * own building, which comes from `my_building_link`, not from the target. */
+  "building-rules": BOTH,
   "my-bookings": BOTH,
   // Rendered in both blocks: managers have no Alerts tab, but the dashboard
   // bell routes here.

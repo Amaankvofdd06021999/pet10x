@@ -82,13 +82,18 @@ interface MenuItem {
  *                      app holding pet health records and home addresses needs
  *                      a real privacy policy, and no phase currently plans one.
  *
- * The two `unbuilt` rows are kept BECAUSE a named phase builds them, and both
- * of those plans already instruct their implementer to re-enable the row they
- * expect to find disabled here:
- *   Building Rules          → Phase 6 (2026-08-22-phase-6-building-rules.md:658)
+ * The `unbuilt` rows are kept BECAUSE a named phase builds them, and those
+ * plans instruct their implementer to re-enable the row they expect to find
+ * disabled here. Re-enabling one is deleting `unbuilt: true` and adding a line
+ * to `handleItem`.
+ *
+ *   Building Rules          → DONE, Phase 6. The row now opens
+ *                             `building-rules`, which shows this building's
+ *                             real compliance requirements and the house rules
+ *                             its manager published. NOTE FOR WHOEVER RUNS A
+ *                             LATER PASS OVER THIS FILE: it is deliberately no
+ *                             longer disabled.
  *   Accommodation Requests  → Phase 7 (2026-08-22-phase-7-accommodations.md:569)
- * Re-enabling either is deleting `unbuilt: true` and adding one line to
- * `handleItem`.
  */
 const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
   {
@@ -101,7 +106,7 @@ const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
   {
     title: "Building",
     items: [
-      { icon: Building2, label: "Building Rules", unbuilt: true },
+      { icon: Building2, label: "Building Rules" },
       { icon: Scale, label: "Violations & Fines" },
       { icon: FileText, label: "Accommodation Requests", unbuilt: true },
       { icon: Heart, label: "Favorite Services" },
@@ -193,6 +198,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const handleItem = (label: string) => {
     if (label.includes("Pet Profiles")) onNavigate?.("home")
     else if (label.includes("Documents")) onNavigate?.("pet-detail")
+    else if (label.includes("Building Rules")) onNavigate?.("building-rules")
     else if (label.includes("Violations")) onNavigate?.("my-cases")
     else if (label.includes("Favorite Services")) onNavigate?.("services")
   }

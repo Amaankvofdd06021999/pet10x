@@ -6,6 +6,7 @@ import {
   groupByCategory,
   readRequirements,
   legacyNoteDraft,
+  relativeUpdated,
   type BuildingRule,
   type BuildingRuleCategory,
 } from "./building-rules"
@@ -222,5 +223,30 @@ describe("legacyNoteDraft", () => {
   it("never copies the fine schedule into a rule body", () => {
     const draft = legacyNoteDraft({ notes: "See schedule.", fine_1_cents: 25000, fine_currency: "CAD" })
     expect(draft).toBe("Bylaw reference: See schedule.")
+  })
+})
+
+describe("relativeUpdated", () => {
+  const now = new Date("2026-08-23T12:00:00Z")
+
+  it.each([
+    ["2026-08-23T11:59:30Z", "Updated just now"],
+    ["2026-08-23T11:30:00Z", "Updated 30m ago"],
+    ["2026-08-23T09:00:00Z", "Updated 3h ago"],
+    ["2026-08-20T12:00:00Z", "Updated 3d ago"],
+  ])("%s → %s", (iso, expected) => {
+    expect(relativeUpdated(iso, now)).toBe(expected)
+  })
+
+  it("falls back to an absolute date past a week, with the year", () => {
+    expect(relativeUpdated("2026-07-04T12:00:00Z", now)).toMatch(/^Updated Jul 4, 2026$/)
+  })
+
+  it("never renders a negative age for a clock that is behind the server", () => {
+    expect(relativeUpdated("2026-08-23T12:05:00Z", now)).toBe("Updated just now")
+  })
+
+  it("says something honest for an unparseable timestamp rather than 'Invalid Date'", () => {
+    expect(relativeUpdated("not a date", now)).toBe("Updated recently")
   })
 })

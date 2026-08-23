@@ -44,23 +44,27 @@ const STATUS_CONFIG = {
  *
  * `unbuilt` marks a tile whose destination does not exist yet. It renders
  * visibly disabled and says so, rather than doing something that looks like
- * the feature.
+ * the feature. NO TILE IS CURRENTLY UNBUILT — the flag stays because the next
+ * phase to add a tile ahead of its screen should use it rather than reinvent
+ * it.
  *
- * Building Rules is the one such tile, and it was the worst control on this
- * screen: it toasted "One dog or one cat · leashed in common areas" as though
- * that were the viewer's building's policy. It is a string literal, identical
- * for all six buildings, and it is measurably WRONG for the flagship one:
- * Maple Court Residences' `buildings.pet_rules` records
- * `max_pets_per_unit: 2` (read live 2026-08-23). A resident was being told
- * their building allows one pet when its own record allows two. Fabricated
- * data is worse than an admitted gap.
+ * BUILDING RULES USED TO BE THE WORST CONTROL ON THIS SCREEN, and the history
+ * is worth keeping because it is the whole reason Phase 6 exists. It fired a
+ * `toast()` carrying a hardcoded sentence about one dog or one cat and leashes,
+ * presented as though it were the viewer's building's policy. It was a string
+ * literal, identical for all six buildings, and measurably WRONG for the
+ * flagship one: Maple Court Residences' `buildings.pet_rules` records
+ * `max_pets_per_unit: 2` (read live 2026-08-23), so a resident was told their
+ * building allows one pet when its own record allows two. Phase 3 disabled the
+ * tile rather than keep lying.
  *
- * PHASE 6 OWNS THIS. Its plan (`2026-08-22-phase-6-building-rules.md:657`)
- * builds a real `building-rules` screen and rewires this exact handler to
- * `onNavigate?.("building-rules")`. Re-enabling is deleting `unbuilt: true`.
+ * PHASE 6 BUILT THE REAL THING. The tile now opens `building-rules`, which
+ * renders that building's actual compliance requirements and the house rules
+ * its manager actually published — or an honest sentence when there are none.
+ * No sentence about any building's pet policy is written anywhere in this file.
  */
 const QUICK_ACTIONS: { icon: typeof Building2; label: string; color: string; unbuilt?: true }[] = [
-  { icon: Building2, label: "Building Rules", color: "bg-info/10 text-info", unbuilt: true },
+  { icon: Building2, label: "Building Rules", color: "bg-info/10 text-info" },
   { icon: AlertTriangle, label: "Report Incident", color: "bg-destructive/10 text-destructive" },
   { icon: Calendar, label: "Pet Events", color: "bg-primary/10 text-primary" },
   { icon: ShoppingBag, label: "Shop", color: "bg-accent/10 text-accent" },
@@ -127,7 +131,8 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   // silently become a claim.
   const handleQuickAction = (label: string) => {
     // Was a "coming soon" toast while the screen existed above it.
-    if (label.includes("Report")) onNavigate?.("report")
+    if (label.includes("Rules")) onNavigate?.("building-rules")
+    else if (label.includes("Report")) onNavigate?.("report")
     else if (label.includes("Shop")) onNavigate?.("shop")
     else if (label.includes("Events")) onNavigate?.("community")
   }

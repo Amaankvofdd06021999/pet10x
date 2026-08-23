@@ -21,6 +21,7 @@ import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
 import { LinkBuildingScreen } from "@/components/screens/link-building-screen"
 import { BusinessDetailScreen } from "@/components/screens/business-detail-screen"
 import { ShopScreen } from "@/components/screens/shop-screen"
+import { BuildingRulesScreen } from "@/components/screens/building-rules-screen"
 import { ReportScreen } from "@/components/screens/report/report-screen"
 import { MyBookingsScreen } from "@/components/screens/my-bookings-screen"
 import { ManagerDashboardScreen } from "@/components/screens/manager/dashboard-screen"
@@ -85,6 +86,12 @@ const CONTENT_MAX: Record<ScreenKey, string> = {
   "my-bookings": "max-w-2xl",
   shop: "max-w-3xl",
   report: "max-w-2xl",
+  /* A bylaw is prose and is read as a column, at the same width as every other
+     resident screen. Without an entry here the screen silently falls back to
+     max-w-2xl — which happens to be the same value, and that is exactly why the
+     entry is written rather than relied upon: `incidents` fell back for months
+     to a width that was wrong for it and nobody noticed. */
+  "building-rules": "max-w-2xl",
   dashboard: "max-w-5xl",
   residents: "max-w-5xl",
   violations: "max-w-5xl",
@@ -245,6 +252,11 @@ function AppContent() {
             <ShopScreen onNavigate={handleNavigate} />
           ) : currentScreen === "my-bookings" ? (
             <MyBookingsScreen onBack={handleBack} />
+          ) : currentScreen === "building-rules" ? (
+            /* Above the persona split, beside `report` and `shop`: a manager
+               opens the same screen their residents do, and sees the same
+               thing. */
+            <BuildingRulesScreen onBack={handleBack} onNavigate={handleNavigate} />
           ) : isManager ? (
             <>
               {currentScreen === "dashboard" && <ManagerDashboardScreen onNavigate={handleNavigate} />}

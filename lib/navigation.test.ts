@@ -13,9 +13,9 @@ describe("resolveActionTarget", () => {
   it("returns null for a screen the router does not render", () => {
     // The targets planned phases will write before their screens exist. Each
     // must produce NO button until the screen is registered here. `my-cases`
-    // WAS on this list and came off it in Phase 5, when the screen landed —
-    // see the routing test below.
-    expect(resolveActionTarget("building-rules", "resident")).toBeNull()
+    // WAS on this list and came off it in Phase 5, and `building-rules` came
+    // off it in Phase 6 — both when their screens landed. See the routing
+    // tests below.
     expect(resolveActionTarget("accommodations", "resident")).toBeNull()
   })
 
@@ -55,6 +55,23 @@ describe("resolveActionTarget", () => {
     // Bare, it still routes: the screen lists every case, and the id only
     // chooses which one opens expanded. It is ID_BEARING, not ID_REQUIRED.
     expect(resolveActionTarget("my-cases", "resident")).toEqual({ screen: "my-cases" })
+  })
+
+  it("routes building-rules, which Phase 6 built and publish_building_rule writes", () => {
+    /* `publish_building_rule` writes a bare `building-rules` to every approved,
+       non-suspended resident of the building, with a NULL action_label —
+       alerts-screen.tsx falls back to "Open". */
+    expect(resolveActionTarget("building-rules", "resident")).toEqual({ screen: "building-rules" })
+    /* BOTH surfaces, unlike `my-cases`. A manager opens the same screen their
+       residents do, which is how the editor's preview gets checked against the
+       real thing. */
+    expect(resolveActionTarget("building-rules", "manager")).toEqual({ screen: "building-rules" })
+    /* It is NOT id-bearing: the subject is the viewer's own building, from
+       `my_building_link`, so a stray id must be dropped rather than stashed in
+       `selectedPetId` for whatever screen opens next. */
+    expect(resolveActionTarget("building-rules:b41968f8-f45c-4a2b-a644-e94311100faf", "resident")).toEqual({
+      screen: "building-rules",
+    })
   })
 
   it("returns null for a screen whose whole subject is an id it was not given", () => {
