@@ -58,6 +58,13 @@ export function FineScheduleEditor({
     second !== formatCentsForInput(initial.fine_2) ||
     currency.toUpperCase() !== initial.currency
 
+  /* Whether this building HAS a schedule, as opposed to having just saved one.
+     The idle button used to read "Fine schedule saved" for every building,
+     including the five that have never had one — a claim about a save that
+     never happened, on the exact screen whose job is to make the absence
+     visible. Found by opening the strata portal and reading it. */
+  const hasSchedule = initial.fine_1 !== null || initial.fine_2 !== null
+
   async function save() {
     /* One guard, not three. `blocked` is a const boolean alias for
      * `firstParsed === "invalid" || secondParsed === "invalid" || !currencyOk`,
@@ -98,6 +105,7 @@ export function FineScheduleEditor({
 
       <div className="grid gap-2.5 sm:grid-cols-2">
         <AmountField
+          id="fine-first"
           label="First offence"
           value={first}
           onChange={setFirst}
@@ -105,6 +113,7 @@ export function FineScheduleEditor({
           currency={currency}
         />
         <AmountField
+          id="fine-second"
           label="Second offence"
           value={second}
           onChange={setSecond}
@@ -156,29 +165,42 @@ export function FineScheduleEditor({
         className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-warning px-4 py-2 text-[13px] font-semibold text-warning-foreground transition-colors disabled:opacity-50"
       >
         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-        {dirty ? "Save fine schedule" : "Fine schedule saved"}
+        {dirty ? "Save fine schedule" : hasSchedule ? "Fine schedule saved" : "No fine schedule set"}
       </button>
     </div>
   )
 }
 
 function AmountField({
+  id,
   label,
   value,
   onChange,
   parsed,
   currency,
 }: {
+  /* An EXPLICIT id, not one derived from `label`.
+   *
+   * This was `id={`fine-${label}`}`, which produced `id="fine-First offence"`.
+   * An id containing whitespace is invalid HTML: `getElementById` finds it, so
+   * it looks fine, but `document.querySelector("#fine-First offence")` cannot
+   * address it and — the part that matters — `<label htmlFor>` emits the same
+   * broken value, so THE LABEL NEVER ASSOCIATES WITH THE INPUT. Tapping the
+   * label does not focus the field and a screen reader announces the input
+   * unnamed. `tsc`, `pnpm build`, the test suite and the JSX-space check all
+   * passed on it; a browser could not select the field at all, which is how it
+   * was found. */
+  id: string
   label: string
-  value: string
   onChange: (v: string) => void
+  value: string
   parsed: Parsed
   currency: string
 }) {
   const bad = parsed === "invalid"
   return (
     <div>
-      <label className="mb-1 block text-[11.5px] font-semibold text-muted-foreground" htmlFor={`fine-${label}`}>
+      <label className="mb-1 block text-[11.5px] font-semibold text-muted-foreground" htmlFor={id}>
         {label}
       </label>
       <div className="relative">
@@ -186,7 +208,7 @@ function AmountField({
           $
         </span>
         <input
-          id={`fine-${label}`}
+          id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           inputMode="decimal"
