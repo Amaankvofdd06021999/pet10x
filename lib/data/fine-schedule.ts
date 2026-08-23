@@ -138,6 +138,40 @@ export function formatCentsForInput(cents: number | null | undefined): string {
   return `${whole}.${String(frac).padStart(2, "0")}`
 }
 
+/** The three keys the schedule occupies inside `buildings.pet_rules`. */
+export const FINE_SCHEDULE_KEYS = ["fine_1_cents", "fine_2_cents", "fine_currency"] as const
+
+/**
+ * A copy of `pet_rules` with the fine schedule removed.
+ *
+ * WHAT THIS IS FOR. Three surfaces round-trip the WHOLE `pet_rules` object —
+ * both bylaw editors and the strata portal's template BulkApply — and none of
+ * them means to write the schedule; the keys are just along for the ride. Two
+ * consequences follow, and this function is the client half of both:
+ *
+ *   1. A toggle editor that holds the schedule in its local state compares that
+ *      stale copy against a refetched building and decides it has UNSAVED
+ *      CHANGES the moment somebody saves a schedule. The "Save bylaws" button
+ *      lights up over an edit nobody made.
+ *
+ *   2. A template saved from building A would carry A's fine schedule in
+ *      localStorage and try to apply it to building B. `buildings_fine_schedule_
+ *      guard` refuses that in the database — it restores B's own values — but a
+ *      template that silently contains another building's prices is a thing
+ *      nobody should be storing in the first place.
+ *
+ * The DATABASE is the enforcement point either way: the guard makes every one of
+ * those writes incapable of moving the schedule, whatever the client sends. This
+ * is what stops the client from sending it at all, so the guard is a backstop
+ * rather than the only thing standing between a template and a building's
+ * prices.
+ */
+export function stripFineSchedule<T extends object>(rules: T): T {
+  const out: Record<string, unknown> = { ...(rules as Record<string, unknown>) }
+  for (const k of FINE_SCHEDULE_KEYS) delete out[k]
+  return out as T
+}
+
 /** "$250.00 CAD" — the one way this module renders an amount for reading. */
 export function formatFineAmount(cents: number | null | undefined, currency: string): string {
   if (cents == null) return "Not set"

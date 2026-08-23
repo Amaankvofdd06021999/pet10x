@@ -155,6 +155,121 @@ export function useManagerBuildingRules(buildingId: string | undefined): LiveRes
   return { data, isLoading, error, refetch }
 }
 
+/**
+ * One building's `pet_rules` jsonb — the MACHINE-CHECKED half of the resident's
+ * screen.
+ *
+ * `buildings_select` is `is_resident_of(id) or manages_building(id) or
+ * is_admin()`, so an approved resident may read their own building's row and
+ * only that one. Verified by impersonating `resident1@pet10x.com`: exactly one
+ * building, full jsonb.
+ *
+ * The resident's screen needs this because the compliance requirements are the
+ * content that is ALWAYS there. Without them, a building whose manager has
+ * published nothing gets a blank page; with them the page is full of true
+ * things and one honest sentence about what has not been written yet.
+ */
+export function useBuildingPetRules(buildingId: string | undefined): LiveResult<unknown> {
+  const [data, setData] = useState<unknown>(null)
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase || !buildingId) {
+      setData(null)
+      setLoading(false)
+      return
+    }
+    const { data: row, error: err } = await supabase
+      .from("buildings")
+      .select("pet_rules")
+      .eq("id", buildingId)
+      .maybeSingle()
+
+    if (err) {
+      setError(err.message)
+      setData(null)
+    } else {
+      setData(row?.pet_rules ?? null)
+      setError(null)
+    }
+    setLoading(false)
+  }, [buildingId])
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+
+  return { data, isLoading, error, refetch }
+}
+
+/**
+ * How many people a publish would actually notify.
+ *
+ * This must be THE SAME SET `publish_building_rule` inserts for — approved
+ * links, non-suspended profiles, deduplicated — or the editor promises a number
+ * the database does not deliver. A count that is merely close is worse than no
+ * count: a manager who is told 9 and sees 8 delivered has no way to tell which
+ * is the bug.
+ *
+ * Two queries rather than one embedded join, deliberately. `resident_links` has
+ * THREE foreign keys to `profiles` (`profile_id`, `decided_by`,
+ * `info_requested_by`), so a PostgREST `profiles!inner(...)` embed is ambiguous
+ * and has to be disambiguated by constraint name — a string that breaks
+ * silently, returning an error the UI would render as "0 residents". Two plain
+ * queries cannot be ambiguous.
+ *
+ * A manager can read both: `links_select` admits `manages_building(building_id)`,
+ * and the profiles read is scoped to ids that query already returned. Verified
+ * by impersonation — 9 links, 9 after the suspension filter, matching the RPC's
+ * own `notified: 9`.
+ */
+export function useApprovedResidentCount(buildingId: string | undefined): number | null {
+  const [count, setCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const supabase = getSupabaseBrowserClient()
+      if (!supabase || !buildingId) {
+        if (!cancelled) setCount(null)
+        return
+      }
+      const { data: links, error } = await supabase
+        .from("resident_links")
+        .select("profile_id")
+        .eq("building_id", buildingId)
+        .eq("status", "approved")
+      if (error || !links) {
+        // No number beats a wrong number. The checkbox still works; it just
+        // does not claim a recipient count it could not verify.
+        if (!cancelled) setCount(null)
+        return
+      }
+      // DISTINCT, because a resident who left and rejoined holds more than one
+      // row — resident1@pet10x.com holds two at Maple Court Residences today.
+      // `publish_building_rule` selects distinct for the same reason.
+      const ids = [...new Set(links.map((l) => l.profile_id))]
+      if (ids.length === 0) {
+        if (!cancelled) setCount(0)
+        return
+      }
+      const { count: live, error: perr } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .in("id", ids)
+        .eq("is_suspended", false)
+      if (!cancelled) setCount(perr ? null : live ?? null)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [buildingId])
+
+  return count
+}
+
 /* ------------------------------------------------------------------------ */
 /* Mutations — thin wrappers over the three RPCs                             */
 /* ------------------------------------------------------------------------ */

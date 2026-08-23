@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest"
 import {
   readFineSchedule,
+  stripFineSchedule,
+  FINE_SCHEDULE_KEYS,
   parseAmountToCents,
   formatCentsForInput,
   formatFineAmount,
@@ -172,5 +174,43 @@ describe("formatFineAmount", () => {
   })
   it("renders an amount with its currency", () => {
     expect(formatFineAmount(25000, "cad")).toBe("$250.00 CAD")
+  })
+})
+
+describe("stripFineSchedule", () => {
+  it("removes exactly the three schedule keys and nothing else", () => {
+    const petRules = {
+      requires_registry: true,
+      max_weight_kg: 25,
+      notes: "Bylaw 3(4).",
+      fine_1_cents: 25000,
+      fine_2_cents: 50000,
+      fine_currency: "CAD",
+    }
+    expect(stripFineSchedule(petRules)).toEqual({
+      requires_registry: true,
+      max_weight_kg: 25,
+      notes: "Bylaw 3(4).",
+    })
+  })
+
+  it("does not mutate its input — the caller's object is still the building's", () => {
+    const petRules = { require_rabies: true, fine_1_cents: 25000 }
+    stripFineSchedule(petRules)
+    expect(petRules.fine_1_cents).toBe(25000)
+  })
+
+  it("is a no-op on an object that never had a schedule", () => {
+    expect(stripFineSchedule({ require_rabies: true })).toEqual({ require_rabies: true })
+    expect(stripFineSchedule({})).toEqual({})
+  })
+
+  it("leaves nothing readFineSchedule can find", () => {
+    const stripped = stripFineSchedule({ fine_1_cents: 25000, fine_2_cents: 50000, fine_currency: "USD" })
+    expect(readFineSchedule(stripped)).toEqual({ fine_1: null, fine_2: null, currency: "CAD" })
+  })
+
+  it("names the same three keys manager_set_fine_schedule writes", () => {
+    expect([...FINE_SCHEDULE_KEYS]).toEqual(["fine_1_cents", "fine_2_cents", "fine_currency"])
   })
 })

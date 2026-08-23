@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { updateMyBuildingRules } from "@/lib/data/manager"
+import { stripFineSchedule } from "@/lib/data/fine-schedule"
+import { FineScheduleEditor } from "@/components/screens/manager/fine-schedule-editor"
 import { computeCompliance } from "@/lib/data/live"
 import type { PetRules } from "@/lib/data/admin"
 import type { PortfolioBuilding, PetComplianceInput } from "@/lib/data/portfolio"
@@ -42,11 +44,23 @@ export function BuildingBylawsEditor({
   pets: PetComplianceInput[]
   onSaved?: () => void
 }) {
-  const [rules, setRules] = useState<PetRules>(building.rules ?? {})
+  /* The fine schedule is stripped out of everything this editor owns.
+   *
+   * It is three keys in the same `pet_rules` jsonb, and this component holds a
+   * WHOLE-OBJECT copy in state — so without the strip, saving a schedule below
+   * would leave this copy stale and `dirty` would go true over an edit nobody
+   * made, lighting up "Save bylaws" for no reason. Stripping also means the
+   * object this component sends never contains the schedule at all, so
+   * `buildings_fine_schedule_guard` is a backstop rather than the only thing
+   * keeping a toggle save from carrying prices around.
+   *
+   * The schedule has its own editor and its own save, below the divider. */
+  const baseline = useMemo(() => stripFineSchedule(building.rules ?? {}), [building.rules])
+  const [rules, setRules] = useState<PetRules>(() => stripFineSchedule(building.rules ?? {}))
   const [saving, setSaving] = useState(false)
 
-  const dirty = JSON.stringify(rules) !== JSON.stringify(building.rules ?? {})
-  const impact = useMemo(() => impactOf(pets, building.rules ?? {}, rules), [pets, building.rules, rules])
+  const dirty = JSON.stringify(rules) !== JSON.stringify(baseline)
+  const impact = useMemo(() => impactOf(pets, baseline, rules), [pets, baseline, rules])
 
   async function save() {
     setSaving(true)
@@ -112,6 +126,13 @@ export function BuildingBylawsEditor({
         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
         {dirty ? "Save bylaws" : "Saved"}
       </button>
+
+      {/* Decision 8: the schedule lives in the bylaws surface, because a manager
+          asking "what does a second offence cost here" looks under Bylaws — but
+          it is money, so it gets its own block, its own save and its own RPC.
+          Nobody changes what a fine costs as a side effect of toggling "rabies
+          required". Same component as the in-app manager's BylawsSheet uses. */}
+      <FineScheduleEditor buildingId={building.id} petRules={building.rules} onSaved={onSaved} />
     </div>
   )
 }
