@@ -42,6 +42,10 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
+import { FineScheduleEditor } from "./fine-schedule-editor"
+import { BuildingRulesEditor } from "./building-rules-editor"
+import { useManagerBuildingRules } from "@/lib/data/building-rules-live"
+import { stripFineSchedule } from "@/lib/data/fine-schedule"
 
 /** Menu items that don't have a real destination yet — kept, but honestly labelled. */
 const UNBUILT: { icon: typeof Bell; label: string; section: string }[] = [
@@ -67,12 +71,17 @@ const RULE_TOGGLES: { key: keyof PetRules; label: string }[] = [
   { key: "require_spay_neuter", label: "Spay/neuter required" },
 ]
 
-type Sheet = "profile" | "bylaws" | "qr" | null
+type Sheet = "profile" | "bylaws" | "rules" | "qr" | null
 
 export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const { user, signOut, activeBuildingId, viewAs } = useAuth()
   const { data: building, isLoading, refetch } = useManagerBuilding(activeBuildingId)
   const { data: stats, isLoading: statsLoading } = useBuildingStats(building?.id)
+  /* Read here rather than inside the sheet so the menu row can show the real
+     count without opening it. `building?.id` is undefined until the building
+     resolves, and the hook queries nothing until it does. */
+  const { data: houseRules } = useManagerBuildingRules(building?.id)
+  const publishedRules = houseRules.filter((r) => r.isPublished).length
   const [sheet, setSheet] = useState<Sheet>(null)
 
   return (
@@ -139,6 +148,17 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
               detail={`${RULE_TOGGLES.filter((r) => building.rules[r.key]).length} rules active`}
               onClick={() => setSheet("bylaws")}
             />
+            {/* AD-9. Deliberately a SEPARATE row from "Pet Bylaws & Policies"
+                above it: that sheet holds the six compliance toggles a machine
+                checks, this one holds written notices nothing scores. A single
+                row for both is how a manager ends up typing a house rule into
+                a field that moves somebody's compliance percentage. */}
+            <MenuRow
+              icon={FileText}
+              label="House Rules"
+              detail={publishedRules > 0 ? `${publishedRules} published` : "None published"}
+              onClick={() => setSheet("rules")}
+            />
             <MenuRow icon={QrCode} label="Emergency QR Code" detail="Issue / revoke" onClick={() => setSheet("qr")} last />
           </MenuSection>
         )}
@@ -200,7 +220,20 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
             setSheet(null)
             refetch()
           }}
+          /* The fine schedule refetches WITHOUT closing the sheet. Saving one
+             block of a two-block sheet must not dismiss the other; the toggles'
+             own save still closes, because that is the sheet's main action. */
+          onScheduleSaved={refetch}
         />
+      )}
+      {building && sheet === "rules" && (
+        <Sheet title="House Rules" onClose={() => setSheet(null)}>
+          <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
+            Written notices residents read in their account &mdash; parking, noise, waste, common areas. These are
+            statements, not compliance checks: nothing here changes a resident&apos;s score.
+          </p>
+          <BuildingRulesEditor buildingId={building.id} buildingName={building.name} petRules={building.rules} />
+        </Sheet>
       )}
       {building && sheet === "qr" && <EmergencyQrSheet buildingId={building.id} onClose={() => setSheet(null)} />}
     </div>
@@ -308,12 +341,20 @@ function BylawsSheet({
   building,
   onClose,
   onSaved,
+  onScheduleSaved,
 }: {
   building: NonNullable<ReturnType<typeof useManagerBuilding>["data"]>
   onClose: () => void
   onSaved: () => void
+  onScheduleSaved: () => void
 }) {
-  const [rules, setRules] = useState<PetRules>(building.rules)
+  /* Stripped, for the same reason bylaws-editor.tsx strips it: this component
+     holds a WHOLE-OBJECT copy of `pet_rules` in state and saves it back, so
+     without this a schedule saved in the block below would be overwritten by a
+     stale copy on the next "Publish bylaws". `buildings_fine_schedule_guard`
+     restores it either way, but the object this sheet sends should not contain
+     prices it does not own. */
+  const [rules, setRules] = useState<PetRules>(() => stripFineSchedule(building.rules))
   const [busy, setBusy] = useState(false)
 
   async function save() {
@@ -370,6 +411,12 @@ function BylawsSheet({
       </div>
 
       <SheetButton onClick={save} busy={busy} label="Publish bylaws" />
+
+      {/* Decision 8: same component the strata portal mounts, below its own
+          divider with its own save. It calls manager_set_fine_schedule, never
+          updateMyBuildingRules — what a fine costs does not change as a side
+          effect of toggling "rabies required". */}
+      <FineScheduleEditor buildingId={building.id} petRules={building.rules} onSaved={onScheduleSaved} />
     </Sheet>
   )
 }
