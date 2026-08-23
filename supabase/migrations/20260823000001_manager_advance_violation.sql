@@ -243,10 +243,11 @@ begin
         when 'resolved'  then 'Your bylaw case is closed'
         when 'dismissed' then 'Your bylaw case was dismissed'
       end,
-      -- "your unit" is only said when the case actually names one. Two of the
-      -- thirteen live violations have a resident but a null unit_id, and
-      -- telling one of those residents a fine was issued "against your unit"
-      -- names a thing the record does not contain.
+      -- "your unit" is only said when the case actually names one. One of the
+      -- thirteen live violations has a resident but a null unit_id (a second
+      -- has neither, so it never reaches here), and telling that resident a
+      -- fine was issued "against your unit" names a thing the record does not
+      -- contain.
       case
         when p_to_stage in ('fine_1', 'fine_2') then
           'A fine of ' || to_char(v_amount / 100.0, 'FM999999990.00')
