@@ -50,13 +50,31 @@ export function ReportScreen({ onBack }: { onBack: () => void }) {
   /* The composer brings its own header — title, building name, progress and a
      back button that walks the steps. Stacking the app's nav bar on top of it
      would put two bars and two back arrows on one screen, meaning different
-     things. So the composer takes over the screen for the building path. */
+     things. So the composer takes over the screen for the building path.
+
+     Taking the viewport means taking responsibility for the tab bar. `IOSTabBar`
+     is `fixed bottom-0 z-50 h-16` and `app/app/page.tsx` renders it for every
+     authenticated screen, this one included; the composer's own `<main>` is a
+     scroll container ending in `pb-8`, so at full scroll its last element — on
+     the pet step, the only Continue/Skip button — would sit under the bar. The
+     form the deleted `BuildingReport` used was `pb-24` on the shared `<main>`;
+     this is the same clearance stated the way `ai-chat-screen.tsx` states it,
+     the bar's own 64px plus the home indicator, dropped at the `md` breakpoint
+     where the bar itself is hidden. */
   if (view === "building" && building) {
     return (
-      <div className="flex min-h-dvh flex-col bg-background">
+      <div className="flex min-h-dvh flex-col bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
         <IncidentComposer
           building={building}
-          defaultAnonymous={false}
+          /* Anonymous by default, as the form this replaced was.
+
+             A resident reports someone they will keep sharing a lift with. The
+             safer default is the one they opt out of, not into — and the
+             summary step shows the toggle plainly before anything is sent, so
+             attaching their name stays one tap away. Flipping this to `false`
+             as a side effect of merging two screens would have quietly made a
+             privacy default less protective. */
+          defaultAnonymous
           onBack={() => setView("choose")}
           onDone={onBack}
         />

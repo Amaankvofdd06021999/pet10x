@@ -172,13 +172,30 @@ export async function myBuildingCode(): Promise<{ code: string; name: string } |
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: link } = await supabase
+  /**
+   * A resident may hold more than one live link — they moved, or they asked to
+   * join a second building and the first was never closed out. `maybeSingle()`
+   * treated that as an error and returned nothing, so someone with an approved
+   * link and a stray pending one was told "You're not linked to a building
+   * yet" and could not reach the report flow at all. Four of the profiles in
+   * this database are in exactly that state, every one of them approved
+   * somewhere.
+   *
+   * Approved wins over pending, then the oldest — the building they actually
+   * live in, not the one they most recently enquired about. The preference is
+   * expressed here rather than as `.order("status")` because the enum is
+   * declared `pending, approved, …`, so ordering by it ascending would pick
+   * the pending link: the wrong one, silently.
+   */
+  const { data: links } = await supabase
     .from("resident_links")
-    .select("building_id")
+    .select("building_id, status")
     .eq("profile_id", user.id)
     .in("status", ["pending", "approved"])
     .is("left_at", null)
-    .maybeSingle()
+    .order("created_at", { ascending: true })
+
+  const link = links?.find((l) => l.status === "approved") ?? links?.[0]
   if (!link?.building_id) return null
 
   const { data: b } = await supabase

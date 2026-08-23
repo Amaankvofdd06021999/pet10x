@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import Image from "next/image"
-import { toast } from "sonner"
 import { DonateSpcaLink } from "@/components/donate-spca"
 import { PICKER_ACCEPT, prepareChatImage } from "@/lib/ai/image"
 import { reportablePetsSigned, uploadEvidence } from "@/lib/data/evidence"
@@ -341,8 +340,17 @@ export function IncidentComposer({
         evidencePaths: paths.length > 0 ? paths : undefined,
         anonymous: isAnonymous,
       })
+      // The recovery panel, not a toast. `bad_evidence_path` tells the reporter
+      // "try sending without them" — and until this line, `uploadFailed` was set
+      // only by an *upload* failure, so the "Send without photos" button they
+      // were being pointed at never appeared. They were named an action they had
+      // no control for, and retrying reproduced the same rejection forever; the
+      // only way out was walking back to step 2 and deleting the photos one by
+      // one. The same line fixes the quieter case: a send that fails after the
+      // reporter already chose "send without photos" used to clear the panel and
+      // leave a toast that faded.
       if (!res.ok) {
-        toast.error("Couldn't file the report", { description: res.error })
+        setUploadFailed(res.error ?? "Couldn't file the report.")
         return
       }
       // Recorded before the success screen renders, because the success screen
@@ -447,36 +455,47 @@ export function IncidentComposer({
 
   return (
     <div className="flex flex-1 flex-col">
-      {/* Nav */}
-      <div className="sticky top-0 z-40 border-b border-border bg-card/80 px-4 py-3 backdrop-blur-xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={goBack}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-muted transition-transform active:scale-95"
-              aria-label="Go back"
-            >
-              <ArrowLeft className="h-4 w-4 text-foreground" />
-            </button>
-            <div>
-              <h1 className="text-[17px] font-semibold text-foreground">Report Incident</h1>
-              <p className="text-[12px] text-muted-foreground">{building.name}</p>
-            </div>
-          </div>
-          {headerAction}
-        </div>
+      {/* Nav.
 
-        {/* Progress bar */}
-        <div className="mt-3 flex gap-2">
-          {ORDER.map((s, i) => (
-            <div key={s} className="flex-1">
-              <div
-                className={`h-1 rounded-full transition-all ${
-                  ORDER.indexOf(step) >= i ? "bg-primary" : "bg-muted"
-                }`}
-              />
+          `pt-safe` on the sticky element, padding on the child — the shape
+          `IOSNavBar` and every other full-viewport header in the app uses. The
+          guest screen renders at /report with nothing above it, and the layout
+          sets `viewportFit: "cover"`, so without the inset the title and the
+          Exit button fall under the Dynamic Island on the exact device this
+          feature is for: someone scanning a code in a lobby. It resolves to
+          zero everywhere there is no inset, which is why the child keeps the
+          `py-3` that sets the bar's height. */}
+      <div className="sticky top-0 z-40 border-b border-border bg-card/80 pt-safe backdrop-blur-xl">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={goBack}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-muted transition-transform active:scale-95"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="h-4 w-4 text-foreground" />
+              </button>
+              <div>
+                <h1 className="text-[17px] font-semibold text-foreground">Report Incident</h1>
+                <p className="text-[12px] text-muted-foreground">{building.name}</p>
+              </div>
             </div>
-          ))}
+            {headerAction}
+          </div>
+
+          {/* Progress bar */}
+          <div className="mt-3 flex gap-2">
+            {ORDER.map((s, i) => (
+              <div key={s} className="flex-1">
+                <div
+                  className={`h-1 rounded-full transition-all ${
+                    ORDER.indexOf(step) >= i ? "bg-primary" : "bg-muted"
+                  }`}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
