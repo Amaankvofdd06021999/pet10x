@@ -73,7 +73,9 @@ const ALERT_DOT = {
 } as const
 
 interface HomeScreenProps {
-  onNavigate?: (screen: string, petId?: string) => void
+  /* Third argument is the pet to open the tracker ON. `id` is already the care
+     kind for `pet-care`, so a schedule row needs its own slot to say "Lola". */
+  onNavigate?: (screen: string, id?: string, petId?: string) => void
 }
 
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
@@ -87,9 +89,8 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const suggestions = useAiSuggestions()
   const { greeting, icon: GreetingIcon } = getGreeting()
   /* Which pet the GOALS are about — chosen, remembered, and shared with the
-     Trackers screen. Never the first pet in the list: that was simply the
-     oldest animal, and in
-     71% of households it silently spoke for the others. */
+     Trackers screen. Never just the first pet in the list: that was simply the
+     oldest animal, and in 71% of households it silently spoke for the others. */
   const { pet: selectedPet, select: selectPet } = useSelectedPet()
   const singlePet = pets.length === 1
 
@@ -341,7 +342,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                     {singlePet && selectedPet
                       ? `Log ${selectedPet.name}'s activities & meals`
                       : pets.length > 1
-                        ? "Everyone's schedule, and one pet's goals"
+                        ? // Short enough to survive `truncate` at 390px, which
+                          // "Everyone's schedule, and one pet's goals" was not
+                          // — it rendered as "…and one pet's g…".
+                          "Everyone's day, one pet's goals"
                         : "Log your pet's activities & meals"}
                   </p>
                 </div>
@@ -357,7 +361,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 two cats is true when one ate everything and the other ate
                 nothing. The tiles used to sit on top, which left the reader to
                 infer that split; showing it puts the risk first. */}
-            <TodayScheduleStrip pets={pets} />
+            <TodayScheduleStrip
+              pets={pets}
+              onOpenPet={(petId) => onNavigate?.("pet-care", undefined, petId)}
+            />
 
             {/* Goals belong to a pet you chose. With one pet the heading says
                 whose and there are no chips — a picker with one option is

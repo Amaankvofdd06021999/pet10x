@@ -92,6 +92,8 @@ function AppContent() {
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | undefined>(undefined)
   // Which tracker tab to open when arriving from a Today's Care tile.
   const [careKind, setCareKind] = useState<string | undefined>(undefined)
+  // Which PET to open the tracker on, when arriving from a schedule row.
+  const [carePetId, setCarePetId] = useState<string | undefined>(undefined)
 
   // Reset tabs when user/role changes (e.g. after sign-in)
   useEffect(() => {
@@ -147,12 +149,21 @@ function AppContent() {
     )
   }
 
-  // `id` is polymorphic: a business id for the services flow, otherwise a pet id.
-  const handleNavigate = (screen: string, id?: string) => {
+  /* `id` is polymorphic: a business id for the services flow, otherwise a pet id.
+   *
+   * `petId` is a third, OPTIONAL parameter rather than a fourth meaning loaded
+   * onto `id`, because for the tracker `id` is already spoken for — it is the
+   * care kind a Today's Care tile lands on. A schedule row needs to carry both
+   * ("open Lola, on no particular tab"), and every existing call site still
+   * compiles because the parameter is optional. */
+  const handleNavigate = (screen: string, id?: string, petId?: string) => {
     if (screen === "business-detail") setSelectedBusinessId(id)
     // For the tracker the id is a care kind, not a pet — a Today's Care tile
     // says which tab to land on.
-    else if (screen === "pet-care") setCareKind(id)
+    else if (screen === "pet-care") {
+      setCareKind(id)
+      setCarePetId(petId)
+    }
     else if (id !== undefined) setSelectedPetId(id)
     // Entering the assistant from the FAB or the sidebar carries no pet, and a
     // pet left over from an earlier screen would silently scope the answer.
@@ -188,7 +199,12 @@ function AppContent() {
           ) : currentScreen === "add-pet" ? (
             <AddPetScreen onBack={handleBack} onNavigate={handleNavigate} />
           ) : currentScreen === "pet-care" ? (
-            <PetCareScreen onBack={handleBack} onNavigate={handleNavigate} initialKind={careKind} />
+            <PetCareScreen
+              onBack={handleBack}
+              onNavigate={handleNavigate}
+              initialKind={careKind}
+              initialPetId={carePetId}
+            />
           ) : currentScreen === "ai-chat" ? (
             <AiChatScreen onBack={handleBack} petId={selectedPetId} />
           ) : currentScreen === "link-building" ? (

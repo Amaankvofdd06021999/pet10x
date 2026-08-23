@@ -47,7 +47,16 @@ const MAX_GROUPS = 4
    nothing on any day a household has no tasks — and on every empty account. */
 const SHELL = "mt-3 border-b border-border pb-4"
 
-export function TodayScheduleStrip({ pets }: { pets: Pet[] }) {
+export function TodayScheduleStrip({
+  pets,
+  onOpenPet,
+}: {
+  pets: Pet[]
+  /** Open this pet's tracker. Given only the LABEL is a hit target for it —
+   *  a tick that also navigated would throw you off Home every time you fed
+   *  the dog. */
+  onOpenPet?: (petId: string) => void
+}) {
   const { data: tasks, isLoading, refetch } = useHouseholdCareTasks(pets.map((p) => p.id))
   const [busyId, setBusyId] = useState<string | null>(null)
 
@@ -132,12 +141,16 @@ export function TodayScheduleStrip({ pets }: { pets: Pet[] }) {
                 key={t.id}
                 task={t}
                 pet={multiPet ? byId.get(t.petId) : undefined}
+                /* The row shows no name in a one-pet home, but the control
+                   still knows whose tracker it opens. */
+                petName={byId.get(t.petId)?.name}
                 overdue={group.overdue}
                 tick={renderTick(t)}
+                onOpenPet={onOpenPet}
               />
             ))
           ) : (
-            <GroupRows group={group} byId={byId} renderTick={renderTick} />
+            <GroupRows group={group} byId={byId} renderTick={renderTick} onOpenPet={onOpenPet} />
           )}
         </div>
       ))}
@@ -158,13 +171,19 @@ export function TodayScheduleStrip({ pets }: { pets: Pet[] }) {
 function SingleRow({
   task,
   pet,
+  petName,
   overdue,
   tick,
+  onOpenPet,
 }: {
   task: ScheduledCareTask
+  /** Set only when the row should SHOW the pet — i.e. a multi-pet household. */
   pet?: Pet
+  /** Always set when the pet is known, shown or not. */
+  petName?: string
   overdue: boolean
   tick: React.ReactNode
+  onOpenPet?: (petId: string) => void
 }) {
   return (
     <div className="flex items-center gap-2.5 px-3 py-2">
@@ -173,9 +192,12 @@ function SingleRow({
       ) : (
         <Clock className={`h-3.5 w-3.5 flex-shrink-0 ${overdue ? "text-destructive" : "text-muted-foreground"}`} />
       )}
-      <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-foreground">
-        {pet ? `${pet.name} · ${task.label}` : task.label}
-      </span>
+      <RowLabel
+        text={pet ? `${pet.name} · ${task.label}` : task.label}
+        petId={task.petId}
+        petName={petName}
+        onOpenPet={onOpenPet}
+      />
       <span
         className={`flex-shrink-0 text-[11px] font-semibold ${overdue ? "text-destructive" : "text-muted-foreground"}`}
       >
@@ -204,10 +226,12 @@ function GroupRows({
   group,
   byId,
   renderTick,
+  onOpenPet,
 }: {
   group: HouseholdTaskGroup
   byId: Map<string, Pet>
   renderTick: (task: ScheduledCareTask) => React.ReactNode
+  onOpenPet?: (petId: string) => void
 }) {
   const time = group.scheduledAt ? formatTime(group.scheduledAt) : "All day"
   return (
@@ -229,13 +253,50 @@ function GroupRows({
         return (
           <div key={task.id} className="flex items-center gap-2.5 py-1 pl-8 pr-3 last:pb-2">
             {pet && <PetAvatar pet={pet} />}
-            <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-foreground">
-              {pet?.name ?? task.label}
-            </span>
+            <RowLabel
+              text={pet?.name ?? task.label}
+              petId={task.petId}
+              petName={pet?.name}
+              onOpenPet={onOpenPet}
+            />
             {renderTick(task)}
           </div>
         )
       })}
     </>
+  )
+}
+
+/**
+ * The part of a row you can tap to open that pet.
+ *
+ * Deliberately a SEPARATE hit target from the tick beside it. Marking
+ * Breakfast done and going to look at Lola's chart are different intentions,
+ * and a row where either tap navigated would throw you off Home every morning.
+ *
+ * Falls back to plain text when there is nowhere to go, so a control that
+ * cannot act never exists.
+ */
+function RowLabel({
+  text,
+  petId,
+  petName,
+  onOpenPet,
+}: {
+  text: string
+  petId: string
+  petName?: string
+  onOpenPet?: (petId: string) => void
+}) {
+  const className = "min-w-0 flex-1 truncate text-left text-[12px] font-semibold text-foreground"
+  if (!onOpenPet) return <span className={className}>{text}</span>
+  return (
+    <button
+      onClick={() => onOpenPet(petId)}
+      aria-label={petName ? `Open ${petName}'s tracker` : `Open ${text} in the tracker`}
+      className={className}
+    >
+      {text}
+    </button>
   )
 }

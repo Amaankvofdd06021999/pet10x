@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef } from "react"
 import { usePets, useSelectedPet } from "@/lib/data"
 import { PetChips } from "@/components/screens/home/pet-chips"
 import { CareTracker } from "@/components/screens/care/care-tracker"
@@ -10,6 +11,8 @@ interface PetCareScreenProps {
   onNavigate?: (screen: string) => void
   /** Tab to open on, when arriving from a Today's Care tile. */
   initialKind?: string
+  /** Pet to open on, when arriving from a schedule row that named one. */
+  initialPetId?: string
 }
 
 /**
@@ -19,13 +22,26 @@ interface PetCareScreenProps {
  * show the same logs and targets without a second implementation — care is a
  * property of the animal, and the two views must never disagree about it.
  */
-export function PetCareScreen({ onBack, onNavigate, initialKind }: PetCareScreenProps) {
+export function PetCareScreen({ onBack, onNavigate, initialKind, initialPetId }: PetCareScreenProps) {
   const { data: pets, isLoading: petsLoading } = usePets()
   /* The SAME remembered selection Home's goal tiles read. Held locally, this
      screen would open on whichever pet happens to be first, however carefully
      you picked Lola on Home —
      two surfaces answering one question two ways. */
   const { pet, select } = useSelectedPet()
+
+  /* Applied exactly once, guarded by a ref.
+   *
+   * Without the guard this would re-assert the incoming pet on every render,
+   * so tapping a chip would snap straight back to whichever pet the schedule
+   * row named and the picker would be dead on this screen. Same once-only
+   * shape as the assistant's default-pet effect. */
+  const seeded = useRef(false)
+  useEffect(() => {
+    if (seeded.current || !initialPetId) return
+    seeded.current = true
+    select(initialPetId)
+  }, [initialPetId, select])
 
   if (!petsLoading && pets.length === 0) {
     return (
