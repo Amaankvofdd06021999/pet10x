@@ -177,8 +177,18 @@ Phase 2, not something this document settles.
 | Dispute a violation | ❌ | ✅ own | ❌ | ❌ ⁴ | `dispute_violation` |
 | Decide a dispute | ❌ | ❌ | ✅ | ✅ | `manager_resolve_dispute` |
 | Read a dispute | ❌ | ✅ own | ✅ building | ✅ | `vdisputes_select` |
-| Request an accommodation | ❌ | ✅ | ✅ | ✅ | `accom_resident_insert` |
-| Decide an accommodation | ❌ | ❌ | ✅ | ✅ | `accom_manager_update` |
+| Request an accommodation | ❌ | ✅ **own building only** | ❌ ⁸ | ❌ ⁸ | `accom_resident_insert` — **rewritten in Phase 7, see ⁸** |
+| Read a **draft** accommodation request | ❌ | ✅ own | ❌ | ❌ | `accom_select` — the manager and admin arms are gated on `status <> 'draft'` |
+| Read a **submitted** accommodation request | ❌ | ✅ own | ✅ | ✅ | `accom_select` |
+| Submit or withdraw a request | ❌ | ✅ own | ❌ | ❌ | `submit_accommodation_request`, `withdraw_accommodation_request` |
+| Decide an accommodation | ❌ | ❌ | ✅ | ✅ | `manager_decide_accommodation` + `accom_freeze_guard` — **not `accom_manager_update`, see ⁹** |
+| Read an accommodation **document** (row and file) | ❌ | ✅ own | ✅ non-draft | ✅ non-draft | `accomdoc_select`, `accommodation-docs read` |
+| Attach a document to a request | ❌ | ✅ own, pre-decision | ❌ | ❌ | `accomdoc_insert` + `record_accommodation_document`; the object needs a server-minted signed upload URL |
+| Delete a document row | ❌ | ✅ own, pre-decision | ❌ ¹⁰ | ❌ | `accomdoc_delete` |
+| Verify or reject a document | ❌ | ❌ | ✅ | ✅ | `manager_verify_accommodation_document` — there is **no** UPDATE policy on `accommodation_documents` at all |
+| Change a request's `status` by direct UPDATE | ❌ | ❌ | ❌ | ❌ | `accom_freeze_guard` — a trigger, so `is_admin()` does not transcend it |
+| Rewrite `animal_desc` after submission | ❌ | ❌ | ❌ | ❌ | `accom_freeze_guard` |
+| Move a request between buildings | ❌ | ❌ | ❌ | ❌ | `accom_freeze_guard` — identity, refused for everyone |
 | Set the fine schedule | ❌ | ❌ | ✅ | ✅ | `manager_set_fine_schedule` + `buildings_fine_schedule_guard` — see ⁵ |
 | Read a PUBLISHED building rule | ❌ | ✅ own building | ✅ own buildings | ✅ | `building_rules_resident_read`, `building_rules_manager_read` |
 | Read an UNPUBLISHED building rule | ❌ | ❌ | ✅ own buildings | ✅ | `building_rules_manager_read` — the resident policy requires `is_published` |
@@ -200,6 +210,42 @@ so the six rows this phase touched were probed for it explicitly, as a fifth
 actor (`stratamanager@pet10x.com`, who manages five buildings and not Maple
 Court Residences). Reads returned only their own buildings' rules; all three
 RPCs returned `{"ok":false,"error":"forbidden"}` and wrote nothing.
+
+⁸ **THIS ROW RECORDED A HOLE AS A FEATURE, and the probe table below recorded
+the evidence for it without noticing.** Until Phase 7, `accom_resident_insert`
+was `with check (resident_id = auth.uid())` and **nothing else** — no building
+test at all. So the three ✅s in this row were not "enforced by
+`accom_resident_insert`"; they were the absence of enforcement. Measured on
+production 2026-08-23, rolled back: `resident4@pet10x.com`, whose only
+resident link is to Maple Court Residences and is `left`, inserted a request
+into **Harbour View Towers** and it was admitted (`5728e918-…`).
+
+The line at *Where the admin grant stopped* — "`insert into
+public.accommodation_requests` naming themselves | admitted" — is the same hole
+seen from the admin's side and written down as a result. It is now `42501`: a
+super-admin who is not an approved resident of the building cannot file there
+either, because the with-check is
+`resident_id = auth.uid() and public.is_resident_of(building_id) and status = 'draft'`
+and `is_resident_of` requires an **approved** link on a non-suspended profile.
+A manager gets ❌ for the same reason unless they happen to also live there.
+
+⁹ `accom_manager_update` is **no longer the control**, and was never an adequate
+one: it is `FOR UPDATE` with no column list, so it authorised every column at
+once. Measured, in ONE statement as `stratamanager@pet10x.com`: `animal_desc`
+rewritten to `'REWRITTEN BY MANAGER'`, `status` set to `approved`, and
+`building_id` moved to another building — which also **relocates who may read
+the doctor's letter**, since `accommodation-docs read` joins through
+`r.building_id`. The policy survives only so a manager can write `legal_note`.
+What actually decides a request is `manager_decide_accommodation`, and what
+stops everything else is `accom_freeze_guard`, a `BEFORE UPDATE` trigger holding
+a single-use `pet10x.accom_write` token. **A trigger is not RLS**: `is_admin()`
+transcends the policies and transcends nothing here, verified for the
+super-admin as well as the manager.
+
+¹⁰ `accomdoc_rw` was `FOR ALL`, and `DELETE` consults only `USING` — whose
+manager arm belonged to a read. Measured: `manager@pet10x.com` **deleted the
+resident's own document row**. It is now four per-command policies, and the
+command nobody may run (UPDATE) has no policy at all.
 
 ¹ `posts_insert` is `author_id = auth.uid() AND is_resident_of(building_id) AND
 is_premium(auth.uid())` — no `manages_building` disjunct, no `is_admin()`
@@ -408,14 +454,14 @@ its own; check the table's other policies for the same command first.
 Three of the rows above — read evidence, community media, another resident's
 pet photo — are enforced against a *path*, not a foreign key, so the path
 convention is load-bearing. `accommodation-docs` is listed with them because it
-shares the mechanism, though no row above turns on it yet:
+shares the mechanism.
 
 | Bucket | Path | Segment that decides access |
 | --- | --- | --- |
 | `guest-evidence` | `{buildingId}/{draftId}/{n}.{ext}` — *intended, see below* | 1 — the building |
 | `community-media` | `{buildingId}/{uploaderUid}/{filename}` | 1 to read, 1 **and** 2 to write, 2 alone to delete |
 | `pet-media` | `{ownerUid}/{petId}/{filename}` | 1 for the owner, 2 for the manager |
-| `accommodation-docs` | `{buildingId}/{requestId}/{filename}` | 2 — the request |
+| `accommodation-docs` | `{buildingId}/{requestId}/{kind}-{ms}.{ext}` | **1 and 2 and the filename** — all three pinned since Phase 7 |
 
 The `guest-evidence` shape is a convention carried over from the Phase 1 spec,
 not an observed one. Nothing has ever been written to that bucket — it holds 0
@@ -445,11 +491,116 @@ the pet's name ("Max") into path segments — `storage.foldername('Max')` return
 an empty array — and compared `null` to the pet id, so it could not match.
 That is the blank pet picker the policy existed to fix.
 `20260821000002_fix_pet_media_manager_read.sql` writes
-`storage.foldername(storage.objects.name)` instead. The sibling
-`accommodation-docs` policies use the bare form and bind correctly only because
-`accommodation_requests` has no `name` column to collide with — same code,
-different outcome, decided by the joined table's columns. Do not "simplify" the
-qualification away.
+`storage.foldername(storage.objects.name)` instead.
+
+**That observation about `accommodation-docs` is now HISTORY, not a live
+dependency.** It used to read: the sibling `accommodation-docs` policies use the
+bare form and bind correctly only because `accommodation_requests` has no `name`
+column to collide with — same code, different outcome, decided by the joined
+table's columns. `20260827000004_accommodation_docs_storage.sql` rewrote that
+policy with `storage.objects.name` fully qualified throughout, so the bucket no
+longer depends on a coincidence in another table's column list. Do not
+"simplify" the qualification away.
+
+### `accommodation-docs`, as of Phase 7
+
+- **Exactly one policy, and its command is `SELECT`.** Asserted from
+  `pg_policies`: `accommodation-docs read :: SELECT` and nothing else. There is
+  no INSERT, UPDATE or DELETE policy on the bucket for any client role.
+  `accommodation-docs resident write` was **dropped**: an object can now only
+  arrive through a signed upload URL minted by
+  `app/api/accommodations/docs/sign/route.ts`, which composes the whole path
+  from the database, so the path shape is a fact rather than a convention. The
+  resident's own filename never reaches storage.
+- **`file_size_limit = 10485760`** and a six-entry `allowed_mime_types`
+  (`application/pdf`, `image/jpeg`, `image/png`, `image/webp`, `image/heic`,
+  `image/heif`). These mirror `MAX_BYTES` and `ALLOWED` in the sign route and
+  must be changed together with them. The BUCKET is the enforcement point: a
+  signed upload token binds path, upsert, scope and expiry — never Content-Type
+  and never length.
+- **The read pins every segment**, with an anchored regex requiring two uuids
+  and a filename starting alphanumeric, and requires segment 1 to equal the
+  request's own `building_id`. Measured: a planted object whose first segment
+  was a different building returned **0 rows for every actor including the
+  super-admin**, and a traversal-shaped name was rejected by the regex before
+  any join ran. Before this, the same insert as the owning resident at
+  `anything-at-all/{requestId}/../x.pdf` was **admitted**.
+- **A draft's file is invisible to the building's own managers and to a
+  super-admin**, by the same `r.status <> 'draft'` arm the table policies carry.
+
+## The confidentiality contract for accommodations
+
+An accommodation request is **disability information**, and a supporting
+document may be a doctor's letter. Phase 0 found `emergency_directory`
+documenting that medical history was withheld while its body returned
+`p.conditions`. This is the contract that stops the same contradiction here, and
+every row of it was verified by SQL impersonation for all six actors — allowed
+**and** denied.
+
+| | Resident who filed it | Another resident | Manager of the building | Manager of another building | Super-admin | `anon` |
+| --- | --- | --- | --- | --- | --- | --- |
+| That the request exists | ✅ | ❌ | ✅ once submitted | ❌ | ✅ once submitted | ❌ |
+| A **draft** they have not submitted | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `type`, `animal_desc`, the pet, the unit | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| The document **file** (the letter) | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| The checklist and each document's verdict | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| `decision_note` | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| `review_note` (why a document was verified or rejected) | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| `legal_note` | ✅ (policy admits it; no UI calls it private) | ❌ | ✅ | ❌ | ✅ | ❌ |
+
+**A manager reads the letter.** There is no honest way to decide an ESA request
+without reading the provider's letter, and the storage policy permits exactly
+that. It is a decision, written down rather than left implicit, and the viewer
+that exercises it says so on screen every time: *"This document is confidential.
+Only you, other managers of this building, and the resident can see it."*
+
+**A super-admin gets exactly what the building's manager gets, and nothing
+more.** No cross-building list, no export. Verified: a super-admin sees a
+submitted request and its document, and sees **zero** of a draft.
+
+**Nobody gets a structured diagnosis.** This phase adds no `condition`,
+`diagnosis` or `impairment` column, and never will. `animal_desc` stays free
+text in the resident's own words, and the form offers no dropdown of conditions.
+A column invites a report, and a report is how `emergency_directory` ended up
+returning `p.conditions`.
+
+**`review_note` is deliberately resident-readable.** A rejected letter whose
+reason the resident cannot learn is a dead end they can only escape by guessing,
+so the note a manager types when rejecting a document is stored where the
+resident can read it — and the field is labelled *"Note (the resident can read
+this)"* so the manager knows before they type.
+
+**`legal_note` is labelled as SHARED, not private.** `accom_select` admits
+`resident_id = auth.uid()` and returns the whole row, so the resident can read
+that column today and Phase 7 did not change it. The manager's screen therefore
+renders it as *"Guidance (the resident can read this)"*, and the resident's own
+screen never renders it at all — putting *"Seek legal advice before denying"* in
+front of the applicant is not the product. Calling it private would be the UI
+making a false statement about the database.
+
+**Three surfaces must never learn about this, and they do not:**
+
+- **`audit_log`** carries the outcome and nothing clinical. No `decision_note`,
+  no `animal_desc`, no filename — **and no `doc_kind`**, because the label
+  `esa_letter` contains the word "letter" and would put the nature of the
+  request into the one table the note was kept out of. Asserted over every row
+  the phase created: `0` audit rows whose metadata matches any live
+  `decision_note` or `animal_desc`, and `0` matching `%note%`, `%letter%`,
+  `%esa%`, `%disab%` or `%.pdf%`.
+- **`notifications`** carry a title and a target and never the reason: *"Your
+  accommodation request was decided"* / *"Open Accommodation Requests to read
+  the decision."* A push preview is readable on a lock screen. Asserted: `0`
+  notification rows with `action_target = 'accommodations'` matching `%esa%`,
+  `%anxiety%` or `%disab%` in title or body. **Submitting notifies nobody** —
+  a push saying a resident filed a disability accommodation names their
+  disability status to whoever is looking at the phone. **Withdrawing a DRAFT
+  notifies nobody either**, because a draft is invisible to the building's
+  managers and telling them one was withdrawn would announce a request that was
+  never filed, through the one channel that bypasses RLS.
+- **Email.** There is no email path. `/api/manager/request-info` sends one for
+  registrations; this phase deliberately does not, because email is the one
+  channel whose contents leave the product's access control behind. Asserted:
+  `grep -rn "animal_desc\|decision_note" app/api/ lib/email*` returns nothing.
 
 ## Two rules that keep this true
 
@@ -589,7 +740,7 @@ manager of the target building:
 | `insert into public.community_posts` | `42501` |
 | `insert into storage.objects` at `{thatBuilding}/{ownUid}/flyer.jpg` in `community-media` | `42501` |
 | `insert into public.accommodation_requests` naming another resident | `42501` |
-| `insert into public.accommodation_requests` naming themselves | admitted |
+| `insert into public.accommodation_requests` naming themselves | ~~admitted~~ → **`42501` since Phase 7** |
 | `select` a planted `community-media` object | 1 row — the read policy does carry `is_admin()` |
 
 The `community-media` insert is the clean comparison: a *resident* of that
