@@ -100,6 +100,12 @@ export async function submitIncident(input: {
   unit?: string
   /** The pet the reporter picked from photos. */
   petId?: string
+  /**
+   * Storage paths of evidence already uploaded under this report's draft id.
+   * The RPC validates each one against `{buildingId}/{draftUuid}/{name}` and
+   * refuses the report if any path was not ours to attach.
+   */
+  evidencePaths?: string[]
   anonymous?: boolean
 }): Promise<{ ok: boolean; reference?: string; error?: string }> {
   const supabase = getSupabaseBrowserClient()
@@ -113,6 +119,7 @@ export async function submitIncident(input: {
     p_unit: input.unit ?? undefined,
     p_anonymous: input.anonymous ?? true,
     p_pet_id: input.petId ?? undefined,
+    p_evidence_paths: input.evidencePaths ?? undefined,
   })
 
   if (error) return { ok: false, error: error.message }
@@ -126,7 +133,11 @@ export async function submitIncident(input: {
           ? "That building code isn't recognised."
           : r.error === "description_required"
             ? "Please describe what happened."
-            : "Couldn't file the report.",
+            : r.error === "too_many_files"
+              ? "Up to 5 photos per report."
+              : r.error === "bad_evidence_path"
+                ? "Those photos couldn't be attached — try sending without them."
+                : "Couldn't file the report.",
     }
   }
   return { ok: true, reference: r.reference }

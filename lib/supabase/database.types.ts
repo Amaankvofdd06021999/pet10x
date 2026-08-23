@@ -3411,30 +3411,19 @@ export type Database = {
       }
       set_my_unit: { Args: { p_unit: string }; Returns: Json }
       shares_managed_building_with: { Args: { p: string }; Returns: boolean }
-      submit_incident_report:
-        | {
-            Args: {
-              p_anonymous?: boolean
-              p_building_code: string
-              p_description: string
-              p_location?: string
-              p_type: string
-              p_unit?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_anonymous?: boolean
-              p_building_code: string
-              p_description: string
-              p_location?: string
-              p_pet_id?: string
-              p_type: string
-              p_unit?: string
-            }
-            Returns: Json
-          }
+      submit_incident_report: {
+        Args: {
+          p_anonymous?: boolean
+          p_building_code: string
+          p_description: string
+          p_evidence_paths?: string[]
+          p_location?: string
+          p_pet_id?: string
+          p_type: string
+          p_unit?: string
+        }
+        Returns: Json
+      }
       submit_municipal_report: {
         Args: {
           p_anonymous?: boolean
