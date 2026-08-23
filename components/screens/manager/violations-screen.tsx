@@ -8,10 +8,7 @@ import { toast } from "sonner"
 import {
   Gavel,
   AlertTriangle,
-  ChevronRight,
-  Clock,
   DollarSign,
-  FileText,
   Plus,
   Download,
   CheckCircle2,
@@ -20,6 +17,8 @@ import {
   ShieldCheck,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { isFineStage } from "@/lib/data/violations"
+import type { ViolationStage } from "@/lib/data/types"
 
 type ViolationTab = "active" | "warnings" | "fines" | "resolved"
 
@@ -30,13 +29,17 @@ const TABS: { id: ViolationTab; label: string; count: number }[] = [
   { id: "resolved", label: "Resolved", count: 8 },
 ]
 
-const STAGE_CONFIG = {
-  "investigation": { color: "bg-destructive/10 text-destructive", icon: AlertTriangle },
-  "pending-review": { color: "bg-warning/10 text-warning-strong", icon: Clock },
-  "verbal-warning": { color: "bg-primary/10 text-primary", icon: FileText },
-  "written-warning": { color: "bg-warning/10 text-warning-strong", icon: Gavel },
-  "fine-issued": { color: "bg-destructive/10 text-destructive", icon: DollarSign },
-} as const
+// Every stage of the ladder, so the lookup below cannot come back undefined.
+// The old map covered five stages that no longer exist and none of the two
+// terminal ones.
+const STAGE_CONFIG: Record<ViolationStage, { color: string; icon: typeof AlertTriangle }> = {
+  open: { color: "bg-destructive/10 text-destructive", icon: AlertTriangle },
+  warning: { color: "bg-warning/10 text-warning-strong", icon: Gavel },
+  fine_1: { color: "bg-destructive/10 text-destructive", icon: DollarSign },
+  fine_2: { color: "bg-destructive/10 text-destructive", icon: DollarSign },
+  resolved: { color: "bg-success/10 text-success", icon: CheckCircle2 },
+  dismissed: { color: "bg-muted text-muted-foreground", icon: XCircle },
+}
 
 export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const [activeTab, setActiveTab] = useState<ViolationTab>("active")
@@ -190,7 +193,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
 
                     {/* Action Buttons */}
                     <div className="mt-2.5 flex gap-2">
-                      {violation.stage === "investigation" && (
+                      {violation.stage === "open" && (
                         <>
                           <button onClick={() => toast("Investigation started")} className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary active:scale-[0.97] transition-transform">
                             Investigate
@@ -200,12 +203,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
                           </button>
                         </>
                       )}
-                      {violation.stage === "pending-review" && (
-                        <button onClick={() => toast("Reviewing case")} className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary active:scale-[0.97] transition-transform">
-                          Review Case
-                        </button>
-                      )}
-                      {(violation.stage === "verbal-warning" || violation.stage === "written-warning") && (
+                      {violation.stage === "warning" && (
                         <>
                           <button onClick={() => toast("Escalated to next stage")} className="flex-1 rounded-lg bg-warning/10 py-2 text-[12px] font-semibold text-warning-strong active:scale-[0.97] transition-transform">
                             Escalate
@@ -215,7 +213,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
                           </button>
                         </>
                       )}
-                      {violation.stage === "fine-issued" && (
+                      {isFineStage(violation.stage) && (
                         <>
                           <button onClick={() => toast.success("Reminder sent")} className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary active:scale-[0.97] transition-transform">
                             Send Reminder

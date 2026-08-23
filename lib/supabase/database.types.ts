@@ -3180,31 +3180,31 @@ export type Database = {
         Row: {
           actor_id: string | null
           created_at: string
-          from_stage: Database["public"]["Enums"]["violation_stage"] | null
+          from_stage: Database["public"]["Enums"]["violation_stage_v2"] | null
           id: string
           note: string | null
           occurred_on: string | null
-          to_stage: Database["public"]["Enums"]["violation_stage"]
+          to_stage: Database["public"]["Enums"]["violation_stage_v2"]
           violation_id: string
         }
         Insert: {
           actor_id?: string | null
           created_at?: string
-          from_stage?: Database["public"]["Enums"]["violation_stage"] | null
+          from_stage?: Database["public"]["Enums"]["violation_stage_v2"] | null
           id?: string
           note?: string | null
           occurred_on?: string | null
-          to_stage: Database["public"]["Enums"]["violation_stage"]
+          to_stage: Database["public"]["Enums"]["violation_stage_v2"]
           violation_id: string
         }
         Update: {
           actor_id?: string | null
           created_at?: string
-          from_stage?: Database["public"]["Enums"]["violation_stage"] | null
+          from_stage?: Database["public"]["Enums"]["violation_stage_v2"] | null
           id?: string
           note?: string | null
           occurred_on?: string | null
-          to_stage?: Database["public"]["Enums"]["violation_stage"]
+          to_stage?: Database["public"]["Enums"]["violation_stage_v2"]
           violation_id?: string
         }
         Relationships: [
@@ -3242,7 +3242,7 @@ export type Database = {
           resident_id: string | null
           resolution_outcome: string | null
           resolved_at: string | null
-          stage: Database["public"]["Enums"]["violation_stage"]
+          stage: Database["public"]["Enums"]["violation_stage_v2"]
           type: string
           unit_id: string | null
           updated_at: string
@@ -3257,7 +3257,7 @@ export type Database = {
           resident_id?: string | null
           resolution_outcome?: string | null
           resolved_at?: string | null
-          stage?: Database["public"]["Enums"]["violation_stage"]
+          stage?: Database["public"]["Enums"]["violation_stage_v2"]
           type: string
           unit_id?: string | null
           updated_at?: string
@@ -3272,7 +3272,7 @@ export type Database = {
           resident_id?: string | null
           resolution_outcome?: string | null
           resolved_at?: string | null
-          stage?: Database["public"]["Enums"]["violation_stage"]
+          stage?: Database["public"]["Enums"]["violation_stage_v2"]
           type?: string
           unit_id?: string | null
           updated_at?: string
@@ -3371,7 +3371,6 @@ export type Database = {
       }
       building_pets_for_report: { Args: { p_code: string }; Returns: Json }
       buildings_matching_my_address: { Args: never; Returns: Json }
-      search_buildings_public: { Args: { q: string }; Returns: Json }
       business_mark_booking_paid: {
         Args: { p_booking: string }
         Returns: string
@@ -3390,6 +3389,16 @@ export type Database = {
       is_primary_manager: { Args: { b: string }; Returns: boolean }
       is_resident_of: { Args: { b: string }; Returns: boolean }
       leave_my_building_link: { Args: never; Returns: undefined }
+      manager_advance_violation: {
+        Args: {
+          p_amount_cents?: number
+          p_due_on?: string
+          p_note?: string
+          p_to_stage: Database["public"]["Enums"]["violation_stage_v2"]
+          p_violation: string
+        }
+        Returns: Json
+      }
       manager_decide_registration: {
         Args: { p_approve: boolean; p_pet: string }
         Returns: undefined
@@ -3409,6 +3418,7 @@ export type Database = {
         Args: { p_lat?: number; p_lng?: number; p_postal?: string }
         Returns: Json
       }
+      search_buildings_public: { Args: { q: string }; Returns: Json }
       set_my_unit: { Args: { p_unit: string }; Returns: Json }
       shares_managed_building_with: { Args: { p: string }; Returns: boolean }
       submit_incident_report: {
@@ -3559,12 +3569,11 @@ export type Database = {
         | "incomplete"
         | "paused"
       user_role: "pet_owner" | "building_manager" | "super_admin" | "business"
-      violation_stage:
-        | "investigation"
-        | "pending_review"
-        | "verbal_warning"
-        | "written_warning"
-        | "fine_issued"
+      violation_stage_v2:
+        | "open"
+        | "warning"
+        | "fine_1"
+        | "fine_2"
         | "resolved"
         | "dismissed"
     }
@@ -3817,12 +3826,11 @@ export const Constants = {
         "paused",
       ],
       user_role: ["pet_owner", "building_manager", "super_admin", "business"],
-      violation_stage: [
-        "investigation",
-        "pending_review",
-        "verbal_warning",
-        "written_warning",
-        "fine_issued",
+      violation_stage_v2: [
+        "open",
+        "warning",
+        "fine_1",
+        "fine_2",
         "resolved",
         "dismissed",
       ],

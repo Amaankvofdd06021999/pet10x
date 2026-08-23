@@ -232,20 +232,30 @@ insert into public.accommodation_requests (id, building_id, resident_id, unit_id
 on conflict (id) do nothing;
 
 insert into public.violations (id, building_id, unit_id, resident_id, pet_id, type, stage, opened_by, resolved_at, resolution_outcome, created_at) values
-  ('35000000-0000-4000-8000-000000000001','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000003'),'a5000000-0000-4000-8000-000000000012','c5000000-0000-4000-8000-000000000003','aggressive_behavior','investigation','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '3 days'),
-  ('35000000-0000-4000-8000-000000000002','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000006'),'a5000000-0000-4000-8000-000000000013','c5000000-0000-4000-8000-000000000006','unregistered_pet','written_warning','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '20 days'),
-  ('35000000-0000-4000-8000-000000000003','b5000000-0000-4000-8000-000000000002',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000010'),'a5000000-0000-4000-8000-000000000015','c5000000-0000-4000-8000-000000000010','off_leash','verbal_warning','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '10 days'),
-  ('35000000-0000-4000-8000-000000000004','b5000000-0000-4000-8000-000000000002',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000011'),'a5000000-0000-4000-8000-000000000015','c5000000-0000-4000-8000-000000000011','noise','fine_issued','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '32 days'),
-  ('35000000-0000-4000-8000-000000000005','b5000000-0000-4000-8000-000000000003',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000017'),'a5000000-0000-4000-8000-000000000018','c5000000-0000-4000-8000-000000000017','waste','investigation','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '2 days'),
+  ('35000000-0000-4000-8000-000000000001','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000003'),'a5000000-0000-4000-8000-000000000012','c5000000-0000-4000-8000-000000000003','aggressive_behavior','open','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '3 days'),
+  ('35000000-0000-4000-8000-000000000002','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000006'),'a5000000-0000-4000-8000-000000000013','c5000000-0000-4000-8000-000000000006','unregistered_pet','warning','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '20 days'),
+  ('35000000-0000-4000-8000-000000000003','b5000000-0000-4000-8000-000000000002',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000010'),'a5000000-0000-4000-8000-000000000015','c5000000-0000-4000-8000-000000000010','off_leash','warning','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '10 days'),
+  ('35000000-0000-4000-8000-000000000004','b5000000-0000-4000-8000-000000000002',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000011'),'a5000000-0000-4000-8000-000000000015','c5000000-0000-4000-8000-000000000011','noise','fine_1','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '32 days'),
+  ('35000000-0000-4000-8000-000000000005','b5000000-0000-4000-8000-000000000003',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000017'),'a5000000-0000-4000-8000-000000000018','c5000000-0000-4000-8000-000000000017','waste','open','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '2 days'),
   ('35000000-0000-4000-8000-000000000006','b5000000-0000-4000-8000-000000000003',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000018'),'a5000000-0000-4000-8000-000000000019','c5000000-0000-4000-8000-000000000018','excess_pets','resolved','a5000000-0000-4000-8000-000000000001', now()-interval '5 days','Remedied — resident rehomed second pet', now()-interval '18 days'),
-  ('35000000-0000-4000-8000-000000000007','b5000000-0000-4000-8000-000000000004',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000021'),'a5000000-0000-4000-8000-000000000020','c5000000-0000-4000-8000-000000000021','noise','pending_review','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '4 days'),
+  ('35000000-0000-4000-8000-000000000007','b5000000-0000-4000-8000-000000000004',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000021'),'a5000000-0000-4000-8000-000000000020','c5000000-0000-4000-8000-000000000021','noise','open','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '4 days'),
   ('35000000-0000-4000-8000-000000000008','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000004'),'a5000000-0000-4000-8000-000000000012','c5000000-0000-4000-8000-000000000004','leash_bylaw','resolved','a5000000-0000-4000-8000-000000000001', now()-interval '2 days','Warning issued, resident complied', now()-interval '12 days')
 on conflict (id) do nothing;
 
+-- The ledger. Every row here is a transition the enforcement ladder actually
+-- permits, because `manager_advance_violation` is now the only thing that can
+-- write one and a fresh seed should not fabricate history the running system
+-- could never produce.
+--
+-- Case …0002 used to carry TWO events, verbal_warning -> written_warning being
+-- the second. The ladder has one warning degree, so that pair collapses to a
+-- single open -> warning step and the two notes are merged. (The live database
+-- still holds the collapsed row as a warning -> warning self-transition — that
+-- is migrated history, deliberately preserved by 20260823000000, and is not
+-- something a new database should start life with.)
 insert into public.violation_events (violation_id, from_stage, to_stage, note, actor_id, occurred_on) values
-  ('35000000-0000-4000-8000-000000000002','investigation','verbal_warning','Verbal warning issued at door.','a5000000-0000-4000-8000-000000000001',(now()-interval '18 days')::date),
-  ('35000000-0000-4000-8000-000000000002','verbal_warning','written_warning','No remedy; escalated to written warning.','a5000000-0000-4000-8000-000000000001',(now()-interval '12 days')::date),
-  ('35000000-0000-4000-8000-000000000004','written_warning','fine_issued','Continued breach; fine issued.','a5000000-0000-4000-8000-000000000001',(now()-interval '30 days')::date)
+  ('35000000-0000-4000-8000-000000000002','open','warning','Warning issued at door; no remedy since.','a5000000-0000-4000-8000-000000000001',(now()-interval '18 days')::date),
+  ('35000000-0000-4000-8000-000000000004','warning','fine_1','Continued breach; first fine issued.','a5000000-0000-4000-8000-000000000001',(now()-interval '30 days')::date)
 on conflict do nothing;
 
 insert into public.fines (id, violation_id, building_id, unit_id, resident_id, amount_cents, currency, status, issued_by, due_on, created_at) values

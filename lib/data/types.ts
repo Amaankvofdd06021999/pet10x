@@ -13,6 +13,8 @@
  * - Icons are stored as string `iconKey`s and resolved to components in the view.
  */
 
+import type { Database } from "@/lib/supabase/database.types"
+
 /* ------------------------------------------------------------------ */
 /* Enums / unions                                                      */
 /* ------------------------------------------------------------------ */
@@ -27,13 +29,28 @@ export type AccommodationType = "ESA" | "Service Animal"
 export type IncidentType = "noise" | "aggressive" | "off-leash" | "waste" | "damage" | "other"
 export type LostFoundType = "lost" | "found"
 
-export type ViolationStage =
-  | "investigation"
-  | "pending-review"
-  | "verbal-warning"
-  | "written-warning"
-  | "fine-issued"
-export type ViolationTab = "active" | "warnings" | "fines" | "resolved"
+/**
+ * The enforcement ladder, taken from the database enum rather than restated.
+ *
+ * This used to be five hand-written hyphenated labels with a lookup table
+ * translating the DB's underscored ones into them. The translation is what
+ * made the drift possible: when Phase 2 replaced the enum, the map still held
+ * the old labels, the compiler was happy, and two of the six real stages
+ * silently resolved to `undefined`. There is nothing for the app vocabulary to
+ * add over the database's — `fine_1` is already the clearest name for that
+ * rung — so the alias is the type now, and regenerating `database.types.ts`
+ * after any future enum change breaks the build instead of the runtime.
+ *
+ * A type-only import, so this file stays platform-agnostic as its header asks.
+ */
+export type ViolationStage = Database["public"]["Enums"]["violation_stage_v2"]
+
+/**
+ * `disputed` is scaffolding for Phase 5 (AD-7): cases with an appeal awaiting a
+ * manager's decision are routed here so they are not buried under the fine they
+ * dispute. The tab's contents are built in that phase.
+ */
+export type ViolationTab = "active" | "warnings" | "fines" | "disputed" | "resolved"
 
 export type NotificationCategory = "compliance" | "incident" | "building" | "assistant" | "care"
 export type NotificationSeverity = "warning" | "error" | "info" | "success"

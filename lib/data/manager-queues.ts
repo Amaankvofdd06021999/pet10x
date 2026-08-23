@@ -18,8 +18,15 @@ import type {
   ResolvedViolation,
   Species,
   ViolationStage,
-  ViolationTab,
 } from "./types"
+import {
+  STAGE_LABEL,
+  describeLegalMoves,
+  isFineStage,
+  tabFor,
+  toViolationStage,
+  type FineStage,
+} from "./violations"
 
 interface Result<T> {
   data: T
@@ -318,27 +325,16 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
 /* Violations                                                          */
 /* ------------------------------------------------------------------ */
 
-const DB_STAGE_TO_APP: Record<string, ViolationStage> = {
-  investigation: "investigation",
-  pending_review: "pending-review",
-  verbal_warning: "verbal-warning",
-  written_warning: "written-warning",
-  fine_issued: "fine-issued",
-}
-
-const STAGE_LABEL: Record<ViolationStage, string> = {
-  investigation: "Investigation",
-  "pending-review": "Pending review",
-  "verbal-warning": "Verbal warning",
-  "written-warning": "Written warning",
-  "fine-issued": "Fine issued",
-}
-
-function tabFor(stage: ViolationStage, hasFine: boolean): ViolationTab {
-  if (hasFine || stage === "fine-issued") return "fines"
-  if (stage === "verbal-warning" || stage === "written-warning") return "warnings"
-  return "active"
-}
+/*
+ * The stage vocabulary, the ladder and the tab mapping all live in
+ * `./violations` now. They used to be three private consts here, which is why
+ * the drift went unseen: nothing outside this file could read them and no test
+ * could reach them. `DB_STAGE_TO_APP` in particular translated the DB's labels
+ * into a hyphenated app spelling and had no key for `resolved` or `dismissed`,
+ * so those two stages resolved to `undefined` and were then coerced back to
+ * `"investigation"` by a `??`. See `violations.ts` for why the translation is
+ * gone entirely.
+ */
 
 export function useViolationsLive(): Result<Violation[]> {
   const [data, setData] = useState<Violation[]>([])
@@ -384,10 +380,13 @@ export function useViolationsLive(): Result<Violation[]> {
 
     setData(
       ((rows ?? []) as unknown as Row[]).map((r) => {
-        const stage = DB_STAGE_TO_APP[r.stage] ?? "investigation"
+        const stage = toViolationStage(r.stage)
         const fines = r.fines ?? []
         const amount = fines.reduce((s, f) => s + (f.amount_cents ?? 0), 0) / 100
         const paid = fines.length > 0 && fines.every((f) => f.status === "paid")
+        // The only dispute signal that exists today. `violations.disputed_at`
+        // is AD-7's, and not yet migrated.
+        const disputed = fines.some((f) => f.status === "disputed")
 
         return {
           id: r.id,
@@ -402,7 +401,7 @@ export function useViolationsLive(): Result<Violation[]> {
           amount,
           paid,
           history: [{ stage: STAGE_LABEL[stage], date: shortDate(r.created_at) }],
-          tab: tabFor(stage, fines.length > 0),
+          tab: tabFor(stage, fines.length > 0, disputed),
         }
       }),
     )
@@ -469,23 +468,160 @@ export function useResolvedViolationsLive(): Result<ResolvedViolation[]> {
   return { data, isLoading, error, refetch }
 }
 
-/** Advance a violation through the progressive-enforcement ladder, or close it. */
-export async function advanceViolation(
-  id: string,
-  stage: "investigation" | "pending_review" | "verbal_warning" | "written_warning" | "fine_issued",
-): Promise<{ error: string | null }> {
-  const supabase = getSupabaseBrowserClient()
-  if (!supabase) return { error: "Not configured." }
-  const { error } = await supabase.from("violations").update({ stage }).eq("id", id)
-  return { error: error?.message ?? null }
+/* ------------------------------------------------------------------ */
+/* Violations — mutations                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Both of these used to be a plain `.update()` on `violations.stage`.
+ *
+ * Neither works any more, and `advanceViolation` had in fact never worked: it
+ * wrote the pre-Phase-2 labels, so its callers' `nextStage` lookup returned
+ * null and the Advance button never rendered at all. Since
+ * `20260823000002_violations_stage_guard.sql` a direct stage UPDATE raises
+ * 42501 for everyone including the table owner, so
+ * `manager_advance_violation` is not merely the preferred path, it is the only
+ * one. It also does four things a client-side update never could: writes the
+ * `violation_events` row, mints the fine, notifies the resident (the
+ * `notifications` insert policy admits only `kind = 'assistant'` for self, so
+ * the browser cannot), and audits — all in one transaction.
+ */
+
+export interface AdvanceResult {
+  error: string | null
+  /** The stage the case is now at, on success. */
+  stage?: ViolationStage
+  /** False when the case has no resident to tell. Not a failure. */
+  notified?: boolean
+  fineId?: string
+  amountCents?: number
 }
 
-export async function resolveViolation(id: string, outcome: string): Promise<{ error: string | null }> {
+export interface AdvanceOptions {
+  /**
+   * On a terminal step this doubles as the case's `resolution_outcome`, which
+   * the resolved-cases queue renders as a short label — so pass a label, not a
+   * paragraph.
+   */
+  note?: string
+  /** Overrides the building's bylaw schedule. Only read entering a fine degree. */
+  amountCents?: number
+  /** ISO date (`YYYY-MM-DD`). Only read entering a fine degree. */
+  dueOn?: string
+}
+
+/**
+ * A Postgrest failure, with its hint.
+ *
+ * The guards this phase added raise 42501 with a `hint` that names the RPC to
+ * call instead, or the one column a fine allows to change. Reporting only
+ * `message` shows the manager "new row violates row-level security policy" and
+ * withholds the sentence written to tell them what to do about it.
+ */
+function transportError(e: { message: string; hint?: string | null } | null): string | null {
+  if (!e) return null
+  const hint = e.hint?.trim()
+  return hint ? `${e.message} ${hint}` : e.message
+}
+
+/** The RPC's four rejection codes, turned into something a manager can read. */
+function advanceError(r: { error?: string; from?: string; to?: string }): string {
+  switch (r.error) {
+    case "forbidden":
+      return "You don't manage this building."
+    case "not_found":
+      return "That case no longer exists."
+    case "illegal_transition":
+      // The RPC returns the from/to pair and no guidance. The guidance comes
+      // from the client's mirror of the same table, so the manager is told what
+      // the case CAN do rather than only that this was not it.
+      return describeLegalMoves(toViolationStage(r.from))
+    case "no_fine_amount":
+      return "This building has no fine schedule yet — enter an amount for this fine."
+    default:
+      return "Couldn't move this case."
+  }
+}
+
+/**
+ * Move a violation one legal step along the ladder, or close it.
+ *
+ * `toStage` is a target, not a direction: the database rejects anything the
+ * ladder does not allow, and `nextStage`/`LEGAL_TRANSITIONS` in
+ * `./violations` are what a screen should consult before offering a control.
+ */
+export async function advanceViolation(
+  id: string,
+  toStage: ViolationStage,
+  options: AdvanceOptions = {},
+): Promise<AdvanceResult> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
-  const { error } = await supabase
-    .from("violations")
-    .update({ stage: "resolved", resolved_at: new Date().toISOString(), resolution_outcome: outcome })
-    .eq("id", id)
-  return { error: error?.message ?? null }
+
+  const { data, error } = await supabase.rpc("manager_advance_violation", {
+    p_violation: id,
+    p_to_stage: toStage,
+    p_note: options.note ?? undefined,
+    // Left undefined rather than null so the RPC's own defaults apply and the
+    // building's bylaw schedule is used. An explicit amount overrides it; an
+    // explicit 0 is refused rather than silently replaced.
+    p_amount_cents: options.amountCents ?? undefined,
+    p_due_on: options.dueOn ?? undefined,
+  })
+  if (error) return { error: transportError(error) }
+
+  const r = data as unknown as {
+    ok: boolean
+    error?: string
+    from?: string
+    stage?: string
+    notified?: boolean
+    fine_id?: string
+    amount_cents?: number
+  }
+  if (!r.ok) return { error: advanceError(r) }
+
+  return {
+    error: null,
+    stage: toViolationStage(r.stage),
+    notified: r.notified ?? false,
+    fineId: r.fine_id,
+    amountCents: r.amount_cents,
+  }
+}
+
+/**
+ * Close a case as remedied.
+ *
+ * `resolved` is reachable from every non-terminal rung, so this needs no stage
+ * argument. `outcome` becomes both the event note and the case's
+ * `resolution_outcome`.
+ */
+export async function resolveViolation(id: string, outcome: string): Promise<AdvanceResult> {
+  return advanceViolation(id, "resolved", { note: outcome })
+}
+
+/** Close a case as filed in error. The record stays; no delete path exists. */
+export async function dismissViolation(id: string, reason: string): Promise<AdvanceResult> {
+  return advanceViolation(id, "dismissed", { note: reason })
+}
+
+/**
+ * Issue a fine by advancing into a fine degree.
+ *
+ * `degree` is explicit rather than inferred from the case's current stage: the
+ * caller already knows which rung it is on, and inferring it here would mean
+ * this function silently choosing to issue a second fine when it was asked for
+ * a first. Both amount and due date are optional — omitting the amount is the
+ * normal path, and makes the building's bylaw schedule (AD-5) the default so
+ * that a deviation is a deliberate act. With no schedule and no override the
+ * RPC refuses rather than writing a zero-dollar fine.
+ */
+export async function issueFine(
+  id: string,
+  degree: FineStage,
+  options: AdvanceOptions = {},
+): Promise<AdvanceResult> {
+  if (!isFineStage(degree)) return { error: "Not a fine degree." }
+  return advanceViolation(id, degree, options)
 }

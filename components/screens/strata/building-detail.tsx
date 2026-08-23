@@ -12,6 +12,8 @@ import {
   useResolvedViolations,
 } from "@/lib/data"
 import { advanceViolation, resolveViolation } from "@/lib/data/manager-queues"
+import { STAGE_LABEL, nextStage } from "@/lib/data/violations"
+import type { ViolationStage } from "@/lib/data/types"
 import {
   useEmergencyTokens,
   issueEmergencyToken,
@@ -219,25 +221,14 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
 
 /* ------------------------------- Violations ------------------------------ */
 
-const LADDER = ["investigation", "pending_review", "verbal_warning", "written_warning", "fine_issued"] as const
-const APP_TO_DB: Record<string, (typeof LADDER)[number]> = {
-  investigation: "investigation",
-  "pending-review": "pending_review",
-  "verbal-warning": "verbal_warning",
-  "written-warning": "written_warning",
-  "fine-issued": "fine_issued",
-}
-const DB_LABEL: Record<string, string> = {
-  pending_review: "Pending review",
-  verbal_warning: "Verbal warning",
-  written_warning: "Written warning",
-  fine_issued: "Fine issued",
-}
-function nextStage(appStage: string): (typeof LADDER)[number] | null {
-  const db = APP_TO_DB[appStage]
-  const i = LADDER.indexOf(db)
-  return i >= 0 && i < LADDER.length - 1 ? LADDER[i + 1] : null
-}
+/*
+ * The ladder and its labels come from `lib/data/violations` now. This panel
+ * used to carry its own copy — a five-rung LADDER, an app→DB spelling map and a
+ * label map — all three of which still named the pre-Phase-2 stages. The
+ * spelling map is what silently disabled the button: `nextStage("open")` looked
+ * up a key that no longer existed, returned null, and the Advance control
+ * simply stopped rendering rather than erroring.
+ */
 
 function ViolationsPanel({ buildingId }: { buildingId: string }) {
   const { data: open, isLoading, refetch } = useViolations()
@@ -247,14 +238,20 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
   const scopedOpen = open.filter((v) => v.buildingId === buildingId)
   const scopedResolved = resolved.filter((v) => v.buildingId === buildingId)
 
-  async function advance(id: string, appStage: string) {
-    const next = nextStage(appStage)
+  async function advance(id: string, stage: ViolationStage) {
+    const next = nextStage(stage)
     if (!next) return
     setBusy(id)
-    const { error } = await advanceViolation(id, next)
+    // No amount is passed, so a fine degree takes the building's bylaw
+    // schedule (AD-5). With no schedule the RPC returns `no_fine_amount` and
+    // the toast says so — the amount sheet that lets a manager override it is
+    // Task 5's, on the manager's own Violations screen.
+    const { error, notified } = await advanceViolation(id, next)
     setBusy(null)
     if (error) return toast.error("Couldn't advance", { description: error })
-    toast.success(`Advanced to ${DB_LABEL[next]}`)
+    toast.success(`Advanced to ${STAGE_LABEL[next]}`, {
+      description: notified ? undefined : "No resident is assigned, so nobody was notified.",
+    })
     refetch()
   }
   async function resolve(id: string) {
@@ -304,7 +301,7 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                         className="flex items-center gap-1 rounded-lg bg-info/15 px-2.5 py-1.5 text-[12px] font-semibold text-info disabled:opacity-50"
                       >
                         {busy === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-                        Advance to {DB_LABEL[next]}
+                        Advance to {STAGE_LABEL[next]}
                       </button>
                     )}
                     <button
