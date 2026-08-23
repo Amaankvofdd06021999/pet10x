@@ -58,6 +58,23 @@ end $$;
 update public.profiles set role='building_manager'
   where id in ('a5000000-0000-4000-8000-000000000001','a5000000-0000-4000-8000-000000000002');
 
+-- Residents arrive already onboarded, because the seed gives them the answers.
+--
+-- handle_new_user writes `onboarded = false`, and app/app/page.tsx sends any
+-- pet-owner with that flag to the onboarding wizard BEFORE the shell renders.
+-- So every seeded resident — each of whom already has an approved building
+-- link, a unit and registered pets — was landing on "Welcome, Isabella 👋 …
+-- enter your building code" and could not reach Home, Trackers or Today's Care
+-- at all. The demo data existed and nothing in the demo could be looked at.
+--
+-- Managers are deliberately left alone: the resident gate is keyed on the
+-- persona being worn, so a manager who switches to the resident view is a
+-- resident who genuinely has answered nothing, and that wizard is the point.
+update public.profiles set onboarded = true
+  where id::text like 'a5000000-0000-4000-8000-0000000000%'
+    and id not in ('a5000000-0000-4000-8000-000000000001','a5000000-0000-4000-8000-000000000002')
+    and onboarded is distinct from true;
+
 -- The demo strata login uses a simpler password than the other seeded accounts.
 update auth.users set encrypted_password = crypt('12345678', gen_salt('bf'))
   where email = 'stratamanager@pet10x.com';
