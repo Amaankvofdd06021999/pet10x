@@ -345,7 +345,9 @@ export async function uploadEvidence(
 }
 
 /** Pets to point at, with photos signed server-side (a guest cannot sign). */
-export async function reportablePetsSigned(code: string): Promise<ReportablePet[]> {
+export async function reportablePetsSigned(
+  code: string,
+): Promise<{ pets: ReportablePet[]; error: string | null }> {
   const res = await fetch(`/api/report/pets?code=${encodeURIComponent(code)}`)
   const json = (await res.json().catch(() => null)) as { ok: boolean; pets?: ReportablePet[] } | null
   // A failure is not "no pets". Returning [] for both tells someone who could
@@ -458,9 +460,11 @@ git commit -m "One way to file a report, and it asks for photos"
 - Consumes: `<IncidentComposer>` from Task 3.
 - Produces: `submitIncident(input: { …existing…, evidencePaths?: string[] })` passing `p_evidence_paths`.
 
-- [ ] **Step 1: Add the parameter to `submitIncident`**
+- [ ] **Step 1: Verify what Task 3 already did — do not redo it**
 
-In `lib/data/incidents.ts`, add `evidencePaths?: string[]` to the input type and `p_evidence_paths: input.evidencePaths ?? []` to the `rpc` call. Map the two new server errors to sentences a person can act on: `too_many_files` → "You can attach up to 5 photos."; `bad_evidence_path` → "Those photos couldn't be attached — please try again."
+Task 3 could not file evidence without a parameter to carry it, so it already added `evidencePaths?: string[]` to `submitIncident`, passed `p_evidence_paths`, translated `too_many_files` and `bad_evidence_path`, and corrected the `submit_incident_report` declaration in `lib/supabase/database.types.ts`. All of that was reviewed and verified against `pg_proc` — one overload, eight arguments.
+
+Confirm it is present and correct, then leave it alone. This task is the two screen shells and nothing else.
 
 - [ ] **Step 2: Reduce `report-screen.tsx` to a shell**
 
