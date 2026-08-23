@@ -13,6 +13,7 @@ export * from "./types"
 export * from "./hooks"
 export * from "./live"
 export * from "./care-schedule"
+export * from "./selected-pet"
 export * from "./completeness"
 export * from "./breeds"
 export {
