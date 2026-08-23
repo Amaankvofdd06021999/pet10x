@@ -343,12 +343,23 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground/50" />
             </button>
 
+            {/* Schedule first, then a rule, then goals.
+                Two things live in this card and they aggregate differently. A
+                SCHEDULE aggregates: running a morning means doing everything
+                due at 07:30 for everyone, and that one time-ordered list is
+                where a missed dose hides. A GOAL does not: "2 / 4 cans" across
+                two cats is true when one ate everything and the other ate
+                nothing. The tiles used to sit on top, which left the reader to
+                infer that split; showing it puts the risk first. */}
+            <TodayScheduleStrip pets={pets} />
+
+            <div className="my-4 border-t border-border" />
+
             <TodayCareTiles
               petId={primaryPet?.id}
               species={primaryPet?.species}
               onOpen={(kind) => onNavigate?.("pet-care", kind)}
             />
-            <TodayScheduleStrip petId={primaryPet?.id} />
           </div>
         </section>
 
