@@ -65,6 +65,12 @@ begin
   -- fines for one breach.
   select * into v_vio from public.violations where id = p_violation for update;
   if not found then
+    -- Existence is answered before scope, so a caller who manages nothing can
+    -- still tell a real violation id from a fabricated one. Kept deliberately:
+    -- ids are uuids rather than guessable integers, `not_found` and `forbidden`
+    -- have to stay distinguishable for the client to say anything useful, and
+    -- escalate_incident_to_violation orders its two checks the same way. The
+    -- leak is existence only — nothing about the case is returned.
     return jsonb_build_object('ok', false, 'error', 'not_found');
   end if;
 
@@ -91,7 +97,16 @@ begin
   -- Note that a stage cannot move to itself: re-pressing "issue fine" on a
   -- case already at fine_1 is an illegal transition, not a silent no-op, so
   -- the manager finds out that the case had already moved.
-  if not (
+  --
+  -- The coalesce is load-bearing, not decoration. `x in (...)` is NULL, not
+  -- false, when x is NULL, so a null p_to_stage made `if not (...)` a NULL
+  -- condition — the branch was not taken, the guard was skipped, and control
+  -- fell through into the writes to be stopped only by the NOT NULL on
+  -- violations.stage. That rolled back cleanly but raised 23502 at the client
+  -- instead of returning something it could branch on, which contradicts this
+  -- function's whole no-raise contract. Three-valued logic has to be collapsed
+  -- to two before a boolean guard is trusted.
+  if not coalesce(
     case v_from
       when 'open'    then p_to_stage in ('warning', 'resolved', 'dismissed')
       when 'warning' then p_to_stage in ('fine_1', 'resolved', 'dismissed')
@@ -101,7 +116,8 @@ begin
       -- because a closed case that reopens under the same id destroys the
       -- meaning of its own history.
       else false
-    end
+    end,
+    false
   ) then
     return jsonb_build_object('ok', false, 'error', 'illegal_transition',
                               'from', v_from::text, 'to', p_to_stage::text);
@@ -152,6 +168,13 @@ begin
   -- `.is("resolved_at", null)`. A resolved case with a null resolved_at would
   -- stay in the manager's open-case count forever. Dismissal closes a case
   -- just as finally as resolution, so it stamps the same field.
+  --
+  -- FOR THE CLIENT: on a terminal step, p_note does double duty — it is the
+  -- event's note AND the case's resolution_outcome, which the manager's
+  -- resolved-cases queue renders as a short outcome label
+  -- (lib/data/manager-queues.ts:459). This is what `resolveViolation` already
+  -- does with its `outcome` argument. So pass a label, not a paragraph; with
+  -- no note at all the stage name is used.
   update public.violations
      set stage       = p_to_stage,
          resolved_at = case when p_to_stage in ('resolved', 'dismissed')
@@ -220,16 +243,25 @@ begin
         when 'resolved'  then 'Your bylaw case is closed'
         when 'dismissed' then 'Your bylaw case was dismissed'
       end,
+      -- "your unit" is only said when the case actually names one. Two of the
+      -- thirteen live violations have a resident but a null unit_id, and
+      -- telling one of those residents a fine was issued "against your unit"
+      -- names a thing the record does not contain.
       case
         when p_to_stage in ('fine_1', 'fine_2') then
           'A fine of ' || to_char(v_amount / 100.0, 'FM999999990.00')
-          || ' ' || upper(v_currency) || ' has been issued against your unit.'
+          || ' ' || upper(v_currency) || ' has been issued'
+          || case when v_vio.unit_id is not null then ' against your unit.' else '.' end
         when p_to_stage = 'warning' then
           'Your building has issued a warning about a pet bylaw matter.'
         when p_to_stage = 'resolved' then
-          'The pet bylaw matter involving your unit has been resolved.'
+          'The pet bylaw matter'
+          || case when v_vio.unit_id is not null then ' involving your unit' else '' end
+          || ' has been resolved.'
         else
-          'The pet bylaw matter involving your unit has been dismissed. No further action is required.'
+          'The pet bylaw matter'
+          || case when v_vio.unit_id is not null then ' involving your unit' else '' end
+          || ' has been dismissed. No further action is required.'
       end || coalesce(' ' || v_note, ''),
       'View details',
       v_target,
@@ -255,7 +287,7 @@ end;
 $$;
 
 comment on function public.manager_advance_violation(uuid, public.violation_stage_v2, text, integer, date) is
-  'Moves a violation one legal step along the enforcement ladder: validates the transition, writes a violation_events row, issues a fine on entering fine_1/fine_2, notifies the resident when there is one, and audits. Returns {ok:true, stage, notified, fine_id?} or {ok:false, error} — never raises.';
+  'Moves a violation one legal step along the enforcement ladder: validates the transition, writes a violation_events row, issues a fine on entering fine_1/fine_2, notifies the resident when there is one, and audits. Returns {ok:true, stage, notified, fine_id?} or {ok:false, error: not_found | forbidden | illegal_transition | no_fine_amount} — every rejection it specifies is a return value, not a raise.';
 
 -- The function bypasses RLS, so who may call it is the only remaining gate.
 -- `anon` is excluded deliberately: every caller of this is a signed-in
