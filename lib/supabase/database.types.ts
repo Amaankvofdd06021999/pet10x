@@ -3599,6 +3599,14 @@ export type Database = {
         Args: { p_booking: string }
         Returns: string
       }
+      community_identities: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          full_name: string
+          id: string
+        }[]
+      }
       dispute_violation: {
         Args: { p_reason: string; p_violation: string }
         Returns: Json

@@ -544,22 +544,31 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
               return (
                 <article key={post.id} className="rounded-2xl card-raised overflow-hidden">
                   <div className="p-4">
-                    <div className="flex items-center gap-3">
+                    {/* items-START, not items-center. With BOTH a Pin button and
+                        a More button in this row, the name/badge line wraps at
+                        393px, and an avatar centred against a two-line stack
+                        reads as a misalignment. Seen in a browser at phone
+                        width as the manager, not reasoned about — the resident
+                        view, with one fewer button, never wrapped. The name now
+                        owns its own line and the metadata sits under it. */}
+                    <div className="flex items-start gap-3">
                       <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-muted">
                         <Image src={post.avatar || AVATAR_FALLBACK} alt={post.author} fill className="object-cover" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="text-[15px] font-semibold text-foreground break-words">{post.author}</span>
+                          {post.isPinned && <Pin className="h-3 w-3 flex-shrink-0 text-info" aria-label="Pinned" />}
+                        </div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                           <Badge className={`text-[10px] border-0 ${categoryClass(post.category)}`}>
                             {post.category}
                           </Badge>
                           {post.isOfficial && (
                             <Badge className="border-0 bg-info/10 text-[10px] text-info">Official</Badge>
                           )}
-                          {post.isPinned && <Pin className="h-3 w-3 text-info" aria-label="Pinned" />}
+                          <span className="text-[12px] text-muted-foreground">{post.time}</span>
                         </div>
-                        <span className="text-[12px] text-muted-foreground">{post.time}</span>
                       </div>
                       {managesThis && (
                         <button

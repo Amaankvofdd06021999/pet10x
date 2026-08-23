@@ -1278,15 +1278,55 @@ interface PostRow {
   like_count: number
   comment_count: number
   created_at: string
-  profiles: { full_name: string | null; avatar_url: string | null } | null
 }
 
-function mapPost(row: PostRow, liked: boolean, image: string | undefined): CommunityPost {
+/**
+ * Who somebody is, as far as a community screen is concerned.
+ *
+ * NOT an embedded `profiles!fk(full_name, avatar_url)` join, and that is the
+ * whole point. `profiles_select` is `(id = auth.uid()) OR is_admin() OR
+ * <manager of their building>` — A RESIDENT MAY READ NO PROFILE BUT THEIR OWN —
+ * so an embedded join returns NULL for every neighbour and the feed renders
+ * every author as "Resident" with a placeholder avatar. Measured in a browser
+ * with two real accounts; four clean gates had said nothing about it.
+ *
+ * `community_identities()` (20260826000005) is a SECURITY DEFINER function
+ * returning exactly id, full_name and avatar_url for the caller's own
+ * building's roster. It takes no arguments so it cannot be used as an oracle,
+ * and it returns three columns so widening profiles_select — which would have
+ * published every neighbour's address, phone and coordinates — was not needed.
+ */
+export interface CommunityIdentity {
+  fullName: string | null
+  avatarUrl: string | null
+}
+
+async function communityIdentities(
+  supabase: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>,
+): Promise<Map<string, CommunityIdentity>> {
+  const { data } = await supabase.rpc("community_identities")
+  const map = new Map<string, CommunityIdentity>()
+  for (const r of (data ?? []) as unknown as { id: string; full_name: string | null; avatar_url: string | null }[]) {
+    map.set(r.id, { fullName: r.full_name, avatarUrl: r.avatar_url })
+  }
+  return map
+}
+
+function mapPost(
+  row: PostRow,
+  who: Map<string, CommunityIdentity>,
+  liked: boolean,
+  image: string | undefined,
+): CommunityPost {
+  const id = row.author_id ? who.get(row.author_id) : undefined
   return {
     id: row.id,
     authorId: row.author_id,
-    author: row.profiles?.full_name ?? "Resident",
-    avatar: row.profiles?.avatar_url ?? "",
+    /* "Resident" survives as the fallback for a post whose author has left the
+     * building or deleted their account — author_id goes NULL by ON DELETE SET
+     * NULL, which anonymises the post rather than destroying the thread. */
+    author: id?.fullName ?? "Resident",
+    avatar: id?.avatarUrl ?? "",
     time: timeAgo(row.created_at),
     category: row.category,
     content: row.content,
@@ -1411,7 +1451,7 @@ export function useCommunityPosts(): LiveResult<CommunityPost[]> {
     const { data: rows, error: err } = await supabase
       .from("community_posts")
       .select(
-        "id, author_id, category, content, image_url, is_pinned, is_official, like_count, comment_count, created_at, profiles!community_posts_author_id_fkey(full_name, avatar_url)",
+        "id, author_id, category, content, image_url, is_pinned, is_official, like_count, comment_count, created_at",
       )
       .eq("building_id", scope.buildingId)
       .is("deleted_at", null)
@@ -1433,11 +1473,14 @@ export function useCommunityPosts(): LiveResult<CommunityPost[]> {
         .in("post_id", ids)
       likedIds = new Set((reactions ?? []).map((r) => r.post_id))
     }
-    const signed = await signCommunityImages((rows ?? []).map((r) => r.image_url))
+    const [signed, who] = await Promise.all([
+      signCommunityImages((rows ?? []).map((r) => r.image_url)),
+      communityIdentities(supabase),
+    ])
     setData(
       (rows ?? []).map((r) => {
         const row = r as unknown as PostRow
-        return mapPost(row, likedIds.has(row.id), row.image_url ? (signed[row.image_url] ?? undefined) : undefined)
+        return mapPost(row, who, likedIds.has(row.id), row.image_url ? (signed[row.image_url] ?? undefined) : undefined)
       }),
     )
     setError(null)
@@ -1495,17 +1538,13 @@ export function useEvents(): LiveResult<CommunityEvent[]> {
      * on one event counted as ONE — to the resident AND to the manager. */
     const byEvent = new Map<string, { names: string[]; mine: boolean }>()
     if (ids.length) {
-      const { data: rsvps } = await supabase
-        .from("event_rsvps")
-        .select("event_id, profile_id, profiles(full_name)")
-        .in("event_id", ids)
-      for (const r of (rsvps ?? []) as unknown as {
-        event_id: string
-        profile_id: string
-        profiles: { full_name: string | null } | null
-      }[]) {
+      const [{ data: rsvps }, who] = await Promise.all([
+        supabase.from("event_rsvps").select("event_id, profile_id").in("event_id", ids),
+        communityIdentities(supabase),
+      ])
+      for (const r of (rsvps ?? []) as unknown as { event_id: string; profile_id: string }[]) {
         const entry = byEvent.get(r.event_id) ?? { names: [], mine: false }
-        entry.names.push(r.profiles?.full_name ?? "A neighbour")
+        entry.names.push(who.get(r.profile_id)?.fullName ?? "A neighbour")
         if (r.profile_id === user.id) entry.mine = true
         byEvent.set(r.event_id, entry)
       }
@@ -1689,24 +1728,22 @@ export interface PostComment {
 export async function fetchPostComments(postId: string): Promise<PostComment[]> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return []
-  const { data } = await supabase
-    .from("post_comments")
-    .select("id, author_id, content, created_at, profiles!post_comments_author_id_fkey(full_name, avatar_url)")
-    .eq("post_id", postId)
-    .order("created_at", { ascending: true })
+  const [{ data }, who] = await Promise.all([
+    supabase
+      .from("post_comments")
+      .select("id, author_id, content, created_at")
+      .eq("post_id", postId)
+      .order("created_at", { ascending: true }),
+    communityIdentities(supabase),
+  ])
   return (data ?? []).map((r) => {
-    const p = r as unknown as {
-      id: string
-      author_id: string | null
-      content: string
-      created_at: string
-      profiles: { full_name: string | null; avatar_url: string | null } | null
-    }
+    const p = r as unknown as { id: string; author_id: string | null; content: string; created_at: string }
+    const id = p.author_id ? who.get(p.author_id) : undefined
     return {
       id: p.id,
       authorId: p.author_id,
-      author: p.profiles?.full_name ?? "Resident",
-      avatar: p.profiles?.avatar_url ?? "",
+      author: id?.fullName ?? "Resident",
+      avatar: id?.avatarUrl ?? "",
       content: p.content,
       time: timeAgo(p.created_at),
     }

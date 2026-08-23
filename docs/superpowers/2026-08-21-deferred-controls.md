@@ -24,11 +24,24 @@ is deleting one flag and adding one line — the owning plan already says so.
 | Profile → **Building Rules** | `components/screens/profile-screen.tsx:103` (`unbuilt: true`) | **Phase 6** — `plans/2026-08-22-phase-6-building-rules.md:658` | The screen does not exist. Phase 6 builds `building-rules`, routes this row to it, and its plan already instructs its implementer to re-enable a row it expects to find disabled. |
 | Home → Quick Actions → **Building Rules** | `components/screens/home-screen.tsx:62` (`unbuilt: true`) | **Phase 6** — same plan, `:657` | Same screen. This tile was worse than a "coming soon": it toasted *"One dog or one cat · leashed in common areas"* as though that were the viewer's building's policy. It is one string for all six buildings and it is **wrong for the flagship one** — Maple Court Residences' `buildings.pet_rules` records `max_pets_per_unit: 2`. Fabricated data outranks an admitted gap. |
 | Profile → **Accommodation Requests** | `components/screens/profile-screen.tsx:104` (`unbuilt: true`) | **Phase 7** — `plans/2026-08-22-phase-7-accommodations.md:569` | No resident intake form exists anywhere; `accommodation_documents` holds 0 rows and nothing has ever written one. Phase 7 builds the form, the RPCs and the storage path. |
-| Community → **Pin post** | `components/screens/community-screen.tsx:266-274` | **Phase 8** — `plans/2026-08-22-phase-8-community.md:681` | `community_posts.is_pinned` exists and nothing sets it. Phase 8 adds a moderation migration and a column-level trigger, because `posts_update_own` currently lets an **author** pin their own post. Was `toast.success("Post pinned")` over no write at all. |
-| Community → **More options** | `components/screens/community-screen.tsx:276-278` | **Phase 8** — same plan, `:682` | Becomes a real remove-post sheet. |
-| Community → **Share** (on a post) | `components/screens/community-screen.tsx:320-322` | **Phase 8** — same plan, `:683`, disposition **remove** | There is no per-post route to copy: `/app` is one client-side screen switcher and `app/emergency/[code]` is the project's only dynamic route. Share becomes real on **Lost & Found** instead, as share *text*. Was `toast.success("Link copied")` with no clipboard call anywhere in the handler. |
-| Community → **RSVP** | `components/screens/community-screen.tsx:452-457` | **Phase 8** — same plan, `:684` | `useEvents()` is a `resolved([])` stub and `events` holds 0 rows, so it has never rendered. Disabled anyway: an unreachable false claim is one grep away from being copied somewhere reachable. Phase 8 must also widen `event_rsvps`, whose only policy is `rsvps_self`, or the attendee count can never be true. |
-| Community → **Search** field | `components/screens/community-screen.tsx:204-207` | **Phase 8** — same plan, `:685` | A `<span>` styled as a text input. Never typeable, no state, no handler. Left exactly as it is so Phase 8 replaces one thing rather than unpicking a cosmetic patch first. Neither of Phase 3's sweep greps can see it — it is not a toast and not an `onClick`. |
+
+**The five Community rows are RESOLVED. Phase 8 shipped, 2026-08-23.** They are
+kept here, struck through, rather than deleted, because the point of this file
+is to make deferral distinguishable from neglect — and a row that vanishes
+silently is indistinguishable from a row nobody ever looked at again.
+
+| Control | Was | Is now |
+| --- | --- | --- |
+| Community → ~~**Pin post**~~ | `toast.success("Post pinned")` over no write at all, then disabled | `pinPost()`. Rendered only when the viewer manages **this feed's** building. `community_posts_guard` (`20260826000001`) is the authority: before it, `posts_update_own` let the **author** pin their own post and set `is_official` on it. |
+| Community → ~~**More options**~~ | `toast("More options — coming soon")`, then disabled | A real sheet whose only item is **Remove** — the author's own post as a plain `deleted_at`, a neighbour's through `moderate_community_post`, which audits it. Not rendered at all when the viewer can do nothing to the post. |
+| Community → ~~**Share** (on a post)~~ | `toast.success("Link copied")` with no clipboard call, then disabled | **Removed**, as its Phase 3 note predicted. There is still no per-post route. Share is real on Lost & Found instead, as share **text** — `lostFoundShareText`, whose test asserts the payload carries no building code, no unit, no URL and no uuid. |
+| Community → ~~**RSVP**~~ | `toast.success("RSVP confirmed")`, then disabled | `rsvpToEvent()`, toggling, with the live count **and the attendee names**. `event_rsvps` gained `rsvps_read` (`20260826000000`); its only policy had been `profile_id = auth.uid()`, so two RSVPs counted as one for everybody. |
+| Community → ~~**Search** field~~ | a `<span>` styled as an input, never typeable | A real client-side filter over the open tab's loaded list, with a clear button and an `aria-label`. |
+
+Phase 8 also found and fixed the two things this file recorded under "Not a
+control, same debt": the `EmptyState` CTA lines now open real composers, and
+`<Image src="">` now falls back to `/placeholder-user.jpg` and
+`/placeholder.jpg`.
 
 ---
 
