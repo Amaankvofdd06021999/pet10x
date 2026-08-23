@@ -232,7 +232,12 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
             Written notices residents read in their account &mdash; parking, noise, waste, common areas. These are
             statements, not compliance checks: nothing here changes a resident&apos;s score.
           </p>
-          <BuildingRulesEditor buildingId={building.id} buildingName={building.name} petRules={building.rules} />
+          <BuildingRulesEditor
+            buildingId={building.id}
+            buildingName={building.name}
+            petRules={building.rules}
+            onNavigate={onNavigate}
+          />
         </Sheet>
       )}
       {building && sheet === "qr" && <EmergencyQrSheet buildingId={building.id} onClose={() => setSheet(null)} />}

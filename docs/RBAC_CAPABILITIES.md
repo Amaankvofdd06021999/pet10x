@@ -242,6 +242,39 @@ manager's is. Verified. The only path that moves the schedule is
 `manager_set_fine_schedule`, which re-checks scope by hand and writes an
 `audit_log` row carrying BOTH the previous and the new triple.
 
+That last sentence was false as first shipped, and the correction is worth
+recording because the shape of the mistake is reusable. The trigger carries
+`WHEN (old.pet_rules IS DISTINCT FROM new.pet_rules)`, and
+`manager_set_fine_schedule` minted its token unconditionally. So a **re-set of
+values the building already held** produced an UPDATE that changed nothing, the
+WHEN clause was false, the guard was never entered, and the token was never
+spent — leaving it live for the rest of the transaction. Measured on production
+as a manager, rolled back: after a no-op re-set, a direct
+`update buildings set pet_rules = pet_rules || '{"fine_1_cents": 999999999}'`
+**succeeded**, writing a $9,999,999.99 first offence with no `audit_log` row. A
+second direct update was refused, confirming the token really was single-use;
+the defect was that on the no-op path nothing ever collected it.
+
+`20260825000004_fine_schedule_token_spend.sql` closes it by making the RPC clear
+its own token immediately after the guarded UPDATE, unconditionally. The rule
+that generalises — and the one to apply to any future guard of this shape — is
+that **a minter closes its own window**: the token must not outlive the function
+that minted it, whether or not any trigger chose to run. Teaching the RPC to
+predict the trigger's WHEN clause instead would duplicate the predicate in two
+files free to drift, and drift is what produced the bug.
+
+The other two tokens were checked rather than assumed, against `pg_proc` on
+production so a function existing only in the database could not hide. The
+census is exactly three mints and three spends. `pet10x.stage_change`
+(`manager_advance_violation`) is safe because its ladder is a positive grammar
+in which no branch lists its own stage, so a same-stage call is refused as
+`illegal_transition` *before* the mint — verified live. `pet10x.rule_publish`
+(`publish_building_rule`) is safe twice over: the mint is already conditional on
+the publication state actually changing, and `trg_building_rules_publish_guard`
+carries no WHEN clause at all, so the guard is entered on every write and
+collects any token that exists. Only `fine_schedule` combined an unconditional
+mint with a WHEN-gated guard.
+
 That guard also closes a live data-loss hazard rather than only an audit gap: a
 bylaw template saved before the schedule existed is a whole-`pet_rules`
 snapshot with no fine keys, and applying it replaced the object — silently

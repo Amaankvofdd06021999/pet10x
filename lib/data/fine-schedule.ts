@@ -111,7 +111,16 @@ export function parseAmountToCents(input: string): number | null | "invalid" {
 
   // Only a LEADING currency symbol, and only one. `250$` is not how anyone
   // writes an amount, and accepting it would mean accepting `2$50`.
-  const bare = trimmed.replace(/^\$\s*/, "").replace(/\s+/g, "")
+  //
+  // The `$` may be followed by spaces — `$ 250.00` is a normal thing to type —
+  // and that is the ONLY whitespace removed. A blanket `.replace(/\s+/g, "")`
+  // used to run here, which silently deleted INTERNAL spaces too and made
+  // `"2 5 0"` parse as 250. That is a wider grammar than this file claims to
+  // have: a space is not a thousands separator, and a number with holes in it
+  // is a typo, not a value. `"25 000"` was already in the reject table below
+  // and passed only by accident — glued to `"25000"` it landed above the
+  // ceiling and was refused for the wrong reason.
+  const bare = trimmed.replace(/^\$\s*/, "")
   if (!PLAIN.test(bare) && !GROUPED.test(bare)) return "invalid"
 
   const [whole, frac = ""] = bare.replace(/,/g, "").split(".")

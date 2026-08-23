@@ -38,7 +38,7 @@ import {
   type BuildingRule,
   type BuildingRuleCategory,
 } from "@/lib/data/building-rules"
-import { Loader2, Plus, ArrowUp, ArrowDown, Eye, EyeOff, Pencil, X, FileText } from "lucide-react"
+import { Loader2, Plus, ArrowUp, ArrowDown, Eye, EyeOff, Pencil, X, FileText, ExternalLink } from "lucide-react"
 
 const TITLE_MAX = 120
 const BODY_MAX = 8000
@@ -57,10 +57,13 @@ export function BuildingRulesEditor({
   buildingName,
   /** The building's `pet_rules` jsonb, read only to offer the legacy-note copy. */
   petRules,
+  /** Routes to the REAL resident screen. See the button near the bottom. */
+  onNavigate,
 }: {
   buildingId: string
   buildingName?: string
   petRules?: unknown
+  onNavigate?: (screen: string) => void
 }) {
   const { data: rules, isLoading, error, refetch } = useManagerBuildingRules(buildingId)
   /* `null` when it could not be established. The checkbox then says what it
@@ -215,6 +218,25 @@ export function BuildingRulesEditor({
             </button>
           )}
 
+          {/* THE ONLY WAY A MANAGER REACHES THE RESIDENT SCREEN.
+              `navigation.ts` registers `building-rules` for BOTH surfaces so a
+              manager can check what their residents actually see — but the only
+              callers of `onNavigate("building-rules")` were `home-screen` and
+              `profile-screen`, both resident-only. Registered and reachable are
+              different things, and without this the manager surface had no door.
+              It belongs here rather than in the settings menu because this is
+              where the claim is made: the composer above renders a PREVIEW, and
+              a preview is an assertion about another screen. This is how the
+              assertion gets checked against the thing itself. */}
+          {onNavigate && (
+            <button
+              onClick={() => onNavigate("building-rules")}
+              className="flex items-center gap-1.5 self-start rounded-xl border border-border px-3 py-2 text-[12.5px] font-semibold text-foreground"
+            >
+              <ExternalLink className="h-4 w-4" /> Open the resident screen
+            </button>
+          )}
+
           {groups.length === 0 && draft === null && (
             <p className="rounded-lg bg-muted/50 px-3 py-3 text-[12.5px] text-muted-foreground">
               No house rules yet{buildingName ? ` for ${buildingName}` : ""}. Residents see an honest empty state
@@ -364,10 +386,10 @@ function Composer({
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             What a resident will see
           </p>
-          <p className="text-[13.5px] font-semibold text-foreground">{draft.title || "Untitled"}</p>
+          <p className="break-words text-[13.5px] font-semibold text-foreground">{draft.title || "Untitled"}</p>
           {/* The SAME rendering the resident screen uses. If this and that ever
               differ, the preview is a lie about the thing it is previewing. */}
-          <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">{draft.body}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-foreground">{draft.body}</p>
         </div>
       )}
 
@@ -410,7 +432,7 @@ function RuleCard({
   return (
     <div className="rounded-xl border border-border p-3">
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 text-[13.5px] font-semibold text-foreground">{rule.title}</p>
+        <p className="min-w-0 flex-1 break-words text-[13.5px] font-semibold text-foreground">{rule.title}</p>
         <span
           className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${
             rule.isPublished ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
@@ -422,7 +444,7 @@ function RuleCard({
       {/* The entire body, `whitespace-pre-wrap`, shortened by nothing — the
           same rendering the resident screen uses. A collapsed bylaw is a bylaw
           nobody read, and "show more" is a cut with a nicer name. */}
-      <p className="mt-1 whitespace-pre-wrap text-[12.5px] leading-relaxed text-muted-foreground">{rule.body}</p>
+      <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-muted-foreground">{rule.body}</p>
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
         <SmallButton onClick={onEdit} disabled={busy} icon={Pencil} label="Edit" />

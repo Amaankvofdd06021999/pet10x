@@ -70,7 +70,12 @@ export const SCREEN_SURFACES = {
    * a convenience: the manager's editor renders a preview, and a preview is a
    * claim about another screen. Being able to open the real one is how the
    * claim gets checked. It carries no id: the screen's subject is the viewer's
-   * own building, which comes from `my_building_link`, not from the target. */
+   * OWN building, resolved by the screen from whichever of the two the viewer
+   * actually has — the resident's `my_building_link`, or, for a manager who is
+   * not a resident of the building they manage, the active persona grant. That
+   * second half was missing when this comment was first written, so the claim
+   * above was made and not true: manager@pet10x.com holds no resident link and
+   * was shown a "Link my building" button instead of their building's rules. */
   "building-rules": BOTH,
   "my-bookings": BOTH,
   // Rendered in both blocks: managers have no Alerts tab, but the dashboard

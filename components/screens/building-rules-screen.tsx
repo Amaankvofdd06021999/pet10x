@@ -64,6 +64,7 @@
 import { useMemo, useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
+import { useAuth } from "@/lib/auth-context"
 import { useMyBuildingLink } from "@/lib/data/live"
 import { useMyBuildingRules, useBuildingPetRules } from "@/lib/data/building-rules-live"
 import {
@@ -83,11 +84,38 @@ export function BuildingRulesScreen({
   onNavigate?: (screen: string) => void
 }) {
   const { data: link, isLoading: linkLoading } = useMyBuildingLink()
+  const { viewAs, activeBuildingId, managedBuildings, isLoading: authLoading } = useAuth()
+
   /* Only an APPROVED link gets a building. A pending or left link means the
      person is not (yet) a resident, and `is_resident_of` — which every read
      below sits behind — would return false anyway. Deciding it here means the
      screen offers the link flow instead of rendering two empty sections. */
-  const buildingId = link?.status === "approved" ? link.buildingId : undefined
+  const residentBuilding =
+    link?.status === "approved" ? { id: link.buildingId, name: link.buildingName } : null
+
+  /* A MANAGER IS NOT A RESIDENT OF THE BUILDING THEY MANAGE. `navigation.ts`
+     registers this screen for BOTH surfaces precisely so a manager can open the
+     real thing and check the claim their editor's preview makes — but resolving
+     the subject from `my_building_link` alone made that impossible: measured,
+     manager@pet10x.com holds no resident link at all, so the screen offered
+     them a "Link my building" button instead of their own building's rules.
+
+     Read from the persona grants rather than through `useManagerBuilding`:
+     `activeBuildingId` is already validated against `my_personas().managed_buildings`
+     when it is set, and `managedBuildings` carries the name, so this costs no
+     round-trip on a screen every resident also opens. */
+  const managedBuilding = managedBuildings.find((b) => b.id === activeBuildingId) ?? null
+
+  /* Which one wins when a viewer holds both — someone who manages one building
+     and lives in another — is decided by the persona they are CURRENTLY acting
+     as, not by which resolved first. `viewAs` is the same central value the tab
+     bar and sidebar read; letting this screen invent its own precedence is how
+     a surface drifts out of sync with the persona. */
+  const actingAsManager = viewAs === "building-manager" || viewAs === "strata-manager"
+  const building = actingAsManager
+    ? (managedBuilding ?? residentBuilding)
+    : (residentBuilding ?? managedBuilding)
+  const buildingId = building?.id
 
   const { data: rules, isLoading: rulesLoading } = useMyBuildingRules(buildingId)
   const { data: petRules, isLoading: petRulesLoading } = useBuildingPetRules(buildingId)
@@ -98,12 +126,17 @@ export function BuildingRulesScreen({
   const requirements = useMemo(() => readRequirements(petRules), [petRules])
   const shown = filter === "all" ? groups : groups.filter((g) => g.category === filter)
 
-  const loading = linkLoading || (buildingId !== undefined && (rulesLoading || petRulesLoading))
+  /* `authLoading` is in here because the manager's building comes from the
+     persona grants, which arrive after the link does. Without it a manager
+     renders the "you aren't linked to a building" card for a frame and then
+     replaces it with their rules. */
+  const loading =
+    authLoading || linkLoading || (buildingId !== undefined && (rulesLoading || petRulesLoading))
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
-        title={link?.buildingName ?? "Building Rules"}
+        title={building?.name ?? "Building Rules"}
         largeTitle={false}
         leftAction={<NavBackButton onClick={onBack} />}
       />
@@ -194,7 +227,7 @@ export function BuildingRulesScreen({
                           {group.rules.map((r) => (
                             <article key={r.id} className="rounded-2xl card-raised p-4">
                               <div className="mb-1 flex items-start justify-between gap-2">
-                                <h4 className="min-w-0 flex-1 text-[15px] font-semibold text-foreground">
+                                <h4 className="min-w-0 flex-1 break-words text-[15px] font-semibold text-foreground">
                                   {r.title}
                                 </h4>
                                 <span className="flex-shrink-0 rounded-full bg-info/10 px-2 py-0.5 text-[10.5px] font-semibold text-info">
@@ -203,8 +236,18 @@ export function BuildingRulesScreen({
                               </div>
                               {/* THE LINE THIS PHASE EXISTS FOR. The entire
                                   body, whitespace-pre-wrap, escaped by React,
-                                  shortened by nothing. */}
-                              <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-foreground">
+                                  shortened by nothing.
+
+                                  `break-words` is a WRAPPING utility, never a
+                                  shortening one — no character is lost, the
+                                  line simply turns. Without it
+                                  `whitespace-pre-wrap` wraps at spaces ONLY, so
+                                  one unbroken token — a long reference number,
+                                  a URL, a `--------` divider a manager typed —
+                                  runs straight off the card and pushes the
+                                  whole page sideways at 375px. The body still
+                                  renders in full; only the layout changes. */}
+                              <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-foreground">
                                 {r.body}
                               </p>
                               <p className="mt-2 text-[11px] text-muted-foreground">
