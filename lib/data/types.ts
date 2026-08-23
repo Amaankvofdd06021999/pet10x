@@ -423,6 +423,16 @@ export interface AppNotification {
   time: string
   read: boolean
   actionLabel?: string
+  /**
+   * `notifications.action_target` — a `screen` or `screen:id` key for
+   * `app/app/page.tsx`'s router, resolved through `resolveActionTarget`.
+   *
+   * A label without a resolvable target renders NO button. The column has been
+   * written by five migrations and two API routes since June and was read by
+   * nothing until Phase 3; the button beside the label called
+   * `toast.success(actionLabel)` and went nowhere.
+   */
+  actionTarget?: string
   iconKey: NotificationIconKey
 }
 

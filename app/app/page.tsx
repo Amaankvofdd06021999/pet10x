@@ -28,10 +28,30 @@ import { ManagerViolationsScreen } from "@/components/screens/manager/violations
 import { ManagerApprovalsScreen } from "@/components/screens/manager/approvals-screen"
 import { ManagerIncidentsScreen } from "@/components/screens/manager/incidents-screen"
 import { ManagerSettingsScreen } from "@/components/screens/manager/settings-screen"
+import { isScreenKey, type ScreenKey } from "@/lib/navigation"
 import { Loader2, PawPrint } from "lucide-react"
 
-/** Desktop content max-width per screen — owner/overview read as a column, data screens go wide. */
-const CONTENT_MAX: Record<string, string> = {
+/**
+ * Desktop content max-width per screen — owner/overview read as a column, data
+ * screens go wide.
+ *
+ * Typed `Record<ScreenKey, string>` rather than `Record<string, string>`, and
+ * that is load-bearing in both directions. A screen added to `SCREEN_SURFACES`
+ * without a width here is a compile error, and — the direction that matters —
+ * so is a width for a screen not registered there. Every plan that adds a
+ * screen (Phase 5's `my-cases`, Phase 6's `building-rules`, Phase 7's
+ * `accommodations`) already lists "add a CONTENT_MAX entry" as a step, so the
+ * compiler catches them at the step they were going to take anyway, and
+ * `alerts-screen` starts routing that phase's notifications without anyone
+ * editing it.
+ *
+ * Adding the type immediately surfaced that `incidents` had no entry at all,
+ * so the manager's Incidents screen was falling back to `max-w-2xl` (672px)
+ * while its siblings read at `max-w-5xl`. Its card list is `lg:grid-cols-2`
+ * (`incidents-screen.tsx:128`) and `lg` is 1024px, so the second column had
+ * never rendered on any display.
+ */
+const CONTENT_MAX: Record<ScreenKey, string> = {
   home: "max-w-2xl",
   community: "max-w-2xl",
   services: "max-w-5xl",
@@ -50,6 +70,7 @@ const CONTENT_MAX: Record<string, string> = {
   residents: "max-w-5xl",
   violations: "max-w-5xl",
   approvals: "max-w-5xl",
+  incidents: "max-w-5xl",
   settings: "max-w-2xl",
 }
 
@@ -154,7 +175,7 @@ function AppContent() {
     setCurrentScreen(activeTab)
   }
 
-  const contentMax = CONTENT_MAX[currentScreen] ?? "max-w-2xl"
+  const contentMax = isScreenKey(currentScreen) ? CONTENT_MAX[currentScreen] : "max-w-2xl"
 
   return (
     <div className="bg-background md:flex md:min-h-dvh">

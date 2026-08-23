@@ -21,6 +21,7 @@ import {
   isOpenIncident,
   INCIDENT_TYPE_LABEL,
   INCIDENT_STATUS_LABEL,
+  type IncidentStatus,
   type ManagerIncident,
 } from "@/lib/data/incidents"
 
@@ -43,7 +44,15 @@ export function locationLabel(location: string): string {
 /* Incident triage — the manager's half of the reporting loop.         */
 /* ------------------------------------------------------------------ */
 
-const INCIDENT_STATUS_STYLE: Record<string, string> = {
+/* Keyed on the ENUM, not on `string`.
+ *
+ * As `Record<string, string>` a status added to `incident_status` compiled
+ * silently and rendered with no badge class at all. This is the same shape that
+ * made the manager dashboard label every violation "Investigation" for weeks:
+ * the map went stale, the compiler had nothing to check it against, and the
+ * screen kept rendering. Exhaustive over `IncidentStatus`, a seventh label is a
+ * compile error here on the day it is added. */
+const INCIDENT_STATUS_STYLE: Record<IncidentStatus, string> = {
   submitted: "bg-destructive/10 text-destructive",
   triaged: "bg-primary/10 text-primary",
   investigating: "bg-warning/10 text-warning-strong",

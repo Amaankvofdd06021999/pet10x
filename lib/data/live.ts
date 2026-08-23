@@ -151,7 +151,10 @@ export interface LiveResult<T> {
 
 /* ------------------------------- mappers -------------------------------- */
 
-const STATUS_MAP: Record<string, PetStatus> = {
+/* Keyed on the ENUM. Same reason as NOTIF_ICON below and
+ * INCIDENT_STATUS_STYLE in incident-card.tsx: as `Record<string, PetStatus>` a
+ * sixth `pet_status` label compiled and then silently mapped to `undefined`. */
+const STATUS_MAP: Record<Database["public"]["Enums"]["pet_status"], PetStatus> = {
   home: "home",
   away: "away",
   at_vet: "at-vet",
@@ -1073,7 +1076,23 @@ export function removeResident(linkId: string) {
 
 /* ----------------------------- notifications ------------------------------ */
 
-const NOTIF_ICON: Record<string, AppNotification["iconKey"]> = {
+/**
+ * Keyed on the ENUM, and that change found a live defect the moment it was made.
+ *
+ * As `Record<string, ...>` this map was missing `care` entirely, so every care
+ * reminder fell through the `?? "alert"` default and rendered the red
+ * AlertTriangle. `care` is not a rare kind: it is 144 of the 192 notifications
+ * in the database (measured 2026-08-23) — three quarters of everything the
+ * Alerts screen shows anybody. "Breakfast for max" has been showing an incident
+ * icon since care reminders shipped, and nothing could have caught it, because
+ * `Record<string, X>` accepts a map that is missing a key exactly as happily as
+ * one that is complete.
+ *
+ * `calendar` because that is what these are: a scheduled care task falling due
+ * today. Typed over the enum, an eighth `notification_kind` is now a compile
+ * error here rather than another silent AlertTriangle.
+ */
+const NOTIF_ICON: Record<Database["public"]["Enums"]["notification_kind"], AppNotification["iconKey"]> = {
   compliance: "shield",
   incident: "alert",
   building: "calendar",
@@ -1081,15 +1100,19 @@ const NOTIF_ICON: Record<string, AppNotification["iconKey"]> = {
   community: "check",
   system: "alert",
   assistant: "sparkles",
+  care: "calendar",
 }
 
 function mapNotification(row: {
   id: string
-  kind: string
+  /* The enum, not `string` — otherwise NOTIF_ICON below cannot be indexed by
+     it, which is the whole point of typing that map over the enum. */
+  kind: Database["public"]["Enums"]["notification_kind"]
   severity: string
   title: string
   body: string | null
   action_label: string | null
+  action_target: string | null
   read_at: string | null
   created_at: string
 }): AppNotification {
@@ -1112,6 +1135,10 @@ function mapNotification(row: {
     time: timeAgo(row.created_at),
     read: !!row.read_at,
     actionLabel: row.action_label ?? undefined,
+    /* Carried through raw. The screen, not this mapper, decides whether it is
+       reachable — reachability depends on the persona being worn, which is not
+       knowable here. See lib/navigation.ts. */
+    actionTarget: row.action_target ?? undefined,
     iconKey: NOTIF_ICON[row.kind] ?? "alert",
   }
 }
@@ -1153,7 +1180,7 @@ export function useNotifications(): LiveResult<AppNotification[]> {
 
     const { data: rows, error: err } = await supabase
       .from("notifications")
-      .select("id, kind, severity, title, body, action_label, read_at, created_at")
+      .select("id, kind, severity, title, body, action_label, action_target, read_at, created_at")
       .eq("profile_id", user.id)
       .order("created_at", { ascending: false })
       .limit(100)
