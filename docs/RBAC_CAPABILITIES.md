@@ -132,15 +132,27 @@ Phase 2, not something this document settles.
 | Read a dispute | ❌ | ✅ own | ✅ building | ✅ | `vdisputes_select` |
 | Request an accommodation | ❌ | ✅ | ✅ | ✅ | `accom_resident_insert` |
 | Decide an accommodation | ❌ | ❌ | ✅ | ✅ | `accom_manager_update` |
-| Set the fine schedule | ❌ | ❌ | ✅ | ✅ | `buildings_manager_update` (manager), `buildings_admin_all` (admin) *(Phase 4)* |
-| Write or publish a building rule | ❌ | ❌ | ✅ | ✅ | `publish_building_rule` *(Phase 6)* |
-| Read a building rule | ❌ | ✅ published, own building | ✅ all, own buildings | ✅ | `building_rules` select *(Phase 6)* |
+| Set the fine schedule | ❌ | ❌ | ✅ | ✅ | `manager_set_fine_schedule` + `buildings_fine_schedule_guard` — see ⁵ |
+| Read a PUBLISHED building rule | ❌ | ✅ own building | ✅ own buildings | ✅ | `building_rules_resident_read`, `building_rules_manager_read` |
+| Read an UNPUBLISHED building rule | ❌ | ❌ | ✅ own buildings | ✅ | `building_rules_manager_read` — the resident policy requires `is_published` |
+| Write a building rule | ❌ | ❌ | ✅ own buildings | ✅ | `manager_save_building_rule` (audited); `building_rules_manager_insert` / `_manager_update` |
+| Publish or unpublish a building rule | ❌ | ❌ | ✅ own buildings | ✅ | `publish_building_rule` + `building_rules_publish_guard` — see ⁶ |
+| Delete a building rule | ❌ | ❌ | ❌ | ✅ | `building_rules_admin_delete` — see ⁷ |
 | Post, RSVP, report lost & found | ❌ | ✅ ¹ | ✅ ¹ | ✅ ¹ | `posts_insert`, `rsvps_self`, `lost_found_insert`, `events_write`, and `posts_select` / `lost_found_select` / `events_select` |
 | Upload and read community media | ❌ | ✅ own buildings | ✅ own buildings | ✅ read only ³ | `community-media building read`, `community-media uploader write`, `community-media uploader delete` |
 | Read another resident's pet photo | ❌ | ❌ | ✅ own buildings | ✅ | `pet-media manager read`, as recreated in `20260821000002_fix_pet_media_manager_read.sql` |
 
 Rows marked *(Phase N)* are specified but not yet built. The phase that builds
 one removes its marker and adds its verification.
+
+**"manager of building" means OF THAT BUILDING, and the table has no column for
+the other kind.** Every ✅ in that column is scoped by `manages_building(...)`,
+so a manager of a *different* building is a ❌ everywhere the column says ✅.
+That distinction is not decorative — it is the one an unscoped RPC gets wrong —
+so the six rows this phase touched were probed for it explicitly, as a fifth
+actor (`stratamanager@pet10x.com`, who manages five buildings and not Maple
+Court Residences). Reads returned only their own buildings' rules; all three
+RPCs returned `{"ok":false,"error":"forbidden"}` and wrote nothing.
 
 ¹ `posts_insert` is `author_id = auth.uid() AND is_resident_of(building_id) AND
 is_premium(auth.uid())` — no `manages_building` disjunct, no `is_admin()`
@@ -157,7 +169,52 @@ likewise neither resident nor premium got `42501` on the insert.
 which is building-scoped. `event_rsvps` has one, `rsvps_self`
 (`FOR ALL`, `profile_id = auth.uid()`); there is no `rsvps_select`.
 
-Splitting this row into three is Phase 6's job.
+Splitting this row into three belongs to the Community phase, which owns
+`posts_insert` and its siblings. (This sentence previously said "Phase 6's
+job". Phase 6 is Building rules; it does not touch a community policy, and it
+left the community rows alone.)
+
+⁵ **The bare UPDATE policy is no longer the control.** `buildings_manager_update`
+(`UPDATE`, `manages_building(id)`) and `buildings_admin_all` (`ALL`,
+`is_admin()`) are still live and still column-unrestricted, so read alone they
+say any manager may rewrite what a bylaw offence costs. Measured before Phase 6,
+as `manager@pet10x.com` inside a rolled-back transaction: `update buildings set
+pet_rules = pet_rules || '{"fine_1_cents": 999999999}'` **succeeded**, setting a
+$9,999,999.99 first offence, and `audit_log` stayed at 35 rows. There is no
+audit trail on a `buildings` update at all — `updated_at` moves for any field,
+so it cannot tell a fine-schedule change from a postcode correction.
+
+Phase 6 did not remove those policies, because three legitimate client surfaces
+write the whole `pet_rules` object through them (both bylaw editors and the
+strata portal's template BulkApply). Instead `buildings_fine_schedule_guard`
+(BEFORE UPDATE, `20260825000003_fine_schedule.sql`) strips
+`fine_1_cents` / `fine_2_cents` / `fine_currency` from any write that does not
+carry the single-use `pet10x.fine_schedule` token, and puts the previous values
+back. The trigger is not RLS: an ADMIN's direct update is restored exactly as a
+manager's is. Verified. The only path that moves the schedule is
+`manager_set_fine_schedule`, which re-checks scope by hand and writes an
+`audit_log` row carrying BOTH the previous and the new triple.
+
+That guard also closes a live data-loss hazard rather than only an audit gap: a
+bylaw template saved before the schedule existed is a whole-`pet_rules`
+snapshot with no fine keys, and applying it replaced the object — silently
+deleting the target building's schedule.
+
+⁶ `building_rules_manager_update` lets a manager write the table directly, so
+without a guard `update building_rules set is_published = true` would publish a
+rule with no notification and no audit record. `building_rules_publish_guard`
+(BEFORE INSERT OR UPDATE) RAISES 42501 on any change to `is_published` — and on
+any INSERT born published — that does not carry the single-use
+`pet10x.rule_publish` token. It raises rather than restores, unlike ⁵, because
+no legitimate client path sends `is_published` at all. Verified for a manager
+and for a super-admin; both are refused.
+
+⁷ Managers may not delete, by design. A published rule is a statement the
+building's residents were notified of, and making it vanish without a trace is
+not an edit — they unpublish, which `publish_building_rule` audits. There is no
+manager DELETE policy on `building_rules`, so a manager's `DELETE` affects zero
+rows (RLS filters rather than errors); measured for the manager of the building,
+a manager of another building and a resident.
 
 ² `manager_advance_violation` genuinely does not exist, but do not read that as
 "no one can advance a violation yet". `violations_manager_write` is `FOR ALL`
