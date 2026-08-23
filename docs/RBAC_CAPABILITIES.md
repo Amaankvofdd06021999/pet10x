@@ -127,8 +127,9 @@ Phase 2, not something this document settles.
 | Escalate to a violation | ❌ | ❌ | ✅ | ✅ | `escalate_incident_to_violation` |
 | Advance a violation degree | ❌ | ❌ | ✅ | ✅ | `manager_advance_violation` *(Phase 4)* — but see ² |
 | Read own violations and fines | ❌ | ✅ own | ✅ building | ✅ | `violations_select`, `fines_select` |
-| Dispute a violation | ❌ | ✅ own | ❌ | ✅ | `dispute_violation` *(Phase 5)* |
-| Decide a dispute | ❌ | ❌ | ✅ | ✅ | `manager_resolve_dispute` *(Phase 5)* |
+| Dispute a violation | ❌ | ✅ own | ❌ | ❌ ⁴ | `dispute_violation` |
+| Decide a dispute | ❌ | ❌ | ✅ | ✅ | `manager_resolve_dispute` |
+| Read a dispute | ❌ | ✅ own | ✅ building | ✅ | `vdisputes_select` |
 | Request an accommodation | ❌ | ✅ | ✅ | ✅ | `accom_resident_insert` |
 | Decide an accommodation | ❌ | ❌ | ✅ | ✅ | `accom_manager_update` |
 | Set the fine schedule | ❌ | ❌ | ✅ | ✅ | `buildings_manager_update` (manager), `buildings_admin_all` (admin) *(Phase 4)* |
@@ -167,6 +168,44 @@ Maple Court Residences moved all 5 of that building's violations from
 `UPDATE`, with no degree-ordering check and no `violation_events` row written.
 Phase 4 must close or supersede that write path, not just add the RPC beside
 it.
+
+⁴ **The super-admin column on "Dispute a violation" was ✅ in the design spec
+(`2026-08-21-completing-manager-resident-flows-design.md:475`) and Phase 5
+deliberately shipped ❌.**
+
+A dispute is a FIRST-PERSON STATEMENT. `violation_disputes.reason` is stored
+verbatim, shown to the manager as the resident's own words, and is the document
+a tribunal reads to decide whether the resident was heard. An admin filing one
+puts words in a resident's mouth, in a record whose entire value is that it is
+theirs. The ✅ came from the blanket admin column that produced Phase 2's
+over-grant findings; it was not a considered grant.
+
+`dispute_violation` therefore authorises on `violations.resident_id =
+auth.uid()` and nothing else — no `manages_building` branch, no `is_admin()`
+branch. Admins keep the READ (`vdisputes_select` admits `is_admin()`) and keep
+`manager_resolve_dispute`. What they lose is the ability to author somebody
+else's appeal.
+
+Every cell of these three rows was verified by impersonation on 2026-08-23,
+allowed AND denied, with a delta check across `violation_disputes`,
+`violation_events`, `fines`, `notifications` and `audit_log` after each refusal:
+
+| Actor | `dispute_violation` | `manager_resolve_dispute` | `violation_disputes` SELECT |
+| --- | --- | --- | --- |
+| the case's own resident | `ok:true` | `forbidden` | 1 row |
+| a different resident, same building | `forbidden` | `forbidden` | 0 rows |
+| a resident of another building | `forbidden` | `forbidden` | 0 rows |
+| a manager of the building | `forbidden` | `ok:true` | 1 row |
+| a manager of another building | `forbidden` | `forbidden` | 0 rows |
+| super-admin | `forbidden` | `ok:true` | 1 row |
+| `anon` | 42501, no grant | 42501, no grant | 0 rows |
+
+Every refusal wrote zero rows to all five tables. `violation_disputes` has
+exactly one policy, a SELECT: INSERT, UPDATE and DELETE were each attempted by
+all seven actors — including one `UPDATE … FROM` and one unqualified
+`DELETE FROM public.violation_disputes` as the manager and as the admin, which
+is the shape that removed all 13 `violation_events` rows in Phase 2 — and every
+one affected 0 rows or raised 42501.
 
 ³ The `community-media` policies are three, and only the read carries
 `OR is_admin()`: `community-media building read` has it, `community-media

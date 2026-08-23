@@ -283,6 +283,36 @@ insert into public.fines (id, violation_id, building_id, unit_id, resident_id, a
   ('45000000-0000-4000-8000-000000000004','35000000-0000-4000-8000-000000000006','b5000000-0000-4000-8000-000000000003',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000018'),'a5000000-0000-4000-8000-000000000019',10000,'cad','paid','a5000000-0000-4000-8000-000000000001',(now()-interval '20 days')::date, now()-interval '40 days')
 on conflict (id) do nothing;
 
+-- The dispute behind fine …0003.
+--
+-- `fines.status = 'disputed'` above is a CONSEQUENCE of an appeal, never the
+-- appeal itself — Phase 5 retired the derivation that read it as one, because
+-- a dispute against a WARNING has no fine row to carry a flag and so could not
+-- be expressed at all. `violation_disputes` with `outcome is null` is the
+-- signal now, and `20260824000000_violation_disputes.sql` backfilled exactly
+-- this row on the live database from exactly this fine.
+--
+-- Without this insert a fresh seed would fail the invariant that migration
+-- asserts in both directions: a `disputed` fine with no open dispute, and an
+-- open dispute on a fined case whose fines are not `disputed`. Both must be 0.
+--
+-- The reason text is the backfill's, verbatim, and it says what is and is not
+-- known. Inventing a plausible complaint would be fabricating evidence in a
+-- record whose whole purpose is to be evidence — and the production row this
+-- mirrors genuinely has no reason on it.
+--
+-- NOTE THE STAGE: case …0007 sits at `open`, and `dispute_violation` REFUSES
+-- `open` (a case being looked into is not yet a finding anyone can contest).
+-- That is why the disputable-stage rule lives in the RPC and not in a CHECK
+-- constraint — a CHECK cannot be conditional on a row's age, and this row is
+-- the legacy the rule had to accommodate. Seeded through a plain INSERT for
+-- the same reason: the RPC would, correctly, refuse to create it.
+insert into public.violation_disputes (violation_id, stage, filed_by, reason, filed_at) values
+  ('35000000-0000-4000-8000-000000000007','open','a5000000-0000-4000-8000-000000000020',
+   'Recorded from the fine''s disputed status, which predates this table. The reason as originally given was not captured.',
+   now()-interval '6 days')
+on conflict (violation_id, stage) do nothing;
+
 -- ===========================================================================
 -- 5. Care fixtures — the multi-pet households this app is actually used by.
 --
