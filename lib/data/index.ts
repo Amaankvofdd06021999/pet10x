@@ -16,6 +16,13 @@ export * from "./care-schedule"
 export * from "./selected-pet"
 export * from "./completeness"
 export * from "./breeds"
+/* Phase 6. Both are PURE (no "use client", no Supabase import) so they are
+ * reachable from vitest's `environment: "node"`; the hooks and mutations that
+ * use them live in `./building-rules-live`, which is deliberately NOT
+ * re-exported here — importing this barrel from a server component must not
+ * drag a browser client in. */
+export * from "./building-rules"
+export * from "./fine-schedule"
 export {
   MOCK_USERS,
   VALID_BUILDING_CODES,

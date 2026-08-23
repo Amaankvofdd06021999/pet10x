@@ -475,6 +475,84 @@ export type Database = {
           },
         ]
       }
+      building_rules: {
+        Row: {
+          body: string
+          building_id: string
+          category: Database["public"]["Enums"]["building_rule_category"]
+          created_at: string
+          created_by: string | null
+          id: string
+          is_published: boolean
+          sort_order: number
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body: string
+          building_id: string
+          category: Database["public"]["Enums"]["building_rule_category"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_published?: boolean
+          sort_order?: number
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body?: string
+          building_id?: string
+          category?: Database["public"]["Enums"]["building_rule_category"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_published?: boolean
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "building_rules_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "building_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "building_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "building_rules_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "building_rules_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       building_subscriptions: {
         Row: {
           building_id: string
@@ -3495,10 +3573,34 @@ export type Database = {
         }
         Returns: Json
       }
+      manager_save_building_rule: {
+        Args: {
+          p_body: string
+          p_building: string
+          p_category: Database["public"]["Enums"]["building_rule_category"]
+          p_rule: string
+          p_sort_order?: number
+          p_title: string
+        }
+        Returns: Json
+      }
+      manager_set_fine_schedule: {
+        Args: {
+          p_building: string
+          p_currency?: string
+          p_fine_1_cents: number
+          p_fine_2_cents: number
+        }
+        Returns: Json
+      }
       manages_building: { Args: { b: string }; Returns: boolean }
       my_app_user: { Args: never; Returns: Json }
       my_building_link: { Args: never; Returns: Json }
       my_personas: { Args: never; Returns: Json }
+      publish_building_rule: {
+        Args: { p_notify?: boolean; p_published?: boolean; p_rule: string }
+        Returns: Json
+      }
       purge_expired_pending_signups: { Args: never; Returns: number }
       request_building_link: { Args: { p_code: string }; Returns: Json }
       resolve_building_code: { Args: { p_code: string }; Returns: Json }
@@ -3561,6 +3663,13 @@ export type Database = {
         | "paid"
         | "declined"
         | "cancelled"
+      building_rule_category:
+        | "pets"
+        | "parking"
+        | "noise"
+        | "waste"
+        | "common_areas"
+        | "other"
       business_listing_tier: "basic" | "featured" | "premium"
       care_entry_kind:
         | "food"
@@ -3806,6 +3915,14 @@ export const Constants = {
         "paid",
         "declined",
         "cancelled",
+      ],
+      building_rule_category: [
+        "pets",
+        "parking",
+        "noise",
+        "waste",
+        "common_areas",
+        "other",
       ],
       business_listing_tier: ["basic", "featured", "premium"],
       care_entry_kind: [

@@ -11,7 +11,9 @@ import {
   useViolations,
   useResolvedViolations,
 } from "@/lib/data"
-import { advanceViolation, readFineSchedule, resolveViolation } from "@/lib/data/manager-queues"
+import { advanceViolation, resolveViolation } from "@/lib/data/manager-queues"
+// Phase 6: moved to a pure, tested module. See `lib/data/fine-schedule.ts`.
+import { readFineSchedule } from "@/lib/data/fine-schedule"
 import { STAGE_LABEL, isFineStage, nextStage } from "@/lib/data/violations"
 import type { ViolationStage } from "@/lib/data/types"
 import {

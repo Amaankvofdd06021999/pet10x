@@ -1185,38 +1185,24 @@ export async function fetchCaseLedger(): Promise<{ error: string | null; rows: L
   return { error: null, rows: out }
 }
 
+
 /* ------------------------------------------------------------------ */
 /* The bylaw fine schedule (AD-5)                                      */
 /* ------------------------------------------------------------------ */
 
 /**
- * What `buildings.pet_rules` says a fine of each degree should cost.
+ * MOVED, in Phase 6, to `lib/data/fine-schedule.ts`.
  *
- * AD-5 puts the schedule under `fine_1_cents` / `fine_2_cents` /
- * `fine_currency`, which is where `manager_advance_violation` reads it from
- * (`20260823000001:129-146`). **Measured 2026-08-23: 0 of 6 buildings have any
- * of those keys**, so `null` is the normal answer today, not the exception, and
- * the caller has to treat "no schedule configured" as a first-class state
- * rather than as a missing default it can quietly substitute for.
+ * `readFineSchedule` decides whether a manager is shown a bylaw default at all,
+ * and it sat here — inside a `"use client"` module full of React hooks and a
+ * Supabase client — where vitest's `environment: "node"` could not reach it. It
+ * is now pure, tested, and next to `parseAmountToCents`, its inverse: the two
+ * have to agree, because a value the fine-schedule editor is willing to SEND
+ * must be a value this reader is willing to DISPLAY and
+ * `manager_advance_violation` is willing to CHARGE.
  *
- * The reader is deliberately narrow — a number, or nothing. The RPC applies the
- * same rule (`jsonb_typeof(...) = 'number'`), so a schedule the client is
- * willing to display is exactly a schedule the database is willing to charge.
+ * Re-exported rather than deleted so that this module, which every manager
+ * queue screen already imports, keeps answering the same question. The body
+ * moved verbatim; there is no behaviour change.
  */
-export interface FineSchedule {
-  fine_1: number | null
-  fine_2: number | null
-  currency: string
-}
-
-export function readFineSchedule(rules: unknown): FineSchedule {
-  const r = (rules ?? {}) as Record<string, unknown>
-  const cents = (v: unknown): number | null =>
-    typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.floor(v) : null
-  const currency = typeof r.fine_currency === "string" && r.fine_currency.trim() ? r.fine_currency.trim() : "CAD"
-  return {
-    fine_1: cents(r.fine_1_cents),
-    fine_2: cents(r.fine_2_cents),
-    currency: currency.toUpperCase(),
-  }
-}
+export { readFineSchedule, type FineSchedule } from "./fine-schedule"

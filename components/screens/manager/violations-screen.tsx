@@ -63,13 +63,15 @@ import {
   fetchCaseLedger,
   issueFine,
   openViolation,
-  readFineSchedule,
   remindAboutFine,
   resolveDispute,
   resolveViolation,
   useViolationSubjects,
-  type FineSchedule,
 } from "@/lib/data/manager-queues"
+// Phase 6 moved these out of `manager-queues.ts` — that module is "use client"
+// with React hooks in it, so the one function deciding whether a manager sees a
+// bylaw default was unreachable from vitest. Same behaviour, now tested.
+import { readFineSchedule, type FineSchedule } from "@/lib/data/fine-schedule"
 import {
   LEGAL_TRANSITIONS,
   STAGE_LABEL,
