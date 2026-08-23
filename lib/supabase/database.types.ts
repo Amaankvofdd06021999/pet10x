@@ -1290,36 +1290,36 @@ export type Database = {
       }
       events: {
         Row: {
-          building_id: string | null
+          building_id: string
           category: string | null
           created_at: string
           created_by: string | null
           id: string
           location: string | null
           max_attendees: number | null
-          starts_at: string | null
+          starts_at: string
           title: string
         }
         Insert: {
-          building_id?: string | null
+          building_id: string
           category?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           location?: string | null
           max_attendees?: number | null
-          starts_at?: string | null
+          starts_at: string
           title: string
         }
         Update: {
-          building_id?: string | null
+          building_id?: string
           category?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           location?: string | null
           max_attendees?: number | null
-          starts_at?: string | null
+          starts_at?: string
           title?: string
         }
         Relationships: [
@@ -1554,7 +1554,7 @@ export type Database = {
       lost_found: {
         Row: {
           breed: string | null
-          building_id: string | null
+          building_id: string
           color: string | null
           created_at: string
           id: string
@@ -1569,7 +1569,7 @@ export type Database = {
         }
         Insert: {
           breed?: string | null
-          building_id?: string | null
+          building_id: string
           color?: string | null
           created_at?: string
           id?: string
@@ -1584,7 +1584,7 @@ export type Database = {
         }
         Update: {
           breed?: string | null
-          building_id?: string | null
+          building_id?: string
           color?: string | null
           created_at?: string
           id?: string
@@ -3677,9 +3677,17 @@ export type Database = {
         Returns: Json
       }
       manages_building: { Args: { b: string }; Returns: boolean }
+      moderate_community_post: {
+        Args: { p_post: string; p_reason?: string }
+        Returns: Json
+      }
       my_app_user: { Args: never; Returns: Json }
       my_building_link: { Args: never; Returns: Json }
       my_personas: { Args: never; Returns: Json }
+      publish_building_event: {
+        Args: { p_event: string; p_note?: string }
+        Returns: Json
+      }
       publish_building_rule: {
         Args: { p_notify?: boolean; p_published?: boolean; p_rule: string }
         Returns: Json
@@ -3693,6 +3701,19 @@ export type Database = {
           p_path: string
           p_request: string
           p_size?: number
+        }
+        Returns: Json
+      }
+      report_lost_found: {
+        Args: {
+          p_breed?: string
+          p_color?: string
+          p_image_path?: string
+          p_kind: string
+          p_last_seen?: string
+          p_pet_name?: string
+          p_reward_cents?: number
+          p_species?: Database["public"]["Enums"]["pet_species"]
         }
         Returns: Json
       }

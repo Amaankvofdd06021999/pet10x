@@ -353,41 +353,79 @@ export interface Pet {
 
 export interface CommunityPost {
   id: string
+  /** The author's profile id, or null once that profile is deleted
+   *  (community_posts_author_id_fkey is ON DELETE SET NULL, which anonymises
+   *  the post rather than destroying the thread). The screen compares it with
+   *  the viewer to decide who may remove. */
+  authorId: string | null
   author: string
+  /** "" when the author has no avatar. The screen falls back to a placeholder:
+   *  <Image src=""> renders broken AND makes Next re-download the page. */
   avatar: string
-  unit: string
   time: string
   category: string
   content: string
+  /** A signed URL, minted at read time from the stored PATH. Never a stored
+   *  URL — one of those is a dead link with a timer on it. */
   image?: string
   likes: number
   comments: number
   liked: boolean
+  isPinned: boolean
+  isOfficial: boolean
 }
 
+/* `unit` was removed from CommunityPost in Phase 8, deliberately.
+ *
+ * It was populated by mapPost from a `myUnit` argument that useCommunityPosts
+ * passed as the empty string, so every post in the feed read "Unit  · 3h ago".
+ * Making it real means joining resident_links.unit_id -> units for the AUTHOR,
+ * which publishes a neighbour's ADDRESS on every post they write. Nobody asked
+ * for that, and it had never displayed anything, so the field is gone rather
+ * than fixed. */
+
 export interface LostFoundItem {
-  id: number
+  /** uuid. Was declared `number`, which was simply wrong. */
+  id: string
   type: LostFoundType
-  petName: string
-  species: Species
-  breed: string
-  color: string
-  lastSeen: string
+  petName: string | null
+  species: Species | null
+  breed: string | null
+  color: string | null
+  lastSeen: string | null
   time: string
-  image: string
-  reward?: string
+  /** A signed URL minted at read time, or null when there is no photo. */
+  image: string | null
+  /** The raw cents, for the share text; `reward` is the formatted badge. */
+  rewardCents: number | null
+  reward: string | null
   status: "active" | "resolved"
+  reporterId: string | null
+  buildingName: string | null
+  mine: boolean
 }
 
 export interface CommunityEvent {
-  id: number
+  /** uuid. Was declared `number`, which was simply wrong. */
+  id: string
   title: string
-  date: string
-  time: string
-  location: string
+  /** The raw `timestamptz`. NOT NULL since 20260826000000. Rendered through
+   *  `formatEventDate` in ./community — the screen used to do string surgery on
+   *  a pre-formatted `date` field and silently produced `undefined`. */
+  startsAt: string
+  location: string | null
   attendees: number
-  maxAttendees: number
-  category: string
+  /** Who is going, by name. `rsvps_read` (20260826000000) is what makes the
+   *  count possible at all, and it necessarily discloses WHO — so the screen
+   *  shows the names rather than hiding the disclosure behind a number. */
+  attendeeNames: string[]
+  /** NULLABLE. `(attendees / maxAttendees) * 100` yields Infinity for null and
+   *  renders as `width: Infinity%`; use `attendancePercent` in ./community. */
+  maxAttendees: number | null
+  category: string | null
+  createdBy: string | null
+  /** Whether the viewer has RSVP'd. */
+  going: boolean
 }
 
 /* ------------------------------------------------------------------ */

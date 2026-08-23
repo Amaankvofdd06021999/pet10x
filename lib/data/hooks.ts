@@ -11,11 +11,9 @@
 
 import type {
   Building,
-  CommunityEvent,
   DocumentReviewItem,
   EmergencyBuildingDirectory,
   HomeAlert,
-  LostFoundItem,
   ManagerActivityEntry,
   Registration,
   ResolvedViolation,
@@ -71,15 +69,12 @@ const EMPTY_DIRECTORY: EmergencyBuildingDirectory = {
 /* Pets + care live in ./live · businesses in ./business · admin in ./admin. */
 
 /* ----------------------------- Community -------------------------- */
-/* useCommunityPosts is now LIVE — see ./live. */
-
-export function useLostFound(): QueryResult<LostFoundItem[]> {
-  return resolved([])
-}
-
-export function useEvents(): QueryResult<CommunityEvent[]> {
-  return resolved([])
-}
+/* ALL THREE are now LIVE — see ./live. `useLostFound` and `useEvents` were
+ * `resolved([])` stubs here: the screen rendered an honest empty state, and the
+ * Events tab's RSVP button and the Lost & Found cards had therefore never been
+ * seen by anybody. Phase 8 gave the three tables an authorisation grammar, a
+ * countable RSVP and a report RPC, at which point the stubs became the only
+ * thing keeping the data off the screen. */
 
 /* ----------------------------- Services --------------------------- */
 /* The real services directory lives in ./business (useNearbyBusinesses). */

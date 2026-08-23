@@ -23,6 +23,12 @@ export * from "./breeds"
  * drag a browser client in. */
 export * from "./building-rules"
 export * from "./fine-schedule"
+/* Phase 8. `./community` is PURE (no "use client", no Supabase import) so it is
+ * reachable from vitest's `environment: "node"`. `./community-media` is not
+ * re-exported here for the same reason `./building-rules-live` is not: it
+ * imports the browser client, and this barrel must be importable from a server
+ * component. */
+export * from "./community"
 export {
   MOCK_USERS,
   VALID_BUILDING_CODES,

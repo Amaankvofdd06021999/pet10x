@@ -46,15 +46,32 @@ export async function petFileSignedUrl(path: string, expiresIn = 3600): Promise<
   return data?.signedUrl ?? null
 }
 
-export async function petFileSignedUrls(paths: string[], expiresIn = 3600): Promise<Record<string, string>> {
+/**
+ * Batch-sign paths in ANY private bucket, path -> signed URL.
+ *
+ * Parameterised by bucket rather than copied per bucket: Phase 8 needed exactly
+ * this for `community-media`, and a second hard-coded copy is how one bucket's
+ * fix stops being the other's. Paths that do not resolve are simply absent from
+ * the map, so a caller reads `map[path] ?? null` and gets a placeholder rather
+ * than a broken <img>.
+ */
+export async function signedUrlsIn(
+  bucket: string,
+  paths: string[],
+  expiresIn = 3600,
+): Promise<Record<string, string>> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase || paths.length === 0) return {}
-  const { data } = await supabase.storage.from(BUCKET).createSignedUrls(paths, expiresIn)
+  const { data } = await supabase.storage.from(bucket).createSignedUrls(paths, expiresIn)
   const map: Record<string, string> = {}
   for (const item of data ?? []) {
     if (item.signedUrl && item.path) map[item.path] = item.signedUrl
   }
   return map
+}
+
+export async function petFileSignedUrls(paths: string[], expiresIn = 3600): Promise<Record<string, string>> {
+  return signedUrlsIn(BUCKET, paths, expiresIn)
 }
 
 export async function deletePetFile(path: string): Promise<void> {
