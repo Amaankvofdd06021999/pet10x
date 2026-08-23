@@ -207,7 +207,8 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
               <TextInput value={f.longitude} onChange={(v) => setF((p) => ({ ...p, longitude: v }))} placeholder="Longitude" />
             </div>
             <p className="mt-1.5 text-[11.5px] text-muted-foreground">
-              Residents outside your {f.radiusKm || "—"} km service radius can filter you out, so keep both accurate.
+              Residents outside your {f.radiusKm || "—"}{" "}
+              km service radius can filter you out, so keep both accurate.
             </p>
             <button
               onClick={useGps}

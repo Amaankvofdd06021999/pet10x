@@ -175,7 +175,8 @@ export function ReportsScreen() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13.5px] font-semibold text-foreground">{m.name}</p>
                 <p className="text-[11.5px] text-muted-foreground">
-                  {m.compliance}% compliant · {m.pets} pets · {m.openViolations} open · ${m.finesOutstanding.toFixed(0)} owed
+                  {m.compliance}% compliant · {m.pets} pets · {m.openViolations} open · ${m.finesOutstanding.toFixed(0)}{" "}
+                  owed
                 </p>
               </div>
               <button

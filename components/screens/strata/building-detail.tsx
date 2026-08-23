@@ -372,7 +372,8 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                     <div className="mt-2 rounded-lg border border-warning/40 bg-warning/5 p-2.5">
                       <p className="text-[11.5px] leading-relaxed text-foreground">
                         This building has no fine schedule in its bylaws, so there is no amount to apply. Enter what
-                        this {STAGE_LABEL[next].toLowerCase()} should be.
+                        this {STAGE_LABEL[next].toLowerCase()}{" "}
+                        should be.
                       </p>
                       <div className="mt-2 flex items-center gap-1.5">
                         <input

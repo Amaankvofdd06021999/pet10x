@@ -190,7 +190,8 @@ export function ScheduleTab({
             <span className="text-[14px] font-semibold text-foreground">Today&apos;s plan</span>
           </div>
           <span className="text-[13px] font-semibold text-muted-foreground">
-            {doneCount}/{todays.length} done
+            {doneCount}/{todays.length}{" "}
+            done
           </span>
         </div>
         {todays.length > 0 && (

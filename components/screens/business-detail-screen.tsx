@@ -91,7 +91,8 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
               </span>
               {biz.serviceRadiusM ? (
                 <span className="block text-[11.5px] text-muted-foreground">
-                  Serves up to {Math.round(biz.serviceRadiusM / 1000)} km from here
+                  Serves up to {Math.round(biz.serviceRadiusM / 1000)}{" "}
+                  km from here
                 </span>
               ) : null}
             </span>
