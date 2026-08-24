@@ -83,7 +83,18 @@ export const SCREEN_SURFACES = {
    * file one. It carries no id: the screen lists the viewer's OWN requests,
    * resolved from their approved resident link, and a manager who is not a
    * resident of the building they manage correctly sees the "link your
-   * building" affordance rather than a broken form. */
+   * building" affordance rather than a broken form.
+   *
+   * THAT AFFORDANCE IS ALSO WHY NO NOTIFICATION ADDRESSED TO A MANAGER MAY
+   * CARRY THIS TARGET. `withdraw_accommodation_request` did: it wrote
+   * `accommodations` to every manager of the building under the label "Open
+   * approvals", and the button rendered, navigated, and put the manager on
+   * "Join your building first" instead of the queue it named. Both halves were
+   * valid strings and nothing here could have caught it, because BOTH means the
+   * screen renders — not that it answers. `20260829000001` moved that
+   * notification to `approvals`, which is MANAGER-only below and is what the
+   * label always said. `manager_decide_accommodation`, addressed to the
+   * resident, is now the only writer of this target. */
   accommodations: BOTH,
   "my-bookings": BOTH,
   // Rendered in both blocks: managers have no Alerts tab, but the dashboard

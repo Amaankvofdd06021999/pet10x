@@ -40,6 +40,17 @@
  * unit makes a bad parse RARE; it never makes it right. If the column is a
  * `date`, it comes through `parseDbDate`, whatever is done to the result after.
  *
+ * A THIRD SURVIVOR TURNED UP AFTER THAT SENTENCE WAS WRITTEN, which is worth
+ * recording because of WHERE it was. `lib/ai/suggestions/rules.ts` — live via
+ * `app/api/ai/suggestions/run/route.ts` — held the original formula twice, on
+ * `pet_vaccinations.expires_on` and `pet_medications.next_due_at`, plus three
+ * `.toISOString().slice(0, 10)` day keys compared against `date` columns. It was
+ * missed by every sweep because it is `server-only` and imports no date helper
+ * at all: a grep for the helpers this module replaced finds the files that
+ * already knew about dates, not the ones that never did. The claim above is
+ * true as of that fix; the way to keep it true is to grep for `new Date(` next
+ * to a column name, not for the helpers.
+ *
  * Pure functions only, no React and no Supabase client, so it is testable under
  * vitest's `environment: "node"` and importable from a server route, a client
  * component and `lib/ai` alike. `lib/dates.test.ts` pins the rule, and it pins

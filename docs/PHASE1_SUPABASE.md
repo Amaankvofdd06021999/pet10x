@@ -27,8 +27,15 @@ Function later.
 **Entitlements (single source of truth):** `is_premium(user)` = an active
 individual subscription **OR** an approved building link to a building with an
 active seat-based subscription. Computed by `public.resolve_entitlement()` /
-`public.is_premium()` and exposed via the `user_entitlements` view. RLS enforces
-it server-side (e.g. posting to the community requires `is_premium`).
+`public.is_premium()` and exposed via the `user_entitlements` view.
+
+> **No longer enforced anywhere (measured 2026-08-23).** That last sentence used
+> to read "RLS enforces it server-side (e.g. posting to the community requires
+> `is_premium`)". Phase 8 rewrote `posts_insert` onto a building-relationship
+> grammar, and `is_premium` now appears in **zero policies and zero function
+> bodies in `public`**. It is still defined and still revoked from `anon`; it
+> gates nothing. Why the conjunction had to go, and what a real paywall would
+> look like instead, is in `RBAC_CAPABILITIES.md` footnote ¹.
 
 ## Setup
 

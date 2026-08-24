@@ -49,6 +49,20 @@ The rule that generates that table, stated once:
    *Consequence to rely on: the number of `violation_events` rows for a case
    equals 1 + the number of rungs it has moved, and nothing else.*
 
+   *That consequence held on production and did NOT hold on a fresh
+   `supabase db reset`, until the pre-merge sweep. `seed_strata.sql` seeded each
+   case directly at its final stage, so the AFTER INSERT trigger gave it a
+   `(null -> warning)` opening row saying it STARTED there — and case
+   `…0002` also carried the explicit `open -> warning` row, so its ledger read
+   "opened at warning, then moved from open to warning". The seed now opens every
+   case at `open` and climbs the rungs with the `pet10x.stage_change` token, one
+   rung per row, which is also the only stage a case can be opened at: the
+   manager composer's INSERT policy is `manages_building(building_id) and
+   stage = 'open'`, and `escalate_incident_to_violation` hardcodes `'open'`.
+   Simulated against production in a rolled-back transaction (there is no local
+   CLI): all eight cases, opening row `(null -> open)`, events = 1 + rungs, and a
+   second run of the same block writes nothing.*
+
 3. **Three seeded cases predate the ladder and carry zero events.** Measured
    2026-08-23: exactly 3 of the 13 live violations have no `violation_events`
    row at all, and all three are `resolved` with `resolved_at` set. They are
@@ -195,7 +209,10 @@ Phase 2, not something this document settles.
 | Write a building rule | ❌ | ❌ | ✅ own buildings | ✅ | `manager_save_building_rule` (audited); `building_rules_manager_insert` / `_manager_update` |
 | Publish or unpublish a building rule | ❌ | ❌ | ✅ own buildings | ✅ | `publish_building_rule` + `building_rules_publish_guard` — see ⁶ |
 | Delete a building rule | ❌ | ❌ | ❌ | ✅ | `building_rules_admin_delete` — see ⁷ |
-| Post, RSVP, report lost & found | ❌ | ✅ ¹ | ✅ ¹ | ✅ ¹ | `posts_insert`, `rsvps_self`, `lost_found_insert`, `events_write`, and `posts_select` / `lost_found_select` / `events_select` |
+| Post to the community wall | ❌ | ✅ own building ¹ | ✅ own buildings ¹ | ✅ ¹ | `posts_insert` + `posts_select` |
+| Create a community event | ❌ | ✅ own building ¹ | ✅ own buildings ¹ | ✅ ¹ | `events_insert` + `events_select` |
+| Report to lost & found | ❌ | ✅ own building ¹ | ✅ own buildings ¹ | ✅ ¹ | `lost_found_insert` + `lost_found_select` |
+| RSVP to a community event | ❌ | ✅ own building ¹ | ✅ own buildings ¹ | ❌ ¹ | `rsvps_write` + `rsvps_read` — the one community INSERT with no `is_admin()` arm |
 | Upload and read community media | ❌ | ✅ own buildings | ✅ own buildings | ✅ read only ³ | `community-media building read`, `community-media uploader write`, `community-media uploader delete` |
 | Read another resident's pet photo | ❌ | ❌ | ✅ own buildings | ✅ | `pet-media manager read`, as recreated in `20260821000002_fix_pet_media_manager_read.sql` |
 
@@ -247,25 +264,99 @@ manager arm belonged to a read. Measured: `manager@pet10x.com` **deleted the
 resident's own document row**. It is now four per-command policies, and the
 command nobody may run (UPDATE) has no policy at all.
 
-¹ `posts_insert` is `author_id = auth.uid() AND is_resident_of(building_id) AND
-is_premium(auth.uid())` — no `manages_building` disjunct, no `is_admin()`
-disjunct, and `community_posts` has three policies of which this is the only
-INSERT. So posting turns on residency plus entitlement, and nothing else grants
-it. Probed: a manager of Maple Court Residences who is not a resident of it had
-`is_resident_of = false` and `is_premium = false`; a super-admin who was
-likewise neither resident nor premium got `42501` on the insert.
+¹ **THIS FOOTNOTE DESCRIBED THE PRE-PHASE-8 POLICY SET AS CURRENT FACT, and
+every clause of it was wrong by the time this branch reached merge.** Phase 8
+(`20260826000000_community_authorisation.sql` and its eight successors) rewrote
+all six community tables onto ONE grammar. The one row above is now four,
+because the four tables those rows name carry thirteen policies between them —
+`community_posts` 3, `events` 4, `lost_found` 3, `event_rsvps` 3 — where this
+footnote counted six across three of them and never counted `events` at all.
+(The other two community tables, `post_comments` and
+`post_reactions`, carry three each and are not in this matrix.) Re-measured on
+production 2026-08-23 against `pg_policies`, and probed in a rolled-back
+transaction; what follows is that measurement, not the plan.
 
-`events_write` does accept `manages_building` and `is_admin`.
+**The grammar, which every community INSERT now spells the same way:** the
+writer names themselves in the actor column, *and* stands in a stated
+relationship to the building the row names —
 
-`lost_found` has two policies: `lost_found_insert`, which tests only
-`reporter_id = auth.uid()` with no building test, and `lost_found_select`,
-which is building-scoped. `event_rsvps` has one, `rsvps_self`
-(`FOR ALL`, `profile_id = auth.uid()`); there is no `rsvps_select`.
+    is_resident_of(building_id)   or   manages_building(building_id)   or   is_admin()
 
-Splitting this row into three belongs to the Community phase, which owns
-`posts_insert` and its siblings. (This sentence previously said "Phase 6's
-job". Phase 6 is Building rules; it does not touch a community policy, and it
-left the community rows alone.)
+**`posts_insert`**, live text:
+`((author_id = auth.uid()) AND (is_resident_of(building_id) OR manages_building(building_id) OR is_admin()))`.
+It has the `manages_building` disjunct and the `is_admin()` disjunct this
+footnote said it did not, and it no longer calls `is_premium` at all.
+`community_posts` still has three policies — `posts_insert`, `posts_select`,
+`posts_update_own` — of which this is the only INSERT.
+
+Probed as `stratamanager@pet10x.com`, who manages Cedar Grove Estates and is not
+a resident of it (`is_resident_of = false`, `manages_building = true`,
+`is_premium = false`): the post into Cedar Grove was **admitted**, and the same
+statement aimed at Maple Court Residences — neither lived in nor managed — got
+`42501`. The disjunct widened the policy by exactly one relationship and not by
+one building.
+
+**`events_write` no longer exists.** It was a single `FOR ALL` policy whose
+`created_by = auth.uid()` arm was self-authorising, so it admitted an event into
+any building or into none. It is now three commands: `events_insert`,
+`events_update`, `events_delete`, beside `events_select` — four policies on
+`events`.
+
+**`lost_found` has three policies, not two**, and `lost_found_insert` is not
+`reporter_id`-only: it is
+`((reporter_id = auth.uid()) AND (is_resident_of(building_id) OR manages_building(building_id) OR is_admin()))`.
+The third is `lost_found_update`, which admits the reporter or a manager of the
+building. `building_id` is now `NOT NULL` on this table; the old policy carried
+no building test at all, and `lost_found_select` began `building_id IS NULL OR …`,
+which made a NULL-building row a platform-wide broadcast.
+
+**`event_rsvps` has three policies, not one**, and none of them is `rsvps_self`.
+`rsvps_read` (SELECT) admits your own row *or* any row on an event in a building
+you stand in a relationship to — that is what makes an attendance count
+countable; the old `FOR ALL, profile_id = auth.uid()` meant every viewer counted
+exactly the RSVPs they had made themselves. `rsvps_write` (INSERT) and
+`rsvps_delete` (DELETE) are yours alone. There is no UPDATE policy: an RSVP is
+made or unmade, never edited.
+
+**One asymmetry, recorded and deliberately not changed.** `rsvps_write` is the
+only community INSERT whose building test is
+`is_resident_of(...) OR manages_building(...)` with **no `is_admin()`**. That is
+why the RSVP row above carries ❌ in the admin column while its three siblings
+carry ✅. Measured, not inferred: the super-admin (`is_admin() = true`,
+`is_resident_of = false`, `manages_building = false` for the building) was
+**admitted** on `lost_found_insert`, `posts_insert` and `events_insert` into
+that building and got `42501` on `rsvps_write`. It is plausibly intentional —
+attendance is a headcount, and a platform administrator adding themselves to a
+building barbecue changes a number somebody will cater against — but nothing in
+the migration says so, so it is written down here rather than "fixed" by
+whoever notices it next.
+
+**`is_premium` now gates nothing anywhere in the database.** This is the largest
+silent product change on this branch and it was recorded only inside a migration
+comment, so it belongs here, where "who can post?" is asked. The function is
+still defined (`is_premium(p_user uuid)`, SECURITY DEFINER, `select
+resolve_entitlement(p_user) is not null`) and execute on it is still revoked
+from `anon` by `20260615073613_harden_security.sql` — but it appears in **zero
+policies and zero function bodies in `public`**, and no TypeScript in this
+repository calls it or `resolve_entitlement` outside the generated
+`database.types.ts`. The subscription entitlement exists and decides nothing.
+
+It was dropped from `posts_insert` because the conjunction it sat in was
+unsatisfiable, not because entitlement was judged wrong: measured before Phase 8,
+48 profiles held 1 premium account and 24 approved resident links, and the
+intersection was **empty** — the only premium account was a super-admin whose
+resident link was `pending`, and `posts_insert` had no `is_admin()` arm. So
+`can_post_today = 0`, proven by an approved unsuspended resident getting `42501`
+inserting into their own building. A paywall nobody can be on the paying side of
+is not a paywall. `20260826000000` names the shape a real one should take — a
+rolling-window quota inside a `SECURITY DEFINER` RPC that can return
+`{ok:false, error:'quota_exceeded', upgrade:true}` — and carries the exact paste
+that restores the old text. Neither is a decision this document makes; what it
+records is that today the answer to "does a subscription grant anything?" is no.
+
+(The sentence that used to close this footnote said splitting the row into three
+"belongs to the Community phase, which owns `posts_insert` and its siblings".
+That phase shipped, it did own them, and it split them. The row is split above.)
 
 ⁵ **The bare UPDATE policy is no longer the control.** `buildings_manager_update`
 (`UPDATE`, `manages_building(id)`) and `buildings_admin_all` (`ALL`,
@@ -428,17 +519,36 @@ results, not a classification of the schema:
 
 | Policy | The super-admin attempted | Result |
 | --- | --- | --- |
-| `posts_insert` | post to a building they neither live in nor manage | `42501` |
+| `posts_insert` **(pre-Phase-8 text)** | post to a building they neither live in nor manage | `42501` |
+| `posts_insert` **(today)** | post to a building they neither live in nor manage | **admitted** |
+| `events_insert` | create an event in that building | **admitted** |
+| `lost_found_insert` | report a lost pet in that building | **admitted** |
+| `rsvps_write` | RSVP to an event in that building | `42501` |
 | `community-media uploader write` | upload under that building | `42501` |
 | `accom_resident_insert` | file a request naming *another* resident | `42501` |
-| `accom_resident_insert` | file a request naming **themselves**, same building | **admitted** |
+| `accom_resident_insert` | file a request naming **themselves**, same building | **admitted**, and `42501` since Phase 7 — see ⁸ |
+
+The first two rows are the same statement run against two different policy
+texts, and the pair is kept deliberately. Phase 8 gave every community INSERT an
+`is_admin()` arm, so the admin grant now DOES reach a building the admin has no
+relationship to — the older row is not a regression report, it is what this
+table said before the grammar changed. Re-measured 2026-08-23 in a rolled-back
+transaction, with `is_admin() = true`, `is_resident_of = false` and
+`manages_building = false` asserted in the same transaction.
 
 That last row is the one to read carefully. `accom_resident_insert` is
 `WITH CHECK (resident_id = auth.uid())`. It does not block an admin; it blocks
 acting *as someone else*. The admin got their own request in despite being
-neither resident nor manager of that building. `rsvps_self`
-(`profile_id = auth.uid()`) and `lost_found_insert` (`reporter_id = auth.uid()`)
-have the same shape; neither was probed.
+neither resident nor manager of that building.
+
+**The two policies named here as sharing that shape no longer do, and both have
+now been probed.** `rsvps_self` does not exist — `event_rsvps` carries
+`rsvps_read` / `rsvps_write` / `rsvps_delete`, and `rsvps_write` is
+`profile_id = auth.uid()` **AND** a building test, which is what refused the
+admin above. `lost_found_insert` is no longer `reporter_id = auth.uid()` alone
+either; it carries the full `is_resident_of OR manages_building OR is_admin`
+disjunct, and the admin was admitted through the `is_admin()` arm rather than
+through a missing test. Both changes are Phase 8's; see ¹.
 
 `community-media uploader delete` carries no `is_admin()` in its text and was
 not probed — see the note on `storage.objects` deletes under *How to verify a
@@ -645,14 +755,33 @@ making a false statement about the database.
   `%esa%`, `%disab%` or `%.pdf%`.
 - **`notifications`** carry a title and a target and never the reason: *"Your
   accommodation request was decided"* / *"Open Accommodation Requests to read
-  the decision."* A push preview is readable on a lock screen. Asserted: `0`
-  notification rows with `action_target = 'accommodations'` matching `%esa%`,
-  `%anxiety%` or `%disab%` in title or body. **Submitting notifies nobody** —
-  a push saying a resident filed a disability accommodation names their
-  disability status to whoever is looking at the phone. **Withdrawing a DRAFT
-  notifies nobody either**, because a draft is invisible to the building's
-  managers and telling them one was withdrawn would announce a request that was
-  never filed, through the one channel that bypasses RLS.
+  the decision."* A push preview is readable on a lock screen. Asserted
+  2026-08-23 over all 18 rows targeting `accommodations` or `approvals`: `0`
+  match `esa`, `anxiety`, `disab`, `letter` or `service animal` in title or body.
+
+  **Submitting now notifies the building's managers** — `20260829000001`. This
+  paragraph used to say *"Submitting notifies nobody — a push saying a resident
+  filed a disability accommodation names their disability status to whoever is
+  looking at the phone"*, and the hazard in that sentence is real while the
+  conclusion was not survivable: `withdraw_accommodation_request` already sent
+  every manager *"An accommodation request was withdrawn"* through the same lock
+  screen. One of the two had to change, and the silent one left residents filing
+  into a queue nobody was told about. The wording carries no type, no
+  `animal_desc`, no note, no document name and no resident: *"An accommodation
+  request is waiting for review"* / *"A resident has sent a request to your
+  queue."* It fires on `draft -> pending`, which is the transition that makes the
+  row readable to those same managers under `accom_manager_read`, so it
+  discloses nothing its addressees could not already open.
+
+  **Withdrawing a DRAFT still notifies nobody**, because a draft is invisible to
+  the building's managers and telling them one was withdrawn would announce a
+  request that was never filed, through the one channel that bypasses RLS.
+
+  Both manager-facing notifications target **`approvals`**, not
+  `accommodations`. `accommodations` renders a viewer's OWN requests, so a
+  manager holding no resident link landed on *"Join your building first"* under
+  a button labelled *"Open approvals"* — the label and the target disagreed, and
+  both were valid strings.
 - **Email.** There is no email path. `/api/manager/request-info` sends one for
   registrations; this phase deliberately does not, because email is the one
   channel whose contents leave the product's access control behind. Asserted:

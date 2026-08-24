@@ -77,11 +77,21 @@ describe("resolveActionTarget", () => {
 
   it("routes accommodations, which Phase 7 built and manager_decide_accommodation writes", () => {
     /* `manager_decide_accommodation` writes a bare `accommodations` to the
-       REQUESTING RESIDENT on every decision, and `withdraw_accommodation_
-       request` writes the same target to the building's managers. So unlike
-       `my-cases`, both surfaces must route. */
+       REQUESTING RESIDENT on every decision. It is now the ONLY writer of this
+       target: `withdraw_accommodation_request` wrote it to the building's
+       managers, under an "Open approvals" label, and `20260829000001` moved it
+       to `approvals`, because this screen shows a viewer their OWN requests and
+       a manager holding no resident link lands on "Join your building first".
+
+       The manager surface still routes, and the reason is now the one in
+       `lib/navigation.ts` alone: a manager must be able to open the screen their
+       residents file on, to see what they see. No notification sends them here. */
     expect(resolveActionTarget("accommodations", "resident")).toEqual({ screen: "accommodations" })
     expect(resolveActionTarget("accommodations", "manager")).toEqual({ screen: "accommodations" })
+    /* And the target a manager IS sent to, by both accommodation RPCs that
+       address managers and by `request_building_link`. Manager-only. */
+    expect(resolveActionTarget("approvals", "manager")).toEqual({ screen: "approvals" })
+    expect(resolveActionTarget("approvals", "resident")).toBeNull()
     /* NOT id-bearing. The screen lists the viewer's own requests; a request id
        stashed in `selectedPetId` would surface as the wrong pet on whatever
        screen opens next. */

@@ -2,6 +2,7 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabase/database.types"
+import { addCalendarDays, calendarDaysBetween, daysUntil, localDayKey, todayKey } from "@/lib/dates"
 import type { SuggestionKind } from "../types"
 
 /**
@@ -15,6 +16,32 @@ import type { SuggestionKind } from "../types"
  * A rule that cannot be computed from the schema does not ship. `medication_due`
  * depends on pet_medications.next_due_at, added in 20260727172837 — rows still
  * carrying only the old free-text `next_due` are skipped rather than parsed.
+ *
+ * DATES COME THROUGH `lib/dates.ts`, AND THIS FILE IS WHY THAT MODULE'S CLAIM
+ * ("if the column is a `date`, it comes through `parseDbDate`") IS TRUE. It was
+ * not until the pre-merge sweep. `pet_vaccinations.expires_on`,
+ * `pet_medications.next_due_at` and `pet_vaccinations.given_on` are all `date`
+ * columns, and this file spelled the consolidated rule the old way twice:
+ *
+ *     Math.round((new Date(row.expires_on).getTime() - Date.now()) / DAY)
+ *
+ * which is the exact shape `daysUntil` exists to replace. `new Date('2026-08-24')`
+ * is UTC MIDNIGHT; `Date.now()` is an instant part-way through the day. Measured
+ * on a document expiring TODAY, in every zone (the formula uses no local method,
+ * so the zone is irrelevant — this is not a west-of-Greenwich bug, it is a
+ * bug from noon UTC onward everywhere):
+ *
+ *     00:30Z -> 0     06:00Z -> 0     13:00Z -> -1     18:00Z -> -1     23:30Z -> -1
+ *
+ * A negative number sets `overdue`, which flips severity to `error` and writes
+ * "expired on 2026-08-24, 1 days ago" into the `facts` string — on the day it
+ * expires, in the text handed to the copy model as fact. A thing that expires
+ * today has not expired.
+ *
+ * The `.toISOString().slice(0, 10)` horizons were the same rule spelled a third
+ * way: a UTC day key compared against a `date` column in a `.lte()`. They are
+ * `todayKey()` + `addCalendarDays` now, so both sides of every comparison are
+ * calendar days.
  */
 
 type Client = SupabaseClient<Database>
@@ -48,7 +75,7 @@ const DAY = 86_400_000
 
 /** Fires within 30 days of expiry, or once already past. Severity scales with proximity. */
 async function vaccinationDue(supabase: Client, pets: PetRow[]): Promise<RuleHit[]> {
-  const horizon = new Date(Date.now() + 30 * DAY).toISOString().slice(0, 10)
+  const horizon = horizonKey(30)
   const { data } = await supabase
     .from("pet_vaccinations")
     .select("id, pet_id, name, expires_on, status")
@@ -62,7 +89,9 @@ async function vaccinationDue(supabase: Client, pets: PetRow[]): Promise<RuleHit
     const pet = pets.find((p) => p.id === row.pet_id)
     if (!pet) continue
 
-    const days = Math.round((new Date(row.expires_on).getTime() - Date.now()) / DAY)
+    // `expires_on` is a `date`. 0 on the day itself — see the note at the top.
+    const days = daysUntil(row.expires_on)
+    if (days === null) continue
     const overdue = days < 0
     hits.push({
       petId: pet.id,
@@ -93,7 +122,7 @@ async function vaccinationDue(supabase: Client, pets: PetRow[]): Promise<RuleHit
 
 /** Fires within 3 days of the next dose, or once overdue. Needs next_due_at. */
 async function medicationDue(supabase: Client, pets: PetRow[]): Promise<RuleHit[]> {
-  const horizon = new Date(Date.now() + 3 * DAY).toISOString().slice(0, 10)
+  const horizon = horizonKey(3)
   const { data } = await supabase
     .from("pet_medications")
     .select("id, pet_id, name, dosage, frequency, next_due_at, reminder")
@@ -107,7 +136,9 @@ async function medicationDue(supabase: Client, pets: PetRow[]): Promise<RuleHit[
     const pet = pets.find((p) => p.id === row.pet_id)
     if (!pet) continue
 
-    const days = Math.round((new Date(row.next_due_at).getTime() - Date.now()) / DAY)
+    // `next_due_at` is a `date` despite the `_at`. 0 means today, not overdue.
+    const days = daysUntil(row.next_due_at)
+    if (days === null) continue
     const overdue = days < 0
     const when = overdue ? `was due ${Math.abs(days)} day${days === -1 ? "" : "s"} ago` : days === 0 ? "is due today" : `is due in ${days} day${days === 1 ? "" : "s"}`
 
@@ -153,14 +184,19 @@ async function careAdherence(supabase: Client, pets: PetRow[]): Promise<RuleHit[
     .in("kind", ["food", "medicine"])
     .gte("logged_at", since)
 
-  const today = startOfDay(Date.now())
+  const today = todayKey()
   const buckets = new Map<string, { recent: Set<string>; prior: Set<string> }>()
 
   for (const row of data ?? []) {
     const key = `${row.pet_id}:${row.kind}`
     const bucket = buckets.get(key) ?? { recent: new Set<string>(), prior: new Set<string>() }
-    const day = row.logged_at.slice(0, 10)
-    const age = Math.floor((today - startOfDay(new Date(row.logged_at).getTime())) / DAY)
+    // `logged_at` is a `timestamptz`. The day it counts toward is the day it
+    // fell on in the viewer's zone — `iso.slice(0, 10)` took the UTC day, which
+    // is a DIFFERENT day from the one `age` was then measured in, so an entry
+    // logged at 6pm local could be keyed to tomorrow and aged as today.
+    const day = localDayKey(row.logged_at)
+    const age = calendarDaysBetween(day, today)
+    if (age === null) continue
     if (age >= 0 && age < 7) bucket.recent.add(day)
     else if (age >= 7 && age < 14) bucket.prior.add(day)
     buckets.set(key, bucket)
@@ -230,8 +266,12 @@ async function documentMissing(supabase: Client, pets: PetRow[]): Promise<RuleHi
 
 /** No vaccination given and no recorded activity in 12 months. */
 async function checkupDue(supabase: Client, pets: PetRow[]): Promise<RuleHit[]> {
+  // Two cutoffs on purpose, because the two columns are different kinds.
+  // `given_on` is a `date`, so it is compared against a calendar day;
+  // `pet_activity.created_at` is a `timestamptz`, so it is compared against an
+  // instant, which for an instant is correct.
   const cutoff = new Date(Date.now() - 365 * DAY)
-  const cutoffDate = cutoff.toISOString().slice(0, 10)
+  const cutoffDate = horizonKey(-365)
 
   const [vax, activity] = await Promise.all([
     supabase.from("pet_vaccinations").select("pet_id, given_on").in("pet_id", pets.map((p) => p.id)).gte("given_on", cutoffDate),
@@ -256,7 +296,7 @@ async function checkupDue(supabase: Client, pets: PetRow[]): Promise<RuleHit[]> 
       actionTarget: "services",
       evidence: { last_record_before: cutoffDate },
       // Monthly key, so this nudges once a month rather than every run.
-      dedupeKey: `checkup_due:${pet.id}:${new Date().toISOString().slice(0, 7)}`,
+      dedupeKey: `checkup_due:${pet.id}:${todayKey().slice(0, 7)}`,
       validUntil: horizonFromNow(30),
     }))
 }
@@ -284,13 +324,24 @@ export async function evaluateRules(supabase: Client, pets: PetRow[]): Promise<R
 
 /** A card's shelf life always runs from now, never from the date that fired it. */
 function horizonFromNow(days: number): string {
+  // `ai_suggestions.valid_until` is a `timestamptz`, so this one really is an
+  // instant. Not to be confused with `horizonKey` below.
   return new Date(Date.now() + days * DAY).toISOString()
 }
 
-function startOfDay(ms: number): number {
-  const d = new Date(ms)
-  d.setHours(0, 0, 0, 0)
-  return d.getTime()
+/**
+ * Today's calendar day plus `days`, as a bare `YYYY-MM-DD` — the only shape
+ * that can be compared against a `date` column without reintroducing the bug.
+ *
+ * `addCalendarDays` returns `string | null` because it refuses input that is not
+ * a calendar date. `todayKey()` builds one from the clock and cannot be
+ * anything else, so the fallback is unreachable; it is written as today rather
+ * than as a cast so that an unreachable branch still yields a valid key instead
+ * of a `null` that would silently widen a `.lte()` filter to everything.
+ */
+function horizonKey(days: number): string {
+  const key = todayKey()
+  return addCalendarDays(key, days) ?? key
 }
 
 function isoWeek(date: Date): string {
