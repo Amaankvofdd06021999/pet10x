@@ -32,9 +32,18 @@ So a replay from files reaches the right end state:
 
 Verified 2026-08-23 against the live database:
 
-    live_body_md5   9a3594933846796ec4f343827a019582
-    has_actor_fix   true
-    still_broken    false
+    md5(regexp_replace(prosrc, '\s+', ' ', 'g'))  9a3594933846796ec4f343827a019582
+    has_actor_fix                                 true
+    still_broken                                  false
+
+The hash is over WHITESPACE-NORMALISED `prosrc`, because `apply_migration`
+reflows the body it stores. Plain `md5(prosrc)` is
+`e20b7080dac69d6ed9a42aa23f1973bd` and plain `md5(pg_get_functiondef(oid))` is
+`9658d3a695578e08ea912ab761f933a7` -- both correct, neither equal to the line
+above. The first version of this file printed the normalised hash under the
+bare label `live_body_md5`, which a reviewer then could not reproduce and
+rightly flagged. A hash is only evidence if the transform that produced it is
+written next to it.
 
 and `20260823000007` is what produces that body.
 
