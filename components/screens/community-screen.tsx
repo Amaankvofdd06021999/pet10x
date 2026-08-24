@@ -22,7 +22,7 @@ import {
   attendancePercent,
   categoryClass,
   formatEventDate,
-  lostFoundShareText,
+  lostFoundSharePayload,
   POST_CATEGORIES,
   type PostComment,
   type CommunityPost,
@@ -84,8 +84,11 @@ const PHOTO_FALLBACK = "/placeholder.jpg"
  * What each of the five became, and what proves it:
  *
  *   Pin      -> `pinPost()`. Rendered only when the viewer MANAGES THIS
- *               BUILDING (`scope.via === "manager"`), not on `user?.role`,
- *               which is a claim about the account rather than about this feed.
+ *               BUILDING (`scope.manages`), not on `user?.role`, which is a
+ *               claim about the account rather than about this feed — and not
+ *               on `scope.via`, which answers a different question and hid
+ *               every one of these controls from a manager who also lives in
+ *               the building they manage.
  *               `community_posts_guard` (20260826000001) is what actually
  *               authorises it: before that migration `posts_update_own` let the
  *               AUTHOR pin their own post and set `is_official` on it.
@@ -192,8 +195,15 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
   const { data: scope } = useCommunityScope()
   /* Whether the viewer manages THIS FEED's building — not whether their account
    * has the manager role. A manager of another building reading this feed as a
-   * resident is a resident here. */
-  const managesThis = scope?.via === "manager"
+   * resident is a resident here.
+   *
+   * `scope.manages`, NOT `scope.via === "manager"`. `via` says how the building
+   * was RESOLVED and the resident link is checked first by design, so a person
+   * who both lives in a building and manages it resolved as "resident" and saw
+   * zero Pin buttons and no moderation sheet — while `manages_building()` in
+   * the database said they may use both. Two questions, two fields; see
+   * CommunityScope in lib/data/live.ts. */
+  const managesThis = scope?.manages === true
 
   const { data: posts, isLoading: postsLoading, refetch: refetchPosts } = useCommunityPosts()
   const { data: lostFound, refetch: refetchLostFound } = useLostFound()
@@ -404,7 +414,11 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
    * and a signed storage URL carries the object path — including an auth uid —
    * verbatim. */
   const handleShareLostFound = async (item: LostFoundItem) => {
-    const text = lostFoundShareText({
+    /* THE WHOLE OBJECT comes from the tested function, `title` included. It
+     * used to be `{ title: item.petName ?? "Pet10x", text }` — the text was
+     * asserted and the title was not, so half the payload left the app past
+     * the security test rather than through it. */
+    const payload = lostFoundSharePayload({
       type: item.type,
       petName: item.petName,
       species: item.species,
@@ -414,9 +428,10 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
       buildingName: item.buildingName,
       rewardCents: item.rewardCents,
     })
+    const { text } = payload
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({ title: item.petName ?? "Pet10x", text })
+        await navigator.share(payload)
       } else if (typeof navigator !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(text)
         toast.success("Copied", { description: "Paste it wherever it will reach people." })
@@ -856,6 +871,12 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
             onChange={(e) => setComposerContent(e.target.value)}
             placeholder="Share an update, a tip, or a hello with your neighbours..."
             rows={4}
+            /* Matches community_posts_content_len (20260826000006). Every other
+             * field on this screen was bounded and these two were not; the
+             * database now refuses over the bound rather than truncating, the
+             * same call report_lost_found makes, so the maxLength is a courtesy
+             * that keeps a person from typing past a refusal — not the defence. */
+            maxLength={5000}
             className={`${FIELD} resize-none`}
           />
           <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="post-photo">
@@ -1131,6 +1152,8 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
                   onKeyDown={(e) => e.key === "Enter" && handleAddComment()}
                   placeholder="Add a comment..."
                   aria-label="Add a comment"
+                  /* Matches post_comments_content_len (20260826000006). */
+                  maxLength={1000}
                   className="min-w-0 flex-1 rounded-full border border-input bg-card px-3.5 py-2 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <button

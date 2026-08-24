@@ -200,3 +200,50 @@ export function lostFoundShareText(item: LostFoundShareInput): string {
   )
   return lines.join("\n")
 }
+
+/**
+ * THE WHOLE PAYLOAD handed to `navigator.share`, so the whole payload is what
+ * the security test asserts over.
+ *
+ * The screen used to build this inline:
+ *
+ *     navigator.share({ title: item.petName ?? "Pet10x", text })
+ *
+ * and every assertion in community.test.ts was over `lostFoundShareText`'s
+ * return value — i.e. over `text` ALONE. `title` carried resident-typed free
+ * text out of the app with no test in front of it, and the phase's own payload
+ * table recorded `url` and did not record `title`. That is not a leak anybody
+ * measured; it is a field that left the tested surface, which is the thing a
+ * security test exists to prevent. A boundary you assert over half of is a
+ * boundary you have not asserted.
+ *
+ * The shape is now built HERE, in the pure half, so vitest reaches it — the
+ * same reason everything else in this file moved out of the screen — and the
+ * test asserts the four forbidden patterns against `title`, against `text`,
+ * and against the two concatenated, so a THIRD field added to this object
+ * later is covered the moment it is returned.
+ *
+ * `url` IS STILL NOT A FIELD, and its absence is the defence rather than a
+ * default: there is no public page for a lost pet, and a signed storage URL
+ * carries the object path — including an auth uid — verbatim.
+ *
+ * `title` deliberately keeps the pet's name: it is what a share sheet shows as
+ * the subject and what makes the message legible in a neighbourhood group. It
+ * discloses nothing `text` does not already carry, and the same caveat in
+ * `lostFoundShareText` applies — a resident who types their own unit number
+ * into a pet's name has published it, and redacting a neighbour's prose would
+ * be a different and worse feature.
+ */
+export interface LostFoundSharePayload {
+  title: string
+  text: string
+}
+
+export function lostFoundSharePayload(item: LostFoundShareInput): LostFoundSharePayload {
+  const name = item.petName?.trim()
+  const kind = item.type === "lost" ? "Lost pet" : "Found pet"
+  return {
+    title: name ? `${kind}: ${name}` : kind,
+    text: lostFoundShareText(item),
+  }
+}

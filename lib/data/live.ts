@@ -1301,13 +1301,47 @@ export interface CommunityIdentity {
   avatarUrl: string | null
 }
 
+/**
+ * Resolve whatever is in `profiles.avatar_url` into something `<Image src>` can
+ * actually load.
+ *
+ * NOT `signedUrlsIn`, and the difference matters. `community_posts.image_url`
+ * holds a path in the PRIVATE `community-media` bucket, so it is signed at read
+ * time. `avatars` IS A PUBLIC BUCKET — verified against production, `public =
+ * true` — and `createSignedUrl` is the wrong call for one: it costs a round
+ * trip per render to mint a URL with an expiry that a public object does not
+ * need and, on a bucket with no RLS gate to satisfy, buys nothing.
+ *
+ * The one writer today is `updateMyProfile` (lib/data/account.ts), which stores
+ * `getPublicUrl(path).data.publicUrl` — an absolute `https://…`. `isStoragePath`
+ * returns false for that, so it passes through untouched and this function is a
+ * no-op on every one of the 48 rows currently on the platform, all of which are
+ * NULL anyway.
+ *
+ * It exists for the OTHER shape. If anything ever stores a bare bucket path
+ * here — which is what the rest of this codebase now does everywhere else, and
+ * is the more likely direction of travel — the feed would render a broken
+ * avatar for every neighbour, exactly the way `image_url` did before Phase 8.
+ * Reading a column that can hold either shape, and discriminating with the
+ * helper that already exists for the purpose, costs one branch. `getPublicUrl`
+ * is synchronous and makes no request, so this stays inside the existing single
+ * round trip.
+ */
+function resolveAvatarUrl(
+  supabase: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>,
+  value: string | null,
+): string | null {
+  if (!isStoragePath(value)) return value ?? null
+  return supabase.storage.from("avatars").getPublicUrl(value).data.publicUrl ?? null
+}
+
 async function communityIdentities(
   supabase: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>,
 ): Promise<Map<string, CommunityIdentity>> {
   const { data } = await supabase.rpc("community_identities")
   const map = new Map<string, CommunityIdentity>()
   for (const r of (data ?? []) as unknown as { id: string; full_name: string | null; avatar_url: string | null }[]) {
-    map.set(r.id, { fullName: r.full_name, avatarUrl: r.avatar_url })
+    map.set(r.id, { fullName: r.full_name, avatarUrl: resolveAvatarUrl(supabase, r.avatar_url) })
   }
   return map
 }
@@ -1343,7 +1377,35 @@ function mapPost(
 export interface CommunityScope {
   buildingId: string
   buildingName: string | null
+  /**
+   * HOW the building was resolved — a resident link, or a manager row when
+   * there was no resident link. For labelling only.
+   *
+   * NOT AN AUTHORITY. `via` answers "which building do I write into"; it does
+   * NOT answer "may I moderate it", and using it for the second question is
+   * what hid every manager control from a manager who lives in the building
+   * they manage. Gate on `manages`.
+   */
   via: "resident" | "manager"
+  /**
+   * Whether the viewer manages THIS building — the client's reading of
+   * `manages_building(buildingId)`, which is what the database will actually
+   * ask when the write lands.
+   *
+   * Separate from `via` because the two questions have different answers for
+   * the same person. `via` is exclusive by construction (a resident link is
+   * checked first, by design, so a person who is both reads their own feed as
+   * a neighbour); manager authority is not exclusive of anything. Rachel
+   * Torres manages Maple Court Residences and does not live there, so the bug
+   * was invisible on this database until somebody held both relationships to
+   * one building — at which point `community_posts_guard` says they may pin
+   * and the screen renders no Pin button.
+   *
+   * This is NOT the ledgered multi-building case. A manager of five buildings
+   * still gets a null scope from the branch below, because nothing here can
+   * guess which of the five an announcement was meant for.
+   */
+  manages: boolean
 }
 
 /**
@@ -1362,26 +1424,55 @@ export interface CommunityScope {
  * worse than saying "pick a building" — and Dana Whitlock holds five on this
  * database, so this is not a hypothetical branch. `via` is returned so the
  * composer can label itself honestly.
+ *
+ * `manages` IS ASKED SEPARATELY, AND ALWAYS, and that is the fix for a manager
+ * who is also a resident of the building they manage. The resident branch
+ * returns first by design, so `via` is "resident" for that person and every
+ * control gated on `via === "manager"` — Pin, the moderation sheet, the
+ * announcement composer — disappeared for somebody the database says may use
+ * them. One building held two ways is not the multi-building case; it is a
+ * question the old shape could not express, because `via` is a single value
+ * answering two questions.
+ *
+ * The query is scoped to the RESOLVED building, so it is the client's reading
+ * of `manages_building(buildingId)` and nothing wider. A resident of Maple
+ * Court who manages Cedar Grove gets manages:false here, which is correct: they
+ * are a neighbour on this feed.
  */
 async function currentScope(
   supabase: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>,
 ): Promise<CommunityScope | null> {
-  const { data } = await supabase.rpc("my_building_link")
-  const j = data as { building_id?: string; building_name?: string; status?: string } | null
-  if (j && j.status === "approved" && j.building_id) {
-    return { buildingId: j.building_id, buildingName: j.building_name ?? null, via: "resident" }
-  }
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return null
+
+  const { data } = await supabase.rpc("my_building_link")
+  const j = data as { building_id?: string; building_name?: string; status?: string } | null
+  if (j && j.status === "approved" && j.building_id) {
+    /* One extra round trip, on the ONE building we just resolved — not a list
+     * of every building they manage. `head: true` with an exact count asks
+     * "does this row exist" without shipping it. */
+    const { count } = await supabase
+      .from("building_managers")
+      .select("building_id", { count: "exact", head: true })
+      .eq("profile_id", user.id)
+      .eq("building_id", j.building_id)
+    return {
+      buildingId: j.building_id,
+      buildingName: j.building_name ?? null,
+      via: "resident",
+      manages: (count ?? 0) > 0,
+    }
+  }
+
   const { data: managed } = await supabase
     .from("building_managers")
     .select("building_id, buildings(name)")
     .eq("profile_id", user.id)
   if (!managed || managed.length !== 1) return null
   const row = managed[0] as unknown as { building_id: string; buildings: { name: string | null } | null }
-  return { buildingId: row.building_id, buildingName: row.buildings?.name ?? null, via: "manager" }
+  return { buildingId: row.building_id, buildingName: row.buildings?.name ?? null, via: "manager", manages: true }
 }
 
 export function useCommunityScope(): LiveResult<CommunityScope | null> {

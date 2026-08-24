@@ -5,6 +5,7 @@ import {
   formatEventDate,
   formatReward,
   lostFoundShareText,
+  lostFoundSharePayload,
   CATEGORY_COLORS,
 } from "./community"
 
@@ -218,5 +219,88 @@ describe("lostFoundShareText", () => {
 
   it("does not emit a reward line for a zero reward", () => {
     expect(lostFoundShareText({ ...FULL, rewardCents: 0 })).not.toContain("Reward")
+  })
+})
+
+/* ------------------------------------------------------------------ */
+
+/**
+ * THE WHOLE PAYLOAD, not half of it.
+ *
+ * Every assertion above is over `lostFoundShareText`'s return value, which is
+ * the `text` field alone. The screen actually called
+ *
+ *     navigator.share({ title: item.petName ?? "Pet10x", text })
+ *
+ * so `title` — resident-typed free text — left the app past the security test
+ * rather than through it, and the phase's payload table recorded `url` and not
+ * `title`. These tests assert the four forbidden patterns against every field
+ * of the real object AND against the fields concatenated, so a third field
+ * added later is covered the moment it is returned rather than the moment
+ * somebody remembers to write a test for it.
+ */
+const FORBIDDEN: [string, RegExp][] = [
+  ["building code shape", /\b[A-Z]{2,8}\d{2,8}\b/],
+  ["unit", /\bunit\b/i],
+  ["apt / suite / #n", /\bapt\b|\bapartment\b|\bsuite\b|#\s*\d/i],
+  ["url scheme", /https?:/i],
+  ["www.", /\bwww\./i],
+  ["host fragment", /supabase|\.co\/|\.com\//i],
+  ["uuid", /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i],
+]
+
+describe("lostFoundSharePayload", () => {
+  it("returns exactly the fields navigator.share is given — and no url", () => {
+    /* `url` is absent BY CONSTRUCTION, which is the defence. A signed storage
+     * URL carries the object path, and these paths embed an auth uid. If this
+     * ever grows a third key, the sweep below covers it automatically and this
+     * assertion is what makes the addition deliberate. */
+    expect(Object.keys(lostFoundSharePayload(FULL)).sort()).toEqual(["text", "title"])
+    expect(lostFoundSharePayload(FULL)).not.toHaveProperty("url")
+  })
+
+  it("carries none of the four forbidden things in ANY field, including title", () => {
+    for (const item of [FULL, { ...FULL, type: "found" as const }]) {
+      const payload = lostFoundSharePayload(item)
+      const everything = Object.values(payload).join("\n")
+      for (const [label, pattern] of FORBIDDEN) {
+        expect(payload.title, `title / ${label}`).not.toMatch(pattern)
+        expect(payload.text, `text / ${label}`).not.toMatch(pattern)
+        expect(everything, `whole payload / ${label}`).not.toMatch(pattern)
+      }
+      for (const code of ["CDR2026", "HVT2026", "MCR2026", "MPL2026", "RIV2026", "WEL2026"]) {
+        expect(everything).not.toContain(code)
+      }
+    }
+  })
+
+  it("names the pet in the title, because that is what a share sheet shows", () => {
+    expect(lostFoundSharePayload(FULL).title).toBe("Lost pet: Simba")
+    expect(lostFoundSharePayload({ ...FULL, type: "found" }).title).toBe("Found pet: Simba")
+  })
+
+  it("degrades to a readable title with no name, and never to null or undefined", () => {
+    const bare = lostFoundSharePayload({
+      type: "lost",
+      petName: null,
+      species: null,
+      breed: null,
+      color: null,
+      lastSeen: null,
+      buildingName: null,
+      rewardCents: null,
+    })
+    expect(bare.title).toBe("Lost pet")
+    for (const v of Object.values(bare)) {
+      expect(v).not.toContain("null")
+      expect(v).not.toContain("undefined")
+      expect(v.length).toBeGreaterThan(0)
+    }
+    /* Whitespace is not a name: `"   "` used to become the title verbatim. */
+    expect(lostFoundSharePayload({ ...FULL, petName: "   " }).title).toBe("Lost pet")
+  })
+
+  it("passes through the same text lostFoundShareText produces", () => {
+    expect(lostFoundSharePayload(FULL).text).toBe(lostFoundShareText(FULL))
   })
 })
