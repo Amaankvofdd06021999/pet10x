@@ -19,7 +19,7 @@ import { useCallback, useEffect, useState } from "react"
  * `shortDay` reads a bare `YYYY-MM-DD` as the calendar day it names and an
  * instant as an instant, so both callers are right for the reason they are right.
  */
-import { localDayKey, shortDay } from "@/lib/dates"
+import { localDayKey, parseDbDate, shortDay } from "@/lib/dates"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type {
   Registration,
@@ -47,9 +47,33 @@ interface Result<T> {
 }
 
 
+/**
+ * A pet's age for the registration queue. MIGRATED, NOT ANNOTATED.
+ *
+ * This carried a bare `new Date(dob)`, and `pets.dob` is a `date` column — the
+ * exact input `@/lib/dates` exists to stop being parsed as UTC midnight. It was
+ * left alone once on the reasoning `lib/ai/context.ts` still carries: that
+ * bucketing into whole months is coarse enough to absorb any zone offset. THAT
+ * REASONING DOES NOT HOLD, and the arithmetic is short enough to write out. A
+ * 14-hour offset shifts the computed age by 14/730 of a month ≈ 0.019 months.
+ * Bucketing to whole months does not remove a boundary, it just spaces the
+ * boundaries one month apart — so the answer flips for any pet whose true age
+ * falls within 0.019 months of one, which for an arbitrary date of birth is
+ * about 2% of them, not none. A wide bucket makes a bad parse RARE. It does not
+ * make it absorbed, and "no offset can move a pet between 7 months and 8 months"
+ * is false for the fourteen hours either side of eight months.
+ *
+ * So this is not "checked and left"; it was missed, and it is fixed rather than
+ * documented, because the fix is one call to the module that already states the
+ * rule. `parseDbDate` reads `YYYY-MM-DD` as LOCAL midnight of that calendar day
+ * and returns null rather than an Invalid Date, which also turns a malformed dob
+ * from "NaN mo" on a manager's screen into the same "—" a missing one gives.
+ * The month/year arithmetic below is unchanged.
+ */
 function ageFrom(dob: string | null): string {
-  if (!dob) return "—"
-  const years = (Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000)
+  const birth = parseDbDate(dob)
+  if (birth === null) return "—"
+  const years = (Date.now() - birth.getTime()) / (365.25 * 24 * 3600 * 1000)
   return years < 1 ? `${Math.max(1, Math.round(years * 12))} mo` : `${Math.floor(years)} yr`
 }
 

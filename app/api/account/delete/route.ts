@@ -57,19 +57,26 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin"
  *
  * Every one of the 48 live profiles was run through this exact sequence in a
  * rolled-back transaction on production. **21 of 48 cannot be deleted.** The
- * constraint that actually raises, per account:
+ * step that raises and the constraint that raises there, per account:
  *
- *     violations_resident_id_fkey          9
- *     service_bookings_business_id_fkey    5   (via businesses, not profiles)
- *     incident_reports_reporter_id_fkey    3
- *     resident_links_decided_by_fkey       2
- *     building_managers_granted_by_fkey    1
- *     payments_profile_id_fkey             1
+ *     pets         violations_pet_id_fkey            10
+ *     businesses   service_bookings_business_id_fkey  5  (via businesses, not profiles)
+ *     deleteUser   incident_reports_reporter_id_fkey  2
+ *     deleteUser   resident_links_decided_by_fkey     2
+ *     deleteUser   building_managers_granted_by_fkey  1
+ *     deleteUser   payments_profile_id_fkey           1
+ *
+ * The STEP is half the fact and the earlier version of this list omitted it,
+ * which is how it came to name constraints from a sequence this route does not
+ * run: `violations_resident_id_fkey` blocks the bare `delete from auth.users`,
+ * but under the order below `violations_pet_id_fkey` refuses those accounts one
+ * step earlier, at `pets`, where nothing has been lost yet. Same accounts, same
+ * total, different constraint and a materially different consequence.
  *
  * `audit_log.actor_id` is NOT the main cause and blocks nobody as things stand
  * — only 4 profiles have ever written an audit row, and each is already refused
- * by a constraint that raises first. Sarah Chen fails on
- * `violations_resident_id_fkey`.
+ * by a constraint that raises first. Sarah Chen fails at the FIRST step, on
+ * `violations_pet_id_fkey`, having deleted nothing.
  *
  * AND SHE IS THE ONE WHO MATTERS: all 3 objects currently in
  * `accommodation-docs` are hers, including two `esa_letter` PDFs. So today the
@@ -160,9 +167,37 @@ export async function POST() {
   // `profiles_id_fkey` to cascade, which looks equivalent, measures WORSE: 24
   // blocked instead of 21.
   //
-  // The residual 3 fail at `deleteUser` itself after all three succeeded. That
-  // is irreducible without one transaction around the whole operation, which is
-  // the foreign-key redesign this phase is deliberately not attempting.
+  // WHERE THE 21 ACTUALLY FAIL, under the order above, re-measured over all 48
+  // profiles in a rolled-back transaction. The earlier version of this comment
+  // printed the histogram of a DIFFERENT sequence and said "the residual 3 fail
+  // at `deleteUser` itself", which reads as "3 accounts reach `deleteUser`". Six
+  // do; 3 of those 6 are the ones that had rows to lose:
+  //
+  //     pets           violations_pet_id_fkey            10   0 rows lost
+  //     businesses     service_bookings_business_id_fkey  5   0 rows lost
+  //     deleteUser     incident_reports_reporter_id_fkey  2   3 pets, 3 links
+  //     deleteUser     resident_links_decided_by_fkey     2   0 rows lost
+  //     deleteUser     building_managers_granted_by_fkey  1   0 rows lost
+  //     deleteUser     payments_profile_id_fkey           1   2 pets, 1 link
+  //                                                      ---
+  //                                                       21   3 accounts lose rows
+  //
+  // Three of the six reach `deleteUser` having deleted nothing, because they
+  // owned no pet, no business and no resident_link — refused at no cost. The
+  // other 3 are the whole residual: they lose 5 pets and 4 links between them
+  // and are then answered 400. That is irreducible without one transaction
+  // around the whole operation, which is the foreign-key redesign this phase is
+  // deliberately not attempting.
+  //
+  // The histogram that stood here — `violations_resident_id_fkey 9`,
+  // `incident_reports_reporter_id_fkey 3`, and no `violations_pet_id_fkey` row
+  // at all — is the one for deleting `auth.users` with NO explicit deletes in
+  // front of it. Measured, that sequence is `violations_resident_id 9`,
+  // `service_bookings_business 5`, `care_entries_logged_by 3`,
+  // `incident_reports_reporter 3`, `resident_links_decided_by 2`, `payments 1`,
+  // `building_managers_granted_by 1` = 24 blocked, which is where the "24
+  // instead of 21" above comes from. It is a real measurement of a sequence this
+  // route does not perform, and it was printed as though it described this one.
   // Written out rather than looped: the three tables name the caller through
   // three different columns, and a loop over them collapses the column type to
   // the intersection of the three row types, which is not a column at all.

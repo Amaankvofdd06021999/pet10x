@@ -8,7 +8,7 @@
  *     It names a square on a wall calendar and carries no instant, no zone and
  *     no time. `pet_documents.expires_on`, `pet_vaccinations.expires_on`,
  *     `pet_medications.next_due_at`, `fines.due_on`, `violation_events
- *     .occurred_on`, `pets.date_of_birth` and `pet_vet_visits.visited_on` are
+ *     .occurred_on`, `pets.dob` and `pet_vet_visits.visited_on` are
  *     all of this kind.
  *   - a `timestamptz` column arrives as a full ISO instant with a zone.
  *     `created_at`, `filed_at`, `decided_at`, `resolved_at` are of this kind.
@@ -28,6 +28,17 @@
  * written into an LLM prompt as fact). Four spellings of one rule is the shape
  * of duplicated truth this project has already paid for twice, and the fix for
  * it is a module, not a fifth spelling.
+ *
+ * TWO MORE `new Date(dob)` CALLS CAME HOME IN THE PRE-MERGE SWEEP, and how they
+ * survived matters more than the fix. `lib/ai/context.ts` `formatAge` and
+ * `lib/data/manager-queues.ts` `ageFrom` were each examined and each kept, on
+ * the reasoning that flooring into whole months is a bucket wide enough to
+ * absorb any zone offset. It is not. Flooring does not delete the boundary, it
+ * spaces boundaries a month apart, and 14 hours of offset is 0.019 of a month —
+ * so the bucket lands on the wrong side for the ~2% of birth dates that fall
+ * that close to one, always reading the pet as OLDER west of Greenwich. A coarse
+ * unit makes a bad parse RARE; it never makes it right. If the column is a
+ * `date`, it comes through `parseDbDate`, whatever is done to the result after.
  *
  * Pure functions only, no React and no Supabase client, so it is testable under
  * vitest's `environment: "node"` and importable from a server route, a client

@@ -544,6 +544,25 @@ export async function setPetPhoto(petId: string, file: File): Promise<{ error: s
  * `daysUntil` keys both sides to the same local calendar day, so the day of
  * expiry is `0` and the boundary is stated in the same units the rule is
  * written in: a thing that expires today has NOT expired.
+ *
+ * THE 30-DAY BOUNDARY MOVED BY ONE DAY IN THAT REWRITE, DELIBERATELY, AND IT IS
+ * SAID HERE BECAUSE A SILENT BOUNDARY MOVE IS INDISTINGUISHABLE FROM A SLIP.
+ * The old test was `exp < now + 30 * 86_400_000` — strictly inside thirty days —
+ * so a document expiring in EXACTLY thirty days badged `current`. `days <= 30`
+ * badges it `expiring`. Day 30 changed sides; days 0-29 and 31+ did not.
+ *
+ * Inclusive is the one that matches the sentence the badge is a rendering of.
+ * "Expiring within 30 days" includes the thirtieth day in every reading a
+ * resident or a manager would give it, and the whole point of the rewrite was to
+ * state the rule in the units it is written in rather than in milliseconds. The
+ * exclusive form was also not a decision anybody made: it was what
+ * `<` happened to mean once a 30-day offset had been added to an instant.
+ *
+ * It errs toward warning a day early, which is the direction a compliance badge
+ * should err — the cost of `expiring` a day early is one day of a yellow chip,
+ * and the cost of `current` a day late is a resident who thinks they have time.
+ * Nothing else in the repo defines the window, so this function is the only
+ * place the 30 is written down and there is nothing to keep in step with it.
  */
 function docStatusFromExpiry(expiresOn?: string | null): Database["public"]["Enums"]["doc_status"] {
   if (!expiresOn) return "active"

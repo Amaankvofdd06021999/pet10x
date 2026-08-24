@@ -159,6 +159,8 @@ export async function GET(request: NextRequest) {
   })
 
   let raised = 0
+  /** Interval tasks whose anchor could not be advanced — see the block below. */
+  const stalled: string[] = []
   for (const item of pending) {
     const { data: note, error: noteErr } = await supabase
       .from("notifications")
@@ -196,7 +198,37 @@ export async function GET(request: NextRequest) {
      * dose. */
     if (item.recurrence === "interval" && item.intervalDays) {
       const nextKey = addCalendarDays(item.dateKey, item.intervalDays)
-      if (!nextKey) continue
+      /* A NULL ANCHOR IS THE "SILENT FOREVER" ABOVE, ARRIVING QUIETLY.
+       *
+       * This was `if (!nextKey) continue`, replacing a throw. What that skips is
+       * the only write that moves `next_due_on`, and the interval branch of the
+       * due test is `task.next_due_on !== clock.dateKey` — an exact match on
+       * TODAY. So an anchor that fails to advance is not a task that nags; the
+       * ledger's unique (task_id, on_date) already stops a second reminder
+       * today, and tomorrow the date no longer matches, so the task goes silent
+       * for the rest of its life with `is_active` still true and nothing
+       * anywhere recording that it stopped. A six-month heartworm course that
+       * reminds once and never again is exactly the failure the comment above
+       * this block names.
+       *
+       * Not thrown, because one malformed row must not take down a sweep that
+       * reminds every other owner — the same call this file already makes for an
+       * invalid IANA zone. Logged with the task id, and COUNTED INTO THE
+       * RESPONSE, so the cron's own output says a task stalled and which one.
+       * `addCalendarDays` returns null only for a `dateKey` that is not a bare
+       * YYYY-MM-DD or an `intervalDays` large enough to overflow the date, and
+       * `dateKey` is built here by Intl with 2-digit parts, so nothing on
+       * today's data can reach this. It is the accounting that matters, not the
+       * frequency: a reminder loop that can stop reminding must say so. */
+      if (!nextKey) {
+        console.error(
+          `[care-reminders] task ${item.taskId}: could not advance the anchor from ` +
+            `"${item.dateKey}" by ${item.intervalDays} days. It will not fire again ` +
+            `until next_due_on is corrected.`,
+        )
+        stalled.push(item.taskId)
+        continue
+      }
       // Past the end of the course, the task retires itself rather than
       // sitting active with a due date nobody will ever reach.
       const finished = item.endsOn != null && nextKey > item.endsOn
@@ -294,5 +326,9 @@ export async function GET(request: NextRequest) {
     raised,
     vaccinesChecked: vaccines?.length ?? 0,
     vaccineReminders,
+    /* Task ids, not a count, and present even when empty. A stalled interval
+     * task will never appear in a later run's output — that is what stalled
+     * means — so the one run that stalls it is the only chance to name it. */
+    stalled,
   })
 }
