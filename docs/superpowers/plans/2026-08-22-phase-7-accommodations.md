@@ -68,6 +68,17 @@ An accommodation request is disability information and a supporting document may
 
 **A super-admin gets exactly what the building's manager gets, and nothing more.** No cross-building list, no export.
 
+> **CORRECTED AFTER THE FACT — the half of that sentence before the full stop is
+> false, and the plan is left standing so the correction has something to point
+> at.** A super-admin sees every submitted request in every building: measured
+> 6 across 3 as `7fcfe000`, against 4 across 1 for the manager of one of them,
+> and `useAccommodationsLive` carries no building filter, so their Approvals and
+> strata Queue screens ARE the cross-building list. The reach is intended and
+> `is_admin()` in `accom_select` is deliberate; the sentence describing it was
+> not. "No export" and "zero of a draft" are both still true. The standing
+> statement is `docs/RBAC_CAPABILITIES.md`, "A super-admin gets what EVERY
+> building's manager gets".
+
 **Nobody gets a structured diagnosis.** This phase adds no `condition`, `diagnosis` or `impairment` column. `animal_desc` stays free text in the resident's own words. A column invites a report, and a report is how `emergency_directory` ended up returning `p.conditions`.
 
 **Three surfaces must never learn about this.** `audit_log` metadata carries the outcome and never the note or `animal_desc`; `notifications` carry a title and a target and never the reason; there is no email path (unlike `/api/manager/request-info`, which does send one). Task 10 greps for all three.

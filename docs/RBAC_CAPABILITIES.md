@@ -568,9 +568,51 @@ narrower than the served one — reappearing in UI copy rather than in a functio
 body, and it is why the row of the table and the sentence under it must be
 changed together or not at all.
 
-**A super-admin gets exactly what the building's manager gets, and nothing
-more.** No cross-building list, no export. Verified: a super-admin sees a
-submitted request and its document, and sees **zero** of a draft.
+**A super-admin gets what EVERY building's manager gets, and that is the
+point.** The sentence that stood here — *"exactly what the building's manager
+gets, and nothing more. No cross-building list, no export."* — was false, and it
+was false FOUR LINES BELOW the paragraph this same fix round corrected for
+exactly this defect. Measured on production in a rolled-back transaction, as
+`7fcfe000` (Pet10x Admin, who manages no building and lives in none):
+
+```sql
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"7fcfe000-...","role":"authenticated"}';
+select count(*), count(distinct building_id)
+  from public.accommodation_requests where status <> 'draft';
+--  super-admin  -> 6 requests across 3 buildings
+--  Rachel Torres (building_manager of b41968f8) -> 4 across 1
+```
+
+`accom_select` ends in `(status <> 'draft') AND (manages_building(building_id)
+OR is_admin())`, and `is_admin()` names no building. It is not only the policy
+floor: `useAccommodationsLive` (`lib/data/accommodations-live.ts:154`) applies
+`.neq("status", "draft")` and **no building filter**, and it feeds
+`approvals-screen.tsx:66`, `violations-screen.tsx:284` and — through
+`useWorkQueue` — the strata Queue, Buildings and Overview screens. **The
+super-admin's screen IS the cross-building list.**
+
+**That reach is intended, and it is written down here so it stays a decision
+rather than an accident.** A platform administrator scoped to the buildings they
+manage would see nothing at all, because this one manages none, and answering
+for a building that cannot decide its own request is the reason the role exists.
+The `is_admin()` disjunct is deliberate and identical in `accom_select`, in
+`accom_manager_update` and in the `accommodation-docs` read policy. What was
+never intended is this page describing the reach as narrower than it is: that is
+the `emergency_directory` / `p.conditions` failure — a stated audience narrower
+than the served one — appearing twice on one page, once in UI copy and once in
+the paragraph that was supposed to be correcting it.
+
+**Two limits are real, and they are the ones worth stating.** A super-admin sees
+**zero** of a draft: the `status <> 'draft'` conjunct sits on the `is_admin()`
+arm as well as the manager arm. Measured with a draft inserted in a rolled-back
+transaction — 6 non-drafts visible, `0` drafts. And there is **no bulk export**:
+nothing in the product renders accommodation data to CSV or to a report,
+`exportMyData` omits accommodations deliberately (`accom_select` returns
+`legal_note` to the resident and no screen renders it, so a `select *` export
+would silently undo that), and the document viewer opens a letter in a sandboxed
+`object` rather than downloading it. Those are limits. "No cross-building list"
+was not one.
 
 **Nobody gets a structured diagnosis.** This phase adds no `condition`,
 `diagnosis` or `impairment` column, and never will. `animal_desc` stays free

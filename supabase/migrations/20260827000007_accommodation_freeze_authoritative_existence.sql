@@ -60,6 +60,63 @@
 -- SQL (`0A000: trigger functions can only be called as triggers`), so there is
 -- nothing new to invoke and nothing new to grant.
 --
+-- ^ CORRECTED. THE LAST CLAUSE OF THAT PARAGRAPH IS FALSE, AND THE PARAGRAPH IS
+-- LEFT STANDING SO THE CORRECTION HAS SOMETHING TO POINT AT. `0A000` is not the
+-- containment. It stops `select public.accommodation_requests_freeze()` and
+-- nothing else, and a trigger function does not have to be CALLED to be driven
+-- — it has to be ATTACHED. Disproved on production in a rolled-back
+-- transaction, entirely as `authenticated`:
+--
+--   set local role authenticated;
+--   create temp table oracle_probe (... the columns this body reads ...);
+--   create trigger t_probe before update on oracle_probe
+--     for each row execute function public.accommodation_requests_freeze();
+--   -- rows owned by nobody (resident_id random, status 'pending'), so v_owner
+--   -- is false and the content branch is the one that answers:
+--   update oracle_probe set pet_id = null where pet_id = <a live pet>; -> 42501
+--   update oracle_probe set pet_id = null where pet_id = <no such uuid>;-> ADMITTED
+--
+-- `authenticated` has no `CREATE` on any schema — checked, every schema, false —
+-- but it holds `TEMP` on the database, which is enough to own a table and
+-- therefore enough to put a trigger on one. The pet used above (`c5000000-…21`)
+-- is INVISIBLE to the caller under `pets_select` (`select count(*)` -> 0), so
+-- this is exactly the power the promotion added: under SECURITY INVOKER both
+-- updates would have been ADMITTED and the probe would have been measuring the
+-- caller's eyesight. Under definer it answers the database. That is a working
+-- existence oracle over `pets`, `units` and `profiles`.
+--
+-- THE DESIGN STILL STANDS, FOR A DIFFERENT AND STATEABLE REASON. The oracle
+-- answers one question — "is there a row with this uuid" — which is precisely
+-- what the rejected `pet_exists(uuid)` helper would have granted, so the
+-- promotion adds no POWER the alternative did not also add. What it changes is
+-- the PRICE: the helper is reachable with one `POST /rpc/pet_exists`, and this
+-- is reachable only by a caller who can already run `create temp table` and
+-- `create trigger`.
+--
+-- THE CONTAINMENT IS POSTGREST'S SURFACE, NOT AN ERROR CODE. `anon` and
+-- `authenticated` are both NOLOGIN (checked), so no client holds a connection
+-- that could issue DDL; PostgREST speaks only tables, views and `/rpc/` over
+-- functions it is allowed to see, and there is no DDL verb in that vocabulary
+-- and no `exec_sql`-shaped RPC granted to `authenticated` (grepped: the only
+-- match is `extensions.pgrst_ddl_watch`, an event-trigger function, uncallable).
+-- So the oracle is reachable by `postgres`, by anyone holding a direct
+-- connection, and by nobody who arrives over HTTP. That is a real boundary and
+-- it is worth more than the false one it replaces — but it is a boundary in the
+-- API layer, and it must be RE-CHECKED, not assumed, by whoever promotes the
+-- next guard.
+--
+-- THE RULE, FOR THE NEXT PROMOTION. Promoting a `returns trigger` function to
+-- SECURITY DEFINER grants its whole body to anyone who can attach it to a table
+-- they own, and `TEMP` on the database is enough to own one. Before promoting,
+-- ask what the body would tell such a caller, and PIN `search_path` — this one
+-- carries `search_path = ''` and schema-qualifies every reference, so an
+-- attacker-owned `pg_temp.pets` cannot answer for `public.pets`. A definer
+-- function carrying `pg_temp` on its search_path would hand the temp-table trick
+-- a great deal more than an existence bit. `community_posts_guard` and
+-- `community_freeze_attribution` are both in that state today and are safe only
+-- because they are SECURITY INVOKER; see the note in
+-- `20260829000000_definer_trigger_containment_note.sql`.
+--
 -- The promotion is safe to the letter because of what this body does and does
 -- not do. It performs NO writes. It returns NEW unmodified on every path. Its
 -- only table reads are the three existence probes, and each is keyed by an OLD
@@ -190,5 +247,12 @@ begin
 end;
 $guard$;
 
+-- SUPERSEDED, NOT EDITED. The COMMENT below is the DDL that ran and it stays
+-- byte-for-byte as it ran. Its claim "definer rights can only refuse, never
+-- widen" is true of what this guard WRITES and false of what it lets a caller
+-- LEARN — the temp-table oracle above is exactly a widening, and the reason it
+-- is acceptable is stated there rather than assumed. The catalogue text, which
+-- is what a reader of `\df+` actually sees, is replaced by
+-- `20260829000000_definer_trigger_containment_note.sql`. Read that one.
 comment on function public.accommodation_requests_freeze() is
   'BEFORE UPDATE guard on accommodation_requests. Refuses identity changes (resident_id, building_id, created_at) outright; refuses ladder/decision changes without the single-use pet10x.accom_write token minted by the accommodation RPCs; refuses content changes (animal_desc, type, pet_id, unit_id) by anyone but the owning resident while draft or info_requested. Permits exactly one further thing: a reference column going NULL when the row it named no longer exists, which is what an `on delete set null` referential action does. SECURITY DEFINER, and that is load-bearing rather than incidental: under SECURITY INVOKER the three `not exists` probes ran beneath the caller''s own RLS, so a pet, unit or departed manager the caller merely could not SEE was indistinguishable from one that was gone, and the exemption could be used to erase a live link. The body writes nothing and returns NEW on every path, so definer rights can only refuse, never widen. Spends the token unconditionally on every pass. Raises 42501. A trigger is not RLS: is_admin() transcends the policies and transcends nothing here.';
