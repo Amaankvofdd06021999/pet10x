@@ -8,6 +8,8 @@ import {
   type PurgeDocument,
   type PurgeRequest,
   type PurgeVerdict,
+  PAGE_ROWS,
+  readAllRows,
   redactPath,
   reasonHistogram,
 } from "@/lib/data/accommodation-docs-purge"
@@ -66,8 +68,16 @@ export const maxDuration = 60
 
 const BUCKET = "accommodation-docs"
 
-/** Storage `list()` caps a page at LEAST(coalesce(limit,100),1500); 1000 is honoured exactly. */
-const PAGE = 1000
+/**
+ * Storage `list()` caps a page at LEAST(coalesce(limit,100),1500), so 1000 is
+ * honoured today — but the walk below does not rely on that, for the same reason
+ * the table reads no longer rely on `db_max_rows`. It advances by rows returned
+ * and stops on an EMPTY page, so a smaller cap costs round trips and nothing
+ * else. An object this walk never reaches is a file that lives forever; an
+ * object it reaches TWICE is deduplicated by path downstream. Only the first is
+ * a defect, and only a short-page terminator could cause it.
+ */
+const PAGE = PAGE_ROWS
 /** `remove()` takes up to 1000 paths; stay well inside. */
 const BATCH = 500
 /** `{buildingId}/{requestId}/{file}`: two folder levels and no more. */
@@ -136,7 +146,7 @@ async function listObjects(admin: Admin, prefix: string, depth: number, out: Evi
       out.push({ path, createdAt: entry.created_at })
     }
 
-    if (page.length < PAGE) return
+    if (page.length === 0) return
     offset += page.length
   }
 }
@@ -152,50 +162,58 @@ async function listObjects(admin: Admin, prefix: string, depth: number, out: Evi
  * will stay small — one letter per request — so reading it entire is the
  * correct trade here, unlike the incident sweep's `evidence_paths` column.
  *
- * "ENTIRE" NOW MEANS ENTIRE. Both reads were single unpaginated queries, which
- * is the exact failure the paragraph above forbids: PostgREST caps a response at
- * `db_max_rows` when that is set, and it answers a truncated set with 200 and no
- * error, so page one of the letters would arrive looking like ALL of the letters
- * and every object past it would classify as an orphan and be deleted. It was
- * safe only because `pgrst.db_max_rows` happens to be unset on this project —
- * a setting nobody wrote down, that any dashboard change or restore can set, and
- * whose only symptom would be deleted doctor's letters. Paged explicitly instead,
- * so the guarantee comes from this file rather than from a config nobody owns.
+ * "ENTIRE" NOW MEANS ENTIRE, AND IT NO LONGER MEANS "UNLESS SOMEBODY SETS A
+ * GUC". Both reads were single unpaginated queries, which is the exact failure
+ * the paragraph above forbids: PostgREST caps a response at `db_max_rows` when
+ * that is set, and it answers a truncated set with 200 and no error, so page one
+ * of the letters would arrive looking like ALL of the letters and every object
+ * past it would classify as an orphan and be deleted.
+ *
+ * Paging alone did not fix that, and the first attempt at this comment claimed
+ * it had. `.range(from, from + 999)`, advancing by a hardcoded 1000 and stopping
+ * on a page shorter than 1000, only moved the dependency from `db_max_rows` to
+ * `min(db_max_rows, 1000)`: set it to 500 and page one is 500 rows, 200, no
+ * error, "shorter than 1000, so that was all of them" — the identical deletion,
+ * reached the identical way.
+ *
+ * `readAllRows` removes the dependency instead of relocating it: it advances by
+ * the number of rows that ACTUALLY CAME BACK and stops only on an EMPTY page, so
+ * no value of `db_max_rows` can end the loop early. `lib/data/accommodation-docs
+ * -purge.test.ts` drives it against a server capped at 500 and at 1, and runs the
+ * old loop against the same server to show it returning 500 of 1300. The
+ * guarantee comes from this file and its test, not from a config nobody owns —
+ * `pgrst.db_max_rows` is unset on this project today, and that is now a fact
+ * about the project rather than the reason the sweep is safe.
  */
-const ROWS = 1000
 
 async function referenceSet(admin: Admin): Promise<{ documents: PurgeDocument[]; requests: PurgeRequest[] }> {
-  const documents: PurgeDocument[] = []
-  for (let from = 0; ; from += ROWS) {
-    const { data, error } = await admin
+  const docRows = await readAllRows("the document rows", (from, to) =>
+    admin
       .from("accommodation_documents")
       .select("id, request_id, storage_path")
       .not("storage_path", "is", null)
       .order("id", { ascending: true })
-      .range(from, from + ROWS - 1)
-    if (error) throw new Error(`Couldn't read the document rows: ${error.message}`)
-    const page = data ?? []
-    for (const d of page) {
-      if (typeof d.storage_path !== "string") continue
-      documents.push({ id: d.id, requestId: d.request_id, storagePath: d.storage_path })
-    }
-    if (page.length < ROWS) break
+      .range(from, to),
+  )
+  const documents: PurgeDocument[] = []
+  for (const d of docRows) {
+    if (typeof d.storage_path !== "string") continue
+    documents.push({ id: d.id, requestId: d.request_id, storagePath: d.storage_path })
   }
 
-  const requests: PurgeRequest[] = []
-  for (let from = 0; ; from += ROWS) {
-    const { data, error } = await admin
+  const reqRows = await readAllRows("the requests", (from, to) =>
+    admin
       .from("accommodation_requests")
       .select("id, status, decided_at, withdrawn_at")
       .order("id", { ascending: true })
-      .range(from, from + ROWS - 1)
-    if (error) throw new Error(`Couldn't read the requests: ${error.message}`)
-    const page = data ?? []
-    for (const r of page) {
-      requests.push({ id: r.id, status: r.status, decidedAt: r.decided_at, withdrawnAt: r.withdrawn_at })
-    }
-    if (page.length < ROWS) break
-  }
+      .range(from, to),
+  )
+  const requests: PurgeRequest[] = reqRows.map((r) => ({
+    id: r.id,
+    status: r.status,
+    decidedAt: r.decided_at,
+    withdrawnAt: r.withdrawn_at,
+  }))
 
   return { documents, requests }
 }
@@ -219,33 +237,40 @@ async function referenceSet(admin: Admin): Promise<{ documents: PurgeDocument[];
 async function abandonedDraftIds(admin: Admin, now: number): Promise<string[]> {
   const cutoff = new Date(now - MIN_AGE_HOURS * 60 * 60 * 1000).toISOString()
 
-  const drafts: string[] = []
-  for (let from = 0; ; from += ROWS) {
-    const { data, error } = await admin
+  const draftRows = await readAllRows("the abandoned drafts", (from, to) =>
+    admin
       .from("accommodation_requests")
       .select("id")
       .eq("status", "draft")
       .lt("created_at", cutoff)
       .order("id", { ascending: true })
-      .range(from, from + ROWS - 1)
-    if (error) throw new Error(`Couldn't read the abandoned drafts: ${error.message}`)
-    const page = data ?? []
-    for (const r of page) drafts.push(r.id)
-    if (page.length < ROWS) break
-  }
+      .range(from, to),
+  )
+  const drafts = draftRows.map((r) => r.id)
   if (drafts.length === 0) return []
 
   // Any document row at all, whether or not it still names a file. A row whose
   // `storage_path` has been purged is still a record that a letter was provided,
   // and deleting the request would delete it.
+  //
+  // PAGED FOR THE SAME REASON THE READS ABOVE ARE, and it was the third read
+  // with this defect. A truncated answer here does not under-report drafts, it
+  // OVER-reports them: a request whose document row fell off the end of a capped
+  // response reads as a draft with no documents, and this function returns it to
+  // be DELETED — taking the row that proved a letter was provided with it. 200
+  // ids per chunk is not 200 rows back, because the table holds one row per
+  // (request, kind).
   const claimed = new Set<string>()
   for (const group of chunk(drafts, 200)) {
-    const { data, error } = await admin
-      .from("accommodation_documents")
-      .select("request_id")
-      .in("request_id", group)
-    if (error) throw new Error(`Couldn't read the drafts' documents: ${error.message}`)
-    for (const row of data ?? []) claimed.add(row.request_id)
+    const rows = await readAllRows("the drafts' documents", (from, to) =>
+      admin
+        .from("accommodation_documents")
+        .select("id, request_id")
+        .in("request_id", group)
+        .order("id", { ascending: true })
+        .range(from, to),
+    )
+    for (const row of rows) claimed.add(row.request_id)
   }
   return drafts.filter((id) => !claimed.has(id))
 }

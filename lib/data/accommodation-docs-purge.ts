@@ -221,3 +221,79 @@ export function reasonHistogram(verdicts: readonly PurgeVerdict[]): Record<strin
   for (const v of verdicts) out[v.reason] = (out[v.reason] ?? 0) + 1
   return out
 }
+
+/* ------------------------------------------------------------------ */
+/* Reading a table WHOLE                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One PostgREST `.range(from, to)` request, as `readAllRows` needs to see it.
+ *
+ * `PromiseLike`, not `Promise`: a PostgrestFilterBuilder is a thenable and has
+ * no `.catch`, so typing this as `Promise` would force every caller to append a
+ * `.then()` that does nothing.
+ */
+export type PageReader<T> = (
+  from: number,
+  to: number,
+) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
+
+/** The window this asks for. PostgREST may answer with FEWER; it may never answer with more. */
+export const PAGE_ROWS = 1000
+
+/**
+ * A ceiling that ABORTS rather than truncates.
+ *
+ * The loop below advances by rows actually returned, so it terminates for any
+ * finite table. It could only spin if `range` were ignored entirely and the same
+ * page came back forever. Throwing is the safe direction: the caller deletes
+ * files with what this returns, and a run that dies is a run that deletes
+ * nothing. `accommodation_documents` holds one row per (request, kind) and is
+ * three rows today, so this is four orders of magnitude of headroom.
+ */
+export const MAX_ROWS = 500_000
+
+/**
+ * Every row of a table, and NOT "every row of page one".
+ *
+ * WHY THIS EXISTS AS A FUNCTION WITH A TEST RATHER THAN A LOOP IN THE ROUTE.
+ * The sweep classifies an object no document row names as an ORPHAN AND DELETES
+ * IT, so a read that stops early does not return fewer letters — it manufactures
+ * orphans out of the live ones. That makes "did the read finish" a deletion
+ * safety property, and a deletion safety property that nothing can assert
+ * against is a comment.
+ *
+ * TERMINATE ON A ZERO-LENGTH PAGE, AND ADVANCE BY WHAT CAME BACK. The previous
+ * version did neither: it asked for `.range(from, from + 999)`, advanced by a
+ * hardcoded 1000, and stopped when a page held fewer than 1000 rows. Both halves
+ * assume the server honours the window, and PostgREST does not have to —
+ * `pgrst.db_max_rows` caps EVERY response at its own number, answers the
+ * truncated set with 200 and no error, and offers no way to tell that from a
+ * short last page. Set it to 500 and the old loop read rows 0-499, declared 500
+ * < 1000 "that was all of them", and every letter from row 500 on became an
+ * orphan. Paging by `rows.length` and stopping only on an EMPTY page depends on
+ * no cap at all: whatever the server chose to send is exactly what the next
+ * offset skips, and a cap can shorten a page but cannot conjure an empty one out
+ * of a table with rows left in it.
+ *
+ * An exact `count` comparison was the other option and is worse here: it races
+ * every concurrent insert and delete, and the failure it would report is a
+ * mismatch it cannot attribute.
+ *
+ * An error is a THROW, never an empty page. Not knowing which paths are
+ * referenced must never mean "none of them are".
+ */
+export async function readAllRows<T>(label: string, page: PageReader<T>): Promise<T[]> {
+  const out: T[] = []
+  for (let from = 0; ; ) {
+    const { data, error } = await page(from, from + PAGE_ROWS - 1)
+    if (error) throw new Error(`Couldn't read ${label}: ${error.message}`)
+    const rows = data ?? []
+    if (rows.length === 0) return out
+    out.push(...rows)
+    from += rows.length
+    if (out.length > MAX_ROWS) {
+      throw new Error(`Refusing to sweep: ${label} returned more than ${MAX_ROWS} rows without ending.`)
+    }
+  }
+}

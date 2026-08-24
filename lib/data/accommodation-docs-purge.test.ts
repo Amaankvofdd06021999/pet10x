@@ -10,6 +10,9 @@ import {
   type PurgeVerdict,
   redactPath,
   reasonHistogram,
+  readAllRows,
+  PAGE_ROWS,
+  type PageReader,
 } from "./accommodation-docs-purge"
 import { MS_PER_DAY } from "./accommodations"
 
@@ -233,5 +236,101 @@ describe("reasonHistogram", () => {
 
   it("is empty for nothing selected, rather than absent", () => {
     expect(reasonHistogram([])).toEqual({})
+  })
+})
+
+describe("readAllRows", () => {
+  /**
+   * PostgREST as it actually behaves: it answers `.range(from, to)` with the
+   * rows in that window, TRUNCATED to `db_max_rows` when that is set, with
+   * status 200 and no error. `cap` is that setting. The old loop's two
+   * assumptions — that a page holds `PAGE_ROWS` unless it is the last one, and
+   * that the next offset is the previous one plus `PAGE_ROWS` — are both false
+   * the moment `cap < PAGE_ROWS`, and nothing in the response says so.
+   */
+  function postgrest(total: number, cap: number) {
+    const rows = Array.from({ length: total }, (_, i) => ({ id: i }))
+    const windows: Array<[number, number]> = []
+    const read: PageReader<{ id: number }> = async (from, to) => {
+      windows.push([from, to])
+      const asked = rows.slice(from, to + 1)
+      return { data: asked.slice(0, cap), error: null }
+    }
+    return { read, windows }
+  }
+
+  const ids = (rows: Array<{ id: number }>) => rows.map((r) => r.id)
+
+  it("reads a capped table WHOLE — the case that deleted doctors' letters", async () => {
+    // db_max_rows = 500, so every response is 500 rows however wide the window.
+    const { read, windows } = postgrest(1300, 500)
+    const out = await readAllRows("the document rows", read)
+    expect(out.length).toBe(1300)
+    expect(ids(out)).toEqual(Array.from({ length: 1300 }, (_, i) => i))
+    // Advanced by what came back, not by PAGE_ROWS: 0, 500, 1000, then 1300.
+    expect(windows.map(([from]) => from)).toEqual([0, 500, 1000, 1300])
+  })
+
+  it("proves the OLD loop stopped on page one against the same server", async () => {
+    // The exact shape this replaced: ask for a fixed window, advance by a
+    // hardcoded ROWS, stop when a page holds fewer than ROWS.
+    async function oldLoop(read: PageReader<{ id: number }>) {
+      const out: Array<{ id: number }> = []
+      for (let from = 0; ; from += PAGE_ROWS) {
+        const { data, error } = await read(from, from + PAGE_ROWS - 1)
+        if (error) throw new Error(error.message)
+        const page = data ?? []
+        out.push(...page)
+        if (page.length < PAGE_ROWS) break
+      }
+      return out
+    }
+    const { read } = postgrest(1300, 500)
+    // 500 < 1000, no error, "that was all of them" — and 800 live doctors'
+    // letters are now objects no document row names, which is an orphan.
+    expect((await oldLoop(read)).length).toBe(500)
+    expect((await readAllRows("the document rows", postgrest(1300, 500).read)).length).toBe(1300)
+  })
+
+  it("survives a cap of 1, the pathological end of the same setting", async () => {
+    const { read } = postgrest(7, 1)
+    expect(ids(await readAllRows("the requests", read))).toEqual([0, 1, 2, 3, 4, 5, 6])
+  })
+
+  it("reads an uncapped table in one page plus the empty one that ends it", async () => {
+    const { read, windows } = postgrest(3, PAGE_ROWS)
+    expect(ids(await readAllRows("the requests", read))).toEqual([0, 1, 2])
+    expect(windows).toEqual([
+      [0, PAGE_ROWS - 1],
+      [3, 3 + PAGE_ROWS - 1],
+    ])
+  })
+
+  it("does not mistake an exact multiple of the page for the end of the table", async () => {
+    const { read } = postgrest(2 * PAGE_ROWS, PAGE_ROWS)
+    expect((await readAllRows("the document rows", read)).length).toBe(2 * PAGE_ROWS)
+  })
+
+  it("returns nothing for an empty table without looping", async () => {
+    const { read, windows } = postgrest(0, PAGE_ROWS)
+    expect(await readAllRows("the requests", read)).toEqual([])
+    expect(windows.length).toBe(1)
+  })
+
+  it("THROWS on an error rather than reading it as an empty page", async () => {
+    const read: PageReader<{ id: number }> = async () => ({ data: null, error: { message: "57014" } })
+    await expect(readAllRows("the document rows", read)).rejects.toThrow(
+      "Couldn't read the document rows: 57014",
+    )
+  })
+
+  it("throws on a page that never empties rather than returning a partial set", async () => {
+    // A server that ignores `range` entirely. Aborting deletes nothing;
+    // returning what it had would have deleted everything past it.
+    const read: PageReader<{ id: number }> = async () => ({
+      data: Array.from({ length: PAGE_ROWS }, (_, i) => ({ id: i })),
+      error: null,
+    })
+    await expect(readAllRows("the document rows", read)).rejects.toThrow(/without ending/)
   })
 })
