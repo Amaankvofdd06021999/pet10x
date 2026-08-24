@@ -18,26 +18,53 @@ export type Database = {
         Row: {
           id: string
           kind: Database["public"]["Enums"]["doc_kind"]
+          label: string | null
+          mime_type: string | null
+          purged_at: string | null
           request_id: string
+          review_note: string | null
+          size_bytes: number | null
           status: Database["public"]["Enums"]["doc_status"]
           storage_path: string | null
+          uploaded_at: string
+          uploaded_by: string | null
           verified: boolean
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           id?: string
           kind: Database["public"]["Enums"]["doc_kind"]
+          label?: string | null
+          mime_type?: string | null
+          purged_at?: string | null
           request_id: string
+          review_note?: string | null
+          size_bytes?: number | null
           status?: Database["public"]["Enums"]["doc_status"]
           storage_path?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
           verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           id?: string
           kind?: Database["public"]["Enums"]["doc_kind"]
+          label?: string | null
+          mime_type?: string | null
+          purged_at?: string | null
           request_id?: string
+          review_note?: string | null
+          size_bytes?: number | null
           status?: Database["public"]["Enums"]["doc_status"]
           storage_path?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
           verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
@@ -46,6 +73,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accommodation_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accommodation_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accommodation_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "accommodation_documents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accommodation_documents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -56,13 +111,17 @@ export type Database = {
           created_at: string
           decided_at: string | null
           decided_by: string | null
+          decision_note: string | null
           id: string
           legal_note: string | null
           pet_id: string | null
           resident_id: string
           status: Database["public"]["Enums"]["accommodation_status"]
+          submitted_at: string | null
           type: Database["public"]["Enums"]["accommodation_type"]
           unit_id: string | null
+          updated_at: string
+          withdrawn_at: string | null
         }
         Insert: {
           animal_desc?: string | null
@@ -70,13 +129,17 @@ export type Database = {
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
+          decision_note?: string | null
           id?: string
           legal_note?: string | null
           pet_id?: string | null
           resident_id: string
           status?: Database["public"]["Enums"]["accommodation_status"]
+          submitted_at?: string | null
           type: Database["public"]["Enums"]["accommodation_type"]
           unit_id?: string | null
+          updated_at?: string
+          withdrawn_at?: string | null
         }
         Update: {
           animal_desc?: string | null
@@ -84,13 +147,17 @@ export type Database = {
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
+          decision_note?: string | null
           id?: string
           legal_note?: string | null
           pet_id?: string | null
           resident_id?: string
           status?: Database["public"]["Enums"]["accommodation_status"]
+          submitted_at?: string | null
           type?: Database["public"]["Enums"]["accommodation_type"]
           unit_id?: string | null
+          updated_at?: string
+          withdrawn_at?: string | null
         }
         Relationships: [
           {
@@ -469,6 +536,84 @@ export type Database = {
           {
             foreignKeyName: "building_managers_profile_id_fkey"
             columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      building_rules: {
+        Row: {
+          body: string
+          building_id: string
+          category: Database["public"]["Enums"]["building_rule_category"]
+          created_at: string
+          created_by: string | null
+          id: string
+          is_published: boolean
+          sort_order: number
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body: string
+          building_id: string
+          category: Database["public"]["Enums"]["building_rule_category"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_published?: boolean
+          sort_order?: number
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body?: string
+          building_id?: string
+          category?: Database["public"]["Enums"]["building_rule_category"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_published?: boolean
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "building_rules_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "building_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "building_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "building_rules_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "building_rules_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "user_entitlements"
             referencedColumns: ["profile_id"]
@@ -1145,36 +1290,36 @@ export type Database = {
       }
       events: {
         Row: {
-          building_id: string | null
+          building_id: string
           category: string | null
           created_at: string
           created_by: string | null
           id: string
           location: string | null
           max_attendees: number | null
-          starts_at: string | null
+          starts_at: string
           title: string
         }
         Insert: {
-          building_id?: string | null
+          building_id: string
           category?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           location?: string | null
           max_attendees?: number | null
-          starts_at?: string | null
+          starts_at: string
           title: string
         }
         Update: {
-          building_id?: string | null
+          building_id?: string
           category?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           location?: string | null
           max_attendees?: number | null
-          starts_at?: string | null
+          starts_at?: string
           title?: string
         }
         Relationships: [
@@ -1409,7 +1554,7 @@ export type Database = {
       lost_found: {
         Row: {
           breed: string | null
-          building_id: string | null
+          building_id: string
           color: string | null
           created_at: string
           id: string
@@ -1424,7 +1569,7 @@ export type Database = {
         }
         Insert: {
           breed?: string | null
-          building_id?: string | null
+          building_id: string
           color?: string | null
           created_at?: string
           id?: string
@@ -1439,7 +1584,7 @@ export type Database = {
         }
         Update: {
           breed?: string | null
-          building_id?: string | null
+          building_id?: string
           color?: string | null
           created_at?: string
           id?: string
@@ -3176,35 +3321,110 @@ export type Database = {
           },
         ]
       }
+      violation_disputes: {
+        Row: {
+          decided_at: string | null
+          decided_by: string | null
+          decided_note: string | null
+          filed_at: string
+          filed_by: string
+          id: string
+          outcome: Database["public"]["Enums"]["dispute_outcome"] | null
+          reason: string
+          stage: Database["public"]["Enums"]["violation_stage_v2"]
+          violation_id: string
+        }
+        Insert: {
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_note?: string | null
+          filed_at?: string
+          filed_by: string
+          id?: string
+          outcome?: Database["public"]["Enums"]["dispute_outcome"] | null
+          reason: string
+          stage: Database["public"]["Enums"]["violation_stage_v2"]
+          violation_id: string
+        }
+        Update: {
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_note?: string | null
+          filed_at?: string
+          filed_by?: string
+          id?: string
+          outcome?: Database["public"]["Enums"]["dispute_outcome"] | null
+          reason?: string
+          stage?: Database["public"]["Enums"]["violation_stage_v2"]
+          violation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "violation_disputes_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "violation_disputes_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "violation_disputes_filed_by_fkey"
+            columns: ["filed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "violation_disputes_filed_by_fkey"
+            columns: ["filed_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "violation_disputes_violation_id_fkey"
+            columns: ["violation_id"]
+            isOneToOne: false
+            referencedRelation: "violations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       violation_events: {
         Row: {
           actor_id: string | null
           created_at: string
-          from_stage: Database["public"]["Enums"]["violation_stage"] | null
+          from_stage: Database["public"]["Enums"]["violation_stage_v2"] | null
           id: string
           note: string | null
           occurred_on: string | null
-          to_stage: Database["public"]["Enums"]["violation_stage"]
+          to_stage: Database["public"]["Enums"]["violation_stage_v2"]
           violation_id: string
         }
         Insert: {
           actor_id?: string | null
           created_at?: string
-          from_stage?: Database["public"]["Enums"]["violation_stage"] | null
+          from_stage?: Database["public"]["Enums"]["violation_stage_v2"] | null
           id?: string
           note?: string | null
           occurred_on?: string | null
-          to_stage: Database["public"]["Enums"]["violation_stage"]
+          to_stage: Database["public"]["Enums"]["violation_stage_v2"]
           violation_id: string
         }
         Update: {
           actor_id?: string | null
           created_at?: string
-          from_stage?: Database["public"]["Enums"]["violation_stage"] | null
+          from_stage?: Database["public"]["Enums"]["violation_stage_v2"] | null
           id?: string
           note?: string | null
           occurred_on?: string | null
-          to_stage?: Database["public"]["Enums"]["violation_stage"]
+          to_stage?: Database["public"]["Enums"]["violation_stage_v2"]
           violation_id?: string
         }
         Relationships: [
@@ -3242,7 +3462,7 @@ export type Database = {
           resident_id: string | null
           resolution_outcome: string | null
           resolved_at: string | null
-          stage: Database["public"]["Enums"]["violation_stage"]
+          stage: Database["public"]["Enums"]["violation_stage_v2"]
           type: string
           unit_id: string | null
           updated_at: string
@@ -3257,7 +3477,7 @@ export type Database = {
           resident_id?: string | null
           resolution_outcome?: string | null
           resolved_at?: string | null
-          stage?: Database["public"]["Enums"]["violation_stage"]
+          stage?: Database["public"]["Enums"]["violation_stage_v2"]
           type: string
           unit_id?: string | null
           updated_at?: string
@@ -3272,7 +3492,7 @@ export type Database = {
           resident_id?: string | null
           resolution_outcome?: string | null
           resolved_at?: string | null
-          stage?: Database["public"]["Enums"]["violation_stage"]
+          stage?: Database["public"]["Enums"]["violation_stage_v2"]
           type?: string
           unit_id?: string | null
           updated_at?: string
@@ -3358,6 +3578,10 @@ export type Database = {
       }
     }
     Functions: {
+      accommodation_required_kinds: {
+        Args: { p_type: Database["public"]["Enums"]["accommodation_type"] }
+        Returns: Database["public"]["Enums"]["doc_kind"][]
+      }
       ai_expired_chat_media: {
         Args: { p_days?: number; p_limit?: number }
         Returns: {
@@ -3371,10 +3595,21 @@ export type Database = {
       }
       building_pets_for_report: { Args: { p_code: string }; Returns: Json }
       buildings_matching_my_address: { Args: never; Returns: Json }
-      search_buildings_public: { Args: { q: string }; Returns: Json }
       business_mark_booking_paid: {
         Args: { p_booking: string }
         Returns: string
+      }
+      community_identities: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          full_name: string
+          id: string
+        }[]
+      }
+      dispute_violation: {
+        Args: { p_reason: string; p_violation: string }
+        Returns: Json
       }
       email_is_registered: { Args: { p_email: string }; Returns: boolean }
       emergency_directory: { Args: { p_token: string }; Returns: Json }
@@ -3390,15 +3625,106 @@ export type Database = {
       is_primary_manager: { Args: { b: string }; Returns: boolean }
       is_resident_of: { Args: { b: string }; Returns: boolean }
       leave_my_building_link: { Args: never; Returns: undefined }
+      manager_advance_violation: {
+        Args: {
+          p_amount_cents?: number
+          p_due_on?: string
+          p_note?: string
+          p_notify?: boolean
+          p_to_stage: Database["public"]["Enums"]["violation_stage_v2"]
+          p_violation: string
+        }
+        Returns: Json
+      }
+      manager_decide_accommodation: {
+        Args: {
+          p_note?: string
+          p_outcome: Database["public"]["Enums"]["accommodation_status"]
+          p_request: string
+        }
+        Returns: Json
+      }
       manager_decide_registration: {
         Args: { p_approve: boolean; p_pet: string }
         Returns: undefined
       }
+      manager_remind_fine: {
+        Args: { p_note?: string; p_violation: string }
+        Returns: Json
+      }
+      manager_resolve_dispute: {
+        Args: {
+          p_note?: string
+          p_outcome: Database["public"]["Enums"]["dispute_outcome"]
+          p_violation: string
+        }
+        Returns: Json
+      }
+      manager_save_building_rule: {
+        Args: {
+          p_body: string
+          p_building: string
+          p_category: Database["public"]["Enums"]["building_rule_category"]
+          p_rule: string
+          p_sort_order?: number
+          p_title: string
+        }
+        Returns: Json
+      }
+      manager_set_fine_schedule: {
+        Args: {
+          p_building: string
+          p_currency?: string
+          p_fine_1_cents: number
+          p_fine_2_cents: number
+        }
+        Returns: Json
+      }
+      manager_verify_accommodation_document: {
+        Args: { p_document: string; p_note?: string; p_verified: boolean }
+        Returns: Json
+      }
       manages_building: { Args: { b: string }; Returns: boolean }
+      moderate_community_post: {
+        Args: { p_post: string; p_reason?: string }
+        Returns: Json
+      }
       my_app_user: { Args: never; Returns: Json }
       my_building_link: { Args: never; Returns: Json }
       my_personas: { Args: never; Returns: Json }
+      publish_building_event: {
+        Args: { p_event: string; p_note?: string }
+        Returns: Json
+      }
+      publish_building_rule: {
+        Args: { p_notify?: boolean; p_published?: boolean; p_rule: string }
+        Returns: Json
+      }
       purge_expired_pending_signups: { Args: never; Returns: number }
+      record_accommodation_document: {
+        Args: {
+          p_kind: Database["public"]["Enums"]["doc_kind"]
+          p_label?: string
+          p_mime?: string
+          p_path: string
+          p_request: string
+          p_size?: number
+        }
+        Returns: Json
+      }
+      report_lost_found: {
+        Args: {
+          p_breed?: string
+          p_color?: string
+          p_image_path?: string
+          p_kind: string
+          p_last_seen?: string
+          p_pet_name?: string
+          p_reward_cents?: number
+          p_species?: Database["public"]["Enums"]["pet_species"]
+        }
+        Returns: Json
+      }
       request_building_link: { Args: { p_code: string }; Returns: Json }
       resolve_building_code: { Args: { p_code: string }; Returns: Json }
       resolve_entitlement: {
@@ -3409,32 +3735,26 @@ export type Database = {
         Args: { p_lat?: number; p_lng?: number; p_postal?: string }
         Returns: Json
       }
+      search_buildings_public: { Args: { q: string }; Returns: Json }
       set_my_unit: { Args: { p_unit: string }; Returns: Json }
       shares_managed_building_with: { Args: { p: string }; Returns: boolean }
-      submit_incident_report:
-        | {
-            Args: {
-              p_anonymous?: boolean
-              p_building_code: string
-              p_description: string
-              p_location?: string
-              p_type: string
-              p_unit?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_anonymous?: boolean
-              p_building_code: string
-              p_description: string
-              p_location?: string
-              p_pet_id?: string
-              p_type: string
-              p_unit?: string
-            }
-            Returns: Json
-          }
+      submit_accommodation_request: {
+        Args: { p_request: string }
+        Returns: Json
+      }
+      submit_incident_report: {
+        Args: {
+          p_anonymous?: boolean
+          p_building_code: string
+          p_description: string
+          p_evidence_paths?: string[]
+          p_location?: string
+          p_pet_id?: string
+          p_type: string
+          p_unit?: string
+        }
+        Returns: Json
+      }
       submit_municipal_report: {
         Args: {
           p_anonymous?: boolean
@@ -3458,9 +3778,20 @@ export type Database = {
           pet_owners: number
         }[]
       }
+      text_present: { Args: { p: string }; Returns: string }
+      withdraw_accommodation_request: {
+        Args: { p_reason?: string; p_request: string }
+        Returns: Json
+      }
     }
     Enums: {
-      accommodation_status: "pending" | "approved" | "denied" | "info_requested"
+      accommodation_status:
+        | "draft"
+        | "pending"
+        | "approved"
+        | "denied"
+        | "info_requested"
+        | "withdrawn"
       accommodation_type: "esa" | "service_animal"
       booking_status:
         | "requested"
@@ -3470,6 +3801,13 @@ export type Database = {
         | "paid"
         | "declined"
         | "cancelled"
+      building_rule_category:
+        | "pets"
+        | "parking"
+        | "noise"
+        | "waste"
+        | "common_areas"
+        | "other"
       business_listing_tier: "basic" | "featured" | "premium"
       care_entry_kind:
         | "food"
@@ -3483,6 +3821,7 @@ export type Database = {
         | "play"
         | "outing"
       care_kind: "meal" | "medication" | "water" | "walk" | "grooming" | "other"
+      dispute_outcome: "upheld" | "overturned"
       doc_kind:
         | "vaccination"
         | "municipal_license"
@@ -3570,12 +3909,11 @@ export type Database = {
         | "incomplete"
         | "paused"
       user_role: "pet_owner" | "building_manager" | "super_admin" | "business"
-      violation_stage:
-        | "investigation"
-        | "pending_review"
-        | "verbal_warning"
-        | "written_warning"
-        | "fine_issued"
+      violation_stage_v2:
+        | "open"
+        | "warning"
+        | "fine_1"
+        | "fine_2"
         | "resolved"
         | "dismissed"
     }
@@ -3705,7 +4043,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      accommodation_status: ["pending", "approved", "denied", "info_requested"],
+      accommodation_status: [
+        "draft",
+        "pending",
+        "approved",
+        "denied",
+        "info_requested",
+        "withdrawn",
+      ],
       accommodation_type: ["esa", "service_animal"],
       booking_status: [
         "requested",
@@ -3715,6 +4060,14 @@ export const Constants = {
         "paid",
         "declined",
         "cancelled",
+      ],
+      building_rule_category: [
+        "pets",
+        "parking",
+        "noise",
+        "waste",
+        "common_areas",
+        "other",
       ],
       business_listing_tier: ["basic", "featured", "premium"],
       care_entry_kind: [
@@ -3730,6 +4083,7 @@ export const Constants = {
         "outing",
       ],
       care_kind: ["meal", "medication", "water", "walk", "grooming", "other"],
+      dispute_outcome: ["upheld", "overturned"],
       doc_kind: [
         "vaccination",
         "municipal_license",
@@ -3828,12 +4182,11 @@ export const Constants = {
         "paused",
       ],
       user_role: ["pet_owner", "building_manager", "super_admin", "business"],
-      violation_stage: [
-        "investigation",
-        "pending_review",
-        "verbal_warning",
-        "written_warning",
-        "fine_issued",
+      violation_stage_v2: [
+        "open",
+        "warning",
+        "fine_1",
+        "fine_2",
         "resolved",
         "dismissed",
       ],

@@ -5,7 +5,7 @@ import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
 import { useNotifications, type NotificationIconKey, type NotificationCategory } from "@/lib/data"
 import { useAuth } from "@/lib/auth-context"
-import { toast } from "sonner"
+import { resolveActionTarget } from "@/lib/navigation"
 import {
   AlertTriangle,
   Calendar,
@@ -14,7 +14,6 @@ import {
   FileText,
   Shield,
   Syringe,
-  Filter,
   BellOff,
   Sparkles,
 } from "lucide-react"
@@ -64,13 +63,21 @@ export function AlertsScreen({
   onNavigate,
   onBack,
 }: {
-  onNavigate?: (screen: string) => void
+  /** `id` is the second half of a `screen:id` action target — a pet id, or a
+      care kind for the tracker. Matches `handleNavigate` in app/app/page.tsx. */
+  onNavigate?: (screen: string, id?: string) => void
   /** Returns to the tab the viewer came from — managers have no "home". */
   onBack?: () => void
 }) {
   const [activeTab, setActiveTab] = useState<AlertTab>("all")
   const { data: alerts } = useNotifications()
-  const { activePersona } = useAuth()
+  const { activePersona, viewAs } = useAuth()
+
+  /* Which half of the router will be rendering when we navigate. Read from
+     `viewAs`, character for character the same expression `app/app/page.tsx:67`
+     uses, because a target this screen offers and that router will not render
+     is a blank screen — the failure the toast was at least honest about. */
+  const surface = viewAs === "building-manager" ? "manager" : "resident"
 
   // Only the categories this viewer actually receives, plus All.
   const present = new Set(alerts.map((a) => a.category))
@@ -102,17 +109,12 @@ export function AlertsScreen({
         title="Alerts"
         largeTitle={false}
         leftAction={<NavBackButton onClick={() => (onBack ? onBack() : onNavigate?.("home"))} />}
-        rightAction={
-          /* One action, matching the other bars. The "+" that used to sit
-             here opened the same flow as the "Report an Incident" card in
-             the body below, so it was a duplicate of a more visible control. */
-          <button
-            onClick={() => toast("Filters — coming soon")}
-            className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-[12.5px] font-semibold text-foreground"
-          >
-            <Filter className="h-3.5 w-3.5" /> Filter
-          </button>
-        }
+        /* No right action. Two have stood here and neither did anything: a "+"
+           that duplicated the "Report an Incident" card below, and a "Filter"
+           button that toasted "coming soon". The tab row underneath already
+           filters this list, and it is built from the categories the viewer
+           actually receives, so there is nothing left for a filter sheet to
+           offer that is not one tap away. */
       />
 
       {/* Tabs */}
@@ -140,9 +142,12 @@ export function AlertsScreen({
       </div>
 
       <main className="ios-scroll flex-1 px-4 pb-24">
-        {/* Report CTA — residents only */}
+        {/* Report CTA — residents only.
+            The report flow has existed and worked the whole time this card said
+            it was "coming soon": Home's quick action and its nav-bar button
+            both already went there. */}
         {canReportIncident && (
-        <button onClick={() => toast("Report an incident", { description: "Pet incident reporting is coming soon." })} className="mb-4 flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-destructive/30 bg-destructive/5 p-3 transition-transform active:scale-[0.98]">
+        <button onClick={() => onNavigate?.("report")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-destructive/30 bg-destructive/5 p-3 transition-transform active:scale-[0.98]">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10">
             <AlertTriangle className="h-4.5 w-4.5 text-destructive" />
           </div>
@@ -170,6 +175,14 @@ export function AlertsScreen({
           {filteredAlerts.map((alert) => {
             const style = SEVERITY_STYLES[alert.severity]
             const Icon = NOTIFICATION_ICONS[alert.iconKey]
+            /* The label is not what decides whether there is a button — the
+               TARGET is. `action_label` and `action_target` are two nullable
+               columns written independently, and this screen used to render a
+               button for any label and then toast it. Phase 6 relies on that
+               being fixed: its rule-publish notification deliberately writes a
+               target and NO label, precisely so it would not ship a tenth dead
+               button here. */
+            const route = resolveActionTarget(alert.actionTarget, surface)
             return (
               <div
                 key={alert.id}
@@ -192,9 +205,16 @@ export function AlertsScreen({
                     <p className={`mt-0.5 text-[12px] leading-relaxed ${!alert.read ? "text-secondary-foreground" : "text-muted-foreground"}`}>
                       {alert.body}
                     </p>
-                    {alert.actionLabel && (
-                      <button onClick={() => toast.success(alert.actionLabel ?? "Done")} className="mt-1.5 text-[12px] font-semibold text-primary">
-                        {alert.actionLabel}
+                    {route && (
+                      <button
+                        onClick={() => onNavigate?.(route.screen, route.id)}
+                        className="mt-1.5 text-[12px] font-semibold text-primary"
+                      >
+                        {/* A target with no label is a real case, not an
+                            oversight — Phase 6 writes one on purpose. "Open"
+                            is the honest generic: the button opens the screen
+                            the notification is about. */}
+                        {alert.actionLabel ?? "Open"}
                       </button>
                     )}
                   </div>

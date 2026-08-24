@@ -121,20 +121,42 @@ interface TaskRow {
 }
 
 /**
- * Tasks for a pet, with completion resolved for `dateKey`.
+ * Tasks for one or more pets, with completion resolved for `dateKey`.
  *
  * Completion is fetched for the one day being shown rather than joined across
  * all history — the log grows by one row per task per day, and Today's Care
  * only ever asks about today.
+ *
+ * The pet-side filter is `in (…)`, which the existing RLS policies already
+ * admit: all four care tables carry a single row-evaluated `FOR ALL` policy
+ * shaped `exists (select 1 from pets p where p.id = <tbl>.pet_id and
+ * p.owner_id = auth.uid() …)`, so a list of the owner's own pets is no
+ * different to one of them. Verified by impersonation on the live database
+ * before this was written.
+ *
+ * An empty list short-circuits and never reaches the network: PostgREST
+ * renders `.in("pet_id", [])` as `in.()`, which is a syntax error rather than
+ * an empty result.
  */
-export function useCareTasks(petId: string | undefined, dateKey = localDateKey()): ScheduledCareTaskResult {
+export function useHouseholdCareTasks(petIds: string[], dateKey = localDateKey()): ScheduledCareTaskResult {
   const [data, setData] = useState<ScheduledCareTask[]>([])
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  /* Key on the joined string, NOT on the array.
+   *
+   * Callers build this list inline — `pets.map(p => p.id)` — so the array has
+   * a new identity on every render. Put that array in the dependency list and
+   * `refetch` is new each render, so the effect below fires, so setState runs,
+   * so it renders again: an unbounded refetch loop that tsc, `pnpm build` and
+   * every test in this repo are blind to, because none of them render a
+   * component. A string compares by value and ends it. */
+  const key = petIds.join(",")
+
   const refetch = useCallback(async () => {
+    const ids = key ? key.split(",") : []
     const supabase = getSupabaseBrowserClient()
-    if (!supabase || !petId) {
+    if (!supabase || ids.length === 0) {
       setData([])
       setLoading(false)
       return
@@ -146,7 +168,7 @@ export function useCareTasks(petId: string | undefined, dateKey = localDateKey()
       .select(
         "id, pet_id, label, detail, kind, scheduled_at, days_of_week, is_active, remind_minutes_before, sort_order, recurrence, interval_days, next_due_on, starts_on, ends_on, dose, target_id, log_amount",
       )
-      .eq("pet_id", petId)
+      .in("pet_id", ids)
       .order("sort_order", { ascending: true })
       .order("scheduled_at", { ascending: true, nullsFirst: false })
 
@@ -157,14 +179,14 @@ export function useCareTasks(petId: string | undefined, dateKey = localDateKey()
     }
 
     const rows = (tasks ?? []) as TaskRow[]
-    const ids = rows.map((r) => r.id)
+    const taskIds = rows.map((r) => r.id)
 
     let doneIds = new Set<string>()
-    if (ids.length > 0) {
+    if (taskIds.length > 0) {
       const { data: log } = await supabase
         .from("pet_care_log")
         .select("task_id, completed")
-        .in("task_id", ids)
+        .in("task_id", taskIds)
         .eq("on_date", dateKey)
       doneIds = new Set((log ?? []).filter((l) => l.completed).map((l) => l.task_id as string))
     }
@@ -194,13 +216,102 @@ export function useCareTasks(petId: string | undefined, dateKey = localDateKey()
     )
     setError(null)
     setLoading(false)
-  }, [petId, dateKey])
+  }, [key, dateKey])
 
   useEffect(() => {
     void refetch()
   }, [refetch])
 
   return { data, isLoading, error, refetch }
+}
+
+/**
+ * Tasks for a single pet — the household query with a list of one.
+ *
+ * A wrapper rather than a second implementation: two queries reading the same
+ * two tables are two things that can come to disagree about what "done today"
+ * means. The inline array is safe precisely because the hook keys on the
+ * joined string and not on the array's identity.
+ */
+export function useCareTasks(petId: string | undefined, dateKey = localDateKey()): ScheduledCareTaskResult {
+  return useHouseholdCareTasks(petId ? [petId] : [], dateKey)
+}
+
+/**
+ * One line of the household's day: a label, a time, and every pet it is due
+ * for.
+ *
+ * `tasks` is in `petIds` order, so the rows under a header read in the same
+ * order as the pet rail above them.
+ */
+export interface HouseholdTaskGroup {
+  /** Stable across renders — the normalised label and the time. */
+  key: string
+  /** As the owner typed it on the first member. */
+  label: string
+  scheduledAt: string | null
+  /** A property of the GROUP: every member shares one time. */
+  overdue: boolean
+  tasks: ScheduledCareTask[]
+}
+
+/**
+ * Group a household's day by (label, time).
+ *
+ * The obvious fix for three indistinguishable "Breakfast" rows is to prefix
+ * each with its pet — "Buddy · Breakfast", "Lola · Breakfast". That repeats
+ * the part which is the SAME and buries the part which differs. Inverting it
+ * writes the label once as a header and gives each pet its own row, so the
+ * whole content of a row is the new information: which animal.
+ *
+ * A task no other pet shares is a group of one, and the strip renders it
+ * inline on a single line — so a household with entirely different routines
+ * never sees a header at all, and a single-pet household is unchanged.
+ *
+ * Pure, and it carries every rule that could be wrong, because a `node`
+ * vitest with no jsdom cannot test any of this from the component.
+ */
+export function groupHouseholdTasks(
+  tasks: ScheduledCareTask[],
+  petIds: string[],
+  nowMinutes: number,
+): HouseholdTaskGroup[] {
+  // Passing the pet order in is what keeps this pure and testable; it is
+  // `usePets` order, which is `created_at`.
+  const rank = new Map(petIds.map((id, i) => [id, i]))
+  const groups = new Map<string, HouseholdTaskGroup>()
+
+  for (const t of tasks) {
+    // Trimmed and case-insensitive: these labels are typed by hand, once per
+    // pet, and "Breakfast" and "breakfast" are the same meal.
+    const key = `${t.label.trim().toLowerCase()}@${t.scheduledAt ?? "allday"}`
+    let group = groups.get(key)
+    if (!group) {
+      const due = minutesOfDay(t.scheduledAt)
+      group = {
+        key,
+        label: t.label.trim(),
+        scheduledAt: t.scheduledAt,
+        // Strictly past, so a task due exactly now is not yet late. An all-day
+        // task has no time to be past.
+        overdue: due != null && nowMinutes > due,
+        tasks: [],
+      }
+      groups.set(key, group)
+    }
+    group.tasks.push(t)
+  }
+
+  const out = [...groups.values()]
+  for (const g of out) g.tasks.sort((a, b) => (rank.get(a.petId) ?? 1e4) - (rank.get(b.petId) ?? 1e4))
+  out.sort((a, b) => {
+    // All-day sinks to the bottom, matching the strip's own ordering.
+    const byTime = (minutesOfDay(a.scheduledAt) ?? 1e4) - (minutesOfDay(b.scheduledAt) ?? 1e4)
+    // Ties break on label so the order is stable across renders rather than
+    // depending on which pet's row happened to arrive first.
+    return byTime !== 0 ? byTime : a.label.localeCompare(b.label)
+  })
+  return out
 }
 
 export async function addCareTask(input: {

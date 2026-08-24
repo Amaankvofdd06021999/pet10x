@@ -35,18 +35,53 @@ Copied from the spec; every phase inherits them.
 
 ## Phases
 
-| # | Phase | Delivers | Depends on | Plan |
-| --- | --- | --- | --- | --- |
-| 0 | Foundation | Test harness, migration drift repair, AD-11 escalation fix + data repair, storage policies, capability matrix | — | [`phase-0`](./2026-08-21-phase-0-foundation.md) |
-| 1 | Evidence end-to-end | Migration C, sign route, upload UI, manager display, purge cron | 0 | not yet written |
-| 2 | One composer | `IncidentComposer`, both report shells, signed pet photos (AD-3) | 1 | not yet written |
-| 3 | Multi-pet care | Household schedule strip, per-pet goal selector, pet named in every sheet (AD-10) | — | not yet written |
-| 4 | Enforcement ladder | Migrations D + F, manager actions real, fine schedule in bylaws, derived tab counts, CSV export | 0 | not yet written |
-| 5 | Resident enforcement view | Own violations, events and fines; dispute (Migration E) | 4 | not yet written |
-| 6 | Building rules | Migration H, manager editor, resident rules screen (AD-9) | 0 | not yet written |
-| 7 | Accommodations | Resident intake + docs, real manager checklist (Migration G) | 0 | not yet written |
-| 8 | Community | Events, RSVP, Lost & Found, pin, share | 0 | not yet written |
-| 9 | Honest cleanup | Alerts CTA to `/report`, notification actions to `action_target`, dead controls removed | — | not yet written |
+**The numbering below is the one actually built, and it is not the numbering
+this document shipped with.** Two roadmap phases were merged during Phase 1
+(evidence and the single composer turned out to be one change, because the
+evidence gap existed *because* there were two composers), and the enforcement
+ladder was pulled forward. The original column is kept so older notes remain
+readable.
+
+| # | Phase | Delivers | Was | Status | Plan |
+| --- | --- | --- | --- | --- | --- |
+| 0 | Foundation | Test harness, migration drift repair, AD-11 escalation fix + data repair, storage policies, capability matrix | 0 | **merged to main** | [`phase-0`](./2026-08-21-phase-0-foundation.md) |
+| 1 | Evidence end-to-end | Migration C, sign route, upload UI, one `IncidentComposer` for both shells, signed pet photos | 1+2 | **complete** | [`phase-1`](./2026-08-21-phase-1-evidence.md) |
+| 2 | Enforcement ladder | Migrations D+F, the three degrees, ledger, twelve manager controls real or removed | 4 | **code-complete, in fix round** | [`phase-2`](./2026-08-21-phase-2-enforcement.md) |
+| 3 | Honest cleanup | Alerts CTA to `/report`, notification actions to `action_target`, dead controls removed | 9 | planned | [`phase-3`](./2026-08-21-phase-3-honest-cleanup.md) |
+| 4 | Multi-pet care | Household schedule strip, per-pet goal selector, pet named in every sheet (AD-10) | 3 | planned | [`phase-4`](./2026-08-22-phase-4-multi-pet-care.md) |
+| 5 | Resident enforcement | Own cases, ledger, fines; dispute filed and decided | 5 | planned | [`phase-5`](./2026-08-22-phase-5-resident-enforcement.md) |
+| 6 | Building rules | Authored rule text, resident rules screen, **and the fine schedule editor Phase 2 needs** | 6 | planned | [`phase-6`](./2026-08-22-phase-6-building-rules.md) |
+| 7 | Accommodations | Resident intake + documents, real manager checklist, retention | 7 | planned | [`phase-7`](./2026-08-22-phase-7-accommodations.md) |
+| 8 | Community | One authorisation grammar for six tables, then events, RSVP, Lost & Found | 8 | planned | [`phase-8`](./2026-08-22-phase-8-community.md) |
+
+### What planning phases 4-8 in parallel turned up
+
+Each planner was told to verify every column, signature and policy against
+`supabase/migrations/` and the live database rather than against this spec.
+That instruction paid for itself five times over, and the findings are not
+evenly distributed -- they cluster where the spec was most confident:
+
+- **"No DDL" was wrong twice.** Migration G says accommodations need none; the
+  documents table has six columns and lacks every field a worked checklist
+  reads. Migration G says the same of community; six policy replacements,
+  three triggers and two `set not null` say otherwise.
+- **"RLS is already correct for all of these" was exactly backwards.** Measured
+  in rolled-back transactions: a resident of one building inserted a lost-pet
+  report, an event, AND an accommodation request into a DIFFERENT building, and
+  created a `building_id = null` row visible to every user on the platform.
+- **The capability matrix recorded two holes as features.** It credits
+  `accom_resident_insert` and `accom_manager_update`; the first checks only
+  `resident_id = auth.uid()`, and the second is `FOR UPDATE` over every column
+  -- so a manager can move a request's `building_id`, which relocates who may
+  read the doctor's letter attached to it.
+- **`event_rsvps` under-reports silently.** Two seeded RSVPs read as one, to
+  the resident and to the manager alike. Nothing errors.
+- **Community posting is impossible for everyone.** 47 profiles, 1 premium,
+  and that account is a super-admin with no resident link: `can_post_today = 0`.
+- **Account deletion orphans storage forever.** `app/api/account/delete/route.ts`
+  deletes rows and touches storage zero times, so a PIPEDA deletion leaves pet
+  photos, incident evidence and doctors' letters in the buckets. Broader than
+  any one phase.
 
 ## Ordering notes
 

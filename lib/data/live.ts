@@ -13,17 +13,25 @@
 
 import { useCallback, useEffect, useReducer, useState } from "react"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client"
-import { petFileSignedUrls, isStoragePath, uploadPetFile, deletePetFile } from "@/lib/supabase/storage"
+import { petFileSignedUrls, signedUrlsIn, isStoragePath, uploadPetFile, deletePetFile } from "@/lib/supabase/storage"
 import type { Database } from "@/lib/supabase/database.types"
+import { daysUntil, parseDbDate } from "@/lib/dates"
 import { PETS as MOCK_PETS } from "./mock-data"
 import { defaultTargetsFor, defaultScheduleFor } from "./care-catalog"
+import { describeWhyNot } from "./disputes"
+import { toViolationStage } from "./violations"
+import { formatReward } from "./community"
+import { uploadCommunityImage } from "./community-media"
 import type {
   AppNotification,
   BuildingLink,
   CareEntry,
   CareEntryKind,
   CareTarget,
+  CommunityEvent,
   CommunityPost,
+  LostFoundItem,
+  LostFoundType,
   ManagerPet,
   Pet,
   PetContact,
@@ -31,9 +39,12 @@ import type {
   PetDocKind,
   PetStatus,
   PetVaccinationRecord,
+  DisputeOutcome,
+  ResidentCase,
   ResidentLinkRow,
   ResidentLinkStatus,
   Species,
+  ViolationStage,
 } from "./types"
 
 export interface BuildingRules {
@@ -151,7 +162,10 @@ export interface LiveResult<T> {
 
 /* ------------------------------- mappers -------------------------------- */
 
-const STATUS_MAP: Record<string, PetStatus> = {
+/* Keyed on the ENUM. Same reason as NOTIF_ICON below and
+ * INCIDENT_STATUS_STYLE in incident-card.tsx: as `Record<string, PetStatus>` a
+ * sixth `pet_status` label compiled and then silently mapped to `undefined`. */
+const STATUS_MAP: Record<Database["public"]["Enums"]["pet_status"], PetStatus> = {
   home: "home",
   away: "away",
   at_vet: "at-vet",
@@ -159,9 +173,17 @@ const STATUS_MAP: Record<string, PetStatus> = {
   deceased: "away",
 }
 
+/*
+ * `pets.date_of_birth` is a `date`, and everything below it reads LOCAL parts
+ * (`getFullYear`, `getMonth`, `getDate`). Parsed bare it was a UTC midnight, so
+ * west of Greenwich the local date was the day before and a pet born on the 1st
+ * aged from the last day of the previous month. Cosmetic — it moves a month
+ * boundary by a day, never a year — but it is the same rule as the two above,
+ * and using the module costs one word.
+ */
 function computeAge(dob: string): string | undefined {
-  const birth = new Date(dob)
-  if (Number.isNaN(birth.getTime())) return undefined
+  const birth = parseDbDate(dob)
+  if (birth === null) return undefined
   const now = new Date()
   let years = now.getFullYear() - birth.getFullYear()
   let months = now.getMonth() - birth.getMonth()
@@ -266,6 +288,16 @@ async function loadPetsInto(): Promise<void> {
     .eq("owner_id", user.id)
     .is("deleted_at", null)
     .order("created_at", { ascending: true })
+    /* Tie-break, because created_at is NOT unique.
+     *
+     * A household registered in one sitting — or seeded in one statement, as
+     * every demo household is — gets identical created_at values, and Postgres
+     * is then free to return them in any order it likes, differing between
+     * queries. That made `pets[0]` genuinely non-deterministic: Home could show
+     * a different pet's care on two consecutive loads with nothing changed.
+     * It also matters now that this order decides which pet a schedule group
+     * lists first and which pet a lost selection falls back to. */
+    .order("id", { ascending: true })
   if (error) {
     petsError = error.message
     petsCache = []
@@ -499,13 +531,45 @@ export async function setPetPhoto(petId: string, file: File): Promise<{ error: s
 
 /* ---------------------- pet documents / vax / contacts ------------------ */
 
+/**
+ * A document's status from its expiry date — a COMPLIANCE BADGE, not a string.
+ *
+ * `pet_documents.expires_on` and `pet_vaccinations.expires_on` are both `date`
+ * columns: bare `YYYY-MM-DD`, a square on a calendar. This function used to do
+ * `new Date(expiresOn).getTime() < Date.now()`, comparing a UTC MIDNIGHT
+ * against a local instant — so at UTC-7 a document expiring TODAY read
+ * `expired` from local midnight until 17:00, and the resident's card and the
+ * manager's queue both said their vaccination had lapsed while it had not.
+ *
+ * `daysUntil` keys both sides to the same local calendar day, so the day of
+ * expiry is `0` and the boundary is stated in the same units the rule is
+ * written in: a thing that expires today has NOT expired.
+ *
+ * THE 30-DAY BOUNDARY MOVED BY ONE DAY IN THAT REWRITE, DELIBERATELY, AND IT IS
+ * SAID HERE BECAUSE A SILENT BOUNDARY MOVE IS INDISTINGUISHABLE FROM A SLIP.
+ * The old test was `exp < now + 30 * 86_400_000` — strictly inside thirty days —
+ * so a document expiring in EXACTLY thirty days badged `current`. `days <= 30`
+ * badges it `expiring`. Day 30 changed sides; days 0-29 and 31+ did not.
+ *
+ * Inclusive is the one that matches the sentence the badge is a rendering of.
+ * "Expiring within 30 days" includes the thirtieth day in every reading a
+ * resident or a manager would give it, and the whole point of the rewrite was to
+ * state the rule in the units it is written in rather than in milliseconds. The
+ * exclusive form was also not a decision anybody made: it was what
+ * `<` happened to mean once a 30-day offset had been added to an instant.
+ *
+ * It errs toward warning a day early, which is the direction a compliance badge
+ * should err — the cost of `expiring` a day early is one day of a yellow chip,
+ * and the cost of `current` a day late is a resident who thinks they have time.
+ * Nothing else in the repo defines the window, so this function is the only
+ * place the 30 is written down and there is nothing to keep in step with it.
+ */
 function docStatusFromExpiry(expiresOn?: string | null): Database["public"]["Enums"]["doc_status"] {
   if (!expiresOn) return "active"
-  const exp = new Date(expiresOn).getTime()
-  if (Number.isNaN(exp)) return "active"
-  const now = Date.now()
-  if (exp < now) return "expired"
-  if (exp < now + 30 * 86_400_000) return "expiring"
+  const days = daysUntil(expiresOn)
+  if (days === null) return "active"
+  if (days < 0) return "expired"
+  if (days <= 30) return "expiring"
   return "current"
 }
 
@@ -1073,7 +1137,31 @@ export function removeResident(linkId: string) {
 
 /* ----------------------------- notifications ------------------------------ */
 
-const NOTIF_ICON: Record<string, AppNotification["iconKey"]> = {
+/**
+ * Keyed on the ENUM, and that change found a live defect the moment it was made.
+ *
+ * As `Record<string, ...>` this map was missing `care` entirely, so every care
+ * reminder fell through the `?? "alert"` default and rendered an AlertTriangle
+ * — a hazard glyph on "Breakfast for max", every morning, since care reminders
+ * shipped. `care` is not a rare kind: it is 157 of the 208 notifications in the
+ * database (re-measured 2026-08-23) — three quarters of everything the Alerts
+ * screen shows anybody. Nothing could have caught it, because
+ * `Record<string, X>` accepts a map that is missing a key exactly as happily as
+ * one that is complete.
+ *
+ * A correction to the first version of this note, which called it "the RED
+ * AlertTriangle": the colour never came from here. The icon SHAPE comes from
+ * `iconKey`; the colour comes from `SEVERITY_STYLES[severity]`
+ * (`alerts-screen.tsx:34`), and all 157 live `care` rows are severity `info`,
+ * which is `text-info`. It was a BLUE warning triangle. The wrong glyph is the
+ * defect; the colour was an assumption, and stating it as a measurement is the
+ * same failure this phase exists to remove.
+ *
+ * `calendar` because that is what these are: a scheduled care task falling due
+ * today. Typed over the enum, an eighth `notification_kind` is now a compile
+ * error here rather than another silent AlertTriangle.
+ */
+const NOTIF_ICON: Record<Database["public"]["Enums"]["notification_kind"], AppNotification["iconKey"]> = {
   compliance: "shield",
   incident: "alert",
   building: "calendar",
@@ -1081,15 +1169,19 @@ const NOTIF_ICON: Record<string, AppNotification["iconKey"]> = {
   community: "check",
   system: "alert",
   assistant: "sparkles",
+  care: "calendar",
 }
 
 function mapNotification(row: {
   id: string
-  kind: string
+  /* The enum, not `string` — otherwise NOTIF_ICON below cannot be indexed by
+     it, which is the whole point of typing that map over the enum. */
+  kind: Database["public"]["Enums"]["notification_kind"]
   severity: string
   title: string
   body: string | null
   action_label: string | null
+  action_target: string | null
   read_at: string | null
   created_at: string
 }): AppNotification {
@@ -1112,6 +1204,10 @@ function mapNotification(row: {
     time: timeAgo(row.created_at),
     read: !!row.read_at,
     actionLabel: row.action_label ?? undefined,
+    /* Carried through raw. The screen, not this mapper, decides whether it is
+       reachable — reachability depends on the persona being worn, which is not
+       knowable here. See lib/navigation.ts. */
+    actionTarget: row.action_target ?? undefined,
     iconKey: NOTIF_ICON[row.kind] ?? "alert",
   }
 }
@@ -1153,7 +1249,7 @@ export function useNotifications(): LiveResult<AppNotification[]> {
 
     const { data: rows, error: err } = await supabase
       .from("notifications")
-      .select("id, kind, severity, title, body, action_label, read_at, created_at")
+      .select("id, kind, severity, title, body, action_label, action_target, read_at, created_at")
       .eq("profile_id", user.id)
       .order("created_at", { ascending: false })
       .limit(100)
@@ -1197,33 +1293,238 @@ interface PostRow {
   content: string
   image_url: string | null
   is_pinned: boolean
+  is_official: boolean
   like_count: number
   comment_count: number
   created_at: string
-  profiles: { full_name: string | null; avatar_url: string | null } | null
 }
 
-function mapPost(row: PostRow, myUnit: string, liked: boolean): CommunityPost {
+/**
+ * Who somebody is, as far as a community screen is concerned.
+ *
+ * NOT an embedded `profiles!fk(full_name, avatar_url)` join, and that is the
+ * whole point. `profiles_select` is `(id = auth.uid()) OR is_admin() OR
+ * <manager of their building>` — A RESIDENT MAY READ NO PROFILE BUT THEIR OWN —
+ * so an embedded join returns NULL for every neighbour and the feed renders
+ * every author as "Resident" with a placeholder avatar. Measured in a browser
+ * with two real accounts; four clean gates had said nothing about it.
+ *
+ * `community_identities()` (20260826000005) is a SECURITY DEFINER function
+ * returning exactly id, full_name and avatar_url for the caller's own
+ * building's roster. It takes no arguments so it cannot be used as an oracle,
+ * and it returns three columns so widening profiles_select — which would have
+ * published every neighbour's address, phone and coordinates — was not needed.
+ */
+export interface CommunityIdentity {
+  fullName: string | null
+  avatarUrl: string | null
+}
+
+/**
+ * Resolve whatever is in `profiles.avatar_url` into something `<Image src>` can
+ * actually load.
+ *
+ * NOT `signedUrlsIn`, and the difference matters. `community_posts.image_url`
+ * holds a path in the PRIVATE `community-media` bucket, so it is signed at read
+ * time. `avatars` IS A PUBLIC BUCKET — verified against production, `public =
+ * true` — and `createSignedUrl` is the wrong call for one: it costs a round
+ * trip per render to mint a URL with an expiry that a public object does not
+ * need and, on a bucket with no RLS gate to satisfy, buys nothing.
+ *
+ * The one writer today is `updateMyProfile` (lib/data/account.ts), which stores
+ * `getPublicUrl(path).data.publicUrl` — an absolute `https://…`. `isStoragePath`
+ * returns false for that, so it passes through untouched and this function is a
+ * no-op on every one of the 48 rows currently on the platform, all of which are
+ * NULL anyway.
+ *
+ * It exists for the OTHER shape. If anything ever stores a bare bucket path
+ * here — which is what the rest of this codebase now does everywhere else, and
+ * is the more likely direction of travel — the feed would render a broken
+ * avatar for every neighbour, exactly the way `image_url` did before Phase 8.
+ * Reading a column that can hold either shape, and discriminating with the
+ * helper that already exists for the purpose, costs one branch. `getPublicUrl`
+ * is synchronous and makes no request, so this stays inside the existing single
+ * round trip.
+ */
+function resolveAvatarUrl(
+  supabase: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>,
+  value: string | null,
+): string | null {
+  if (!isStoragePath(value)) return value ?? null
+  return supabase.storage.from("avatars").getPublicUrl(value).data.publicUrl ?? null
+}
+
+async function communityIdentities(
+  supabase: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>,
+): Promise<Map<string, CommunityIdentity>> {
+  const { data } = await supabase.rpc("community_identities")
+  const map = new Map<string, CommunityIdentity>()
+  for (const r of (data ?? []) as unknown as { id: string; full_name: string | null; avatar_url: string | null }[]) {
+    map.set(r.id, { fullName: r.full_name, avatarUrl: resolveAvatarUrl(supabase, r.avatar_url) })
+  }
+  return map
+}
+
+function mapPost(
+  row: PostRow,
+  who: Map<string, CommunityIdentity>,
+  liked: boolean,
+  image: string | undefined,
+): CommunityPost {
+  const id = row.author_id ? who.get(row.author_id) : undefined
   return {
     id: row.id,
-    author: row.profiles?.full_name ?? "Resident",
-    avatar: row.profiles?.avatar_url ?? "",
-    unit: myUnit,
+    authorId: row.author_id,
+    /* "Resident" survives as the fallback for a post whose author has left the
+     * building or deleted their account — author_id goes NULL by ON DELETE SET
+     * NULL, which anonymises the post rather than destroying the thread. */
+    author: id?.fullName ?? "Resident",
+    avatar: id?.avatarUrl ?? "",
     time: timeAgo(row.created_at),
     category: row.category,
     content: row.content,
-    image: row.image_url ?? undefined,
+    image,
     likes: row.like_count,
     comments: row.comment_count,
     liked,
+    isPinned: row.is_pinned,
+    isOfficial: row.is_official,
   }
 }
 
-async function currentBuildingId(supabase: ReturnType<typeof getSupabaseBrowserClient>): Promise<string | null> {
-  if (!supabase) return null
+/** Where the viewer's community writes go, and which relationship put them there. */
+export interface CommunityScope {
+  buildingId: string
+  buildingName: string | null
+  /**
+   * HOW the building was resolved — a resident link, or a manager row when
+   * there was no resident link. For labelling only.
+   *
+   * NOT AN AUTHORITY. `via` answers "which building do I write into"; it does
+   * NOT answer "may I moderate it", and using it for the second question is
+   * what hid every manager control from a manager who lives in the building
+   * they manage. Gate on `manages`.
+   */
+  via: "resident" | "manager"
+  /**
+   * Whether the viewer manages THIS building — the client's reading of
+   * `manages_building(buildingId)`, which is what the database will actually
+   * ask when the write lands.
+   *
+   * Separate from `via` because the two questions have different answers for
+   * the same person. `via` is exclusive by construction (a resident link is
+   * checked first, by design, so a person who is both reads their own feed as
+   * a neighbour); manager authority is not exclusive of anything. Rachel
+   * Torres manages Maple Court Residences and does not live there, so the bug
+   * was invisible on this database until somebody held both relationships to
+   * one building — at which point `community_posts_guard` says they may pin
+   * and the screen renders no Pin button.
+   *
+   * This is NOT the ledgered multi-building case. A manager of five buildings
+   * still gets a null scope from the branch below, because nothing here can
+   * guess which of the five an announcement was meant for.
+   */
+  manages: boolean
+}
+
+/**
+ * The building whose feed the viewer reads and writes.
+ *
+ * THIS USED TO BE RESIDENT-ONLY. `my_building_link()` reads `resident_links`,
+ * so a MANAGER — who has a `building_managers` row and no resident link — got
+ * null, and every community write refused with "Link your building before
+ * posting to the community" while the screen showed them a "Post Official
+ * Announcement" button. That was the behaviour for every manager on the
+ * platform, on a screen that invited them to use it.
+ *
+ * Resident link first, because a person who is both should read their own
+ * building's feed as a neighbour. A manager of more than one building gets null
+ * rather than a guess: posting a Cedar Grove announcement into Harbour View is
+ * worse than saying "pick a building" — and Dana Whitlock holds five on this
+ * database, so this is not a hypothetical branch. `via` is returned so the
+ * composer can label itself honestly.
+ *
+ * `manages` IS ASKED SEPARATELY, AND ALWAYS, and that is the fix for a manager
+ * who is also a resident of the building they manage. The resident branch
+ * returns first by design, so `via` is "resident" for that person and every
+ * control gated on `via === "manager"` — Pin, the moderation sheet, the
+ * announcement composer — disappeared for somebody the database says may use
+ * them. One building held two ways is not the multi-building case; it is a
+ * question the old shape could not express, because `via` is a single value
+ * answering two questions.
+ *
+ * The query is scoped to the RESOLVED building, so it is the client's reading
+ * of `manages_building(buildingId)` and nothing wider. A resident of Maple
+ * Court who manages Cedar Grove gets manages:false here, which is correct: they
+ * are a neighbour on this feed.
+ */
+async function currentScope(
+  supabase: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>,
+): Promise<CommunityScope | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
+
   const { data } = await supabase.rpc("my_building_link")
-  const j = data as { building_id?: string; status?: string } | null
-  return j && j.status === "approved" ? (j.building_id ?? null) : null
+  const j = data as { building_id?: string; building_name?: string; status?: string } | null
+  if (j && j.status === "approved" && j.building_id) {
+    /* One extra round trip, on the ONE building we just resolved — not a list
+     * of every building they manage. `head: true` with an exact count asks
+     * "does this row exist" without shipping it. */
+    const { count } = await supabase
+      .from("building_managers")
+      .select("building_id", { count: "exact", head: true })
+      .eq("profile_id", user.id)
+      .eq("building_id", j.building_id)
+    return {
+      buildingId: j.building_id,
+      buildingName: j.building_name ?? null,
+      via: "resident",
+      manages: (count ?? 0) > 0,
+    }
+  }
+
+  const { data: managed } = await supabase
+    .from("building_managers")
+    .select("building_id, buildings(name)")
+    .eq("profile_id", user.id)
+  if (!managed || managed.length !== 1) return null
+  const row = managed[0] as unknown as { building_id: string; buildings: { name: string | null } | null }
+  return { buildingId: row.building_id, buildingName: row.buildings?.name ?? null, via: "manager", manages: true }
+}
+
+export function useCommunityScope(): LiveResult<CommunityScope | null> {
+  const [data, setData] = useState<CommunityScope | null>(null)
+  const [isLoading, setLoading] = useState(ENABLED)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    if (!ENABLED) return setLoading(false)
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) return setLoading(false)
+    setData(await currentScope(supabase))
+    setError(null)
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+/**
+ * Sign the stored image paths for a set of rows, in ONE round trip.
+ *
+ * `community_posts.image_url` and `lost_found.image_url` hold a storage PATH
+ * from Phase 8 onward. Before Phase 8 `createCommunityPost` wrote a 365-DAY
+ * SIGNED URL into that column — a dead link with a timer on it, embedding an
+ * auth uid in a row every neighbour can select. `isStoragePath` is what tells
+ * the two apart, and it is reused rather than re-spelled.
+ */
+async function signCommunityImages(values: (string | null)[]): Promise<Record<string, string>> {
+  const paths = values.filter((v): v is string => isStoragePath(v))
+  if (paths.length === 0) return {}
+  return signedUrlsIn("community-media", paths)
 }
 
 export function useCommunityPosts(): LiveResult<CommunityPost[]> {
@@ -1248,18 +1549,21 @@ export function useCommunityPosts(): LiveResult<CommunityPost[]> {
       setLoading(false)
       return
     }
-    const buildingId = await currentBuildingId(supabase)
-    if (!buildingId) {
+    const scope = await currentScope(supabase)
+    if (!scope) {
       setData([])
       setLoading(false)
       return
     }
+    /* Name the building in the query. RLS IS THE FLOOR, THE QUERY IS THE FILTER
+     * — the same correction useNotifications carries, for the same reason: a
+     * privileged reader would otherwise get every building's feed. */
     const { data: rows, error: err } = await supabase
       .from("community_posts")
       .select(
-        "id, author_id, category, content, image_url, is_pinned, like_count, comment_count, created_at, profiles!community_posts_author_id_fkey(full_name, avatar_url)",
+        "id, author_id, category, content, image_url, is_pinned, is_official, like_count, comment_count, created_at",
       )
-      .eq("building_id", buildingId)
+      .eq("building_id", scope.buildingId)
       .is("deleted_at", null)
       .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false })
@@ -1279,7 +1583,16 @@ export function useCommunityPosts(): LiveResult<CommunityPost[]> {
         .in("post_id", ids)
       likedIds = new Set((reactions ?? []).map((r) => r.post_id))
     }
-    setData((rows ?? []).map((r) => mapPost(r as unknown as PostRow, "", likedIds.has(r.id))))
+    const [signed, who] = await Promise.all([
+      signCommunityImages((rows ?? []).map((r) => r.image_url)),
+      communityIdentities(supabase),
+    ])
+    setData(
+      (rows ?? []).map((r) => {
+        const row = r as unknown as PostRow
+        return mapPost(row, who, likedIds.has(row.id), row.image_url ? (signed[row.image_url] ?? undefined) : undefined)
+      }),
+    )
     setError(null)
     setLoading(false)
   }, [])
@@ -1288,6 +1601,157 @@ export function useCommunityPosts(): LiveResult<CommunityPost[]> {
   }, [refetch])
   return { data, isLoading, error, refetch }
 }
+
+/* -------------------------------- events -------------------------------- */
+
+export function useEvents(): LiveResult<CommunityEvent[]> {
+  const [data, setData] = useState<CommunityEvent[]>([])
+  const [isLoading, setLoading] = useState(ENABLED)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    if (!ENABLED) {
+      setLoading(false)
+      return
+    }
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const scope = user ? await currentScope(supabase) : null
+    if (!user || !scope) {
+      setData([])
+      setLoading(false)
+      return
+    }
+    /* Yesterday onwards, so an event that started this morning is still on the
+     * list for the people walking to it. */
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { data: rows, error: err } = await supabase
+      .from("events")
+      .select("id, title, category, starts_at, location, max_attendees, created_by")
+      .eq("building_id", scope.buildingId)
+      .gte("starts_at", since)
+      .order("starts_at", { ascending: true })
+    if (err) {
+      setError(err.message)
+      setData([])
+      setLoading(false)
+      return
+    }
+    const ids = (rows ?? []).map((r) => r.id)
+    /* The attendee list, readable at last: before `rsvps_read` (20260826000000)
+     * the only policy on event_rsvps was `profile_id = auth.uid()`, so two RSVPs
+     * on one event counted as ONE — to the resident AND to the manager. */
+    const byEvent = new Map<string, { names: string[]; mine: boolean }>()
+    if (ids.length) {
+      const [{ data: rsvps }, who] = await Promise.all([
+        supabase.from("event_rsvps").select("event_id, profile_id").in("event_id", ids),
+        communityIdentities(supabase),
+      ])
+      for (const r of (rsvps ?? []) as unknown as { event_id: string; profile_id: string }[]) {
+        const entry = byEvent.get(r.event_id) ?? { names: [], mine: false }
+        entry.names.push(who.get(r.profile_id)?.fullName ?? "A neighbour")
+        if (r.profile_id === user.id) entry.mine = true
+        byEvent.set(r.event_id, entry)
+      }
+    }
+    setData(
+      (rows ?? []).map((r) => {
+        const entry = byEvent.get(r.id) ?? { names: [], mine: false }
+        return {
+          id: r.id,
+          title: r.title,
+          startsAt: r.starts_at,
+          location: r.location,
+          attendees: entry.names.length,
+          attendeeNames: entry.names,
+          maxAttendees: r.max_attendees,
+          category: r.category,
+          createdBy: r.created_by,
+          going: entry.mine,
+        }
+      }),
+    )
+    setError(null)
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+/* ----------------------------- lost & found ------------------------------ */
+
+export function useLostFound(): LiveResult<LostFoundItem[]> {
+  const [data, setData] = useState<LostFoundItem[]>([])
+  const [isLoading, setLoading] = useState(ENABLED)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    if (!ENABLED) {
+      setLoading(false)
+      return
+    }
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const scope = user ? await currentScope(supabase) : null
+    if (!user || !scope) {
+      setData([])
+      setLoading(false)
+      return
+    }
+    const { data: rows, error: err } = await supabase
+      .from("lost_found")
+      .select("id, kind, pet_name, species, breed, color, last_seen, reward_cents, image_url, status, reporter_id, created_at")
+      .eq("building_id", scope.buildingId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+    if (err) {
+      setError(err.message)
+      setData([])
+      setLoading(false)
+      return
+    }
+    const signed = await signCommunityImages((rows ?? []).map((r) => r.image_url))
+    setData(
+      (rows ?? []).map((r) => ({
+        id: r.id,
+        type: (r.kind === "found" ? "found" : "lost") as LostFoundType,
+        petName: r.pet_name,
+        species: r.species,
+        breed: r.breed,
+        color: r.color,
+        lastSeen: r.last_seen,
+        time: timeAgo(r.created_at),
+        image: r.image_url ? (signed[r.image_url] ?? null) : null,
+        rewardCents: r.reward_cents,
+        reward: formatReward(r.reward_cents),
+        status: (r.status === "resolved" ? "resolved" : "active") as "active" | "resolved",
+        reporterId: r.reporter_id,
+        buildingName: scope.buildingName,
+        mine: r.reporter_id === user.id,
+      })),
+    )
+    setError(null)
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+/* ------------------------------- mutations -------------------------------- */
 
 export async function createCommunityPost(input: {
   content: string
@@ -1300,37 +1764,45 @@ export async function createCommunityPost(input: {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { error: "You must be signed in." }
-  const buildingId = await currentBuildingId(supabase)
-  if (!buildingId) return { error: "Link your building before posting to the community." }
+  const scope = await currentScope(supabase)
+  if (!scope) return { error: "Link your building before posting to the community." }
 
-  let imageUrl: string | undefined
+  /* The PATH, not a URL. `image_url` used to receive a 365-day signed URL,
+   * which embeds the uploader's auth uid in a row every neighbour can select
+   * and expires while the post is still on the screen. The path is signed at
+   * read time instead — the pattern petFileSignedUrls has always used. */
+  let imagePath: string | undefined
   if (input.imageFile) {
-    const ext = input.imageFile.name.split(".").pop()?.toLowerCase() || "jpg"
-    const path = `${buildingId}/${user.id}/${Date.now()}.${ext}`
-    const { error: upErr } = await supabase.storage
-      .from("community-media")
-      .upload(path, input.imageFile, { upsert: true, cacheControl: "3600" })
-    if (upErr) return { error: upErr.message }
-    const { data: signed } = await supabase.storage.from("community-media").createSignedUrl(path, 60 * 60 * 24 * 365)
-    imageUrl = signed?.signedUrl
+    const { path, error: upErr } = await uploadCommunityImage("post", input.imageFile)
+    if (upErr || !path) return { error: upErr ?? "That photo didn't upload." }
+    imagePath = path
   }
 
+  /* No `/row-level security/i` message-sniffing any more. It guessed
+   * "buy a plan" from a Postgres error code, and after 20260826000000 the rule
+   * it was guessing at no longer exists: every approved resident, every manager
+   * and every admin of the building may post. */
   const { error } = await supabase.from("community_posts").insert({
-    building_id: buildingId,
+    building_id: scope.buildingId,
     author_id: user.id,
     category: input.category,
     content: input.content,
-    image_url: imageUrl ?? null,
+    image_url: imagePath ?? null,
   })
-  if (error) {
-    if (/row-level security/i.test(error.message)) {
-      return { error: "Posting to the community requires an active Pet10x plan." }
-    }
-    return { error: error.message }
-  }
-  return { error: null }
+  return { error: error?.message ?? null }
 }
 
+/**
+ * Like or unlike a post.
+ *
+ * THE COUNTER IS NOT TOUCHED HERE. This function used to read `like_count`,
+ * add one and write it back — an update `posts_update_own` denies to everybody
+ * but the post's author, silently, with the error unchecked. So every like by a
+ * neighbour incremented nothing, forever. `trg_post_reactions_count`
+ * (20260826000001) now maintains it, and `community_posts_guard` RAISES on any
+ * direct write to it, so putting those lines back would be a visible error
+ * rather than a silent no-op.
+ */
 export async function togglePostLike(postId: string, currentlyLiked: boolean): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
@@ -1340,31 +1812,23 @@ export async function togglePostLike(postId: string, currentlyLiked: boolean): P
   if (!user) return { error: "You must be signed in." }
 
   if (currentlyLiked) {
-    const { error: delErr } = await supabase
+    const { error } = await supabase
       .from("post_reactions")
       .delete()
       .eq("post_id", postId)
       .eq("profile_id", user.id)
-    if (delErr) return { error: delErr.message }
-    const { data: post } = await supabase.from("community_posts").select("like_count").eq("id", postId).maybeSingle()
-    await supabase
-      .from("community_posts")
-      .update({ like_count: Math.max(0, (post?.like_count ?? 1) - 1) })
-      .eq("id", postId)
-  } else {
-    const { error: insErr } = await supabase.from("post_reactions").insert({ post_id: postId, profile_id: user.id })
-    if (insErr) return { error: insErr.message }
-    const { data: post } = await supabase.from("community_posts").select("like_count").eq("id", postId).maybeSingle()
-    await supabase
-      .from("community_posts")
-      .update({ like_count: (post?.like_count ?? 0) + 1 })
-      .eq("id", postId)
+    return { error: error?.message ?? null }
   }
+  const { error } = await supabase.from("post_reactions").insert({ post_id: postId, profile_id: user.id })
+  /* 23505 — the (post_id, profile_id) primary key. Two taps in flight at once
+   * is a no-op, not a failure the resident should read about. */
+  if (error && error.code !== "23505") return { error: error.message }
   return { error: null }
 }
 
 export interface PostComment {
   id: string
+  authorId: string | null
   author: string
   avatar: string
   content: string
@@ -1374,28 +1838,29 @@ export interface PostComment {
 export async function fetchPostComments(postId: string): Promise<PostComment[]> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return []
-  const { data } = await supabase
-    .from("post_comments")
-    .select("id, content, created_at, profiles!post_comments_author_id_fkey(full_name, avatar_url)")
-    .eq("post_id", postId)
-    .order("created_at", { ascending: true })
+  const [{ data }, who] = await Promise.all([
+    supabase
+      .from("post_comments")
+      .select("id, author_id, content, created_at")
+      .eq("post_id", postId)
+      .order("created_at", { ascending: true }),
+    communityIdentities(supabase),
+  ])
   return (data ?? []).map((r) => {
-    const p = r as unknown as {
-      id: string
-      content: string
-      created_at: string
-      profiles: { full_name: string | null; avatar_url: string | null } | null
-    }
+    const p = r as unknown as { id: string; author_id: string | null; content: string; created_at: string }
+    const id = p.author_id ? who.get(p.author_id) : undefined
     return {
       id: p.id,
-      author: p.profiles?.full_name ?? "Resident",
-      avatar: p.profiles?.avatar_url ?? "",
+      authorId: p.author_id,
+      author: id?.fullName ?? "Resident",
+      avatar: id?.avatarUrl ?? "",
       content: p.content,
       time: timeAgo(p.created_at),
     }
   })
 }
 
+/** Adds a comment. `comment_count` follows via trg_post_comments_count. */
 export async function addPostComment(postId: string, content: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
@@ -1404,14 +1869,235 @@ export async function addPostComment(postId: string, content: string): Promise<{
   } = await supabase.auth.getUser()
   if (!user) return { error: "You must be signed in." }
   const { error } = await supabase.from("post_comments").insert({ post_id: postId, author_id: user.id, content })
+  return { error: error?.message ?? null }
+}
+
+/** Removes a comment. The author's own, or any comment in a building you manage. */
+export async function deletePostComment(commentId: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error, count } = await supabase
+    .from("post_comments")
+    .delete({ count: "exact" })
+    .eq("id", commentId)
   if (error) return { error: error.message }
-  const { data: post } = await supabase.from("community_posts").select("comment_count").eq("id", postId).maybeSingle()
-  await supabase
-    .from("community_posts")
-    .update({ comment_count: (post?.comment_count ?? 0) + 1 })
-    .eq("id", postId)
+  /* RLS denies a DELETE by matching NO ROWS, not by erroring. Reporting success
+   * for zero rows is how "0 rows, no error" became a bug worth a migration. */
+  if (!count) return { error: "You can't remove that comment." }
   return { error: null }
 }
+
+/** Pin or unpin. `community_posts_guard` authorises it — a manager or an admin. */
+export async function pinPost(postId: string, pinned: boolean): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error, count } = await supabase
+    .from("community_posts")
+    .update({ is_pinned: pinned }, { count: "exact" })
+    .eq("id", postId)
+  if (error) return { error: error.message }
+  if (!count) return { error: "You can't pin that post." }
+  return { error: null }
+}
+
+/**
+ * Remove a post. TWO PATHS, ONE FUNCTION, chosen by who is asking.
+ *
+ * An AUTHOR removing their own post is not a moderation act: it is a plain
+ * `update … set deleted_at`, which posts_update_own permits, and it leaves no
+ * audit row because there is nothing to hold anybody to account for.
+ *
+ * A MANAGER or ADMIN removing somebody else's post is: it goes through
+ * `moderate_community_post`, which re-checks scope and writes an `audit_log`
+ * row naming the actor, the author and the reason. A browser `update` cannot
+ * write audit_log — `notifs_insert_own_assistant` and the audit policies see to
+ * that — so the RPC is not decoration, it is the only way the record gets kept.
+ */
+export async function removePost(
+  postId: string,
+  opts: { mine: boolean; reason?: string },
+): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  if (opts.mine) {
+    const { error, count } = await supabase
+      .from("community_posts")
+      .update({ deleted_at: new Date().toISOString() }, { count: "exact" })
+      .eq("id", postId)
+    if (error) return { error: error.message }
+    if (!count) return { error: "You can't remove that post." }
+    return { error: null }
+  }
+  const { data, error } = await supabase.rpc("moderate_community_post", {
+    p_post: postId,
+    p_reason: opts.reason ?? undefined,
+  })
+  if (error) return { error: error.message }
+  const r = data as unknown as { ok?: boolean; error?: string } | null
+  if (!r?.ok) return { error: MODERATION_ERRORS[r?.error ?? ""] ?? "Couldn't remove that post." }
+  return { error: null }
+}
+
+const MODERATION_ERRORS: Record<string, string> = {
+  forbidden: "Only this building's manager can remove someone else's post.",
+  not_found: "That post is no longer there.",
+  already_removed: "That post has already been removed.",
+  too_long: "That reason is too long.",
+  unauthenticated: "You must be signed in.",
+}
+
+/* ------------------------------ event writes ------------------------------ */
+
+export async function rsvpToEvent(eventId: string, going: boolean): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "You must be signed in." }
+  if (!going) {
+    const { error } = await supabase
+      .from("event_rsvps")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("profile_id", user.id)
+    return { error: error?.message ?? null }
+  }
+  const { error } = await supabase.from("event_rsvps").insert({ event_id: eventId, profile_id: user.id })
+  /* 23505 is the (event_id, profile_id) primary key: already going. */
+  if (error && error.code !== "23505") return { error: error.message }
+  return { error: null }
+}
+
+export async function createEvent(input: {
+  title: string
+  category: string | null
+  startsAt: string
+  location: string | null
+  maxAttendees: number | null
+}): Promise<{ error: string | null; id: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured.", id: null }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "You must be signed in.", id: null }
+  const scope = await currentScope(supabase)
+  if (!scope) return { error: "Link your building before creating an event.", id: null }
+  const { data, error } = await supabase
+    .from("events")
+    .insert({
+      building_id: scope.buildingId,
+      created_by: user.id,
+      title: input.title,
+      category: input.category,
+      starts_at: input.startsAt,
+      location: input.location,
+      max_attendees: input.maxAttendees,
+    })
+    .select("id")
+    .maybeSingle()
+  if (error) return { error: error.message, id: null }
+  return { error: null, id: data?.id ?? null }
+}
+
+/**
+ * Announce an event to the whole building. MANAGER OR ADMIN ONLY.
+ *
+ * A resident may organise an event; only a manager may ring every neighbour
+ * about it. That is the difference between organising something and announcing
+ * it, and it is the only thing keeping the notification list from becoming a
+ * second feed.
+ */
+export async function publishEvent(eventId: string, note?: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { data, error } = await supabase.rpc("publish_building_event", {
+    p_event: eventId,
+    p_note: note ?? undefined,
+  })
+  if (error) return { error: error.message }
+  const r = data as unknown as { ok?: boolean; error?: string } | null
+  if (!r?.ok) return { error: PUBLISH_ERRORS[r?.error ?? ""] ?? "Couldn't announce that event." }
+  return { error: null }
+}
+
+const PUBLISH_ERRORS: Record<string, string> = {
+  forbidden: "Only this building's manager can announce an event.",
+  not_found: "That event is no longer there.",
+  already_published: "This event was already announced in the last 24 hours.",
+  too_long: "That note is too long.",
+  unauthenticated: "You must be signed in.",
+}
+
+/* --------------------------- lost & found writes -------------------------- */
+
+export async function reportLostFound(input: {
+  kind: "lost" | "found"
+  petName?: string
+  species?: Species | null
+  breed?: string
+  color?: string
+  lastSeen?: string
+  rewardCents?: number | null
+  imageFile?: File
+}): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+
+  let imagePath: string | undefined
+  if (input.imageFile) {
+    const { path, error: upErr } = await uploadCommunityImage("lf", input.imageFile)
+    if (upErr || !path) return { error: upErr ?? "That photo didn't upload." }
+    imagePath = path
+  }
+
+  /* NO buildingId ARGUMENT. The RPC derives it from the caller's own approved
+   * resident_links row: a parameter the caller controls is a parameter the
+   * caller can point at another building. */
+  const { data, error } = await supabase.rpc("report_lost_found", {
+    p_kind: input.kind,
+    p_pet_name: input.petName ?? undefined,
+    p_species: input.species ?? undefined,
+    p_breed: input.breed ?? undefined,
+    p_color: input.color ?? undefined,
+    p_last_seen: input.lastSeen ?? undefined,
+    p_reward_cents: input.rewardCents ?? undefined,
+    p_image_path: imagePath ?? undefined,
+  })
+  if (error) return { error: error.message }
+  const r = data as unknown as { ok?: boolean; error?: string; field?: string } | null
+  if (!r?.ok) {
+    if (r?.error === "too_long") return { error: `That ${r.field ?? "field"} is too long.` }
+    return { error: LOST_FOUND_ERRORS[r?.error ?? ""] ?? "Couldn't post that report." }
+  }
+  return { error: null }
+}
+
+const LOST_FOUND_ERRORS: Record<string, string> = {
+  unauthenticated: "You must be signed in.",
+  invalid_kind: "Choose lost or found.",
+  no_building: "Link your building before posting a lost or found report.",
+  ambiguous_building: "Your account is linked to more than one building — contact support.",
+  rate_limited: "You've posted three reports today. Try again tomorrow.",
+  bad_reward: "A reward must be between $0.01 and $10,000.",
+  bad_image_path: "That photo couldn't be attached.",
+  image_not_found: "That photo couldn't be attached.",
+}
+
+/** Marks a report resolved. The reporter's own, or any in a building you manage. */
+export async function resolveLostFound(id: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error, count } = await supabase
+    .from("lost_found")
+    .update({ status: "resolved" }, { count: "exact" })
+    .eq("id", id)
+  if (error) return { error: error.message }
+  if (!count) return { error: "You can't resolve that report." }
+  return { error: null }
+}
+
 
 /* ------------------------------- pet photos ------------------------------ */
 
@@ -1642,4 +2328,270 @@ export async function deleteVetVisit(id: string): Promise<{ error: string | null
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("pet_vet_visits").delete().eq("id", id)
   return { error: error?.message ?? null }
+}
+
+/* ------------------------------------------------------------------ */
+/* The resident's own bylaw cases (Phase 5)                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Every violation opened against the signed-in resident, newest first.
+ *
+ * `violations_select`, `vevents_select`, `fines_select` and `vdisputes_select`
+ * have all admitted `resident_id = auth.uid()` since Phase 2, and until now
+ * NOTHING HAD EVER QUERIED THEM. This is that half of the ladder.
+ *
+ * RLS IS THE FLOOR, THE QUERY IS THE FILTER. `.eq("resident_id", user.id)` is
+ * explicit and must stay explicit: `violations_select` also admits
+ * `manages_building(...) or is_admin()`, so an account holding either grant —
+ * a manager who owns a dog, an admin looking at their own resident view —
+ * would otherwise receive every case in their portfolio on their PERSONAL
+ * screen. That is exactly the defect `useNotifications` above was fixed for.
+ *
+ * EMBED NOTHING ELSE. In particular:
+ *
+ *   - NO `incident_reports`. `incidents_select` admits
+ *     `manages_building or is_admin or reporter_id = auth.uid()`, and the
+ *     subject of a violation is the PET'S OWNER, not the reporter (AD-11) — so
+ *     this embed returns silent nulls for a resident rather than an error, and
+ *     the next hand to "fix" it writes a policy that hands a resident the name
+ *     of the neighbour who reported them.
+ *   - NO `actor:profiles` on the events. `profiles_select`'s manager clause
+ *     evaluates `manages_building` AS THE CALLER, which is false for a
+ *     resident, so it fails the same silent way. The deciding manager's
+ *     identity is deliberately not shown: a strata decision is the strata's.
+ *   - NO `evidence_paths`, no `audit_log`.
+ *
+ * This is a decision, not a limitation to work around. Phase 0 found
+ * `emergency_directory` returning medical data it documented itself as
+ * withholding, which is why it is written down here rather than left to
+ * whoever edits this next.
+ */
+export function useMyCases(): LiveResult<ResidentCase[]> {
+  const [data, setData] = useState<ResidentCase[]>([])
+  const [isLoading, setLoading] = useState(ENABLED)
+  const [error, setError] = useState<string | null>(null)
+
+  const refetch = useCallback(async () => {
+    if (!ENABLED) {
+      setLoading(false)
+      return
+    }
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setData([])
+      setLoading(false)
+      return
+    }
+
+    const { data: rows, error: err } = await supabase
+      .from("violations")
+      .select(
+        `id, type, stage, created_at, resolved_at, resolution_outcome,
+         pet:pets ( name ),
+         fines ( id, amount_cents, currency, status, due_on ),
+         violation_events ( id, from_stage, to_stage, note, occurred_on, created_at ),
+         disputes:violation_disputes ( stage, reason, filed_at, outcome, decided_note, decided_at )`,
+      )
+      .eq("resident_id", user.id)
+      .order("created_at", { ascending: false })
+
+    if (err) {
+      setError(err.message)
+      setData([])
+      setLoading(false)
+      return
+    }
+
+    type Row = {
+      id: string
+      type: string
+      stage: string
+      created_at: string
+      resolved_at: string | null
+      resolution_outcome: string | null
+      pet: { name: string } | { name: string }[] | null
+      fines:
+        | { id: string; amount_cents: number; currency: string; status: string; due_on: string | null }[]
+        | null
+      violation_events:
+        | {
+            id: string
+            from_stage: string | null
+            to_stage: string
+            note: string | null
+            occurred_on: string | null
+            created_at: string
+          }[]
+        | null
+      disputes:
+        | {
+            stage: string
+            reason: string
+            filed_at: string
+            outcome: DisputeOutcome | null
+            decided_note: string | null
+            decided_at: string | null
+          }[]
+        | null
+    }
+    const first = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
+
+    setData(
+      ((rows ?? []) as unknown as Row[]).map((r) => {
+        const stage = toViolationStage(r.stage)
+        // Oldest first. A history reads forwards, and the dispute self-
+        // transition has to land after the event it contests.
+        const events = [...(r.violation_events ?? [])]
+          .sort((a, b) => a.created_at.localeCompare(b.created_at))
+          .map((e) => ({
+            id: e.id,
+            fromStage: e.from_stage ? toViolationStage(e.from_stage) : null,
+            toStage: toViolationStage(e.to_stage),
+            note: e.note,
+            occurredOn: e.occurred_on,
+            createdAt: e.created_at,
+          }))
+
+        // The dispute window's anchor: the latest event that ENTERED the case's
+        // current stage, falling back to the case's own creation. This is
+        // `dispute_violation`'s `coalesce(max(...), v.created_at)` mirrored
+        // exactly — see `lib/data/disputes.ts` for why the mirror exists and
+        // how it is kept honest.
+        //
+        // The dispute's own self-transition has `to_stage = stage` too, so once
+        // an appeal is filed the anchor moves to it. That is harmless: a case
+        // with an open dispute is blocked by `hasOpenDispute` long before the
+        // window is consulted, and one whose dispute was DECIDED has already
+        // used up that degree, so `alreadyDisputedThisStage` blocks it first.
+        const anchorIso =
+          events.filter((e) => e.toStage === stage).at(-1)?.createdAt ?? r.created_at
+
+        return {
+          id: r.id,
+          type: r.type.replace(/_/g, " "),
+          stage,
+          openedAt: r.created_at,
+          resolvedAt: r.resolved_at,
+          resolutionOutcome: r.resolution_outcome,
+          petName: first(r.pet)?.name ?? null,
+          fines: (r.fines ?? []).map((f) => ({
+            id: f.id,
+            amountCents: f.amount_cents,
+            currency: f.currency,
+            status: f.status,
+            dueOn: f.due_on,
+          })),
+          events,
+          disputes: [...(r.disputes ?? [])]
+            .sort((a, b) => a.filed_at.localeCompare(b.filed_at))
+            .map((d) => ({
+              stage: toViolationStage(d.stage),
+              reason: d.reason,
+              filedAt: d.filed_at,
+              outcome: d.outcome,
+              decidedNote: d.decided_note,
+              decidedAt: d.decided_at,
+            })),
+          anchorIso,
+        }
+      }),
+    )
+    setError(null)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+export interface FileDisputeResult {
+  error: string | null
+  stage?: ViolationStage
+  /** How many fines the filing moved from `issued` to `disputed`. */
+  finesMarked?: number
+}
+
+/**
+ * File an appeal against the degree a case currently sits on.
+ *
+ * The client check in the sheet ("say why") is a COURTESY. The enforcement is
+ * `dispute_violation`, which is the only writer `violation_disputes` has — the
+ * table carries no client INSERT policy at all — so every one of these eight
+ * codes is mapped rather than assumed unreachable. `reason_required` in
+ * particular is mapped even though the sheet refuses an empty box first: a
+ * client-side check that is treated as the guarantee is how a guard gets
+ * deleted in a refactor and nobody notices.
+ */
+export async function fileDispute(
+  violationId: string,
+  reason: string,
+): Promise<FileDisputeResult> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+
+  const { data, error } = await supabase.rpc("dispute_violation", {
+    p_violation: violationId,
+    p_reason: reason,
+  })
+  if (error) {
+    const hint = error.hint?.trim()
+    return { error: hint ? `${error.message} ${hint}` : error.message }
+  }
+
+  const r = data as unknown as {
+    ok: boolean
+    error?: string
+    stage?: string
+    fines_marked?: number
+    length?: number
+    max?: number
+    closed_at?: string
+  }
+  if (!r.ok) {
+    switch (r.error) {
+      case "not_found":
+        return { error: "That case no longer exists." }
+      case "forbidden":
+        // The RPC authorises on `resident_id = auth.uid()` and nothing else —
+        // no manager branch, no admin branch. Reaching this from this screen
+        // means the case is not the signed-in resident's.
+        return { error: "This case is not yours to dispute." }
+      case "stage_not_disputable":
+        return { error: describeWhyNot("stage") }
+      case "already_disputed":
+        return { error: describeWhyNot("already") }
+      case "dispute_open":
+        return { error: describeWhyNot("open") }
+      case "window_closed":
+        return {
+          error: describeWhyNot("window", r.closed_at ? new Date(r.closed_at) : undefined),
+        }
+      case "reason_required":
+        return { error: "Say why you are disputing this before submitting." }
+      case "reason_too_long":
+        return {
+          error: `Your reason is ${r.length ?? 0} characters; the limit is ${r.max ?? 2000}.`,
+        }
+      default:
+        return {
+          error: r.error ? `Couldn't file the dispute (${r.error}).` : "Couldn't file the dispute.",
+        }
+    }
+  }
+
+  return {
+    error: null,
+    stage: r.stage ? toViolationStage(r.stage) : undefined,
+    finesMarked: r.fines_marked ?? 0,
+  }
 }

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { approveResidentLink, denyResidentLink } from "@/lib/data"
-import { decideRegistration, decideAccommodation } from "@/lib/data/manager-queues"
+import { decideRegistration } from "@/lib/data/manager-queues"
 import { setIncidentStatus, escalateIncident } from "@/lib/data/incidents"
 import { setFineStatus } from "@/lib/data/portfolio"
 import { useWorkQueue, type QueueItem, type Urgency } from "@/lib/data/work-queue"
@@ -64,11 +64,26 @@ function actionsFor(item: QueueItem): RowAction[] {
         { label: "Dismiss", tone: "deny", run: () => setIncidentStatus(item.refId, "dismissed") },
       ]
     case "accommodation":
-      return [
-        { label: "Approve", tone: "approve", run: () => decideAccommodation(item.refId, "approved") },
-        { label: "Request info", tone: "neutral", run: () => decideAccommodation(item.refId, "info_requested") },
-        { label: "Deny", tone: "deny", run: () => decideAccommodation(item.refId, "denied") },
-      ]
+      /* NO ACTIONS HERE, DELIBERATELY, since Phase 7. This row is a pointer to
+       * the Approvals screen, the same as `document` below.
+       *
+       * Two of these three buttons could not survive the phase and the third
+       * should not have.
+       *
+       *   Deny now REQUIRES a reason — `accommodation_requests_denial_note_ck`
+       *   in the database, `note_required` from the RPC — and there is nowhere
+       *   in a one-line queue row to ask for one. A Deny button that always
+       *   returns note_required is worse than no Deny button.
+       *
+       *   Approve is gated on every required document being VERIFIED, and the
+       *   manager cannot see, let alone read, a doctor's letter from here. A
+       *   shortcut that approves a disability accommodation without opening the
+       *   evidence is not a shortcut, it is the defect the checklist was built
+       *   to remove.
+       *
+       *   Request info takes a note too, for the same reason: "we need more
+       *   information" with no statement of what is not a request. */
+      return []
     case "fine":
       return [
         { label: "Mark paid", tone: "approve", run: () => setFineStatus(item.refId, "paid") },
@@ -138,7 +153,8 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
             className="ml-auto flex items-center gap-2 rounded-lg bg-success/15 px-3.5 py-1.5 text-[13px] font-semibold text-success transition-colors hover:bg-success/25 disabled:opacity-60"
           >
             {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
-            Approve {safe.length} safe
+            Approve {safe.length}{" "}
+            safe
           </button>
         )}
       </div>

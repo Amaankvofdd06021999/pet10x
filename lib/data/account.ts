@@ -6,6 +6,34 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
+/**
+ * WHAT THIS DOES NOT EXPORT, REPORTED RATHER THAN QUIETLY LEFT OUT.
+ *
+ * A resident's accommodation requests, their decision notes and their document
+ * metadata are NOT here, and PIPEDA's right of access is the same statute
+ * `/api/account/delete` was fixed for. `accom_select` and `accomdoc_select` both
+ * admit `resident_id = auth.uid()` and return the whole row, so the data is
+ * readable — adding two queries would produce output.
+ *
+ * It was left out of the Phase 7 fix round ON PURPOSE, because two queries is
+ * not the hard part and shipping them blind would export the wrong thing:
+ *
+ *   * `legal_note` is manager-authored counsel. `accom_select` returns it to the
+ *     resident, and the product deliberately never renders it to them — the
+ *     seeded rows read "Seek legal advice before denying", and putting that in
+ *     front of the applicant is not the product (docs/RBAC_CAPABILITIES.md,
+ *     "legal_note is labelled as SHARED, not private"). A `select *` here would
+ *     hand it to them in a download and undo that decision silently.
+ *   * `review_note` is the opposite case and SHOULD go in: it is written to be
+ *     resident-readable, and a rejected letter whose reason the resident cannot
+ *     learn is a dead end.
+ *   * The documents themselves are files, not rows. An export that lists an
+ *     `esa_letter` it cannot hand over needs a decision about signed URLs and
+ *     their lifetime, not a column list.
+ *
+ * So this is a scoped piece of work with a real choice in it, not an oversight.
+ * Named here so the next person finds the choice rather than the gap.
+ */
 export async function exportMyData(): Promise<Record<string, unknown> | null> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return null

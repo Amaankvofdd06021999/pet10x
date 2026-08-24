@@ -7,6 +7,7 @@ import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useBuildingResidents, useBuildingPets, useUnreadNotificationCount, useViolations } from "@/lib/data"
 import { useComplianceInputs } from "@/lib/data/portfolio"
 import { useManagerBuilding } from "@/lib/data/manager"
+import type { ViolationStage } from "@/lib/data/types"
 import {
   Shield,
   AlertTriangle,
@@ -39,13 +40,21 @@ const QUICK_ACTIONS = [
   { icon: Megaphone, label: "Incident Reports", tint: "bg-warning/10 text-warning-strong", screen: "incidents" },
 ] as const
 
-/** Stage → the tile shown on a violation row. */
-const STAGE_TILE: Record<string, { tint: string; icon: typeof Gavel }> = {
-  investigation: { tint: "bg-destructive/10 text-destructive", icon: AlertTriangle },
-  "pending-review": { tint: "bg-destructive/10 text-destructive", icon: AlertTriangle },
-  "verbal-warning": { tint: "bg-primary/10 text-primary", icon: FileText },
-  "written-warning": { tint: "bg-primary/10 text-primary", icon: Gavel },
-  "fine-issued": { tint: "bg-destructive/10 text-destructive", icon: DollarSign },
+/**
+ * Stage → the tile shown on a violation row.
+ *
+ * Keyed on ViolationStage rather than `string`, so a stage added to the enum is
+ * a compile error here. As `Record<string, …>` this map went on typechecking
+ * after Phase 2 replaced every one of its five keys — every row silently took
+ * the `??` fallback instead.
+ */
+const STAGE_TILE: Record<ViolationStage, { tint: string; icon: typeof Gavel }> = {
+  open: { tint: "bg-destructive/10 text-destructive", icon: AlertTriangle },
+  warning: { tint: "bg-primary/10 text-primary", icon: FileText },
+  fine_1: { tint: "bg-destructive/10 text-destructive", icon: DollarSign },
+  fine_2: { tint: "bg-destructive/10 text-destructive", icon: DollarSign },
+  resolved: { tint: "bg-success/10 text-success", icon: Gavel },
+  dismissed: { tint: "bg-muted text-muted-foreground", icon: Gavel },
 }
 
 const BAD_VAX = ["expired", "rejected"]
@@ -206,7 +215,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
               ) : (
                 <div className="flex flex-col gap-2">
                   {violations.slice(0, 3).map((v) => {
-                    const tile = STAGE_TILE[v.stage] ?? STAGE_TILE.investigation
+                    const tile = STAGE_TILE[v.stage]
                     const Icon = tile.icon
                     return (
                       <button

@@ -113,7 +113,8 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
           ) : (
             <div className="rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-3">
               <p className="flex items-center gap-1.5 text-[13.5px] font-semibold text-foreground">
-                <MapPin className="h-4 w-4 text-primary" /> See what&apos;s near you
+                <MapPin className="h-4 w-4 text-primary" />{" "}
+                See what&apos;s near you
               </p>
               <p className="mt-0.5 text-[12px] text-muted-foreground">
                 {permission === "denied"

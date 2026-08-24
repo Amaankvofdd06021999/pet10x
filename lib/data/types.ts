@@ -13,6 +13,8 @@
  * - Icons are stored as string `iconKey`s and resolved to components in the view.
  */
 
+import type { Database } from "@/lib/supabase/database.types"
+
 /* ------------------------------------------------------------------ */
 /* Enums / unions                                                      */
 /* ------------------------------------------------------------------ */
@@ -21,19 +23,42 @@ export type Species = "dog" | "cat" | "bird" | "small_mammal" | "fish" | "reptil
 export type PetStatus = "home" | "away" | "at-vet" | "vacation"
 export type VaccinationStatus = "current" | "expiring" | "expired"
 export type DocumentStatus = "Valid" | "Expiring" | "Approved" | "Active" | "Expired"
-export type ResidentStatus = "compliant" | "non-compliant" | "pending"
 export type ApprovalStatus = "pending" | "approved" | "denied"
-export type AccommodationType = "ESA" | "Service Animal"
+/* `AccommodationType` was "ESA" | "Service Animal" — a DISPLAY string used as a
+ * domain type. Phase 7 replaced it with the database's own labels in
+ * lib/data/accommodations.ts ("esa" | "service_animal"), which is what every
+ * query, policy and RPC actually speaks. */
 export type IncidentType = "noise" | "aggressive" | "off-leash" | "waste" | "damage" | "other"
 export type LostFoundType = "lost" | "found"
 
-export type ViolationStage =
-  | "investigation"
-  | "pending-review"
-  | "verbal-warning"
-  | "written-warning"
-  | "fine-issued"
-export type ViolationTab = "active" | "warnings" | "fines" | "resolved"
+/**
+ * The enforcement ladder, taken from the database enum rather than restated.
+ *
+ * This used to be five hand-written hyphenated labels with a lookup table
+ * translating the DB's underscored ones into them. The translation is what
+ * made the drift possible: when Phase 2 replaced the enum, the map still held
+ * the old labels, the compiler was happy, and two of the six real stages
+ * silently resolved to `undefined`. There is nothing for the app vocabulary to
+ * add over the database's — `fine_1` is already the clearest name for that
+ * rung — so the alias is the type now, and regenerating `database.types.ts`
+ * after any future enum change breaks the build instead of the runtime.
+ *
+ * A type-only import, so this file stays platform-agnostic as its header asks.
+ */
+export type ViolationStage = Database["public"]["Enums"]["violation_stage_v2"]
+
+/** The two ways a manager may decide an appeal. Aliased over the generated
+ *  enum for the same reason `ViolationStage` is. */
+export type DisputeOutcome = Database["public"]["Enums"]["dispute_outcome"]
+
+/**
+ * `disputed` holds cases whose resident has an OPEN `violation_disputes` row —
+ * an appeal awaiting a decision — so they are not buried under the fine they
+ * contest. Phase 5 built the decision controls; the signal is
+ * `outcome === null` on the dispute, NOT `fines.status = 'disputed'`, which is
+ * now only a consequence of filing one.
+ */
+export type ViolationTab = "active" | "warnings" | "fines" | "disputed" | "resolved"
 
 export type NotificationCategory = "compliance" | "incident" | "building" | "assistant" | "care"
 export type NotificationSeverity = "warning" | "error" | "info" | "success"
@@ -328,41 +353,79 @@ export interface Pet {
 
 export interface CommunityPost {
   id: string
+  /** The author's profile id, or null once that profile is deleted
+   *  (community_posts_author_id_fkey is ON DELETE SET NULL, which anonymises
+   *  the post rather than destroying the thread). The screen compares it with
+   *  the viewer to decide who may remove. */
+  authorId: string | null
   author: string
+  /** "" when the author has no avatar. The screen falls back to a placeholder:
+   *  <Image src=""> renders broken AND makes Next re-download the page. */
   avatar: string
-  unit: string
   time: string
   category: string
   content: string
+  /** A signed URL, minted at read time from the stored PATH. Never a stored
+   *  URL — one of those is a dead link with a timer on it. */
   image?: string
   likes: number
   comments: number
   liked: boolean
+  isPinned: boolean
+  isOfficial: boolean
 }
 
+/* `unit` was removed from CommunityPost in Phase 8, deliberately.
+ *
+ * It was populated by mapPost from a `myUnit` argument that useCommunityPosts
+ * passed as the empty string, so every post in the feed read "Unit  · 3h ago".
+ * Making it real means joining resident_links.unit_id -> units for the AUTHOR,
+ * which publishes a neighbour's ADDRESS on every post they write. Nobody asked
+ * for that, and it had never displayed anything, so the field is gone rather
+ * than fixed. */
+
 export interface LostFoundItem {
-  id: number
+  /** uuid. Was declared `number`, which was simply wrong. */
+  id: string
   type: LostFoundType
-  petName: string
-  species: Species
-  breed: string
-  color: string
-  lastSeen: string
+  petName: string | null
+  species: Species | null
+  breed: string | null
+  color: string | null
+  lastSeen: string | null
   time: string
-  image: string
-  reward?: string
+  /** A signed URL minted at read time, or null when there is no photo. */
+  image: string | null
+  /** The raw cents, for the share text; `reward` is the formatted badge. */
+  rewardCents: number | null
+  reward: string | null
   status: "active" | "resolved"
+  reporterId: string | null
+  buildingName: string | null
+  mine: boolean
 }
 
 export interface CommunityEvent {
-  id: number
+  /** uuid. Was declared `number`, which was simply wrong. */
+  id: string
   title: string
-  date: string
-  time: string
-  location: string
+  /** The raw `timestamptz`. NOT NULL since 20260826000000. Rendered through
+   *  `formatEventDate` in ./community — the screen used to do string surgery on
+   *  a pre-formatted `date` field and silently produced `undefined`. */
+  startsAt: string
+  location: string | null
   attendees: number
-  maxAttendees: number
-  category: string
+  /** Who is going, by name. `rsvps_read` (20260826000000) is what makes the
+   *  count possible at all, and it necessarily discloses WHO — so the screen
+   *  shows the names rather than hiding the disclosure behind a number. */
+  attendeeNames: string[]
+  /** NULLABLE. `(attendees / maxAttendees) * 100` yields Infinity for null and
+   *  renders as `width: Infinity%`; use `attendancePercent` in ./community. */
+  maxAttendees: number | null
+  category: string | null
+  createdBy: string | null
+  /** Whether the viewer has RSVP'd. */
+  going: boolean
 }
 
 /* ------------------------------------------------------------------ */
@@ -406,6 +469,16 @@ export interface AppNotification {
   time: string
   read: boolean
   actionLabel?: string
+  /**
+   * `notifications.action_target` — a `screen` or `screen:id` key for
+   * `app/app/page.tsx`'s router, resolved through `resolveActionTarget`.
+   *
+   * A label without a resolvable target renders NO button. The column has been
+   * written by five migrations and two API routes since June and was read by
+   * nothing until Phase 3; the button beside the label called
+   * `toast.success(actionLabel)` and went nowhere.
+   */
+  actionTarget?: string
   iconKey: NotificationIconKey
 }
 
@@ -422,35 +495,24 @@ export interface HomeAlert {
 /* Manager: residents, approvals, violations                          */
 /* ------------------------------------------------------------------ */
 
-export interface ResidentPet {
-  name: string
-  species: Species
-  breed: string
-  weight: string
-  compliant: boolean
-}
-
-export interface ResidentViolationSummary {
-  type: string
-  date: string
-  stage: string
-}
-
-export interface ResidentBilling {
-  outstanding: number
-  lastPayment: string
-}
-
-export interface Resident {
-  id: number
-  unit: string
-  floor: number
-  resident: string
-  status: ResidentStatus
-  pets: ResidentPet[]
-  billing: ResidentBilling
-  violations: ResidentViolationSummary[]
-}
+/*
+ * `Resident`, `ResidentPet`, `ResidentViolationSummary` and `ResidentBilling`
+ * were DELETED here, and `ResidentStatus` with them.
+ *
+ * Phase 2's Task 4 review recorded the first two as dead mock shapes. The grep
+ * before deleting found they were not quite unreferenced, and the difference
+ * matters: `Resident` was named by `hooks.ts:useResidents()`, a stub returning
+ * `resolved([])` WITH NO CALLERS, and by an unused import in `mock-data.ts`
+ * whose residents array had already been removed. The other three were reached
+ * only through `Resident`. So the whole cluster was one closed island of dead
+ * code with a live-looking entry point, and deleting only the two named would
+ * have left three orphans plus a hook typed on a type that no longer existed.
+ *
+ * The real resident queue is `live.ts:useBuildingResidents()`, which returns
+ * `ResidentLinkRow[]`. `id: number` and the hardcoded `billing` shape are what
+ * gave these away — nothing in this database has an integer id, and there is
+ * no billing table.
+ */
 
 export interface RegistrationDocuments {
   vaccination: boolean
@@ -476,27 +538,19 @@ export interface Registration {
   documents: RegistrationDocuments
 }
 
-export interface AccommodationDocuments {
-  letterFromProvider: boolean
-  providerLicense: boolean
-  animalDescription: boolean
-  vaccination: boolean
-}
-
-export interface AccommodationRequest {
-  id: string
-  buildingId: string | null
-  unit: string
-  resident: string
-  type: AccommodationType
-  animal: string
-  submitted: string
-  /** Raw ISO created_at — used for queue urgency/aging. */
-  createdAt: string
-  status: ApprovalStatus
-  documents: AccommodationDocuments
-  legalNote: string
-}
+/* `AccommodationDocuments` and `AccommodationRequest` lived here until Phase 7.
+ *
+ * The first was four booleans, TWO OF THEM LITERAL `true` at their only
+ * producer (manager-queues.ts:207-212), so every manager was shown green ticks
+ * for documents nobody had uploaded — and nobody could have, because nothing in
+ * the product ever wrote an `accommodation_documents` row. Deleting the type is
+ * what stops it being rebuilt.
+ *
+ * Their replacements are `ChecklistItem` in lib/data/accommodations.ts, derived
+ * from documents that exist, and `AccommodationRequestView` in
+ * lib/data/accommodations-live.ts, which carries the columns the ladder needs
+ * (submitted_at, decided_at, withdrawn_at, decision_note) rather than a
+ * pre-formatted date string. */
 
 export interface DocumentReviewItem {
   id: string
@@ -522,14 +576,124 @@ export interface Violation {
   unit: string
   resident: string
   pet: string
+  /** The pet's id, or null on a case that has not identified one. Phase 7 reads
+   *  it to show an accommodation badge — a manager about to act on an
+   *  `unregistered_pet` case must see the exemption before they act. */
+  petId: string | null
   type: string
   date: string
   stage: ViolationStage
   stageLabel: string
+  /** Every fine on the case, whatever its status. This is "issued", not "owed". */
   amount: number
+  /**
+   * The part of `amount` still owed — computed by `summariseFines`, which is
+   * also what `useOutstandingFines` filters on, so the manager's screen and the
+   * strata overview cannot disagree. `amount - outstanding` is what has been
+   * paid, waived, remitted or written off.
+   */
+  outstanding: number
+  /** The part of `outstanding` under appeal (`fines.status = 'disputed'`). */
+  disputed: number
+  /**
+   * True when at least one fine reads `issued` — the exact predicate
+   * `manager_remind_fine` applies. Gates "Send Reminder", so the button renders
+   * only where the RPC will act.
+   */
+  chaseable: boolean
+  /** Every fine on the case reads `paid`. Narrower than `outstanding === 0`. */
   paid: boolean
   history: ViolationHistoryStep[]
+  /**
+   * The resident's open appeal, or null. `tab === "disputed"` exactly when this
+   * is non-null — one fact, one field, so the tab and the card cannot disagree
+   * about whether an appeal exists.
+   */
+  openDispute: Dispute | null
   tab: ViolationTab
+}
+
+/* ------------------------------------------------------------------ */
+/* Resident: the cases against them, and the appeal                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One row of `violation_disputes`, as the resident's screen and the manager's
+ * Disputed tab both read it.
+ *
+ * `outcome === null` IS the open-dispute signal. There is no separate `isOpen`
+ * flag, because two representations of one fact is how Phase 2's
+ * `fines.status = 'disputed'` derivation drifted from what it was derived from.
+ *
+ * `filedBy` and `decidedBy` are deliberately ABSENT. A resident cannot read
+ * their manager's profile (`profiles_select` evaluates `manages_building` as
+ * the CALLER, which is false for them), so embedding `profiles` here would
+ * return silent nulls rather than an error, and the next hand to "fix" that
+ * writes a policy exposing the deciding manager's identity. The decision is the
+ * strata's, not a named person's.
+ */
+export interface Dispute {
+  stage: ViolationStage
+  /** The resident's own words, verbatim. */
+  reason: string
+  filedAt: string
+  outcome: DisputeOutcome | null
+  /** The manager's reason for the decision. Null when they gave none. */
+  decidedNote: string | null
+  decidedAt: string | null
+}
+
+/** One fine, as a resident sees it. No payment fields — AD-8. */
+export interface ResidentFine {
+  id: string
+  amountCents: number
+  currency: string
+  status: string
+  dueOn: string | null
+}
+
+/** One `violation_events` row, as a resident sees it. */
+export interface ResidentCaseEvent {
+  id: string
+  fromStage: ViolationStage | null
+  toStage: ViolationStage
+  /** The manager's note. Shown, because it is the reason being contested. */
+  note: string | null
+  occurredOn: string | null
+  createdAt: string
+}
+
+/**
+ * A bylaw case as its subject sees it.
+ *
+ * WHAT IS DELIBERATELY NOT HERE, and no policy is written to make it visible:
+ * the reporter's identity, the originating incident's description, any
+ * `evidence_paths` or `guest-evidence` object, the reporting unit, the
+ * `audit_log`, the deciding manager's name, and anything belonging to another
+ * resident. A strata notice tells you what you are alleged to have done and
+ * what it costs. It does not hand you your neighbour's name and photographs —
+ * that is a retaliation vector, and it is the reason complaints go to the
+ * strata rather than to the neighbour.
+ */
+export interface ResidentCase {
+  id: string
+  type: string
+  stage: ViolationStage
+  openedAt: string
+  /** Non-null once the case is closed — the honest live/closed split. */
+  resolvedAt: string | null
+  resolutionOutcome: string | null
+  /** The resident's own pet, named on the case. Null when none is identified. */
+  petName: string | null
+  fines: ResidentFine[]
+  /** Oldest first — a history reads forwards. */
+  events: ResidentCaseEvent[]
+  disputes: Dispute[]
+  /**
+   * `max(events.createdAt where toStage === stage)`, else `openedAt`. The
+   * `canDispute` window is measured from here, mirroring the RPC's `coalesce`.
+   */
+  anchorIso: string
 }
 
 export interface ResolvedViolation {

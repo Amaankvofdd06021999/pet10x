@@ -13,8 +13,22 @@ export * from "./types"
 export * from "./hooks"
 export * from "./live"
 export * from "./care-schedule"
+export * from "./selected-pet"
 export * from "./completeness"
 export * from "./breeds"
+/* Phase 6. Both are PURE (no "use client", no Supabase import) so they are
+ * reachable from vitest's `environment: "node"`; the hooks and mutations that
+ * use them live in `./building-rules-live`, which is deliberately NOT
+ * re-exported here — importing this barrel from a server component must not
+ * drag a browser client in. */
+export * from "./building-rules"
+export * from "./fine-schedule"
+/* Phase 8. `./community` is PURE (no "use client", no Supabase import) so it is
+ * reachable from vitest's `environment: "node"`. `./community-media` is not
+ * re-exported here for the same reason `./building-rules-live` is not: it
+ * imports the browser client, and this barrel must be importable from a server
+ * component. */
+export * from "./community"
 export {
   MOCK_USERS,
   VALID_BUILDING_CODES,

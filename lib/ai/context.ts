@@ -2,6 +2,7 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabase/database.types"
+import { daysUntil, parseDbDate } from "@/lib/dates"
 
 /**
  * Pet10x — the pet dossier.
@@ -245,15 +246,54 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+/*
+ * IT WAS THE SAME DEFECT. The note that stood here said otherwise:
+ *
+ *     "the result is bucketed into 30.44-day months and then floored — a bucket
+ *      wide enough to absorb any zone offset on earth. No offset can move a pet
+ *      between '7 months' and '8 months'."
+ *
+ * The premise is right and the conclusion does not follow. Flooring into months
+ * does not remove the boundary, it spaces the boundaries a month apart, and a
+ * value can sit next to one. `new Date(dob)` on a `date` column is UTC midnight
+ * where local midnight is meant, which is up to 14 hours of error; 14 hours is
+ * 14/730 of a 30.44-day month ≈ 0.019 months; so the floor lands on the wrong
+ * side for any pet whose true age falls within 0.019 months of a multiple of
+ * 30.44 days — roughly 2% of arbitrary dates of birth, not zero. West of
+ * Greenwich the parse reads EARLY, so the error is always in the same direction:
+ * the pet is described as older than it is.
+ *
+ * A wide bucket makes a bad parse rare. It does not make it absorbed, and this
+ * string is written into an LLM prompt as a fact about the animal. `parseDbDate`
+ * reads the calendar day as the calendar day; the month arithmetic below is
+ * unchanged. `lib/data/manager-queues.ts` carried the twin of this and was
+ * migrated in the same sweep.
+ */
 function formatAge(dob: string): string {
-  const birth = new Date(dob)
+  const birth = parseDbDate(dob)
+  if (birth === null) return "unknown"
   const months = Math.max(0, Math.floor((Date.now() - birth.getTime()) / (30.44 * 86_400_000)))
   if (months < 24) return `${months} month${months === 1 ? "" : "s"}`
   return `${Math.floor(months / 12)} years`
 }
 
+/**
+ * "today" / "in 3 days" / "5 days ago" — WRITTEN INTO AN LLM PROMPT AS FACT.
+ *
+ * Its two inputs, `pet_vaccinations.expires_on` and `pet_medications
+ * .next_due_at`, are both `date` columns. This used to be
+ * `Math.round((new Date(isoDate) - Date.now()) / 86_400_000)`, comparing a UTC
+ * midnight against a local instant, so west of Greenwich a vaccination
+ * expiring TODAY became "1 day ago" — and the model then told the owner their
+ * booster had lapsed. `daysUntil` keys both sides to the same local calendar
+ * day, which is the only reading under which "today" can ever be produced.
+ *
+ * Nothing is emitted at all when the date will not parse: an unparseable date
+ * silently became "NaN days ago" in the prompt, which is worse than silence.
+ */
 function relativeDays(isoDate: string): string {
-  const days = Math.round((new Date(isoDate).getTime() - Date.now()) / 86_400_000)
+  const days = daysUntil(isoDate)
+  if (days === null) return "on an unknown date"
   if (days === 0) return "today"
   if (days > 0) return `in ${days} day${days === 1 ? "" : "s"}`
   return `${Math.abs(days)} day${days === -1 ? "" : "s"} ago`

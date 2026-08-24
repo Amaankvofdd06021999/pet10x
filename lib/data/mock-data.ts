@@ -16,20 +16,15 @@
  */
 
 import type {
-  AccommodationRequest,
   AppNotification,
   AppUser,
   Building,
-  CommunityEvent,
-  CommunityPost,
   DocumentReviewItem,
   EmergencyBuildingDirectory,
   HomeAlert,
-  LostFoundItem,
   ManagerActivityEntry,
   Pet,
   Registration,
-  Resident,
   ResolvedViolation,
   ServiceProvider,
   UrgentItem,
@@ -237,55 +232,15 @@ export const HOME_RECENT_ALERTS: HomeAlert[] = [
   },
 ]
 
-/* ================================================================== */
-/* Community: feed, lost & found, events                              */
-/* ================================================================== */
-
-export const COMMUNITY_POSTS: CommunityPost[] = [
-  {
-    id: "1",
-
-    author: "Sarah Chen",
-    avatar: "/avatars/sarah.jpg",
-    unit: "2104",
-    time: "2h ago",
-    category: "General",
-    content:
-      "Max just passed his advanced obedience training! So proud of this good boy. He's been working so hard these past few weeks.",
-    image: "/posts/dog-training.jpg",
-    likes: 24,
-    comments: 8,
-    liked: true,
-  },
-  {
-    id: "2",
-
-    author: "Mike Johnson",
-    avatar: "/avatars/mike.jpg",
-    unit: "1508",
-    time: "5h ago",
-    category: "Recommendation",
-    content:
-      "Can anyone recommend a good mobile groomer that comes to the building? Bella needs a trim before summer.",
-    likes: 7,
-    comments: 12,
-    liked: false,
-  },
-  {
-    id: "3",
-
-    author: "Building Management",
-    avatar: "/avatars/building.jpg",
-    unit: "Office",
-    time: "1d ago",
-    category: "Warning",
-    content:
-      "Reminder: All dogs must be leashed in common areas at all times. We've had recent reports of off-leash dogs in the lobby. Please be respectful of all residents.",
-    likes: 31,
-    comments: 5,
-    liked: false,
-  },
-]
+/* Community: feed, lost & found, events
+ *
+ * COMMUNITY_POSTS was three hard-coded posts with invented authors, avatars
+ * that do not exist in public/, and unit numbers. It had NO CONSUMERS — the
+ * feed has read live since `useCommunityPosts` moved to ./live — and the only
+ * thing it kept alive was `CommunityPost.unit`, a field Phase 8 removed
+ * because publishing every author's address on every post is a disclosure
+ * nobody asked for. Deleted with it. Phase 8 ships the first real posts.
+ */
 
 /* ================================================================== */
 /* Services / providers                                               */

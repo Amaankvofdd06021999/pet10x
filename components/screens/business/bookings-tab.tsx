@@ -190,7 +190,8 @@ function BookingCard({
         <div className="text-right">
           <p className="text-[16px] font-bold text-foreground">{formatPrice(b.amount * 100, b.currency)}</p>
           <p className="text-[11px] text-muted-foreground">
-            −{formatPrice(b.commission * 100, b.currency)} fee
+            −{formatPrice(b.commission * 100, b.currency)}{" "}
+            fee
           </p>
           <p className="text-[12px] font-semibold text-success">{formatPrice(b.net * 100, b.currency)} net</p>
         </div>

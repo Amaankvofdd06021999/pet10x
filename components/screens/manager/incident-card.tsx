@@ -5,6 +5,7 @@ import Image from "next/image"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import {
+  Camera,
   CheckCircle2,
   Clock,
   Gavel,
@@ -20,6 +21,7 @@ import {
   isOpenIncident,
   INCIDENT_TYPE_LABEL,
   INCIDENT_STATUS_LABEL,
+  type IncidentStatus,
   type ManagerIncident,
 } from "@/lib/data/incidents"
 
@@ -42,7 +44,21 @@ export function locationLabel(location: string): string {
 /* Incident triage — the manager's half of the reporting loop.         */
 /* ------------------------------------------------------------------ */
 
-const INCIDENT_STATUS_STYLE: Record<string, string> = {
+/* Keyed on the ENUM, not on `string`.
+ *
+ * As `Record<string, string>` a status added to `incident_status` compiled
+ * silently and rendered with no badge class at all. This is the same shape that
+ * made the manager dashboard label every violation "Investigation" for weeks:
+ * the map went stale, the compiler had nothing to check it against, and the
+ * screen kept rendering.
+ *
+ * `IncidentStatus` is now an alias of `Database["public"]["Enums"]
+ * ["incident_status"]` (`lib/data/incidents.ts:19`), so the chain that makes a
+ * seventh value a compile error here is complete: migration -> regenerate
+ * `database.types.ts` -> this map is missing a key. Until 2026-08-23 it was a
+ * hand-written union with the same six members, and this comment claimed a
+ * guarantee that stopped at the hand. */
+const INCIDENT_STATUS_STYLE: Record<IncidentStatus, string> = {
   submitted: "bg-destructive/10 text-destructive",
   triaged: "bg-primary/10 text-primary",
   investigating: "bg-warning/10 text-warning-strong",
@@ -93,6 +109,42 @@ export function IncidentCard({ incident, onChange }: { incident: ManagerIncident
             )}
           </div>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{incident.description}</p>
+
+          {/* What the reporter photographed. Most reports carry nothing, so this
+              renders only when there is something to show — an empty state here
+              would be noise on the majority of cards. A report that *does* carry
+              photos we couldn't sign says so instead of going quiet, because a
+              silent strip and an empty one would otherwise read the same. */}
+          {incident.evidenceCount > 0 && (
+            <div className="mt-2.5">
+              <p className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                <Camera className="h-3 w-3" />
+                {incident.evidenceUrls.length === 0
+                  ? `${incident.evidenceCount} photo${incident.evidenceCount === 1 ? "" : "s"} attached — couldn't load ${incident.evidenceCount === 1 ? "it" : "them"} just now`
+                  : `${incident.evidenceUrls.length} photo${incident.evidenceUrls.length === 1 ? "" : "s"} from the reporter`}
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {incident.evidenceUrls.map((url, i) => (
+                  <a
+                    key={url}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open full size"
+                    className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-muted"
+                  >
+                    <Image
+                      src={url}
+                      alt={`Evidence photo ${i + 1} of ${incident.evidenceUrls.length}`}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Who was reported.
               The reporter picks the pet from photos and never sees a unit; the

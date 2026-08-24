@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { usePets, useHomeAlerts, useMyBuildingLink, useUnreadNotificationCount } from "@/lib/data"
+import { usePets, useHomeAlerts, useMyBuildingLink, useUnreadNotificationCount, useSelectedPet } from "@/lib/data"
 import { useAiSuggestions } from "@/lib/ai/client"
 import { SuggestionCard } from "@/components/ai/suggestion-card"
 import { TodayCareTiles } from "@/components/screens/home/today-care-tiles"
 import { TodayScheduleStrip } from "@/components/screens/home/today-schedule"
+import { PetChips } from "@/components/screens/home/pet-chips"
 import { MissingInfoCard } from "@/components/screens/home/missing-info-card"
-import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
   Bell,
@@ -39,8 +39,31 @@ const STATUS_CONFIG = {
   vacation: { label: "On Vacation", pill: "bg-primary/10 text-primary" },
 } as const
 
-/** 2×2 grid per the design reference, single row from `md` up. */
-const QUICK_ACTIONS = [
+/**
+ * 2×2 grid per the design reference, single row from `md` up.
+ *
+ * `unbuilt` marks a tile whose destination does not exist yet. It renders
+ * visibly disabled and says so, rather than doing something that looks like
+ * the feature. NO TILE IS CURRENTLY UNBUILT — the flag stays because the next
+ * phase to add a tile ahead of its screen should use it rather than reinvent
+ * it.
+ *
+ * BUILDING RULES USED TO BE THE WORST CONTROL ON THIS SCREEN, and the history
+ * is worth keeping because it is the whole reason Phase 6 exists. It fired a
+ * `toast()` carrying a hardcoded sentence about one dog or one cat and leashes,
+ * presented as though it were the viewer's building's policy. It was a string
+ * literal, identical for all six buildings, and measurably WRONG for the
+ * flagship one: Maple Court Residences' `buildings.pet_rules` records
+ * `max_pets_per_unit: 2` (read live 2026-08-23), so a resident was told their
+ * building allows one pet when its own record allows two. Phase 3 disabled the
+ * tile rather than keep lying.
+ *
+ * PHASE 6 BUILT THE REAL THING. The tile now opens `building-rules`, which
+ * renders that building's actual compliance requirements and the house rules
+ * its manager actually published — or an honest sentence when there are none.
+ * No sentence about any building's pet policy is written anywhere in this file.
+ */
+const QUICK_ACTIONS: { icon: typeof Building2; label: string; color: string; unbuilt?: true }[] = [
   { icon: Building2, label: "Building Rules", color: "bg-info/10 text-info" },
   { icon: AlertTriangle, label: "Report Incident", color: "bg-destructive/10 text-destructive" },
   { icon: Calendar, label: "Pet Events", color: "bg-primary/10 text-primary" },
@@ -54,7 +77,9 @@ const ALERT_DOT = {
 } as const
 
 interface HomeScreenProps {
-  onNavigate?: (screen: string, petId?: string) => void
+  /* Third argument is the pet to open the tracker ON. `id` is already the care
+     kind for `pet-care`, so a schedule row needs its own slot to say "Lola". */
+  onNavigate?: (screen: string, id?: string, petId?: string) => void
 }
 
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
@@ -67,7 +92,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const unreadCount = useUnreadNotificationCount()
   const suggestions = useAiSuggestions()
   const { greeting, icon: GreetingIcon } = getGreeting()
-  const primaryPet = pets[0]
+  /* Which pet the GOALS are about — chosen, remembered, and shared with the
+     Trackers screen. Never just the first pet in the list: that was simply the
+     oldest animal, and in 71% of households it silently spoke for the others. */
+  const { pet: selectedPet, select: selectPet } = useSelectedPet()
   const singlePet = pets.length === 1
 
   // Re-evaluate the rules once the owner's pets are known. The runner is
@@ -98,10 +126,12 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     onNavigate?.(screen, id)
   }
 
+  // Only reached for tiles that are not `unbuilt`; the disabled ones have no
+  // onClick at all. No fallback branch — a label with no destination must not
+  // silently become a claim.
   const handleQuickAction = (label: string) => {
-    if (label.includes("Rules"))
-      toast("Building pet rules", { description: "One dog or one cat · leashed in common areas." })
     // Was a "coming soon" toast while the screen existed above it.
+    if (label.includes("Rules")) onNavigate?.("building-rules")
     else if (label.includes("Report")) onNavigate?.("report")
     else if (label.includes("Shop")) onNavigate?.("shop")
     else if (label.includes("Events")) onNavigate?.("community")
@@ -167,7 +197,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               </span>
             ) : (
               <p className="ml-7 text-[14px] text-muted-foreground">
-                {primaryPet ? `${primaryPet.name} is lucky to have you.` : "Welcome to your pet family."}
+                {selectedPet ? `${selectedPet.name} is lucky to have you.` : "Welcome to your pet family."}
               </p>
             )}
           </div>
@@ -306,32 +336,82 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                     <Utensils className="h-4 w-4 flex-shrink-0 text-primary" />
                   </div>
                   <p className="truncate text-[12px] text-muted-foreground">
-                    Log {primaryPet?.name ? `${primaryPet.name}'s` : "your pet's"} activities &amp; meals
+                    {/* Household-level now, because it sits above a block that
+                        is not about one pet. Built as a single expression and
+                        not as JSX text, because this exact line once read
+                        "Log Mochi'sactivities & meals" on every resident's home
+                        screen — the fifth time in this phase sequence a space
+                        was eaten, and the fifth caught by looking at the page
+                        rather than by any gate.
+
+                        NOT because "SWC trims the whitespace either side of an
+                        expression", which is what this comment used to say and
+                        is false: `Log {name} activities & meals` on one line
+                        keeps its space in every compiler. What ate THIS line
+                        was the `&amp;` in it — SWC drops the leading whitespace
+                        of a JSXText node containing an HTML entity, and tsc
+                        does not, so nothing local could see it. The full rule
+                        and the bisection are in `today-schedule.tsx:34` and
+                        `scripts/jsx-space-drift.mjs`. A template literal has no
+                        JSXText node, so it is immune either way. */}
+                    {singlePet && selectedPet
+                      ? `Log ${selectedPet.name}'s activities & meals`
+                      : pets.length > 1
+                        ? // Short enough to survive `truncate` at 390px, which
+                          // "Everyone's schedule, and one pet's goals" was not
+                          // — it rendered as "…and one pet's g…".
+                          "Everyone's day, one pet's goals"
+                        : "Log your pet's activities & meals"}
                   </p>
                 </div>
               </div>
               <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground/50" />
             </button>
 
+            {/* Schedule first, then a rule, then goals.
+                Two things live in this card and they aggregate differently. A
+                SCHEDULE aggregates: running a morning means doing everything
+                due at 07:30 for everyone, and that one time-ordered list is
+                where a missed dose hides. A GOAL does not: "2 / 4 cans" across
+                two cats is true when one ate everything and the other ate
+                nothing. The tiles used to sit on top, which left the reader to
+                infer that split; showing it puts the risk first. */}
+            <TodayScheduleStrip
+              pets={pets}
+              onOpenPet={(petId) => onNavigate?.("pet-care", undefined, petId)}
+            />
+
+            {/* Goals belong to a pet you chose. With one pet the heading says
+                whose and there are no chips — a picker with one option is
+                noise, and 8 of 28 households have exactly one pet. */}
+            <div className="mb-3 mt-4 flex items-center justify-between gap-3">
+              <h4 className="flex-shrink-0 text-[13px] font-semibold text-foreground">
+                {singlePet && selectedPet ? `${selectedPet.name}'s goals` : "Goals"}
+              </h4>
+              <PetChips
+                className="min-w-0"
+                pets={pets}
+                selectedId={selectedPet?.id}
+                onSelect={selectPet}
+              />
+            </div>
+
             <TodayCareTiles
-              petId={primaryPet?.id}
-              species={primaryPet?.species}
+              petId={selectedPet?.id}
+              species={selectedPet?.species}
               onOpen={(kind) => onNavigate?.("pet-care", kind)}
             />
-            <TodayScheduleStrip petId={primaryPet?.id} />
           </div>
         </section>
 
         {/* Quick Actions — 2×2 on compact, 4-up from md */}
         <section className="mb-6">
-          <div className="mb-3 flex items-center justify-between">
+          {/* No "Customize". It toasted "Coming soon." and there is no
+              preference store anywhere in the app to hold a customised set —
+              not a table, not a column on `profiles`, not localStorage. The
+              four actions below are a constant in this file. */}
+          <div className="mb-3">
             <h3 className="text-[17px] font-semibold text-foreground">Quick Actions</h3>
-            <button
-              onClick={() => toast("Customise quick actions", { description: "Coming soon." })}
-              className="text-[14px] font-medium text-primary"
-            >
-              Customize
-            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -340,13 +420,21 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               return (
                 <button
                   key={action.label}
-                  onClick={() => handleQuickAction(action.label)}
-                  className="flex flex-col items-center gap-2 rounded-2xl card-interactive p-4 transition-transform active:scale-[0.97]"
+                  onClick={action.unbuilt ? undefined : () => handleQuickAction(action.label)}
+                  disabled={action.unbuilt}
+                  className={`flex flex-col items-center gap-2 rounded-2xl p-4 ${
+                    action.unbuilt
+                      ? "card-raised opacity-50"
+                      : "card-interactive transition-transform active:scale-[0.97]"
+                  }`}
                 >
                   <span className={`flex h-10 w-10 items-center justify-center rounded-full ${action.color}`}>
                     <Icon className="h-5 w-5" />
                   </span>
                   <span className="text-center text-[12px] font-semibold leading-tight text-foreground">{action.label}</span>
+                  {action.unbuilt && (
+                    <span className="text-center text-[10px] leading-tight text-muted-foreground">Not available yet</span>
+                  )}
                 </button>
               )
             })}
@@ -381,7 +469,8 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               <div className="min-w-0">
                 <h4 className="truncate text-[15px] font-semibold text-foreground">Membership pending</h4>
                 <p className="truncate text-[12px] text-muted-foreground">
-                  {buildingLink.buildingName} will review your request
+                  {buildingLink.buildingName}{" "}
+                  will review your request
                 </p>
               </div>
             </div>

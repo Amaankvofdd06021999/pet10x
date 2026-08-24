@@ -13,16 +13,23 @@
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { petFileSignedUrls, isStoragePath } from "@/lib/supabase/storage"
+import type { Database } from "@/lib/supabase/database.types"
 
-export type IncidentType = "noise" | "aggressive" | "off_leash" | "waste" | "damage" | "unregistered" | "other"
+/* DERIVED from the generated enums, not retyped from them.
+ *
+ * Both of these were hand-written unions that happened to match
+ * `incident_type` and `incident_status`. Every `Record<IncidentStatus, …>` in
+ * the app is described as exhaustive over the database enum and gets its
+ * compile error from that — but a hand-written union only proves the map
+ * matches the HAND, so a seventh SQL value would have compiled silently until
+ * someone remembered to edit this file too. That is the same drift the maps
+ * exist to prevent, moved one file upstream.
+ *
+ * Derived, regenerating `database.types.ts` after a migration is what breaks
+ * the build, which is the only moment anyone is looking. */
+export type IncidentType = Database["public"]["Enums"]["incident_type"]
 
-export type IncidentStatus =
-  | "submitted"
-  | "triaged"
-  | "investigating"
-  | "linked_to_violation"
-  | "dismissed"
-  | "resolved"
+export type IncidentStatus = Database["public"]["Enums"]["incident_status"]
 
 export const INCIDENT_TYPE_LABEL: Record<IncidentType, string> = {
   noise: "Noise / barking",
@@ -100,6 +107,12 @@ export async function submitIncident(input: {
   unit?: string
   /** The pet the reporter picked from photos. */
   petId?: string
+  /**
+   * Storage paths of evidence already uploaded under this report's draft id.
+   * The RPC validates each one against `{buildingId}/{draftUuid}/{name}` and
+   * refuses the report if any path was not ours to attach.
+   */
+  evidencePaths?: string[]
   anonymous?: boolean
 }): Promise<{ ok: boolean; reference?: string; error?: string }> {
   const supabase = getSupabaseBrowserClient()
@@ -113,6 +126,7 @@ export async function submitIncident(input: {
     p_unit: input.unit ?? undefined,
     p_anonymous: input.anonymous ?? true,
     p_pet_id: input.petId ?? undefined,
+    p_evidence_paths: input.evidencePaths ?? undefined,
   })
 
   if (error) return { ok: false, error: error.message }
@@ -126,7 +140,11 @@ export async function submitIncident(input: {
           ? "That building code isn't recognised."
           : r.error === "description_required"
             ? "Please describe what happened."
-            : "Couldn't file the report.",
+            : r.error === "too_many_files"
+              ? "Up to 5 photos per report."
+              : r.error === "bad_evidence_path"
+                ? "Those photos couldn't be attached — try sending without them."
+                : "Couldn't file the report.",
     }
   }
   return { ok: true, reference: r.reference }
@@ -197,6 +215,14 @@ export interface ManagerIncident {
   /** The unit the identified pet lives in — the manager may see this; the reporter may not. */
   petUnit: string | null
   petOwnerName: string | null
+  /** Photos the reporter attached, signed for an hour. Empty for most reports. */
+  evidenceUrls: string[]
+  /**
+   * How many photos the report actually carries. Kept alongside the signed
+   * URLs so the card can tell "the reporter sent none" (say nothing) apart
+   * from "signing failed" (say so) — those must not look the same.
+   */
+  evidenceCount: number
 }
 
 /**
@@ -245,7 +271,7 @@ export function useIncidents() {
       .from("incident_reports")
       .select(
         `id, building_id, type, status, description, location_text, unit_involved, is_anonymous,
-         reference_code, created_at, pet_id,
+         reference_code, created_at, pet_id, evidence_paths,
          building:buildings!incident_reports_building_id_fkey ( name ),
          pet:pets!incident_reports_pet_id_fkey (
            id, name, breed, species, image_url,
@@ -280,6 +306,7 @@ export function useIncidents() {
           owner: { full_name: string | null } | { full_name: string | null }[] | null
         } | null,
       )
+      const evidencePaths = ((r.evidence_paths as string[] | null) ?? []).filter(Boolean)
       return {
         id: r.id as string,
         buildingId: (r.building_id as string) ?? null,
@@ -299,6 +326,9 @@ export function useIncidents() {
         petPhotoUrl: pet?.image_url ?? null,
         petUnit: first(pet?.unit ?? null)?.unit_number ?? null,
         petOwnerName: first(pet?.owner ?? null)?.full_name ?? null,
+        evidencePaths,
+        evidenceUrls: [] as string[],
+        evidenceCount: evidencePaths.length,
       }
     })
 
@@ -309,6 +339,17 @@ export function useIncidents() {
       for (const m of mapped) {
         if (m.petPhotoUrl && signed[m.petPhotoUrl]) m.petPhotoUrl = signed[m.petPhotoUrl]
       }
+    }
+
+    // The reporter's photos live in a different bucket from the pet photos above:
+    // `guest-evidence`, foldered by building, readable only by that building's
+    // manager. One batch for the whole queue.
+    const evidencePaths = mapped.flatMap((m) => m.evidencePaths)
+    if (evidencePaths.length > 0) {
+      const { data: urls } = await supabase.storage.from("guest-evidence").createSignedUrls(evidencePaths, 3600)
+      const signed: Record<string, string> = {}
+      for (const u of urls ?? []) if (u.signedUrl && u.path) signed[u.path] = u.signedUrl
+      for (const m of mapped) m.evidenceUrls = m.evidencePaths.map((p) => signed[p]).filter(Boolean)
     }
 
     setData(mapped)
@@ -353,6 +394,15 @@ export async function escalateIncident(id: string): Promise<{ error: string | nu
 
 /* ------------------------- pets, for identification ------------------------ */
 
+/**
+ * A pet a reporter can point at: name, species, breed and a photo, nothing else.
+ *
+ * The shape only — fetching it lives in `reportablePetsSigned`
+ * (`lib/data/evidence.ts`), which goes through `/api/report/pets` so the photo
+ * URLs are signed on the server. Do not add a browser-side fetcher back here:
+ * a guest holds no session, so signing from the browser returns null for every
+ * photo and the pet picker renders blank — the bug that route exists to fix.
+ */
 export interface ReportablePet {
   id: string
   name: string
@@ -360,34 +410,4 @@ export interface ReportablePet {
   breed: string | null
   /** Signed URL, or null when the pet has no photo. */
   photoUrl: string | null
-}
-
-/**
- * Pets a reporter can pick from, given a building code.
- *
- * Name, species, breed and a photo — nothing else. The server function is the
- * guarantee here, not this wrapper: it never returns a unit, an owner or any
- * contact detail, and anon cannot read the pets table directly.
- */
-export async function reportablePets(code: string): Promise<ReportablePet[]> {
-  const supabase = getSupabaseBrowserClient()
-  if (!supabase) return []
-
-  const { data, error } = await supabase.rpc("building_pets_for_report", { p_code: code })
-  if (error || !data) return []
-
-  const r = data as unknown as { valid: boolean; pets?: { id: string; name: string; species: string; breed: string | null; photo: string | null }[] }
-  if (!r.valid || !r.pets) return []
-
-  // Storage paths are private; sign them in one batch.
-  const paths = r.pets.map((p) => p.photo).filter((p): p is string => !!p && isStoragePath(p))
-  const urls = paths.length > 0 ? await petFileSignedUrls(paths) : {}
-
-  return r.pets.map((p) => ({
-    id: p.id,
-    name: p.name,
-    species: p.species,
-    breed: p.breed,
-    photoUrl: p.photo ? (urls[p.photo] ?? (isStoragePath(p.photo) ? null : p.photo)) : null,
-  }))
 }

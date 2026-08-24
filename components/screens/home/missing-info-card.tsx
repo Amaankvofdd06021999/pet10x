@@ -119,7 +119,12 @@ export function MissingInfoCard({ onNavigate }: { onNavigate?: (screen: string, 
                 {building.length} building requirement{building.length === 1 ? "" : "s"}
               </span>
               <span className="block truncate text-[11.5px] text-muted-foreground">
-                {building.map((g) => g.label).join(" · ")}
+                {/* Was the bare label, so a two-pet household missing rabies
+                    on both read "Rabies vaccination · Rabies vaccination".
+                    Gap already carries petName for every per-pet requirement,
+                    and summariseGaps already renders it — this card was the
+                    one place that dropped it. */}
+                {building.map((g) => (g.petName ? `${g.label} (${g.petName})` : g.label)).join(" · ")}
               </span>
             </span>
             <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />

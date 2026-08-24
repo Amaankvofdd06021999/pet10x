@@ -10,16 +10,12 @@
  */
 
 import type {
-  AccommodationRequest,
   Building,
-  CommunityEvent,
   DocumentReviewItem,
   EmergencyBuildingDirectory,
   HomeAlert,
-  LostFoundItem,
   ManagerActivityEntry,
   Registration,
-  Resident,
   ResolvedViolation,
   ServiceProvider,
   UrgentItem,
@@ -73,15 +69,12 @@ const EMPTY_DIRECTORY: EmergencyBuildingDirectory = {
 /* Pets + care live in ./live · businesses in ./business · admin in ./admin. */
 
 /* ----------------------------- Community -------------------------- */
-/* useCommunityPosts is now LIVE — see ./live. */
-
-export function useLostFound(): QueryResult<LostFoundItem[]> {
-  return resolved([])
-}
-
-export function useEvents(): QueryResult<CommunityEvent[]> {
-  return resolved([])
-}
+/* ALL THREE are now LIVE — see ./live. `useLostFound` and `useEvents` were
+ * `resolved([])` stubs here: the screen rendered an honest empty state, and the
+ * Events tab's RSVP button and the Lost & Found cards had therefore never been
+ * seen by anybody. Phase 8 gave the three tables an authorisation grammar, a
+ * countable RSVP and a report RPC, at which point the stubs became the only
+ * thing keeping the data off the screen. */
 
 /* ----------------------------- Services --------------------------- */
 /* The real services directory lives in ./business (useNearbyBusinesses). */
@@ -98,18 +91,16 @@ export function useHomeAlerts(): QueryResult<HomeAlert[]> {
 }
 
 /* ------------------------- Manager: residents --------------------- */
-/* The real resident queue lives in ./live (useBuildingResidents). */
-
-export function useResidents(): QueryResult<Resident[]> {
-  return resolved([])
-}
+/* The real resident queue is `live.ts:useBuildingResidents()`. `useResidents`
+ * lived here as a stub returning [] and had NO CALLERS; it was the only thing
+ * keeping the `Resident` mock type alive, and both went in Phase 5. */
 
 /* ------------------------- Manager: approvals --------------------- */
 
 /* These are now backed by real rows — see `./manager-queues`. They were stubs
  * returning [] while the screens displayed invented counts. */
 export { useRegistrationsLive as useRegistrations } from "./manager-queues"
-export { useAccommodationsLive as useAccommodations } from "./manager-queues"
+export { useAccommodationsLive as useAccommodations } from "./accommodations-live"
 export { useDocumentsReviewLive as useDocumentsReview } from "./manager-queues"
 
 /* ------------------------- Manager: violations -------------------- */

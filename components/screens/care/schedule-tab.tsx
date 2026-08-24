@@ -20,6 +20,12 @@ import {
   useCareTargets,
   type ScheduledCareTask,
 } from "@/lib/data"
+/* Calendar arithmetic — a date in, a date out, never displayed as an instant.
+ * These two were already right (UTC-keyed on both sides is the correct idiom
+ * for it); what they were not was SHARED, so the rule now comes from the one
+ * module that states it. `addCalendarDays` is UTC-keyed internally for the same
+ * reason these were. */
+import { addCalendarDays, calendarDaysBetween } from "@/lib/dates"
 
 const KINDS: { value: CareTaskKind; label: string }[] = [
   { value: "meal", label: "Meal" },
@@ -126,13 +132,7 @@ export function ScheduleTab({
     // ends_on is derived from the duration the owner picked, because "six
     // months" is what they say and a date arithmetic is what the sweep needs.
     const ends =
-      interval && draft.durationDays != null
-        ? (() => {
-            const d = new Date(`${start}T00:00:00Z`)
-            d.setUTCDate(d.getUTCDate() + draft.durationDays!)
-            return d.toISOString().slice(0, 10)
-          })()
-        : null
+      interval && draft.durationDays != null ? addCalendarDays(start, draft.durationDays) : null
 
     const payload = {
       label: draft.label.trim(),
@@ -156,7 +156,12 @@ export function ScheduleTab({
       : await addCareTask({ petId, ...payload })
     setSaving(false)
     if (error) return toast.error("Couldn't save", { description: error })
-    toast.success(draft.id ? "Task updated" : "Added to the schedule")
+    // petName is already a prop of this component; it was simply not used.
+    toast.success(
+      draft.id
+        ? `${petName ? `${petName}'s task updated` : "Task updated"}`
+        : `${petName ? `Added to ${petName}'s schedule` : "Added to the schedule"}`,
+    )
     setDraft(null)
     refetch()
   }
@@ -172,7 +177,7 @@ export function ScheduleTab({
   async function remove(t: ScheduledCareTask) {
     const { error } = await deleteCareTask(t.id)
     if (error) return toast.error("Couldn't remove", { description: error })
-    toast("Task removed")
+    toast(petName ? `Removed from ${petName}` : "Task removed")
     refetch()
   }
 
@@ -190,7 +195,8 @@ export function ScheduleTab({
             <span className="text-[14px] font-semibold text-foreground">Today&apos;s plan</span>
           </div>
           <span className="text-[13px] font-semibold text-muted-foreground">
-            {doneCount}/{todays.length} done
+            {doneCount}/{todays.length}{" "}
+            done
           </span>
         </div>
         {todays.length > 0 && (
@@ -277,11 +283,7 @@ export function ScheduleTab({
                       // separately, so editing shows the course as saved.
                       durationDays:
                         t.startsOn && t.endsOn
-                          ? Math.round(
-                              (new Date(`${t.endsOn}T00:00:00Z`).getTime() -
-                                new Date(`${t.startsOn}T00:00:00Z`).getTime()) /
-                                86_400_000,
-                            )
+                          ? calendarDaysBetween(t.startsOn, t.endsOn)
                           : null,
                       dose: t.dose ?? "",
                       targetId: t.targetId ?? "",

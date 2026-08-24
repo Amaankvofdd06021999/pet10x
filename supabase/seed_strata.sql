@@ -6,7 +6,7 @@
 -- Idempotent: safe to re-run. Applied to the live project via the Supabase MCP.
 
 -- ===========================================================================
--- 1. Demo auth users (manager + co-manager + 15 residents). The
+-- 1. Demo auth users (manager + co-manager + 16 residents). The
 --    handle_new_user trigger creates their public.profiles automatically.
 -- ===========================================================================
 do $$
@@ -29,7 +29,8 @@ declare
     {"id":"a5000000-0000-4000-8000-000000000022","email":"benjamin.cole@pet10x.com","name":"Benjamin Cole"},
     {"id":"a5000000-0000-4000-8000-000000000023","email":"charlotte.diaz@pet10x.com","name":"Charlotte Diaz"},
     {"id":"a5000000-0000-4000-8000-000000000024","email":"henry.ito@pet10x.com","name":"Henry Ito"},
-    {"id":"a5000000-0000-4000-8000-000000000025","email":"amelia.novak@pet10x.com","name":"Amelia Novak"}
+    {"id":"a5000000-0000-4000-8000-000000000025","email":"amelia.novak@pet10x.com","name":"Amelia Novak"},
+    {"id":"a5000000-0000-4000-8000-000000000026","email":"priya.raman@pet10x.com","name":"Priya Raman"}
   ]'::jsonb;
 begin
   for u in select * from jsonb_array_elements(demo_users)
@@ -56,6 +57,23 @@ end $$;
 
 update public.profiles set role='building_manager'
   where id in ('a5000000-0000-4000-8000-000000000001','a5000000-0000-4000-8000-000000000002');
+
+-- Residents arrive already onboarded, because the seed gives them the answers.
+--
+-- handle_new_user writes `onboarded = false`, and app/app/page.tsx sends any
+-- pet-owner with that flag to the onboarding wizard BEFORE the shell renders.
+-- So every seeded resident — each of whom already has an approved building
+-- link, a unit and registered pets — was landing on "Welcome, Isabella 👋 …
+-- enter your building code" and could not reach Home, Trackers or Today's Care
+-- at all. The demo data existed and nothing in the demo could be looked at.
+--
+-- Managers are deliberately left alone: the resident gate is keyed on the
+-- persona being worn, so a manager who switches to the resident view is a
+-- resident who genuinely has answered nothing, and that wizard is the point.
+update public.profiles set onboarded = true
+  where id::text like 'a5000000-0000-4000-8000-0000000000%'
+    and id not in ('a5000000-0000-4000-8000-000000000001','a5000000-0000-4000-8000-000000000002')
+    and onboarded is distinct from true;
 
 -- The demo strata login uses a simpler password than the other seeded accounts.
 update auth.users set encrypted_password = crypt('12345678', gen_salt('bf'))
@@ -231,26 +249,259 @@ insert into public.accommodation_requests (id, building_id, resident_id, unit_id
     (select unit_id from pets where id='c5000000-0000-4000-8000-000000000010'),'c5000000-0000-4000-8000-000000000010','service_animal','info_requested','Labrador — mobility service animal','Awaiting provider license copy from resident.', now()-interval '4 days')
 on conflict (id) do nothing;
 
-insert into public.violations (id, building_id, unit_id, resident_id, pet_id, type, stage, opened_by, resolved_at, resolution_outcome, created_at) values
-  ('35000000-0000-4000-8000-000000000001','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000003'),'a5000000-0000-4000-8000-000000000012','c5000000-0000-4000-8000-000000000003','aggressive_behavior','investigation','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '3 days'),
-  ('35000000-0000-4000-8000-000000000002','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000006'),'a5000000-0000-4000-8000-000000000013','c5000000-0000-4000-8000-000000000006','unregistered_pet','written_warning','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '20 days'),
-  ('35000000-0000-4000-8000-000000000003','b5000000-0000-4000-8000-000000000002',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000010'),'a5000000-0000-4000-8000-000000000015','c5000000-0000-4000-8000-000000000010','off_leash','verbal_warning','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '10 days'),
-  ('35000000-0000-4000-8000-000000000004','b5000000-0000-4000-8000-000000000002',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000011'),'a5000000-0000-4000-8000-000000000015','c5000000-0000-4000-8000-000000000011','noise','fine_issued','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '32 days'),
-  ('35000000-0000-4000-8000-000000000005','b5000000-0000-4000-8000-000000000003',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000017'),'a5000000-0000-4000-8000-000000000018','c5000000-0000-4000-8000-000000000017','waste','investigation','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '2 days'),
-  ('35000000-0000-4000-8000-000000000006','b5000000-0000-4000-8000-000000000003',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000018'),'a5000000-0000-4000-8000-000000000019','c5000000-0000-4000-8000-000000000018','excess_pets','resolved','a5000000-0000-4000-8000-000000000001', now()-interval '5 days','Remedied — resident rehomed second pet', now()-interval '18 days'),
-  ('35000000-0000-4000-8000-000000000007','b5000000-0000-4000-8000-000000000004',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000021'),'a5000000-0000-4000-8000-000000000020','c5000000-0000-4000-8000-000000000021','noise','pending_review','a5000000-0000-4000-8000-000000000001',null,null, now()-interval '4 days'),
-  ('35000000-0000-4000-8000-000000000008','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000004'),'a5000000-0000-4000-8000-000000000012','c5000000-0000-4000-8000-000000000004','leash_bylaw','resolved','a5000000-0000-4000-8000-000000000001', now()-interval '2 days','Warning issued, resident complied', now()-interval '12 days')
+-- EVERY CASE IS OPENED AT `open`, AND THE ONES THAT HAVE MOVED ARE MOVED BELOW.
+--
+-- This block used to seed each case directly at its final stage. On the live
+-- database that was invisible, because these rows already existed and their
+-- ledger came from `20260823000000`'s backfill. On a FRESH database it produced
+-- a fixture the running system could not produce, in two separate ways:
+--
+--   1. `trg_violations_opening_event` is AFTER INSERT with no WHEN clause, so it
+--      wrote a `(null -> stage)` row for every case — and `to_stage` is
+--      `NEW.stage`. A case seeded at `warning` therefore got an opening row
+--      saying it STARTED at warning. Case …0002 then also got the explicit
+--      `open -> warning` row below, and the ledger read "opened at warning, then
+--      moved from open to warning". Case …0004 read the same way at `fine_1`.
+--      That also broke the invariant `RBAC_CAPABILITIES.md` rule 2 states — the
+--      number of `violation_events` rows for a case equals 1 + the number of
+--      rungs it has moved — which held on production and did not hold after a
+--      reset.
+--
+--   2. Nothing in the product can open a case anywhere but `open`.
+--      `escalate_incident_to_violation` hardcodes `'open'`, and the manager
+--      composer's INSERT policy is `manages_building(building_id) and
+--      stage = 'open'`, so the database REFUSES a client insert at any other
+--      stage. "Opened at warning" is not a shortcut, it is a state no manager
+--      could ever create.
+--
+-- So the ladder does the work. Each case is inserted at `open`, the trigger
+-- writes it a truthful `(null -> open)` opening row, and the walk below climbs
+-- the rungs the case's own recorded facts require it to have climbed — minting
+-- `pet10x.stage_change` per rung exactly as `manager_advance_violation` does,
+-- because `trg_violations_stage_guard` refuses a bare UPDATE of `stage`.
+--
+-- `resolved_at` and `resolution_outcome` move with the rung that sets them, for
+-- the same reason: the RPC writes them in the same statement as the stage.
+insert into public.violations (id, building_id, unit_id, resident_id, pet_id, type, stage, opened_by, created_at) values
+  ('35000000-0000-4000-8000-000000000001','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000003'),'a5000000-0000-4000-8000-000000000012','c5000000-0000-4000-8000-000000000003','aggressive_behavior','open','a5000000-0000-4000-8000-000000000001', now()-interval '3 days'),
+  ('35000000-0000-4000-8000-000000000002','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000006'),'a5000000-0000-4000-8000-000000000013','c5000000-0000-4000-8000-000000000006','unregistered_pet','open','a5000000-0000-4000-8000-000000000001', now()-interval '20 days'),
+  ('35000000-0000-4000-8000-000000000003','b5000000-0000-4000-8000-000000000002',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000010'),'a5000000-0000-4000-8000-000000000015','c5000000-0000-4000-8000-000000000010','off_leash','open','a5000000-0000-4000-8000-000000000001', now()-interval '10 days'),
+  ('35000000-0000-4000-8000-000000000004','b5000000-0000-4000-8000-000000000002',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000011'),'a5000000-0000-4000-8000-000000000015','c5000000-0000-4000-8000-000000000011','noise','open','a5000000-0000-4000-8000-000000000001', now()-interval '32 days'),
+  ('35000000-0000-4000-8000-000000000005','b5000000-0000-4000-8000-000000000003',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000017'),'a5000000-0000-4000-8000-000000000018','c5000000-0000-4000-8000-000000000017','waste','open','a5000000-0000-4000-8000-000000000001', now()-interval '2 days'),
+  ('35000000-0000-4000-8000-000000000006','b5000000-0000-4000-8000-000000000003',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000018'),'a5000000-0000-4000-8000-000000000019','c5000000-0000-4000-8000-000000000018','excess_pets','open','a5000000-0000-4000-8000-000000000001', now()-interval '18 days'),
+  ('35000000-0000-4000-8000-000000000007','b5000000-0000-4000-8000-000000000004',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000021'),'a5000000-0000-4000-8000-000000000020','c5000000-0000-4000-8000-000000000021','noise','open','a5000000-0000-4000-8000-000000000001', now()-interval '4 days'),
+  ('35000000-0000-4000-8000-000000000008','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000004'),'a5000000-0000-4000-8000-000000000012','c5000000-0000-4000-8000-000000000004','leash_bylaw','open','a5000000-0000-4000-8000-000000000001', now()-interval '12 days')
 on conflict (id) do nothing;
 
-insert into public.violation_events (violation_id, from_stage, to_stage, note, actor_id, occurred_on) values
-  ('35000000-0000-4000-8000-000000000002','investigation','verbal_warning','Verbal warning issued at door.','a5000000-0000-4000-8000-000000000001',(now()-interval '18 days')::date),
-  ('35000000-0000-4000-8000-000000000002','verbal_warning','written_warning','No remedy; escalated to written warning.','a5000000-0000-4000-8000-000000000001',(now()-interval '12 days')::date),
-  ('35000000-0000-4000-8000-000000000004','written_warning','fine_issued','Continued breach; fine issued.','a5000000-0000-4000-8000-000000000001',(now()-interval '30 days')::date)
-on conflict do nothing;
+-- The ladder walk. Every row it writes is a transition
+-- `manager_advance_violation` would accept, in the order it would accept them:
+-- open -> warning -> fine_1 -> fine_2, with resolved/dismissed reachable from
+-- any rung.
+--
+-- WHICH RUNGS, AND WHY EACH ONE. No case is given a rung its own seeded facts do
+-- not already require:
+--
+--   …0002 warning       — the ledger row this file has always carried.
+--   …0003 warning       — its seeded stage; the ladder has one way to reach it.
+--   …0004 fine_1        — its seeded stage; `warning` is the only rung between
+--                         `open` and `fine_1`, and fine …0001 is issued against
+--                         it, which is the rung a fine comes from.
+--   …0006 resolved      — fine …0004 is `paid` against this case, so it passed
+--                         through fine_1 before it was closed.
+--   …0008 resolved      — its own resolution reads "Warning issued, resident
+--                         complied", which names the rung.
+--
+-- The notes on the rungs this walk ADDS state the rung and nothing else
+-- ("Warning issued."). The three notes that carry actual content — …0002's,
+-- …0004's fine note, and the two resolutions — are this file's own words,
+-- unchanged. A demo seed may lay out a case's shape; it must not invent the
+-- evidence a manager would have written.
+--
+-- Case …0002 used to carry TWO events, verbal_warning -> written_warning being
+-- the second. The ladder has one warning degree, so that pair collapses to a
+-- single open -> warning step and the two notes are merged. (The live database
+-- still holds the collapsed row as a warning -> warning self-transition — that
+-- is migrated history, deliberately preserved by 20260823000000, and is not
+-- something a new database should start life with.)
+--
+-- KNOWN AND DELIBERATELY NOT PAPERED OVER: two of the four fines below are
+-- issued against cases standing BELOW the rung that issues a fine. Fine …0002 is
+-- against case …0002 (`warning`) and fine …0003 against case …0007 (`open`);
+-- `manager_advance_violation` issues a fine only on a move to fine_1 or fine_2,
+-- so neither pairing is one the running system could produce. That is why case
+-- …0006, which is `resolved` and carries a PAID fine, is routed through fine_1
+-- here — a closed case has no current stage to contradict, so its history can be
+-- made to match its money.
+--
+-- The open two are left alone because both fixes are product decisions, not
+-- corrections: moving …0002 and …0007 up the ladder changes the stage
+-- distribution the portfolio's compliance ranking (Cedar Grove 60 · Maple Court
+-- 79 · Harbour View 86 · The Wellington 94 · Riverside Lofts 100) is engineered
+-- around, and deleting the fines takes the dispute fixture below with one of
+-- them. Recorded here so the next reader does not mistake it for an oversight.
+--
+-- IDEMPOTENT BY CONSTRUCTION, and this is what replaces the `on conflict do
+-- nothing` that used to close the ledger insert. That clause named no conflict
+-- target, `violation_events` carries only its primary key on a generated id, and
+-- no unique constraint can ever be violated — so a second run appended two more
+-- ledger rows and the file's "safe to re-run" header was false for this block
+-- alone. A rung is climbed only when the case is standing exactly where the rung
+-- starts, which is the same test the RPC makes. On a database that has already
+-- been seeded every case is past every rung, every step is skipped, and nothing
+-- is written.
+do $ladder$
+declare
+  s record;
+begin
+  for s in
+    select * from (values
+      (1, '35000000-0000-4000-8000-000000000002'::uuid, 'open'::public.violation_stage_v2,    'warning'::public.violation_stage_v2, 'Warning issued at door; no remedy since.', 18, false),
+      (2, '35000000-0000-4000-8000-000000000003'::uuid, 'open'::public.violation_stage_v2,    'warning'::public.violation_stage_v2, 'Warning issued.',                          9, false),
+      (3, '35000000-0000-4000-8000-000000000004'::uuid, 'open'::public.violation_stage_v2,    'warning'::public.violation_stage_v2, 'Warning issued.',                         31, false),
+      (4, '35000000-0000-4000-8000-000000000004'::uuid, 'warning'::public.violation_stage_v2, 'fine_1'::public.violation_stage_v2,  'Continued breach; first fine issued.',    30, false),
+      (5, '35000000-0000-4000-8000-000000000006'::uuid, 'open'::public.violation_stage_v2,    'warning'::public.violation_stage_v2, 'Warning issued.',                         16, false),
+      (6, '35000000-0000-4000-8000-000000000006'::uuid, 'warning'::public.violation_stage_v2, 'fine_1'::public.violation_stage_v2,  'First fine issued.',                      14, false),
+      (7, '35000000-0000-4000-8000-000000000006'::uuid, 'fine_1'::public.violation_stage_v2,  'resolved'::public.violation_stage_v2,'Remedied — resident rehomed second pet',   5, true),
+      (8, '35000000-0000-4000-8000-000000000008'::uuid, 'open'::public.violation_stage_v2,    'warning'::public.violation_stage_v2, 'Warning issued.',                         10, false),
+      (9, '35000000-0000-4000-8000-000000000008'::uuid, 'warning'::public.violation_stage_v2, 'resolved'::public.violation_stage_v2,'Warning issued, resident complied',        2, true)
+    ) t(step, vid, from_stage, to_stage, note, days_ago, closes)
+    order by step
+  loop
+    -- The rung is climbed only from its own starting stage. Re-running finds
+    -- every case already past it and writes nothing.
+    perform 1 from public.violations v where v.id = s.vid and v.stage = s.from_stage;
+    if not found then continue; end if;
+
+    -- `trg_violations_stage_guard` refuses a bare UPDATE of `stage` and SPENDS
+    -- the token on its way through. Minted immediately before the UPDATE and
+    -- cleared immediately after, unconditionally: a minter closes its own
+    -- window whether or not a trigger chose to collect (20260825000004).
+    perform set_config('pet10x.stage_change', 'ok', true);
+    update public.violations
+       set stage              = s.to_stage,
+           resolved_at        = case when s.closes then now() - (s.days_ago || ' days')::interval else resolved_at end,
+           resolution_outcome = case when s.closes then s.note else resolution_outcome end
+     where id = s.vid;
+    perform set_config('pet10x.stage_change', '', true);
+
+    insert into public.violation_events (violation_id, from_stage, to_stage, note, actor_id, occurred_on)
+    values (s.vid, s.from_stage, s.to_stage, s.note,
+            'a5000000-0000-4000-8000-000000000001',
+            (now() - (s.days_ago || ' days')::interval)::date);
+  end loop;
+end
+$ladder$;
 
 insert into public.fines (id, violation_id, building_id, unit_id, resident_id, amount_cents, currency, status, issued_by, due_on, created_at) values
   ('45000000-0000-4000-8000-000000000001','35000000-0000-4000-8000-000000000004','b5000000-0000-4000-8000-000000000002',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000011'),'a5000000-0000-4000-8000-000000000015',25000,'cad','issued','a5000000-0000-4000-8000-000000000001',(now()-interval '2 days')::date, now()-interval '30 days'),
   ('45000000-0000-4000-8000-000000000002','35000000-0000-4000-8000-000000000002','b5000000-0000-4000-8000-000000000001',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000006'),'a5000000-0000-4000-8000-000000000013',15000,'cad','issued','a5000000-0000-4000-8000-000000000001',(now()+interval '10 days')::date, now()-interval '8 days'),
   ('45000000-0000-4000-8000-000000000003','35000000-0000-4000-8000-000000000007','b5000000-0000-4000-8000-000000000004',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000021'),'a5000000-0000-4000-8000-000000000020',20000,'cad','disputed','a5000000-0000-4000-8000-000000000001',(now()+interval '5 days')::date, now()-interval '6 days'),
   ('45000000-0000-4000-8000-000000000004','35000000-0000-4000-8000-000000000006','b5000000-0000-4000-8000-000000000003',(select unit_id from pets where id='c5000000-0000-4000-8000-000000000018'),'a5000000-0000-4000-8000-000000000019',10000,'cad','paid','a5000000-0000-4000-8000-000000000001',(now()-interval '20 days')::date, now()-interval '40 days')
+on conflict (id) do nothing;
+
+-- The dispute behind fine …0003.
+--
+-- `fines.status = 'disputed'` above is a CONSEQUENCE of an appeal, never the
+-- appeal itself — Phase 5 retired the derivation that read it as one, because
+-- a dispute against a WARNING has no fine row to carry a flag and so could not
+-- be expressed at all. `violation_disputes` with `outcome is null` is the
+-- signal now, and `20260824000000_violation_disputes.sql` backfilled exactly
+-- this row on the live database from exactly this fine.
+--
+-- Without this insert a fresh seed would fail the invariant that migration
+-- asserts in both directions: a `disputed` fine with no open dispute, and an
+-- open dispute on a fined case whose fines are not `disputed`. Both must be 0.
+--
+-- The reason text is the backfill's, verbatim, and it says what is and is not
+-- known. Inventing a plausible complaint would be fabricating evidence in a
+-- record whose whole purpose is to be evidence — and the production row this
+-- mirrors genuinely has no reason on it.
+--
+-- NOTE THE STAGE: case …0007 sits at `open`, and `dispute_violation` REFUSES
+-- `open` (a case being looked into is not yet a finding anyone can contest).
+-- That is why the disputable-stage rule lives in the RPC and not in a CHECK
+-- constraint — a CHECK cannot be conditional on a row's age, and this row is
+-- the legacy the rule had to accommodate. Seeded through a plain INSERT for
+-- the same reason: the RPC would, correctly, refuse to create it.
+insert into public.violation_disputes (violation_id, stage, filed_by, reason, filed_at) values
+  ('35000000-0000-4000-8000-000000000007','open','a5000000-0000-4000-8000-000000000020',
+   'Recorded from the fine''s disputed status, which predates this table. The reason as originally given was not captured.',
+   now()-interval '6 days')
+on conflict (violation_id, stage) do nothing;
+
+-- ===========================================================================
+-- 5. Care fixtures — the multi-pet households this app is actually used by.
+--
+--    71% of live owners keep two or three pets, and until this section existed
+--    the seed had 34 pets and not one care task, so nothing on Today's Care
+--    could be looked at with a demo login. Three households cover the whole
+--    live range:
+--
+--      Isabella Fournier (…0019) — Buddy, Lola, Zoe.  Three pets whose
+--        Breakfast and Dinner are at the SAME time with the SAME label, which
+--        is the collision that makes an unattributed schedule unreadable.
+--        Lola alone takes a medication; before the household query she was
+--        invisible on Home, because she is not pets[0].
+--      Sofia Nguyen (…0011)     — Biscuit, Mochi.  Two pets, deliberately
+--        disjoint routines, so no (label, time) pair repeats and nothing
+--        groups. The control for "did we invent a header that isn't needed".
+--      Priya Raman (…0026)      — Nutmeg.  One pet, and no building at all:
+--        pets.building_id / unit_id are nullable and Home has an unlinked
+--        state. Leaving her unlinked is what guarantees this section cannot
+--        move any building's engineered compliance spread.
+--
+--    Every row carries an explicit id and `on conflict (id) do nothing`.
+--    Neither pet_care_tasks nor care_targets has a natural unique key, so
+--    without that a second run would silently double every schedule.
+--
+--    Two enums, two vocabularies: task.kind is care_kind
+--    (meal|medication|water|walk|grooming|other — there is no 'play'), and
+--    target.kind is care_entry_kind (food|water|treat|medicine|walk|play|…).
+--    days_of_week is smallint[]; "every day" is stored as NULL, which is the
+--    representation addCareTask and taskRunsOn both rely on.
+-- ===========================================================================
+
+-- Priya's pet. No building_id, no unit_id — see above.
+insert into public.pets (id, owner_id, building_id, unit_id, name, species, breed, neutered, weight_grams, registration_status, status)
+values ('c5000000-0000-4000-8000-000000000035','a5000000-0000-4000-8000-000000000026', null, null,
+        'Nutmeg','dog','Shiba Inu', true, 11000, 'draft', 'home')
+on conflict (id) do nothing;
+
+-- Targets first: pet_care_tasks.target_id is a real FK to care_targets(id).
+-- The amounts differ per pet on purpose — identical targets are exactly why
+-- feeding the second cat moved nothing visible on the old home screen.
+insert into public.care_targets (id, pet_id, kind, label, target_amount, unit, period, sort_order, is_active) values
+  ('d6000000-0000-4000-8000-000000000001','c5000000-0000-4000-8000-000000000018','food','Kibble',3,'cup','day',0,true),
+  ('d6000000-0000-4000-8000-000000000002','c5000000-0000-4000-8000-000000000019','food','Wet food',2,'can','day',0,true),
+  ('d6000000-0000-4000-8000-000000000003','c5000000-0000-4000-8000-000000000019','medicine','Thyroid tablet',1,'dose','day',1,true),
+  ('d6000000-0000-4000-8000-000000000004','c5000000-0000-4000-8000-000000000020','food','Kibble',2,'cup','day',0,true),
+  ('d6000000-0000-4000-8000-000000000005','c5000000-0000-4000-8000-000000000001','food','Kibble',2,'cup','day',0,true),
+  ('d6000000-0000-4000-8000-000000000006','c5000000-0000-4000-8000-000000000002','food','Wet food',3,'can','day',0,true),
+  ('d6000000-0000-4000-8000-000000000007','c5000000-0000-4000-8000-000000000035','food','Kibble',2,'cup','day',0,true)
+on conflict (id) do nothing;
+
+-- The schedule. recurrence 'daily' with interval_days null, per
+-- pet_care_tasks_interval_shape_check. log_amount on each Breakfast is half
+-- the daily target, so one tick visibly moves that pet's tile to halfway.
+insert into public.pet_care_tasks
+  (id, pet_id, label, kind, scheduled_at, time_label, days_of_week, sort_order, recurrence, interval_days, dose, target_id, log_amount) values
+  -- Isabella · Buddy (dog)
+  ('d7000000-0000-4000-8000-000000000001','c5000000-0000-4000-8000-000000000018','Breakfast','meal','07:30','7:30 AM',null,0,'daily',null,null,'d6000000-0000-4000-8000-000000000001',1.5),
+  ('d7000000-0000-4000-8000-000000000002','c5000000-0000-4000-8000-000000000018','Evening walk','walk','17:00','5:00 PM',null,1,'daily',null,null,null,null),
+  ('d7000000-0000-4000-8000-000000000003','c5000000-0000-4000-8000-000000000018','Dinner','meal','18:00','6:00 PM',null,2,'daily',null,null,null,null),
+  -- Isabella · Lola (cat) — the only medication fixture anywhere in the seed
+  ('d7000000-0000-4000-8000-000000000004','c5000000-0000-4000-8000-000000000019','Breakfast','meal','07:30','7:30 AM',null,0,'daily',null,null,'d6000000-0000-4000-8000-000000000002',1),
+  ('d7000000-0000-4000-8000-000000000005','c5000000-0000-4000-8000-000000000019','Thyroid tablet','medication','08:00','8:00 AM',null,1,'daily',null,'1 tablet','d6000000-0000-4000-8000-000000000003',1),
+  ('d7000000-0000-4000-8000-000000000006','c5000000-0000-4000-8000-000000000019','Dinner','meal','18:00','6:00 PM',null,2,'daily',null,null,null,null),
+  -- Isabella · Zoe (dog)
+  ('d7000000-0000-4000-8000-000000000007','c5000000-0000-4000-8000-000000000020','Breakfast','meal','07:30','7:30 AM',null,0,'daily',null,null,'d6000000-0000-4000-8000-000000000004',1),
+  ('d7000000-0000-4000-8000-000000000008','c5000000-0000-4000-8000-000000000020','Evening walk','walk','17:00','5:00 PM',null,1,'daily',null,null,null,null),
+  ('d7000000-0000-4000-8000-000000000009','c5000000-0000-4000-8000-000000000020','Dinner','meal','18:00','6:00 PM',null,2,'daily',null,null,null,null),
+  -- Sofia · Biscuit (dog) and Mochi (cat) — four distinct (label, time) pairs
+  ('d7000000-0000-4000-8000-000000000010','c5000000-0000-4000-8000-000000000001','Morning walk','walk','06:45','6:45 AM',null,0,'daily',null,null,null,null),
+  ('d7000000-0000-4000-8000-000000000011','c5000000-0000-4000-8000-000000000001','Dinner','meal','18:30','6:30 PM',null,1,'daily',null,null,'d6000000-0000-4000-8000-000000000005',1),
+  ('d7000000-0000-4000-8000-000000000012','c5000000-0000-4000-8000-000000000002','Supper','meal','19:00','7:00 PM',null,0,'daily',null,null,'d6000000-0000-4000-8000-000000000006',1.5),
+  ('d7000000-0000-4000-8000-000000000013','c5000000-0000-4000-8000-000000000002','Brush','grooming','20:00','8:00 PM',null,1,'daily',null,null,null,null),
+  -- Priya · Nutmeg (dog) — the single-pet control
+  ('d7000000-0000-4000-8000-000000000014','c5000000-0000-4000-8000-000000000035','Breakfast','meal','08:00','8:00 AM',null,0,'daily',null,null,'d6000000-0000-4000-8000-000000000007',1)
 on conflict (id) do nothing;

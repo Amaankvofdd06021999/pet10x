@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { LiveResult } from "./live"
 import type { PetRules, InviteResult } from "./admin"
+import { OUTSTANDING_FINE_STATUSES, type FineStatus } from "./violations"
 
 /* ------------------------------------------------------------------ */
 /* Buildings I manage                                                  */
@@ -123,16 +124,31 @@ export function usePortfolioBuildings(): LiveResult<PortfolioBuilding[]> {
 
 export interface OutstandingFine {
   id: string
+  /** The case this fine belongs to, or null for a fine issued without one. */
+  violationId: string | null
   buildingId: string | null
   unit: string
   resident: string
   amount: number
-  status: "issued" | "partially_paid" | "disputed"
+  /**
+   * Narrowed to `FineStatus` rather than restating the three outstanding
+   * labels: the query filters on `OUTSTANDING_FINE_STATUSES`, so writing them
+   * again here would be a third copy of the same list to keep in step.
+   */
+  status: FineStatus
   createdAt: string
   dueOn: string | null
 }
 
-/** Fines still owed (issued / partially paid / disputed). RLS-scoped. */
+/**
+ * Fines still owed. RLS-scoped.
+ *
+ * The status list is `OUTSTANDING_FINE_STATUSES`, not a literal. It used to be
+ * the literal `["issued", "partially_paid", "disputed"]` here and a different,
+ * wrong predicate (`!every(status === 'paid')`) on the manager's Violations
+ * screen, so the two surfaces reported different money for the same fines the
+ * moment one was waived. One list, one meaning, both surfaces.
+ */
 export function useOutstandingFines(): LiveResult<OutstandingFine[]> {
   const [data, setData] = useState<OutstandingFine[]>([])
   const [isLoading, setLoading] = useState(true)
@@ -145,9 +161,9 @@ export function useOutstandingFines(): LiveResult<OutstandingFine[]> {
     const { data: rows, error: err } = await supabase
       .from("fines")
       .select(
-        "id, building_id, amount_cents, status, created_at, due_on, unit:units ( unit_number ), resident:profiles!fines_resident_id_fkey ( full_name )",
+        "id, violation_id, building_id, amount_cents, status, created_at, due_on, unit:units ( unit_number ), resident:profiles!fines_resident_id_fkey ( full_name )",
       )
-      .in("status", ["issued", "partially_paid", "disputed"])
+      .in("status", OUTSTANDING_FINE_STATUSES)
       .order("created_at", { ascending: true })
 
     if (err) {
@@ -159,6 +175,7 @@ export function useOutstandingFines(): LiveResult<OutstandingFine[]> {
 
     type Row = {
       id: string
+      violation_id: string | null
       building_id: string | null
       amount_cents: number
       status: string
@@ -172,11 +189,12 @@ export function useOutstandingFines(): LiveResult<OutstandingFine[]> {
     setData(
       ((rows ?? []) as unknown as Row[]).map((r) => ({
         id: r.id,
+        violationId: r.violation_id,
         buildingId: r.building_id,
         unit: first(r.unit)?.unit_number ?? "—",
         resident: first(r.resident)?.full_name ?? "Unassigned",
         amount: (r.amount_cents ?? 0) / 100,
-        status: r.status as OutstandingFine["status"],
+        status: r.status as FineStatus,
         createdAt: r.created_at,
         dueOn: r.due_on,
       })),
@@ -371,7 +389,33 @@ export async function removeCoManager(linkId: string): Promise<{ error: string |
   return { error: error?.message ?? null }
 }
 
-/** Waive or mark-paid an outstanding fine (RLS fines_manager_write). */
+/**
+ * Waive or mark-paid an outstanding fine. Behind "Mark paid" and "Waive" in the
+ * strata work queue (`components/screens/strata/queue-screen.tsx:74-75`).
+ *
+ * Authorised by RLS `fines_manager_update` (`manages_building or is_admin`,
+ * both USING and WITH CHECK). The line here used to cite `fines_manager_write`,
+ * a policy Phase 2 deleted; the name mattered because the next person to reason
+ * about who may settle money would have started from a policy that no longer
+ * exists.
+ *
+ * Two triggers make this narrower and better recorded than the bare
+ * `.update()` suggests, and neither needs anything from this function:
+ *
+ *   trg_fines_settle_only     BEFORE UPDATE. `status` is the ONLY column a
+ *                             client may change. Bundling an amount rewrite
+ *                             with a legal status change raises 42501; the
+ *                             guard compares whole rows as jsonb, so a column
+ *                             added later is protected on the day it is added.
+ *   trg_fines_settlement_event AFTER UPDATE OF status. Writes one
+ *                             `fine.status_changed` audit_log row per real
+ *                             change, carrying the old status, the new one and
+ *                             the amount. Before it, settling money was the one
+ *                             act on an enforcement case that left no record.
+ *
+ * Both fire for definer functions and for `service_role` too — a trigger is not
+ * RLS — so any future payment webhook is audited without asking.
+ */
 export async function setFineStatus(id: string, status: "paid" | "waived"): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
@@ -379,29 +423,14 @@ export async function setFineStatus(id: string, status: "paid" | "waived"): Prom
   return { error: error?.message ?? null }
 }
 
-/* ------------------------------------------------------------------ */
-/* CSV export (pure client-side)                                       */
-/* ------------------------------------------------------------------ */
-
-export function toCsv(rows: Record<string, unknown>[], columns: { key: string; label: string }[]): string {
-  const escape = (v: unknown): string => {
-    const s = v === null || v === undefined ? "" : String(v)
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-  }
-  const header = columns.map((c) => escape(c.label)).join(",")
-  const body = rows.map((row) => columns.map((c) => escape(row[c.key])).join(",")).join("\n")
-  return `${header}\n${body}`
-}
-
-export function downloadCsv(filename: string, csv: string): void {
-  if (typeof window === "undefined") return
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
+/*
+ * CSV export lives in `lib/csv.ts` now.
+ *
+ * `toCsv`/`downloadCsv` were defined here and imported by the strata reports
+ * screen and the business earnings tab. The manager's Violations screen needs
+ * them too and reads none of this file's data, so having it import a string
+ * joiner out of the strata portfolio layer would have been the wrong
+ * dependency. Moved verbatim; both existing call sites now import
+ * `@/lib/csv` directly, so there is one definition and no re-export to keep
+ * in step.
+ */

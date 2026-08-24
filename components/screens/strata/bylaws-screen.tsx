@@ -7,6 +7,8 @@ import { useComplianceInputs, type PetComplianceInput } from "@/lib/data/portfol
 import type { PetRules } from "@/lib/data/admin"
 import { useStrata } from "./portal-context"
 import { BuildingBylawsEditor, RULE_TOGGLES, impactOf } from "./bylaws-editor"
+import { BuildingRulesEditor } from "@/components/screens/manager/building-rules-editor"
+import { stripFineSchedule } from "@/lib/data/fine-schedule"
 import { SectionCard, Spinner, LoadError } from "./strata-ui"
 import { ChevronDown, Save, Layers, Loader2, AlertTriangle, Trash2 } from "lucide-react"
 
@@ -99,6 +101,21 @@ export function BylawsScreen() {
                         refetchInputs()
                       }}
                     />
+
+                    {/* AD-9's two halves, in one panel and never interleaved.
+                        Above: the six compliance toggles a MACHINE checks, plus
+                        the fine schedule. Below: authored text nothing scores.
+                        Same component the in-app manager's Settings sheet
+                        mounts — building it twice is what produced the bug this
+                        work started from. */}
+                    <div className="mt-4 border-t border-border pt-4">
+                      <h4 className="mb-1 text-[13.5px] font-semibold text-foreground">House rules</h4>
+                      <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
+                        Written notices residents read in their account. These are statements, not compliance
+                        checks &mdash; nothing here moves anybody&apos;s compliance score.
+                      </p>
+                      <BuildingRulesEditor buildingId={b.id} buildingName={b.name} petRules={b.rules} />
+                    </div>
                   </div>
                 )}
               </div>
@@ -150,7 +167,20 @@ function BulkApply({
   function saveTemplate() {
     const src = buildings.find((b) => b.id === sourceId)
     if (!templateName.trim() || !src) return toast.error("Name the template and pick a source building.")
-    onSaveTemplate({ name: templateName.trim(), rules: src.rules ?? {} })
+    /* The fine schedule never travels in a template.
+     *
+     * A template is a `pet_rules` SNAPSHOT in localStorage, applied later to
+     * other buildings — so without this strip, "Coastline Standard 2026" saved
+     * from a building with a $250 first offence would carry that price to every
+     * building it is applied to. `buildings_fine_schedule_guard` refuses to let
+     * it land (it restores each target's own values), but a template that
+     * silently contains another building's prices should not exist in the first
+     * place. Prices are per-building and are set in the block below the toggles.
+     *
+     * This also fixes the direction the guard exists FOR: a template saved
+     * before this phase contains no fine keys at all, and applying it replaced
+     * the whole object — silently deleting the target's schedule. */
+    onSaveTemplate({ name: templateName.trim(), rules: stripFineSchedule(src.rules ?? {}) })
     toast.success(`Template “${templateName.trim()}” saved from ${src.name}`)
     setTemplateName("")
   }

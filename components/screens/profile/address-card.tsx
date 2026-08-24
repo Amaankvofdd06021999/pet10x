@@ -198,7 +198,8 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[14px] font-semibold text-foreground">
-                  {matches[0]} uses Pet10x
+                  {matches[0]}{" "}
+                  uses Pet10x
                 </p>
                 <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
                   Do you have a building code? Entering it links you and your pet to the building. If you

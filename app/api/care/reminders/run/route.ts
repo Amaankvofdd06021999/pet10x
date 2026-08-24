@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
+import { addCalendarDays, calendarDaysBetween } from "@/lib/dates"
 
 /**
  * Raise reminders for care tasks that are due and not yet done.
@@ -158,6 +159,8 @@ export async function GET(request: NextRequest) {
   })
 
   let raised = 0
+  /** Interval tasks whose anchor could not be advanced — see the block below. */
+  const stalled: string[] = []
   for (const item of pending) {
     const { data: note, error: noteErr } = await supabase
       .from("notifications")
@@ -194,9 +197,38 @@ export async function GET(request: NextRequest) {
      * a failure above leaves the task due rather than silently skipping a
      * dose. */
     if (item.recurrence === "interval" && item.intervalDays) {
-      const next = new Date(`${item.dateKey}T00:00:00Z`)
-      next.setUTCDate(next.getUTCDate() + item.intervalDays)
-      const nextKey = next.toISOString().slice(0, 10)
+      const nextKey = addCalendarDays(item.dateKey, item.intervalDays)
+      /* A NULL ANCHOR IS THE "SILENT FOREVER" ABOVE, ARRIVING QUIETLY.
+       *
+       * This was `if (!nextKey) continue`, replacing a throw. What that skips is
+       * the only write that moves `next_due_on`, and the interval branch of the
+       * due test is `task.next_due_on !== clock.dateKey` — an exact match on
+       * TODAY. So an anchor that fails to advance is not a task that nags; the
+       * ledger's unique (task_id, on_date) already stops a second reminder
+       * today, and tomorrow the date no longer matches, so the task goes silent
+       * for the rest of its life with `is_active` still true and nothing
+       * anywhere recording that it stopped. A six-month heartworm course that
+       * reminds once and never again is exactly the failure the comment above
+       * this block names.
+       *
+       * Not thrown, because one malformed row must not take down a sweep that
+       * reminds every other owner — the same call this file already makes for an
+       * invalid IANA zone. Logged with the task id, and COUNTED INTO THE
+       * RESPONSE, so the cron's own output says a task stalled and which one.
+       * `addCalendarDays` returns null only for a `dateKey` that is not a bare
+       * YYYY-MM-DD or an `intervalDays` large enough to overflow the date, and
+       * `dateKey` is built here by Intl with 2-digit parts, so nothing on
+       * today's data can reach this. It is the accounting that matters, not the
+       * frequency: a reminder loop that can stop reminding must say so. */
+      if (!nextKey) {
+        console.error(
+          `[care-reminders] task ${item.taskId}: could not advance the anchor from ` +
+            `"${item.dateKey}" by ${item.intervalDays} days. It will not fire again ` +
+            `until next_due_on is corrected.`,
+        )
+        stalled.push(item.taskId)
+        continue
+      }
       // Past the end of the course, the task retires itself rather than
       // sitting active with a due date nobody will ever reach.
       const finished = item.endsOn != null && nextKey > item.endsOn
@@ -229,9 +261,13 @@ export async function GET(request: NextRequest) {
     // boolean means renewing the vaccination re-arms the reminder by itself.
     if (v.reminded_for === v.expires_on) continue
 
-    const daysLeft = Math.round(
-      (new Date(`${v.expires_on}T00:00:00Z`).getTime() - new Date(`${todayKey}T00:00:00Z`).getTime()) / 86_400_000,
-    )
+    /* Both sides keyed to the same midnight, through the one module that
+     * states the rule. Byte-for-byte the arithmetic this replaced — a cron has
+     * no viewer, so `todayKey` stays the SERVER's UTC calendar day rather than
+     * becoming a local one. That is deliberate: the only defensible "today" for
+     * a job that reminds residents in every zone is the one the job runs in. */
+    const daysLeft = calendarDaysBetween(todayKey, v.expires_on)
+    if (daysLeft === null) continue
     if (daysLeft > (v.remind_days_before ?? 30)) continue
 
     /* A reminder is for the transition, not the standing state.
@@ -258,7 +294,13 @@ export async function GET(request: NextRequest) {
           ? `This ${noun} expired on ${v.expires_on}. Book a renewal and upload the new record.`
           : `This ${noun} expires on ${v.expires_on}${daysLeft > 0 ? ` — ${daysLeft} day${daysLeft === 1 ? "" : "s"} left` : " — today"}.`,
         action_label: "Open pet",
-        action_target: "pet-detail",
+        /* The id is not optional here. The title NAMES the pet, and
+         * `usePet(undefined)` falls back to the first pet in the household
+         * (`lib/data/live.ts:335`), so a bare `pet-detail` target opened
+         * "Rabies has expired for Sadie" onto a different animal's
+         * vaccination record. Six of the seven such rows already written to
+         * production belong to owners with two or three pets. */
+        action_target: `pet-detail:${pet.id}`,
       })
       .select("id")
       .single()
@@ -284,5 +326,9 @@ export async function GET(request: NextRequest) {
     raised,
     vaccinesChecked: vaccines?.length ?? 0,
     vaccineReminders,
+    /* Task ids, not a count, and present even when empty. A stalled interval
+     * task will never appear in a later run's output — that is what stalled
+     * means — so the one run that stalls it is the only chance to name it. */
+    stalled,
   })
 }

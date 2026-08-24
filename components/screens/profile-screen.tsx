@@ -11,67 +11,110 @@ import { PERSONA_LABEL } from "@/lib/rbac"
 import { AddressCard } from "@/components/screens/profile/address-card"
 import { NavBackButton } from "@/components/nav-back-button"
 import {
+  Accessibility,
   ChevronRight,
-  Settings,
   Dog,
   Cat,
-  Shield,
   FileText,
-  CreditCard,
-  HelpCircle,
   LogOut,
   Bell,
-  Lock,
-  Globe,
-  Moon,
-  Award,
   Building2,
   Heart,
-  Star,
   Download,
   Trash2,
   Loader2,
   Camera,
+  Scale,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 import { Portal } from "@/components/ui/portal"
 import { DonateSpcaCard } from "@/components/donate-spca"
 
-const MENU_SECTIONS = [
+interface MenuItem {
+  icon: typeof Dog
+  label: string
+  detail?: string
+  /** Renders the row visibly disabled. See the note below. */
+  unbuilt?: true
+}
+
+/**
+ * This menu listed FIFTEEN rows. Three navigated; the other twelve fell
+ * through `handleItem` to `toast(label, { description: "Coming soon." })`, so
+ * four fifths of the resident's own settings menu was a promise nobody had
+ * made.
+ *
+ * What is left is the five that are true, and the rule is now structural
+ * rather than remembered: `handleItem` has NO fallback branch, so a row added
+ * here without a destination does nothing at all rather than silently claiming
+ * a future.
+ *
+ * WHAT WAS REMOVED, AND WHY — so nobody re-adds it thinking it was an
+ * oversight:
+ *
+ *   Compliance Status  Nothing computes a resident-facing compliance status.
+ *                      `computeCompliance` (live.ts:53) is reached only by
+ *                      `useBuildingPets`, which is the MANAGER's list;
+ *                      `useMyCompleteness` renders in exactly one place, Home's
+ *                      dismissible MissingInfoCard; and `ownerComplianceScore`
+ *                      is a literal 0 in a mock hook with no consumer. The
+ *                      records behind it — vaccinations and documents, with
+ *                      their current/expiring/expired badges — are already two
+ *                      rows above under Pet Profiles and Documents & Records.
+ *                      (The plan said route this to `pet-care`. `pet-care` is
+ *                      the CareTracker — meals, walks, medication. It has no
+ *                      compliance in it, and sending this row there would have
+ *                      replaced a toast with a wrong destination.)
+ *   Achievements       Nothing computes an achievement. No table, no column.
+ *   Subscription,      No settings store exists — not a table, not a column on
+ *   Notification       `profiles`, not localStorage — and none is planned in
+ *   Settings,          any of Phases 4-8. "Language: English" and
+ *   Privacy & Security,"Appearance: System" additionally displayed a stored
+ *   Language,          preference that was never stored anywhere.
+ *   Appearance
+ *   Help & FAQ,        No destination exists. `public/` holds no such document,
+ *   Rate Pet10x,       the project has no `/help`, `/terms` or `/privacy`
+ *   Terms & Privacy    route (`app/**` has ten pages; none of them is one), and
+ *                      there is no support URL in any config. Inventing
+ *                      `pet10x.com/terms` would have been a worse lie than the
+ *                      toast. Recorded as an UNOWNED product gap in
+ *                      docs/superpowers/2026-08-21-deferred-controls.md — an
+ *                      app holding pet health records and home addresses needs
+ *                      a real privacy policy, and no phase currently plans one.
+ *
+ * The `unbuilt` rows are kept BECAUSE a named phase builds them, and those
+ * plans instruct their implementer to re-enable the row they expect to find
+ * disabled here. Re-enabling one is deleting `unbuilt: true` and adding a line
+ * to `handleItem`.
+ *
+ *   Building Rules          → DONE, Phase 6. The row now opens
+ *                             `building-rules`, which shows this building's
+ *                             real compliance requirements and the house rules
+ *                             its manager published. NOTE FOR WHOEVER RUNS A
+ *                             LATER PASS OVER THIS FILE: it is deliberately no
+ *                             longer disabled.
+ *   Accommodation Requests  → DONE, Phase 7. The row now opens
+ *                             `accommodations`, where a resident files an ESA
+ *                             or service-animal request and attaches the
+ *                             supporting letter. SAME NOTE AS ABOVE: it is
+ *                             deliberately no longer disabled.
+ */
+const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
   {
     title: "My Pets",
     items: [
       { icon: Dog, label: "Pet Profiles" },
-      { icon: Shield, label: "Compliance Status" },
       { icon: FileText, label: "Documents & Records" },
-      { icon: Award, label: "Achievements" },
     ],
   },
   {
     title: "Building",
     items: [
       { icon: Building2, label: "Building Rules" },
-      { icon: FileText, label: "Accommodation Requests" },
+      { icon: Scale, label: "Violations & Fines" },
+      { icon: Accessibility, label: "Accommodation Requests" },
       { icon: Heart, label: "Favorite Services" },
-    ],
-  },
-  {
-    title: "Account",
-    items: [
-      { icon: CreditCard, label: "Subscription" },
-      { icon: Bell, label: "Notification Settings" },
-      { icon: Lock, label: "Privacy & Security" },
-      { icon: Globe, label: "Language", detail: "English" },
-      { icon: Moon, label: "Appearance", detail: "System" },
-    ],
-  },
-  {
-    title: "Support",
-    items: [
-      { icon: HelpCircle, label: "Help & FAQ" },
-      { icon: Star, label: "Rate Pet10x" },
-      { icon: FileText, label: "Terms & Privacy Policy" },
     ],
   },
 ]
@@ -147,13 +190,23 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
     await signOut()
   }
 
+  /**
+   * Only reached for rows that are not `unbuilt` — a disabled row has no
+   * onClick at all.
+   *
+   * There is deliberately NO trailing `else`. The fallback used to be
+   * `toast(label, { description: "Coming soon." })`, which meant every row
+   * anybody added was born making a promise. Now a row with no branch here is
+   * inert, which is visible the first time it is clicked instead of sounding
+   * like a feature.
+   */
   const handleItem = (label: string) => {
     if (label.includes("Pet Profiles")) onNavigate?.("home")
     else if (label.includes("Documents")) onNavigate?.("pet-detail")
+    else if (label.includes("Building Rules")) onNavigate?.("building-rules")
+    else if (label.includes("Violations")) onNavigate?.("my-cases")
+    else if (label.includes("Accommodation")) onNavigate?.("accommodations")
     else if (label.includes("Favorite Services")) onNavigate?.("services")
-    else if (label.includes("Compliance")) toast("Compliance status", { description: "View your pets' compliance — coming soon." })
-    else if (label.includes("Subscription")) toast("Subscription", { description: "Manage your plan — coming soon." })
-    else toast(label, { description: "Coming soon." })
   }
 
   return (
@@ -280,15 +333,20 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                 return (
                   <button
                     key={item.label}
-                    onClick={() => handleItem(item.label)}
-                    className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors active:bg-muted ${
-                      idx < section.items.length - 1 ? "border-b border-border" : ""
-                    }`}
+                    onClick={item.unbuilt ? undefined : () => handleItem(item.label)}
+                    disabled={item.unbuilt}
+                    className={`flex w-full items-center gap-3 px-3 py-2.5 text-left ${
+                      item.unbuilt ? "opacity-50" : "transition-colors active:bg-muted"
+                    } ${idx < section.items.length - 1 ? "border-b border-border" : ""}`}
                   >
                     <Icon className="h-5 w-5 text-primary" />
                     <span className="flex-1 text-[14px] text-foreground">{item.label}</span>
-                    {item.detail && <span className="text-[12px] text-muted-foreground">{item.detail}</span>}
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[12px] text-muted-foreground">
+                      {item.unbuilt ? "Not available yet" : item.detail}
+                    </span>
+                    {/* No chevron on a row that goes nowhere — the arrow is the
+                        strongest "this leads somewhere" signal on the row. */}
+                    {!item.unbuilt && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                   </button>
                 )
               })}
