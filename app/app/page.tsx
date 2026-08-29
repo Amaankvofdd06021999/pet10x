@@ -26,10 +26,11 @@ import { ReportScreen } from "@/components/screens/report/report-screen"
 import { MyBookingsScreen } from "@/components/screens/my-bookings-screen"
 import { ManagerDashboardScreen } from "@/components/screens/manager/dashboard-screen"
 import { ManagerResidentsScreen } from "@/components/screens/manager/residents-screen"
-import { ManagerViolationsScreen } from "@/components/screens/manager/violations-screen"
+import { ManagerViolationsScreen } from "@/components/screens/manager/violations-table-screen"
 import { ManagerApprovalsScreen } from "@/components/screens/manager/approvals-screen"
 import { ManagerIncidentsScreen } from "@/components/screens/manager/incidents-screen"
 import { ManagerSettingsScreen } from "@/components/screens/manager/settings-screen"
+import { MyVetsScreen } from "@/components/screens/my-vets-screen"
 import { AccommodationRequestScreen } from "@/components/screens/accommodation-request-screen"
 import { isScreenKey, type ScreenKey } from "@/lib/navigation"
 import { Loader2, PawPrint } from "lucide-react"
@@ -85,6 +86,7 @@ const CONTENT_MAX: Record<ScreenKey, string> = {
   "link-building": "max-w-2xl",
   "business-detail": "max-w-2xl",
   "my-bookings": "max-w-2xl",
+  "my-vets": "max-w-3xl",
   shop: "max-w-3xl",
   report: "max-w-2xl",
   /* A bylaw is prose and is read as a column, at the same width as every other
@@ -233,7 +235,16 @@ function AppContent() {
       <AppSidebar activeTab={activeTab} onTabChange={handleTabChange} />
 
       <div className="flex-1 md:min-w-0">
-        <div key={currentScreen} className={`mx-auto w-full ${contentMax} animate-in fade-in duration-200`}>
+        {/* `overflow-x-clip` is the backstop: a screen with a wide table or a
+            long unbroken string scrolls INSIDE its own container and can never
+            drag the whole page sideways. Clip rather than hidden, because
+            hidden would coerce overflow-y and break the sticky sub-headers
+            several screens rely on. `min-w-0` stops a flex child claiming its
+            content's intrinsic width. */}
+        <div
+          key={currentScreen}
+          className={`mx-auto w-full min-w-0 overflow-x-clip ${contentMax} animate-in fade-in duration-200`}
+        >
           {currentScreen === "pet-detail" ? (
             <PetDetailScreen onBack={handleBack} petId={selectedPetId} onNavigate={handleNavigate} />
           ) : currentScreen === "add-pet" ? (
@@ -262,6 +273,11 @@ function AppContent() {
                `building-rules`: a manager opens the same screen their residents
                do, and sees the same thing. */
             <AccommodationRequestScreen onBack={handleBack} onNavigate={handleNavigate} />
+          ) : currentScreen === "my-vets" ? (
+            /* Above the persona split: a manager who also owns a pet reaches
+               the same screen, and every writer of this target addresses the
+               pet's owner. */
+            <MyVetsScreen onBack={handleBack} />
           ) : currentScreen === "building-rules" ? (
             /* Above the persona split, beside `report` and `shop`: a manager
                opens the same screen their residents do, and sees the same

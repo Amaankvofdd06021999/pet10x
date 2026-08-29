@@ -1,0 +1,18 @@
+-- Pet10x — fix: no clinic could read a shared record.
+--
+-- `granted := granted || 'identity'` asks Postgres to resolve `text[] || unknown`.
+-- It resolves the untyped literal as an ARRAY, not an element, so every call to
+-- clinic_fetch_shared_record died with:
+--
+--   22P02  malformed array literal: "identity"
+--
+-- The failure surfaced as an empty "Shared by owner" tab with an error, which is
+-- exactly the screen the whole consent model exists to serve. array_append is
+-- unambiguous. The full function body is re-issued in the applied migration
+-- `vet_fix_shared_record_array_append`; the operative change is that all six
+-- scope appends now read:
+--
+--   granted := array_append(granted, '<scope>');
+--
+-- Kept as its own file so the reason is findable if the pattern recurs
+-- elsewhere: any `text[] || 'literal'` in this codebase has the same bug.

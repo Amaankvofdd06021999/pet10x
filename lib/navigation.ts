@@ -97,6 +97,12 @@ export const SCREEN_SURFACES = {
    * resident, is now the only writer of this target. */
   accommodations: BOTH,
   "my-bookings": BOTH,
+  /* BOTH, not RESIDENT. The writers are `clinic_publish_record`,
+   * `clinic_reminder_action` and `clinic_emergency_pull`, and all three address
+   * the PET'S OWNER — who may also hold a manager persona. It carries no id:
+   * the screen lists the viewer's own pets and the practices they have shared
+   * with, resolved from `record_shares`. */
+  "my-vets": BOTH,
   // Rendered in both blocks: managers have no Alerts tab, but the dashboard
   // bell routes here.
   alerts: BOTH,

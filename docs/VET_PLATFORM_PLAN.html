@@ -1,0 +1,649 @@
+<title>Pet10x Veterinary Platform</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F4F7F6;--surface:#FFFFFF;--surface-2:#E8EFEE;--ink:#16211F;--ink-2:#33413E;--muted:#5A6B68;--line:#D6E2E0;--line-2:#BFD0CD;
+  --accent:#0E6E68;--accent-ink:#FFFFFF;--accent-soft:#DCEFED;--gold:#A8710D;--gold-soft:#FBF0DC;
+  --owner:#1D5FC6;--owner-soft:#E4EDFC;--clinic:#0E6E68;--clinic-soft:#DCEFED;
+  --crit:#B42318;--crit-soft:#FBEAE8;--high:#B54708;--high-soft:#FCF0E3;--med:#1D5FC6;--med-soft:#E4EDFC;--low:#5A6B68;--low-soft:#EAEFEE;--good:#1E7F52;--good-soft:#E2F2EA;
+  --code-bg:#E8EFEE;--shadow:0 1px 2px rgba(22,33,31,.05),0 8px 24px rgba(22,33,31,.06);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0D1413;--surface:#15201E;--surface-2:#1D2A28;--ink:#E4EBE9;--ink-2:#C2CFCC;--muted:#93A5A1;--line:#283634;--line-2:#374845;
+  --accent:#4FC9C1;--accent-ink:#08201E;--accent-soft:#12302E;--gold:#E2B457;--gold-soft:#33280F;
+  --owner:#7BA7F0;--owner-soft:#18243B;--clinic:#4FC9C1;--clinic-soft:#12302E;
+  --crit:#F0716A;--crit-soft:#371917;--high:#F2A45A;--high-soft:#382512;--med:#7BA7F0;--med-soft:#18243B;--low:#A3B2AF;--low-soft:#1D2A28;--good:#5CC58F;--good-soft:#12301F;
+  --code-bg:#1D2A28;--shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{
+  --paper:#0D1413;--surface:#15201E;--surface-2:#1D2A28;--ink:#E4EBE9;--ink-2:#C2CFCC;--muted:#93A5A1;--line:#283634;--line-2:#374845;
+  --accent:#4FC9C1;--accent-ink:#08201E;--accent-soft:#12302E;--gold:#E2B457;--gold-soft:#33280F;
+  --owner:#7BA7F0;--owner-soft:#18243B;--clinic:#4FC9C1;--clinic-soft:#12302E;
+  --crit:#F0716A;--crit-soft:#371917;--high:#F2A45A;--high-soft:#382512;--med:#7BA7F0;--med-soft:#18243B;--low:#A3B2AF;--low-soft:#1D2A28;--good:#5CC58F;--good-soft:#12301F;
+  --code-bg:#1D2A28;--shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'Source Sans 3',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}a:hover{text-decoration:underline}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3,h4{font-family:'Fraunces',Georgia,serif;font-weight:600;line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.2rem,4.5vw,3.4rem);font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.9rem;margin:3.2rem 0 .9rem;padding-top:1.4rem;border-top:1px solid var(--line)}
+h3{font-size:1.32rem;margin:2.1rem 0 .6rem}
+h4{margin:1.5rem 0 .4rem;font-family:'Source Sans 3',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);font-size:.85rem}
+p{margin:0 0 1rem;max-width:74ch}
+ul,ol{margin:0 0 1rem;padding-left:1.4rem;max-width:76ch}li{margin:.25rem 0}
+code,pre{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace}
+code{font-size:.84em;background:var(--code-bg);padding:.1em .38em;border-radius:5px;color:var(--ink-2)}
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;overflow-x:auto;font-size:.82rem;line-height:1.5;margin:0 0 1.2rem}
+pre code{background:none;padding:0;font-size:inherit;color:inherit}
+.eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.lede{font-size:1.22rem;line-height:1.5;color:var(--ink-2);max-width:66ch}
+.layout{display:grid;grid-template-columns:270px minmax(0,1fr)}
+nav.toc{position:sticky;top:0;height:100vh;overflow-y:auto;padding:2rem 1.2rem 2rem 1.6rem;border-right:1px solid var(--line);background:var(--surface);font-size:.9rem}
+nav.toc .brand{font-family:'Fraunces',serif;font-weight:700;font-size:1.1rem;margin-bottom:1.2rem;display:flex;align-items:center;gap:.5rem;line-height:1.2}
+nav.toc .brand span{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent);flex:none}
+nav.toc ol{list-style:none;padding:0;margin:0}
+nav.toc a{display:block;padding:.32rem .5rem;border-radius:6px;color:var(--ink-2);text-decoration:none}
+nav.toc a:hover{background:var(--surface-2)}
+nav.toc .n{color:var(--muted);font-variant-numeric:tabular-nums;margin-right:.45rem;font-size:.8rem}
+nav.toc .grp{list-style:none;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:1rem 0 .3rem .5rem;font-weight:700}
+main{padding:3rem clamp(1.2rem,4vw,4rem) 6rem;max-width:1180px}
+header.cover{padding-bottom:2rem;border-bottom:2px solid var(--ink)}
+.meta{display:flex;flex-wrap:wrap;gap:1.2rem 2rem;margin-top:1.6rem;font-size:.9rem;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:600;display:block;font-size:.95rem}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.8rem;margin:1.6rem 0}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.9rem 1rem}
+.tile .v{font-family:'Fraunces',serif;font-size:1.85rem;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.tile .l{font-size:.8rem;color:var(--muted);margin-top:.35rem;line-height:1.3}
+.tile.c .v{color:var(--crit)}.tile.h .v{color:var(--high)}.tile.g .v{color:var(--good)}.tile.a .v{color:var(--accent)}
+.pill{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.14em .55em;border-radius:999px;white-space:nowrap;vertical-align:middle}
+.pill.crit{background:var(--crit-soft);color:var(--crit)}.pill.high{background:var(--high-soft);color:var(--high)}.pill.med{background:var(--med-soft);color:var(--med)}.pill.low{background:var(--low-soft);color:var(--low)}.pill.good{background:var(--good-soft);color:var(--good)}.pill.acc{background:var(--accent-soft);color:var(--accent)}.pill.gold{background:var(--gold-soft);color:var(--gold)}
+.pill.owner{background:var(--owner-soft);color:var(--owner)}.pill.clinic{background:var(--clinic-soft);color:var(--clinic)}
+.tbl{overflow-x:auto;margin:0 0 1.4rem;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem;line-height:1.4}
+th,td{text-align:left;vertical-align:top;padding:.55rem .7rem;border-bottom:1px solid var(--line)}
+th{background:var(--surface-2);font-weight:700;font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td code{white-space:nowrap}
+.callout{border-left:4px solid var(--accent);background:var(--surface);border-radius:0 10px 10px 0;padding:.9rem 1.1rem;margin:1.2rem 0;box-shadow:var(--shadow);max-width:82ch}
+.callout.crit{border-color:var(--crit)}.callout.good{border-color:var(--good)}.callout.gold{border-color:var(--gold)}
+.callout p:last-child{margin-bottom:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;margin:1rem 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem}
+.card h4{margin-top:0}
+.card.o{border-top:3px solid var(--owner)}.card.c{border-top:3px solid var(--clinic)}.card.g{border-top:3px solid var(--gold)}
+pre.mermaid{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1rem;overflow-x:auto;text-align:left}
+.two{columns:2;column-gap:2rem;max-width:92ch}.two li{break-inside:avoid}
+.small{font-size:.86rem;color:var(--muted)}
+.dec{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:0 12px 12px 0;padding:1rem 1.2rem;margin:0 0 .9rem;max-width:86ch}
+.dec .q{font-weight:700;font-size:1.02rem;margin-bottom:.25rem}
+.dec .a{color:var(--accent);font-weight:700}
+.phase{display:grid;grid-template-columns:auto 1fr;gap:.9rem;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem;margin:0 0 .8rem}
+.phase .no{font-family:'Fraunces',serif;font-size:1.15rem;font-weight:700;color:var(--accent);line-height:1.2;min-width:3.4rem}
+.phase h4{margin:0 0 .2rem;font-size:1rem;text-transform:none;letter-spacing:0;font-family:'Fraunces',serif;font-weight:600;color:var(--ink)}
+.phase p{margin:.2rem 0;font-size:.92rem}
+.tierbox{display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem;margin:0 0 .8rem}
+.tierbox .t{font-family:'Fraunces',serif;font-weight:700;font-size:1.05rem;color:var(--accent);min-width:6.5rem}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}nav.toc ol{columns:2}.two{columns:1}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+html{scroll-behavior:smooth}
+</style>
+<div class="layout">
+<nav class="toc" aria-label="Contents">
+  <div class="brand"><span></span>Veterinary Platform Plan</div>
+  <ol>
+    <li><a href="#summary"><span class="n">00</span>What this is</a></li>
+    <li><a href="#boundary"><span class="n">01</span>The line: operations, not charts</a></li>
+    <li><a href="#spaces"><span class="n">02</span>Three data spaces</a></li>
+    <li class="grp">Getting in</li>
+    <li><a href="#signup"><span class="n">03</span>Self-serve signup &amp; tiers</a></li>
+    <li><a href="#customers"><span class="n">04</span>Customers &amp; patients</a></li>
+    <li class="grp">Running the shop</li>
+    <li><a href="#schedule"><span class="n">05</span>Scheduling</a></li>
+    <li><a href="#dayops"><span class="n">06</span>Daily operations</a></li>
+    <li><a href="#reminders"><span class="n">07</span>Reminders &amp; recalls</a></li>
+    <li><a href="#shop"><span class="n">08</span>Shop, storefront, money</a></li>
+    <li class="grp">The Pet10x edge</li>
+    <li><a href="#sharing"><span class="n">09</span>Sharing &amp; service records</a></li>
+    <li><a href="#owner"><span class="n">10</span>The owner's side</a></li>
+    <li><a href="#emergency"><span class="n">11</span>Emergency</a></li>
+    <li class="grp">Structure</li>
+    <li><a href="#org"><span class="n">12</span>Locations, staff, roles</a></li>
+    <li><a href="#console"><span class="n">13</span>The console</a></li>
+    <li><a href="#schema"><span class="n">14</span>Data model</a></li>
+    <li><a href="#emr"><span class="n">15</span>The road to full EMR</a></li>
+    <li class="grp">Delivery</li>
+    <li><a href="#risk"><span class="n">16</span>Risks</a></li>
+    <li><a href="#program"><span class="n">17</span>Releases</a></li>
+    <li><a href="#approve"><span class="n">18</span>Approve to proceed</a></li>
+  </ol>
+</nav>
+<main>
+<header class="cover">
+  <div class="eyebrow">Design document · revision 2 · for approval before implementation</div>
+  <h1>Pet10x Veterinary Platform</h1>
+  <p class="lede" style="margin-top:1rem">Software a veterinary practice runs its day on — customers, appointments, reminders, storefront — that any clinic can sign up for in two minutes, and that gets quietly better for every customer who happens to be a Pet10x owner.</p>
+  <div class="meta">
+    <div><b>Scope</b>Practice operations first; full EMR as the destination the schema is shaped for</div>
+    <div><b>Status</b>Design only — no code written, nothing migrated</div>
+    <div><b>Model</b>Self-serve signup · customers with or without Pet10x · single database</div>
+    <div><b>Revision</b>Rewritten from revision 1 after your reframe</div>
+  </div>
+</header>
+
+<section id="summary">
+<h2>00 · What this is</h2>
+<p class="lede">Revision 1 designed Pet10x as the custodian of a medico-legal record, which brought a regulatory programme with it. Your reframe removes that. What is left is a much better first product, and a much cheaper one.</p>
+
+<h3>What changed, and why it helps</h3>
+<div class="tbl"><table>
+<tr><th>Revision 1 assumed</th><th>You said</th><th>Consequence</th></tr>
+<tr><td>Pet10x holds regulated clinical records</td><td>No clinical data written here; the service owner keeps their own data, owners fill and share their own records</td><td><span class="pill good">removes</span> the retention, custody and controlled-drug obligations from the near term. This is the single biggest simplification.</td></tr>
+<tr><td>A design-partner clinic shapes the product</td><td>Services sign themselves up</td><td><span class="pill high">raises the bar</span> on onboarding: the product must teach itself, import a client list unaided, and be useful before a single Pet10x owner is attached.</td></tr>
+<tr><td>Regulatory advisor gates the build</td><td>Not now</td><td><span class="pill good">unblocks</span> everything in this document. The question returns only at the EMR step, and I have marked exactly where.</td></tr>
+<tr><td>Vet module ≈ hospital EMR</td><td>Management for the veterinary shop — customers, appointments, reminders, scheduling, daily operations</td><td><span class="pill acc">refocuses</span> release one on the calendar and the phone, which is what a practice actually opens every morning.</td></tr>
+<tr><td>Possibly a separate database</td><td>Single database, expand it</td><td><span class="pill good">keeps</span> row-level security working across owner and clinic data, which this codebase depends on heavily. Right call.</td></tr>
+</table></div>
+
+<h3>The product in one paragraph</h3>
+<p>A veterinary practice signs up on their own, imports their client list from a spreadsheet, and within an afternoon is booking appointments on a multi-provider calendar, checking animals in, and sending vaccination reminders that a receptionist can work as a call list. None of that requires a single customer to have a Pet10x account. Then, for the customers who <em>do</em>, four things get better without anyone configuring them: the owner books online, the reminder arrives as a free push notification instead of a postcard, the owner can hand over their pet's history in one tap, and the clinic can push a vaccination record back into the owner's app where their building's compliance file picks it up.</p>
+
+<div class="callout gold"><p><b>The strategy is unchanged even though the scope shrank.</b> Pet10x wins on the side of the relationship no practice-management vendor can reach — the owner's phone and the owner's building. Release one earns the clinic's daily habit; releases three onward make that habit pay off in a way a standalone scheduling tool never can.</p></div>
+
+<div class="tiles">
+  <div class="tile a"><div class="v">~24</div><div class="l">new tables for the operations product</div></div>
+  <div class="tile g"><div class="v">6 wk</div><div class="l">to a clinic booking real appointments</div></div>
+  <div class="tile"><div class="v">16 wk</div><div class="l">to a complete standalone practice product</div></div>
+  <div class="tile a"><div class="v">21 wk</div><div class="l">to the Pet10x advantage layer — the differentiator</div></div>
+  <div class="tile h"><div class="v">34 wk</div><div class="l">to everything in this document, one senior engineer</div></div>
+</div>
+</section>
+
+<section id="boundary">
+<h2>01 · The line: operations, not charts</h2>
+<p class="lede">"No clinical data" needs one careful distinction, because a vet visit obviously produces <em>some</em> record. The line I am proposing is between a <b>service record</b> and a <b>clinical record</b>, and it is the boundary the whole first release sits inside.</p>
+<div class="grid2">
+<div class="card"><h4><span class="pill good">In scope</span> service records</h4>
+<p>What the business did, for whom, when, and what it cost. The same shape of record a groomer or a boarding kennel keeps.</p>
+<ul>
+<li>Appointment happened, who saw the animal, how long</li>
+<li>Services performed, from the clinic's own price list</li>
+<li>Vaccination given: product, date, next-due date</li>
+<li>A free-text visit note the clinic writes for itself</li>
+<li>Attachments the clinic uploads — a photo, a scanned form</li>
+<li>Next visit due, follow-up flag</li>
+<li>What was charged and whether it was paid</li>
+</ul></div>
+<div class="card"><h4><span class="pill crit">Out of scope for now</span> clinical records</h4>
+<p>The structured medico-legal chart. Deferred to the EMR track, where it belongs with the review it needs.</p>
+<ul>
+<li>Structured SOAP notes with signing authority</li>
+<li>Prescriptions with prescriber authority and refill law</li>
+<li>Controlled-drug custody register</li>
+<li>Lab orders, results and reference ranges</li>
+<li>Problem lists and formal diagnosis coding</li>
+<li>Amendment trails and immutability guarantees</li>
+</ul></div>
+</div>
+<p>The practical test: <b>if a groomer could keep the same field without anyone raising an eyebrow, it is a service record.</b> "Rabies vaccine, 14 March, due again 14 March 2029" passes. "Differential diagnosis: suspected early renal insufficiency" does not.</p>
+<div class="callout"><p><b>Why this line is safe to hold.</b> A free-text visit note is the clinic's own business record about their own customer — exactly what <code>service_bookings</code> already permits today for every other business type. Nothing in release one is a category Pet10x has not already handled. The moment the product asks a vet to sign something, or tracks a scheduled drug, or computes a dose, it has crossed the line — and that is the EMR track in §15, with its own review.</p></div>
+</section>
+<section id="spaces">
+<h2>02 · Three data spaces</h2>
+<p class="lede">Your instruction — "let the service owner have their own data, and then the pet owners can fill or share the records as their requirements" — is already an architecture. Written down, it is three spaces with two narrow bridges between them.</p>
+<pre class="mermaid">
+flowchart TB
+  subgraph CL["CLINIC SPACE — the practice's own business data"]
+    CC["clinic_customers"]
+    CP["clinic_patients"]
+    AP["appointments"]
+    SV["visits, services performed"]
+    RM["reminders, notes, invoices"]
+  end
+  subgraph BR["THE BRIDGES — narrow, consented, auditable"]
+    LNK["clinic_patients.pet_id<br/>nullable link"]
+    SHR["record_shares<br/>owner grants scoped read"]
+    PUB["record_publications<br/>clinic hands back a record"]
+  end
+  subgraph OW["OWNER SPACE — the owner's own pet records"]
+    PT["pets"]
+    PV["pet_vaccinations"]
+    PDoc["pet_documents"]
+    PCare["care logs, photos"]
+  end
+  CP --- LNK
+  LNK --- PT
+  OW -.->|"owner decides what to expose"| SHR
+  SHR --> CL
+  CL -.->|"clinic decides what to hand back"| PUB
+  PUB --> OW
+</pre>
+<div class="tbl"><table>
+<tr><th></th><th><span class="pill clinic">Clinic space</span></th><th><span class="pill owner">Owner space</span></th></tr>
+<tr><td>Who writes it</td><td>Clinic staff</td><td>The pet owner</td></tr>
+<tr><td>Whose data is it</td><td>The practice's. Pet10x is their software vendor.</td><td>The owner's, as today.</td></tr>
+<tr><td>Who can delete it</td><td>The practice</td><td>The owner</td></tr>
+<tr><td>Exists without the other</td><td>Yes — a clinic with zero Pet10x customers is fully functional</td><td>Yes — every pet owner today has one already</td></tr>
+<tr><td>Survives the other's deletion</td><td>Yes — <code>pet_id</code> goes null, the customer record stays</td><td>Yes — the clinic losing its account does not touch the owner's pets</td></tr>
+</table></div>
+<h3>What the bridges are, precisely</h3>
+<ul>
+<li><b>The link</b> (<code>clinic_patients.pet_id</code>, nullable) says only "this customer record is about that Pet10x pet". It grants no access on its own. This one nullable column is what lets a practice serve customers with and without Pet10x accounts through exactly the same screens.</li>
+<li><b>The share</b> is the owner opening a scoped, expiring, revocable window onto their own records. §09.</li>
+<li><b>The publication</b> is the clinic handing a record back — "we gave this vaccine, here is the date" — which lands in the owner's app carrying the clinic's name. §09.</li>
+</ul>
+<div class="callout"><p><b>This is a pattern the codebase already runs.</b> Accommodation requests work the same way: the resident supplies documents, the manager verifies them, and a database trigger stops either side rewriting the other's half — a rule even administrators cannot bypass. The team is not learning a new idea, only applying a familiar one to a second pair of parties.</p></div>
+</section>
+
+<section id="signup">
+<h2>03 · Self-serve signup and capability tiers</h2>
+<p class="lede">Any practice can sign up unaided and be working the same afternoon. But "signed up" and "may read a stranger's pet records" have to be two different states, or the sharing feature becomes a hole anyone can walk through with a free email address.</p>
+<p>The answer is not gatekeeping the signup. It is <b>tiers</b>: everything a clinic does with <em>their own</em> data is instant and unrestricted; the capabilities that touch <em>someone else's</em> data unlock as the practice proves it is a real business.</p>
+
+<div class="tierbox"><div class="t">Tier 0<br/>Registered</div><div>
+<p><b>Instant, self-serve, no review.</b> Email verified, that is all.</p>
+<p>Full use of the console: customers, patients, appointments, scheduling, visit notes, reminders to their own contact list, invoices, storefront draft, staff and locations. Everything in releases one and two.</p>
+<p class="small">Cannot: appear in Pet10x search, take bookings from Pet10x owners, receive shared records, publish records, or use emergency access.</p></div></div>
+<div class="tierbox"><div class="t">Tier 1<br/>Listed</div><div>
+<p><b>Light automated check</b> — business name, address, phone reachable, a real website or a confirmed location.</p>
+<p>Adds: appears in owner-facing search and the marketplace, accepts online bookings from Pet10x owners, shows a public storefront.</p></div></div>
+<div class="tierbox"><div class="t">Tier 2<br/>Verified clinic</div><div>
+<p><b>Licence or registration number recorded and checked.</b> A person reviews it once.</p>
+<p>Adds the capabilities that touch another person's records: receiving owner record shares, publishing records back into an owner's app, appearing in emergency surfaces, and emergency access. §11.</p></div></div>
+
+<p>Tiers are also a growth mechanic. A practice that has been using the calendar for a fortnight has an obvious reason to finish verification — their customers start arriving through the app.</p>
+
+<h3>The signup route must be rebuilt, not extended</h3>
+<div class="callout crit"><p>The existing business signup endpoint creates a <b>confirmed, role-elevated account for any email address with no verification at all</b>, and enforces only an eight-character password. It is an open security finding in the diligence review, and it is the exact door this module would be inviting thousands of businesses through. Rebuilding it onto the existing one-time-code flow is roughly two days of work and is a prerequisite for release one — not a nice-to-have.</p></div>
+
+<h3>Getting to a working practice in one afternoon</h3>
+<pre class="mermaid">
+flowchart LR
+  S["Sign up<br/>email + code"] --> B["Business basics<br/>name, type, address"]
+  B --> L["First location<br/>hours, phone, timezone"]
+  L --> I["Import customers<br/>CSV, staged and reviewable"]
+  I --> A["Appointment types<br/>name, duration, price"]
+  A --> T["Invite staff<br/>roles"]
+  T --> GO["Book the first appointment"]
+  GO -.->|"any time later"| V["Verify to unlock<br/>Pet10x customers"]
+</pre>
+<p><b>Import is a release-one feature, not a later one.</b> With no partner and no onboarding call, a practice that must retype four hundred customers will simply close the tab. The importer takes a spreadsheet in whatever shape it arrives, maps columns on screen, shows exactly what will be created, and commits only when the user is satisfied — with a full undo for twenty-four hours.</p>
+</section>
+
+<section id="customers">
+<h2>04 · Customers and patients</h2>
+<p>Two entities where the marketplace has one, because a clinic's unit of business is a household that may bring several animals.</p>
+<pre class="mermaid">
+erDiagram
+  businesses ||--o{ clinic_customers : "serves"
+  clinic_customers ||--o{ clinic_patients : "brings"
+  clinic_customers }o--o| profiles : "may be a Pet10x user"
+  clinic_patients }o--o| pets : "may be a Pet10x pet"
+  clinic_patients ||--o{ appointments : "booked for"
+  appointments ||--o| visits : "produces"
+  clinic_patients ||--o{ reminders : "generates"
+</pre>
+<div class="tbl"><table>
+<tr><th>Situation</th><th>How it is represented</th></tr>
+<tr><td>Walk-in with no Pet10x account</td><td><code>clinic_customers.profile_id</code> null, <code>clinic_patients.pet_id</code> null. Clinic types name, phone, animal details. Everything works.</td></tr>
+<tr><td>Customer is a Pet10x owner</td><td>Both foreign keys set once the owner confirms. The clinic sees a linked badge and the option to request records.</td></tr>
+<tr><td>Customer joins Pet10x later</td><td>Clinic invites them, or they claim the record from the app. Nothing is retyped; the link is added to the existing customer.</td></tr>
+<tr><td>Same dog entered twice</td><td>Merge — clinic-side, audited, reversible for thirty days, never across clinics.</td></tr>
+<tr><td>Animal has died</td><td>A first-class flag, never a delete. Drops out of every reminder queue the moment it is set, because a vaccination reminder for a dog that died last month is how a practice loses a family.</td></tr>
+<tr><td>Household with three cats and two owners</td><td>One customer record, several patients, several contacts on the customer.</td></tr>
+</table></div>
+<p><b>Only the owner completes a link.</b> A clinic proposes; the owner confirms in their own app on their own pet. A practice can never assert a connection to a stranger's records, which makes the mistaken-identity case structurally impossible rather than merely unlikely.</p>
+</section>
+
+<section id="schedule">
+<h2>05 · Scheduling</h2>
+<p class="lede">The calendar is the product. It is what a practice opens at 8am and closes at 6pm, and if it is not better than the paper book or the spreadsheet they are using, nothing else in this plan matters.</p>
+
+<h3>Appointment lifecycle</h3>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> requested : owner books online, pending confirmation
+  [*] --> booked : staff books directly
+  requested --> booked : clinic confirms
+  requested --> declined : clinic cannot take it
+  booked --> arrived : checked in at reception
+  arrived --> in_progress : taken through
+  in_progress --> ready : treatment done, awaiting checkout
+  ready --> completed : checked out, visit recorded
+  booked --> no_show : did not arrive
+  booked --> cancelled : cancelled by either side
+  booked --> rescheduled : moved to a new slot
+  cancelled --> [*]
+  no_show --> [*]
+  completed --> [*]
+</pre>
+<p>Enforced by a database function with an explicit transition table, not by which buttons happen to render. The diligence review found five state machines in this codebase enforced only in the interface, and one product bug that fell straight out of that — appointments start on the right side of that line.</p>
+
+<h3>What the calendar has to do</h3>
+<div class="grid2">
+<div class="card"><h4>Structure</h4><ul>
+<li>Day, three-day and week views, per location</li>
+<li>Column per provider, or per room, switchable</li>
+<li><b>Appointment types carry their own duration</b> — a dental books ninety minutes, a nail trim fifteen, without anyone remembering</li>
+<li>Resources: consult rooms, theatre, grooming bay</li>
+<li>Provider working patterns, holidays, blocked time</li>
+<li>Recurring appointments for course treatments</li>
+</ul></div>
+<div class="card"><h4>Reality</h4><ul>
+<li>Drag to move, resize to extend</li>
+<li>Double-booking allowed with a warning, because practices genuinely do it</li>
+<li>Walk-in queue that is not on the grid but is on the screen</li>
+<li>Emergency slots held back and released at a set hour</li>
+<li>Overrun visible — running forty minutes late shows on the board</li>
+<li>No-show recorded, counted, and visible on the customer record</li>
+</ul></div>
+</div>
+
+<h3>Two things only Pet10x can do here</h3>
+<div class="grid2">
+<div class="card g"><h4>Online booking that fills the book</h4><p>A Pet10x owner books from their phone against the clinic's real availability and appointment types. Requests can require confirmation or auto-confirm by type — a vaccination auto-confirms, a surgical consult asks. Every booking taken this way is a phone call the practice did not have to answer.</p></div>
+<div class="card g"><h4>Waitlist that actually fills cancellations</h4><p>A cancellation at 9:40 for an 11:00 slot is money gone. Waitlisted owners who are on Pet10x get an instant push — <em>11:00 today just opened, tap to take it</em> — first tap wins, slot filled, nobody phoned anyone. No standalone practice system can do this, because none of them are already in the customer's pocket.</p></div>
+</div>
+</section>
+
+<section id="dayops">
+<h2>06 · Daily operations</h2>
+<p class="lede">You asked for "more of their daily operations". This is the screen the practice lives on between appointments — the one that answers who is here, who is waiting, what is unfinished, and who needs calling.</p>
+<pre class="mermaid">
+flowchart TB
+  T["TODAY — the operations board"]
+  T --> W["Waiting room<br/>arrived, waiting time, running late"]
+  T --> R["In progress<br/>who is with whom, in which room"]
+  T --> C["Ready for checkout<br/>unpaid, unbilled"]
+  T --> K["Call list<br/>reminders due, follow-ups, no-show chases"]
+  T --> TA["Tasks<br/>callbacks, paperwork, assigned to a person"]
+  T --> ST["Who is on today<br/>staff, hours, gaps"]
+  T --> EOD["End of day<br/>unbilled visits, unfinished notes, tomorrow's prep"]
+</pre>
+<div class="tbl"><table>
+<tr><th>Operational need</th><th>How it is served</th></tr>
+<tr><td>"Who is in the building right now?"</td><td>Waiting-room board with arrival time and a waiting counter that turns amber past fifteen minutes. Reception can answer the question without asking anyone.</td></tr>
+<tr><td>"Which visits have not been billed?"</td><td>Ready-for-checkout column plus an end-of-day list. Unbilled visits are the most common quiet revenue leak in a small practice.</td></tr>
+<tr><td>"Who do I need to phone today?"</td><td>The call list, §07 — one queue combining due reminders, follow-ups and no-show chases, each with call, snooze and mark-done, and every attempt logged on the customer.</td></tr>
+<tr><td>"What did we say to this customer last time?"</td><td>A communication log per customer: every reminder sent, call logged, note left, in one thread.</td></tr>
+<tr><td>"Who is working on Thursday?"</td><td>Staff roster driving both the calendar's provider columns and the on-call roster.</td></tr>
+<tr><td>"How did the week go?"</td><td>A short operations report: appointments booked and kept, no-show rate, reminders sent against visits booked, revenue by service, new customers, and how many arrived through Pet10x.</td></tr>
+</table></div>
+<p class="small">Deliberately not release one: time clocks and payroll, shift swapping, supplier ordering, multi-practice roll-up reporting. Each is a real need and none of them is why a practice adopts a calendar.</p>
+</section>
+
+<section id="reminders">
+<h2>07 · Reminders and recalls</h2>
+<p class="lede">Your words: "reminders for them when they need vaccinations or medical so i can call or send them notifications to come and see the shop." Two verbs — <b>call</b> and <b>send</b> — and the design has to serve both equally, because a practice does both.</p>
+<pre class="mermaid">
+flowchart LR
+  SRC["Triggers<br/>vaccine due · follow-up date<br/>annual check · post-op · course refill<br/>lapsed customer"] --> RULE["Reminder rules<br/>trigger + how early + channel"]
+  RULE --> Q["Due queue"]
+  Q --> SUP{"Suppression<br/>deceased · already booked<br/>unsubscribed · contacted recently"}
+  SUP --> CH{"Channel"}
+  CH -->|"Pet10x owner"| PUSH["Push notification<br/>free · instant · books in one tap"]
+  CH -->|"not on Pet10x"| EM["Email or SMS"]
+  CH -->|"either"| CALL["Call list<br/>receptionist works the queue"]
+  PUSH --> BK["Booked"]
+  EM --> BK
+  CALL --> BK
+  BK --> RPT["Reported as visits booked,<br/>never as messages sent"]
+</pre>
+<h3>The call list is a first-class surface, not a fallback</h3>
+<p>A receptionist with twenty minutes between appointments opens one queue, sorted by how overdue each animal is, showing the customer, the pet, what is due, the phone number and the last three contact attempts. Each row offers <b>call</b> — which logs the attempt and opens a note — <b>snooze</b> for a week, <b>mark booked</b>, or <b>suppress</b>. Working a call list is a real job in a practice, and most software treats it as an afterthought behind a bulk-email screen.</p>
+<h3>Rules the engine holds</h3>
+<ul>
+<li><b>Suppression is aggressive by default</b>: deceased patients, animals already booked for that reason, customers who unsubscribed, and anyone contacted in the last N days. The existing twenty-four-hour throttle on fine reminders is the pattern to copy.</li>
+<li><b>Service reminders and marketing are separate consents and separate tables.</b> A vaccination-due notice is not a newsletter, and merging them eventually costs a practice both.</li>
+<li><b>Reminders can come from either space.</b> A vaccination the clinic administered generates one; so can a vaccination expiry the <em>owner</em> recorded and shared. The second is a reason for practices to want their customers linked.</li>
+<li><b>Measured in visits booked.</b> The report answers "did this bring animals through the door", which is the only number a practice owner cares about.</li>
+</ul>
+</section>
+
+<section id="shop">
+<h2>08 · Shop, storefront and money</h2>
+<p>"Shop" splits into three things sharing a spine, and only the first is needed early.</p>
+<div class="grid2">
+<div class="card"><h4>Storefront — the public face</h4><p>Practice profile, each location with its own hours and phone, services and prices, the team, photos, booking rules, after-hours arrangements. Extends the existing marketplace storefront rather than building a second one, so a clinic appears alongside groomers and walkers with a veterinary treatment.</p></div>
+<div class="card"><h4>Retail catalogue</h4><p>Food, preventatives, supplements, accessories. Sold at the counter, added to a visit, or reserved in the app for pickup. Stock kept simple at first — a count and a reorder point, not lot tracking.</p></div>
+<div class="card"><h4>Money</h4><p>Price list, an estimate the owner can approve in their app before treatment, an invoice built from what was actually done, payment recorded, day sheet, unpaid-balance list. Insurance-claim export is a later, well-defined addition.</p></div>
+</div>
+<div class="callout crit"><p><b>One fix has to land before invoicing.</b> Booking money is client-controlled today — the update policies carry no column list, so a customer can set their own booking to paid and rewrite the commission figure. A clinic invoicing real treatment cannot inherit that flaw, so invoicing goes through database functions with a transition table from the first commit, and the existing booking hole gets closed in the same release.</p></div>
+<p class="small">Lot-level inventory with expiry tracking belongs to the EMR track, because its real purpose is tracing a drug recall to the animals that received it — a clinical-safety function rather than a retail one.</p>
+</section>
+<section id="sharing">
+<h2>09 · Sharing and service records</h2>
+<p class="lede">The two bridges between the spaces, both narrow, both consented, both auditable. This is where a Pet10x customer becomes worth more to the practice than a walk-in.</p>
+
+<h3>Owner to clinic — the standing grant</h3>
+<p>The owner grants a named clinic scoped, expiring, revocable read access to a named pet. Scopes, because "share everything" is not a real consent:</p>
+<div class="tbl"><table>
+<tr><th>Scope</th><th>What the clinic sees</th><th>Default when booking</th></tr>
+<tr><td><code>identity</code></td><td>Name, species, breed, sex, age, microchip, colour, weight</td><td><span class="pill good">on</span></td></tr>
+<tr><td><code>vaccinations</code></td><td>Vaccination history and expiry dates</td><td><span class="pill good">on</span></td></tr>
+<tr><td><code>health_notes</code></td><td>Conditions, allergies, medication notes, behavioural notes the owner recorded</td><td><span class="pill good">on</span></td></tr>
+<tr><td><code>documents</code></td><td>Uploaded documents — licences, insurance, paperwork from a previous practice</td><td><span class="pill low">off</span></td></tr>
+<tr><td><code>care_log</code></td><td>Home feeding, weight and activity logs</td><td><span class="pill low">off</span></td></tr>
+<tr><td><code>other_clinic_records</code></td><td>Records other practices have published — the referral case</td><td><span class="pill crit">off, deliberate opt-in</span></td></tr>
+</table></div>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> requested : clinic asks, or owner books an appointment
+  requested --> active : owner approves the scopes
+  requested --> refused : declined, or expires unanswered
+  active --> active : owner widens or narrows scopes
+  active --> expired : expiry passes
+  active --> revoked : owner revokes, one tap
+  expired --> active : owner renews
+  revoked --> requested : clinic may ask again, rate limited
+  note right of revoked : Future reads stop at once.<br/>What the clinic already wrote<br/>in its own records is untouched.
+</pre>
+<h4>Four ways a grant starts, and no fifth</h4>
+<ul>
+<li><b>Booking</b> — the confirmation screen offers to share the default three scopes with that clinic until thirty days after the visit. This will be the overwhelming majority.</li>
+<li><b>Desk code</b> — owner reads a six-character code to reception, single use, expires in ten minutes. Covers walk-ins, and reuses the existing emergency-token mechanics.</li>
+<li><b>Clinic request</b> — arrives as a notification and waits in the owner's app until answered.</li>
+<li><b>Owner-initiated</b> — searching for a practice and sharing before a first visit, or when moving cities.</li>
+</ul>
+<h4>Where the rule lives</h4>
+<p>In the database, as everything else in this codebase does. A security-definer function resolves an active, unexpired, unrevoked grant for the caller's clinic and the requested scope; row-level policies on every owner-space table consult it; there is no path that reads shared data without passing through it. It is the existing <code>has_booking_for_pet</code> predicate made scope- and time-aware. Every read writes an access-log row — which staff member, which patient, which scope, when.</p>
+<div class="callout crit"><p><b>The sentence the interface must say, in these words:</b> "Revoking stops <em>Harbour Animal Hospital</em> seeing anything new. It does not remove the appointment history and notes they keep in their own system." Vagueness here is how consent features lose trust, and this codebase already has the instinct — one commit is titled <em>"Keep the record, and let the letter go."</em></p></div>
+
+<h3>Clinic to owner — handing a record back</h3>
+<p>The reverse bridge, and the one that creates the network effect. At checkout the clinic can publish selected service records into the owner's app: vaccination given with product and next-due date, a vaccination certificate, the visit summary, aftercare instructions, the invoice, the next appointment.</p>
+<pre class="mermaid">
+flowchart LR
+  V["Visit completed"] --> SEL{"Staff selects<br/>what to hand back"}
+  SEL --> P["record_publications row"]
+  P --> OA["Owner's app: record appears<br/>with the clinic's name on it"]
+  OA --> CMP["Building compliance file<br/>reads a clinic-confirmed record"]
+  P --> N["Owner notified"]
+  SEL -.->|"never automatic"| INT["Internal visit notes<br/>stay with the clinic"]
+</pre>
+<p>Publication is always an explicit act, never a default. Internal notes, anything about the <em>person</em> rather than the animal, and anything a practice keeps for its own protection stay where they are.</p>
+<div class="callout gold"><p><b>Why this is the strategic centre.</b> Today <code>pet_vaccinations</code> is a text box the owner types into, and a strata manager simply believes it. One published record turns a claim into something with a practice's name attached — which is what the building manager, the boarding kennel, the insurer and the municipal licence application all actually want. Clinic → owner → building is a loop no standalone practice-management product can close, because none of them are in the owner's phone or the building's compliance file.</p>
+<p style="margin-top:.6rem">It also implies a product decision that is yours to make: once a record can be clinic-confirmed, does a self-typed one still satisfy a building requirement? See §18.</p></div>
+</section>
+
+<section id="owner">
+<h2>10 · The owner's side</h2>
+<p>Five additions to the owner app. Each is independently useful, and together they are the reason an owner prefers a Pet10x practice.</p>
+<div class="grid2">
+<div class="card o"><h4>My vets</h4><p>Which practices are linked, exactly what each can see, when it expires, one-tap revoke, and the desk code. An owner should be able to answer "who can see my dog's records?" in three seconds.</p></div>
+<div class="card o"><h4>Records timeline</h4><p>One history per pet merging what the owner recorded with what practices handed back, each showing where it came from. Exportable as a PDF for a kennel, a new vet, an insurer or a strata.</p></div>
+<div class="card o"><h4>Book and manage appointments</h4><p>Book against real availability, get the reminder, see it in the app, reschedule, join a waitlist for a sooner slot.</p></div>
+<div class="card o"><h4>Reminders that do something</h4><p>"Rex is due his booster" with a book-now button, instead of a postcard. The reminder and the booking are the same interaction.</p></div>
+<div class="card o"><h4>Estimates and receipts</h4><p>Approve an estimate before treatment starts; keep every receipt in one place instead of a glovebox.</p></div>
+<div class="card o"><h4>Consent asked in context</h4><p>At booking, at the desk, on referral — never as a settings screen nobody opens.</p></div>
+</div>
+</section>
+
+<section id="emergency">
+<h2>11 · Emergency</h2>
+<p class="lede">Lighter than revision 1, because the clinic writes no clinical record. What remains is still the most differentiated thing in the plan.</p>
+
+<h3>Emergency access — an animal arrives, the owner cannot be reached</h3>
+<p>A <b>Tier 2 verified</b> practice can pull a narrow emergency projection of the <em>owner's own</em> records without a prior grant, after stating a reason. This is the same category of data the existing building emergency directory already exposes to a first responder, so it is consistent with a precedent this platform has already set.</p>
+<div class="grid2">
+<div class="card"><h4><span class="pill good">Returns</span></h4><ul><li>Species, breed, sex, age, weight, colour</li><li>Allergies, conditions and medications the owner recorded</li><li>Owner name and phone number</li><li>The pet's usual practice, if linked</li></ul></div>
+<div class="card"><h4><span class="pill crit">Never returns</span></h4><ul><li>Any other practice's records, notes or invoices</li><li>Documents or photographs</li><li>Home address or building</li><li>Anything at all if the practice is not Tier 2</li></ul></div>
+</div>
+<p>Reason required and retained, owner notified within seconds, every pull logged and rate-limited, and an administrator review queue where abuse costs verification.</p>
+
+<h3>The AI handoff — closing a loop that is already half-built</h3>
+<p>The assistant already runs deterministic red-flag matching before any model replies, and shows an emergency card. Today that card lists the owner's vet from a free-text field, and the nearby-practice rows beneath it are inert — they cannot even be tapped to call, which the interface audit flagged as the worst accessibility failure in the app precisely because it appears on the one screen where seconds matter.</p>
+<pre class="mermaid">
+flowchart LR
+  MSG["Owner types a red-flag symptom"] --> TR["Deterministic triage fires"]
+  TR --> CARD["Emergency card"]
+  CARD --> A["Call the pet's practice<br/>with live open or closed state"]
+  CARD --> B["Nearest open practice<br/>by distance, tappable"]
+  CARD --> C["Tell them I am coming"]
+  C --> ARR["Inbound arrival on the<br/>practice's Today board"]
+  ARR --> PREP["Species, weight, allergies,<br/>reported problem, ETA — before arrival"]
+</pre>
+<p><b>"Tell them I am coming"</b> is the feature. One tap from a frightened owner gives the practice several minutes of warning with the basics already on screen. No standalone practice system can offer it.</p>
+<p>Separately, the existing building emergency directory has a defect worth correcting in this work: it returns behavioural notes and conditions while its own header claims medical history is withheld. Either narrow the projection or change the promise — but decide it deliberately.</p>
+</section>
+
+<section id="org">
+<h2>12 · Locations, staff and roles</h2>
+<p>Today a business is a single owner account with no staff table and no second address, so a two-site practice with eleven employees cannot be represented at all. These tables are generic and every business type benefits.</p>
+<div class="tbl"><table>
+<tr><th>Capability</th><th>Owner / manager</th><th>Vet</th><th>Nurse / tech</th><th>Reception</th></tr>
+<tr><td>Book, reschedule, check in</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>Create customers and patients</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td>Record a visit and its services</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+<tr><td>Read owner-shared records</td><td>—</td><td>✓</td><td>✓</td><td>identity only</td></tr>
+<tr><td>Publish a record back to the owner</td><td>—</td><td>✓</td><td>✓</td><td>certificates only</td></tr>
+<tr><td>Emergency access pull</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+<tr><td>Work the call list, send reminders</td><td>✓</td><td>—</td><td>✓</td><td>✓</td></tr>
+<tr><td>Invoice, take payment, refund</td><td>✓</td><td>✓</td><td>—</td><td>✓</td></tr>
+<tr><td>Prices, services, storefront</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Staff, roles, locations</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Export the practice's data</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table></div>
+<p class="small">A practice manager who is not a vet cannot read shared health records, because business authority and clinical need-to-know are different things. Someone who is both holds both roles. Personas derive from a staff row exactly as building-manager personas derive from a grant today.</p>
+</section>
+
+<section id="console">
+<h2>13 · The console</h2>
+<p>A new route, <code>/clinic</code>, desktop-first. The existing business area is a six-tab mobile shell built for a dog walker checking bookings on a phone; a practice runs all day on a desk machine at a reception counter.</p>
+<div class="tbl"><table>
+<tr><th>Screen</th><th>Purpose</th><th>Release</th></tr>
+<tr><td><b>Today</b></td><td>Waiting room, in progress, ready for checkout, call list, tasks, who is on</td><td>R1 / R2</td></tr>
+<tr><td><b>Calendar</b></td><td>Multi-provider, multi-room, day and week, drag to move, walk-ins</td><td>R1</td></tr>
+<tr><td><b>Customers &amp; patients</b></td><td>Search that tolerates spelling; household card; patient card; link status</td><td>R1</td></tr>
+<tr><td><b>Patient record</b></td><td>Signalment, allergy banner, visit history, vaccinations, documents, balance, and a clearly-labelled tab for what the owner shared</td><td>R2</td></tr>
+<tr><td><b>Visit</b></td><td>Services performed, vaccination given, note, attachments, publish back to owner, charge</td><td>R2</td></tr>
+<tr><td><b>Reminders</b></td><td>Rules, due queue, call list, templates, outcomes</td><td>R3</td></tr>
+<tr><td><b>Shop</b></td><td>Storefront, services and prices, retail catalogue, simple stock</td><td>R5</td></tr>
+<tr><td><b>Billing</b></td><td>Estimates, invoices, payments, day sheet, unpaid balances</td><td>R6</td></tr>
+<tr><td><b>Emergency</b></td><td>On-call roster, inbound arrivals, access log</td><td>R7</td></tr>
+<tr><td><b>Team &amp; locations</b></td><td>Sites, hours, staff, roles</td><td>R1</td></tr>
+<tr><td><b>Settings</b></td><td>Appointment types, publication defaults, import, export, verification</td><td>R1</td></tr>
+</table></div>
+<p><b>Export exists from release one.</b> A practice will not put its customer list somewhere it cannot get it out of, and with no salesperson to reassure them, the export button is the reassurance.</p>
+</section>
+
+<section id="schema">
+<h2>14 · Data model</h2>
+<p>About twenty-four new tables for the operations product, in one database as you specified. Grouped so each release is an independent set of migrations.</p>
+<div class="tbl"><table>
+<tr><th>Group</th><th>Tables</th><th>Release</th></tr>
+<tr><td>Organisation</td><td><code>business_locations</code>, <code>business_staff</code>, <code>business_verifications</code></td><td>R1</td></tr>
+<tr><td>Customers</td><td><code>clinic_customers</code>, <code>clinic_patients</code>, <code>customer_contacts</code>, <code>patient_link_requests</code>, <code>patient_merges</code>, <code>import_batches</code></td><td>R1</td></tr>
+<tr><td>Scheduling</td><td><code>appointment_types</code>, <code>resources</code>, <code>appointments</code>, <code>staff_availability</code>, <code>waitlist_entries</code></td><td>R1 / R2</td></tr>
+<tr><td>Operations</td><td><code>visits</code>, <code>visit_services</code>, <code>visit_attachments</code>, <code>tasks</code>, <code>communication_log</code></td><td>R2</td></tr>
+<tr><td>Reminders</td><td><code>reminder_rules</code>, <code>reminder_items</code>, <code>message_templates</code>, <code>outreach_log</code></td><td>R3</td></tr>
+<tr><td>Sharing</td><td><code>record_shares</code>, <code>record_share_requests</code>, <code>record_access_log</code>, <code>record_publications</code></td><td>R4</td></tr>
+<tr><td>Commerce</td><td><code>products</code>, <code>stock_levels</code>, <code>estimates</code>, <code>invoices</code>, <code>invoice_lines</code></td><td>R5 / R6</td></tr>
+<tr><td>Emergency</td><td><code>emergency_pulls</code>, <code>on_call_shifts</code>, <code>emergency_arrivals</code></td><td>R7</td></tr>
+</table></div>
+<h4>Changes to what exists</h4>
+<ul>
+<li><code>notification_kind</code> gains <code>appointment</code>, <code>reminder</code>, <code>clinic</code>.</li>
+<li><code>pet_vaccinations</code> and <code>pet_documents</code> gain a provenance column and a link to the publication that confirmed them.</li>
+<li><code>businesses.category</code> becomes a constrained vocabulary with <code>veterinary</code> as a first-class value.</li>
+<li>New private storage bucket for visit attachments, size- and type-limited with path grammar pinned in policy — following the accommodation-documents pattern rather than the unlimited buckets that exist elsewhere.</li>
+<li>The business signup route is rebuilt onto the one-time-code flow, and the booking column-guard flaw is closed before invoicing.</li>
+</ul>
+</section>
+
+<section id="emr">
+<h2>15 · The road to full EMR</h2>
+<p class="lede">Full EMR stays the destination. The point of this section is that nothing in releases one to seven has to be unpicked to get there — the operations tables are the EMR's foundation, not a detour around it.</p>
+<div class="tbl"><table>
+<tr><th>Operations table today</th><th>Becomes, in the EMR track</th></tr>
+<tr><td><code>clinic_patients</code></td><td>The patient. Unchanged — gains a problem list, allergies as structured rows, and a weight series.</td></tr>
+<tr><td><code>appointments</code></td><td>Unchanged. Gains a link to an encounter.</td></tr>
+<tr><td><code>visits</code> + <code>visit_services</code></td><td><code>encounters</code>. The free-text note becomes structured subjective / objective / assessment / plan alongside it, and finalisation gains signing authority and immutability.</td></tr>
+<tr><td><code>record_publications</code></td><td>Unchanged. Exactly the same bridge, carrying clinical documents instead of service records.</td></tr>
+<tr><td><code>record_shares</code></td><td>Unchanged. Gains clinical scopes.</td></tr>
+<tr><td><code>products</code> + <code>stock_levels</code></td><td>Gains lots with expiry, which is what makes a drug recall traceable to the animals that received it.</td></tr>
+<tr><td><code>invoices</code></td><td>Unchanged. Gains lines generated from clinical orders.</td></tr>
+</table></div>
+<h4>What the EMR track adds, and what it will require</h4>
+<ul>
+<li>Structured clinical notes with signing authority, immutability after finalisation, and amendment trails.</li>
+<li>Prescriptions with prescriber authority, refills, and dispensing.</li>
+<li>A controlled-drug register — append-only, isolated in its own module so it can be reviewed or replaced without touching anything else.</li>
+<li>Lab orders and results with reference ranges; imaging attachments.</li>
+<li>Formal retention and access-log policies.</li>
+</ul>
+<div class="callout"><p><b>The one thing to keep in view.</b> Crossing into the EMR is the point where Pet10x becomes custodian of a regulated medical record, and where the professional advice you have deferred becomes necessary rather than optional. That is a decision for a later quarter with a working product and real practices to inform it — but the crossing is a real one, and the plan should not pretend it is just the next sprint. Everything before it is ordinary business software.</p></div>
+</section>
+
+<section id="risk">
+<h2>16 · Risks</h2>
+<div class="tbl"><table>
+<tr><th>Risk</th><th>Severity</th><th>Response</th></tr>
+<tr><td>Self-serve signup lets an unverified party receive shared pet records</td><td><span class="pill crit">high</span></td><td>The tier model in §03. Sharing, publication and emergency access require Tier 2. Instant signup unlocks only the practice's own data.</td></tr>
+<tr><td>The existing business signup endpoint creates confirmed, role-elevated accounts with no verification</td><td><span class="pill crit">high</span></td><td>Rebuild onto the one-time-code flow in release one. Roughly two days, and a prerequisite.</td></tr>
+<tr><td>No design partner means building the wrong calendar</td><td><span class="pill high">medium</span></td><td>Ship release one narrow and instrumented; recruit five practices from self-serve signups into a feedback loop; treat the first eight weeks after launch as design time, not maintenance.</td></tr>
+<tr><td>Practices abandon onboarding rather than retype their client list</td><td><span class="pill high">medium</span></td><td>CSV import in release one with column mapping, preview and a twenty-four-hour undo.</td></tr>
+<tr><td>Scheduling is a crowded market with capable incumbents</td><td><span class="pill high">medium</span></td><td>Do not compete on calendar features. Compete on the two things only Pet10x can do — instant waitlist fill and free push reminders that book in one tap.</td></tr>
+<tr><td>Anti-spam rules on reminders and campaigns</td><td><span class="pill med">medium</span></td><td>Separate service reminders from marketing at the table level, honour unsubscribe across channels, keep templates reviewable. Cheap to do now, expensive to retrofit.</td></tr>
+<tr><td>Invoicing inherits the client-controlled payment flaw</td><td><span class="pill med">medium</span></td><td>Database-enforced transitions from the first commit; close the existing booking hole in the same release.</td></tr>
+<tr><td>Platform delivery discipline — no CI, no tests on database code</td><td><span class="pill med">medium</span></td><td>Much less acute than it was for an EMR, but a practice's calendar is still their business. Remediation phases 0 and 1 — about a week and a half — before release one ships.</td></tr>
+<tr><td>Owners confused about what revoking a share does</td><td><span class="pill low">low but reputational</span></td><td>Explicit wording, tested with real owners.</td></tr>
+</table></div>
+<p class="small">Regulatory items are noted as areas that will need professional input at the EMR step; nothing here is legal advice or a compliance assessment.</p>
+</section>
+
+<section id="program">
+<h2>17 · Releases</h2>
+<p>Seven releases, each one shippable and useful on its own. One senior engineer; a second engineer roughly halves elapsed time from R5 onward where the work forks.</p>
+<div class="phase"><div class="no">R1<br/><span class="small">6 wk</span></div><div><h4>Run the day</h4><p>Rebuilt self-serve signup with tiers · locations, staff and roles · customers and patients with the nullable pet link · CSV import with preview and undo · appointment types · the calendar with check-in · export.</p><p class="small"><b>Ships when:</b> a practice that found you on Google can sign up unaided and book tomorrow's appointments. No Pet10x customers required.</p></div></div>
+<div class="phase"><div class="no">R2<br/><span class="small">5 wk</span></div><div><h4>The operations board</h4><p>Today screen — waiting room, in progress, ready for checkout, tasks, who is on · visits and services performed · patient record with history · attachments · communication log · no-shows · end-of-day.</p><p class="small"><b>Ships when:</b> reception can answer "who is here and what is unfinished" without asking anyone.</p></div></div>
+<div class="phase"><div class="no">R3<br/><span class="small">5 wk</span></div><div><h4>Bring them back</h4><p>Reminder rules and due queue · the call list as a first-class surface · templates · email and SMS for non-Pet10x customers · suppression · outcome reporting measured in visits booked.</p><p class="small"><b>Ships when:</b> a receptionist can work twenty minutes of call-backs from one screen, and the practice can see what it earned them.</p></div></div>
+<div class="phase"><div class="no">R4<br/><span class="small">5 wk</span></div><div><h4>The Pet10x edge</h4><p>Record shares with scopes, expiry, revocation and access logging · desk codes · online booking from the owner app · waitlist auto-fill · publishing records back to owners with provenance · the owner's My Vets and records timeline.</p><p class="small"><b>Ships when:</b> being a Pet10x practice is visibly better than not being one — for both sides. This is the differentiator, and the first release that is hard to copy.</p></div></div>
+<div class="phase"><div class="no">R5<br/><span class="small">5 wk</span></div><div><h4>The shop</h4><p>Storefront extension for veterinary practices · services and price list · retail catalogue · simple stock with reorder points · marketplace presence for Tier 1.</p></div></div>
+<div class="phase"><div class="no">R6<br/><span class="small">5 wk</span></div><div><h4>Get paid</h4><p>Estimates with owner approval · invoices from what was actually done · payments · day sheet · unpaid balances · the booking payment fix.</p></div></div>
+<div class="phase"><div class="no">R7<br/><span class="small">3 wk</span></div><div><h4>Emergency</h4><p>Tier 2 emergency access with review queue · on-call rosters · inbound arrivals on the Today board · AI emergency-card integration · the existing directory projection corrected.</p></div></div>
+<hr>
+<div class="phase"><div class="no">EMR<br/><span class="small">later</span></div><div><h4>The clinical track</h4><p>Structured notes with signing authority, prescriptions, controlled-drug register, diagnostics, lot-level inventory. Its own programme, informed by real practices using releases one to seven, and the point at which professional advice becomes necessary. §15.</p></div></div>
+<div class="tbl"><table>
+<tr><th>Milestone</th><th class="num">Cumulative</th><th>What exists</th></tr>
+<tr><td>Remediation phases 0–1</td><td class="num">1.5 wk</td><td>Credentials rotated, CI running, signup hole closed. Nothing vet-facing.</td></tr>
+<tr><td>R1</td><td class="num">7.5 wk</td><td>A practice books real appointments, unaided, on their own customer list.</td></tr>
+<tr><td>R1–R3</td><td class="num">17.5 wk</td><td>A complete standalone practice product — calendar, operations board, reminders. Sellable to any clinic with no Pet10x customers at all.</td></tr>
+<tr><td>R1–R4</td><td class="num">22.5 wk</td><td><b>The differentiated product.</b> Sharing, online booking, waitlist fill, records handed back, owner app.</td></tr>
+<tr><td>R1–R7</td><td class="num">35.5 wk</td><td>Shop, invoicing and emergency. Everything in this document.</td></tr>
+</table></div>
+</section>
+
+<section id="approve">
+<h2>18 · Approve to proceed</h2>
+<p class="lede">No code is written and none will be until you say so. Your reframe answered most of what I had open; four things remain.</p>
+<div class="dec"><div class="q">1 · Is the operations-versus-clinical line in §01 the right line?</div><p>Release one records what was done, what was given and what it cost, but not structured clinical notes, prescriptions or drug custody. If you want vaccination administration recorded more formally than a service record from day one, tell me now — it is a small change early and a large one later.</p></div>
+<div class="dec"><div class="q">2 · Do you accept the three-tier model?</div><p>Instant signup for everything a practice does with their own data; verification only to receive shared records, publish, or use emergency access. This is what makes self-serve safe. If you want sharing available at Tier 0, say so and I will design compensating controls instead.</p></div>
+<div class="dec"><div class="q">3 · Do clinic-confirmed records change strata compliance?</div><p>Once a vaccination can carry a practice's name, does a self-typed one still satisfy a building requirement? This affects existing managers and is the highest-value decision in the document — it is what turns the vet module from a second product into a reason the first one wins.</p></div>
+<div class="dec"><div class="q">4 · Release order — is R4 in the right place?</div><p>I have put the Pet10x advantage fourth, after the standalone product is complete, because a practice must want the software before the network matters. The argument for moving it earlier is that it is the only part competitors cannot copy. I recommend leaving it at four; it is a reasonable thing to disagree with.</p></div>
+<div class="callout"><p><b>On approval</b> I will write this into <code>docs/superpowers/specs/</code>, then produce a task-level implementation plan for R1 and start there. Nothing gets built before that.</p></div>
+</section>
+</main>
+</div>

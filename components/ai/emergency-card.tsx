@@ -1,7 +1,9 @@
 "use client"
 
-import { AlertTriangle, MapPin, Phone } from "lucide-react"
+import { useState } from "react"
+import { AlertTriangle, MapPin, Phone, Send, Check } from "lucide-react"
 import type { EmergencyCard as EmergencyCardData } from "@/lib/ai/types"
+import { notifyArrival } from "@/lib/data/owner-vets"
 
 /**
  * Rendered instead of an answer when triage says emergency.
@@ -11,6 +13,8 @@ import type { EmergencyCard as EmergencyCardData } from "@/lib/ai/types"
  */
 export function EmergencyCard({ card }: { card: EmergencyCardData }) {
   const subject = card.petName ? card.petName : "Your pet"
+  const [told, setTold] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
 
   return (
     <div className="rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-4">
@@ -47,18 +51,74 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
             Emergency clinics nearby
           </p>
           <div className="flex flex-col gap-1.5">
-            {card.clinics.map((clinic) => (
-              <div key={clinic.name} className="flex items-start gap-2 rounded-xl card-raised p-2.5">
-                <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-semibold text-foreground">{clinic.name}</p>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    {[clinic.address, clinic.city].filter(Boolean).join(", ") || "Address not listed"}
-                    {clinic.distanceKm != null ? ` · ${clinic.distanceKm.toFixed(1)} km` : ""}
-                  </p>
+            {card.clinics.map((clinic) => {
+              const where = [clinic.address, clinic.city].filter(Boolean).join(", ")
+              return (
+                <div key={clinic.id} className="rounded-xl card-raised p-2.5">
+                  <div className="flex items-start gap-2">
+                    <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-semibold text-foreground">{clinic.name}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {where || "Address not listed"}
+                        {clinic.distanceKm != null ? ` · ${clinic.distanceKm.toFixed(1)} km` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  {/* These rows used to be inert text on the one screen where
+                      seconds matter. Now every one of them does something. */}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {clinic.phone && (
+                      <a
+                        href={`tel:${clinic.phone.replace(/[^\d+]/g, "")}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-2.5 py-1.5 text-[12px] font-semibold text-destructive-foreground"
+                      >
+                        <Phone className="h-3.5 w-3.5" aria-hidden="true" /> Call
+                      </a>
+                    )}
+                    {where && (
+                      <a
+                        href={`https://maps.google.com/?q=${encodeURIComponent(`${clinic.name} ${where}`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[12px] font-semibold text-foreground"
+                      >
+                        <MapPin className="h-3.5 w-3.5" aria-hidden="true" /> Directions
+                      </a>
+                    )}
+                    {clinic.canNotify && card.petId && (
+                      told === clinic.id ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success">
+                          <Check className="h-3.5 w-3.5" aria-hidden="true" /> They know you are coming
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={busy === clinic.id}
+                          onClick={async () => {
+                            if (!card.petId) return
+                            setBusy(clinic.id)
+                            const res = await notifyArrival(
+                              clinic.id,
+                              card.petId,
+                              card.reasons.join("; ") || "Emergency",
+                              20,
+                            )
+                            setBusy(null)
+                            if (res.error) window.alert(res.error)
+                            else setTold(clinic.id)
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
+                        >
+                          <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                          {busy === clinic.id ? "Telling them…" : "Tell them I'm coming"}
+                        </button>
+                      )
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

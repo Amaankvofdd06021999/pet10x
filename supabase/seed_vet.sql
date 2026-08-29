@@ -1,0 +1,25 @@
+-- Pet10x — demo data for the veterinary console.
+--
+-- WHERE THIS ACTUALLY LIVES: the demo rows were applied to the live project on
+-- 2026-09-01 through the Supabase MCP, bundled into the migration recorded as
+-- `vet_personas_and_seed`. That statement is in the project's own migration
+-- ledger (`supabase_migrations.schema_migrations`), NOT in this file and not in
+-- git — the same class of file-versus-server drift the Phase 0 review
+-- documented, and it is recorded here rather than left to be discovered.
+--
+-- What it seeded, against "Westside Veterinary Clinic":
+--   · five appointment types with real durations, three consult rooms
+--   · a Monday-to-Friday working week plus Saturday morning
+--   · six customers who are NOT Pet10x users, each with an animal and a rabies
+--     vaccination coming due — the case the whole module has to serve
+--   · four customers who ARE Pet10x users, linked to real pets
+--   · today's book at several stages: completed, ready, in room, arrived,
+--     booked, and one online request awaiting confirmation
+--   · one closed visit with services and a follow-up date
+--   · two reminder rules and the resulting call-list queue
+--   · two tasks and three retail products
+--
+-- TO REBUILD IT ELSEWHERE: this is demo data, not schema. Write the rows you
+-- want for the environment you are seeding; do not replay a hard-coded
+-- business id into a database that does not have it. Nothing in the veterinary
+-- module depends on these rows existing.

@@ -1,0 +1,24 @@
+-- Pet10x — some buildings let a manager fine without warning first.
+--
+-- The default stays "a warning comes first": that is the order most bylaws
+-- assume and the first thing a tribunal looks for. But it is a BUILDING'S
+-- policy, not a platform rule, so it is a switch — `buildings.pet_rules
+-- .allow_direct_fine`, edited in Manager → Settings → Pet Bylaws → Enforcement.
+--
+-- Deliberately NOT added to RULE_TOGGLES: those feed computeCompliance, and
+-- this changes nobody's compliance score.
+--
+-- Applied live as migration `building_direct_fine_policy`. It:
+--   1. adds building_allows_direct_fine(uuid)
+--   2. adds ONE arm to the ladder in manager_advance_violation, by reading the
+--      function back with pg_get_functiondef, replacing the `open` arm, and
+--      re-executing it. The body carries the reasoning for every other rule in
+--      it, and re-typing that from memory is how comments and code drift apart.
+--      The new arm is:
+--        or (p_to_stage = 'fine_1'
+--            and public.building_allows_direct_fine(v_vio.building_id))
+--   3. re-issues manager_issue_notice so a "fine" on an `open` case resolves to
+--      fine_1 when the policy allows, and returns `warning_first` when it does not.
+--
+-- Verified live: policy off -> {"ok":false,"error":"warning_first"};
+-- policy on -> {"ok":true,"stage":"fine_1"} with a fine created.

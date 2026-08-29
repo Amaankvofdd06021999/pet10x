@@ -41,6 +41,8 @@ import { Portal } from "@/components/ui/portal"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { useMyCases, fileDispute } from "@/lib/data/live"
+import { useMyNotices } from "@/lib/data/clinic/notices"
+import { stampOf } from "@/lib/data/case-timeline"
 import { longDate } from "@/lib/dates"
 import { STAGE_LABEL, isTerminal } from "@/lib/data/violations"
 import { DISPUTE_WINDOW_DAYS, canDispute, describeWhyNot, disputeDeadline } from "@/lib/data/disputes"
@@ -187,6 +189,8 @@ export function MyCasesScreen({
             </p>
           </div>
         )}
+
+        <NoticesReceived />
 
         {!isLoading && !error && cases.length === 0 && (
           <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
@@ -672,5 +676,57 @@ function DisputeSheet({
         </div>
       </div>
     </Portal>
+  )
+}
+
+/**
+ * What the building actually sent — warnings, fines, strata fines, letters.
+ *
+ * The case list explains where a case STANDS. This is the paperwork behind it,
+ * in the resident's own words rather than a stage name, because "fine_1" is not
+ * what arrived through their door.
+ */
+function NoticesReceived() {
+  const { data: notices, isLoading } = useMyNotices()
+  if (isLoading || notices.length === 0) return null
+
+  const tone = (kind: string) =>
+    kind.includes("fine")
+      ? "border-destructive/30 bg-destructive/5"
+      : kind === "warning"
+        ? "border-warning/40 bg-warning/10"
+        : "border-border bg-card"
+
+  return (
+    <section className="mb-4">
+      <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Notices you have received
+      </h3>
+      <ul className="flex flex-col gap-2">
+        {notices.map((n) => (
+          <li key={n.id} className={`rounded-2xl border p-3.5 ${tone(n.kind)}`}>
+            <p className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-foreground">
+              {n.title ?? n.kindLabel}
+              <Badge variant="secondary" className="text-[10px]">{n.kindLabel}</Badge>
+              {n.amountCents ? (
+                <span className="text-[13px] font-semibold tabular-nums text-destructive">
+                  {new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(
+                    n.amountCents / 100,
+                  )}
+                </span>
+              ) : null}
+            </p>
+            {n.body && (
+              <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-muted-foreground">{n.body}</p>
+            )}
+            <p className="mt-1.5 text-[11.5px] tabular-nums text-muted-foreground">
+              {/* Time, not just date: two notices on one day still have an order. */}
+              {stampOf(n.issuedAt)}
+              {n.dueOn ? ` · due ${longDate(n.dueOn)}` : ""}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

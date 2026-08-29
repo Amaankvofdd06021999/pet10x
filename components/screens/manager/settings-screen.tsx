@@ -377,6 +377,36 @@ function BylawsSheet({
         These drive every compliance check in the app. Turning one on immediately affects each resident&apos;s score.
       </p>
 
+      <div className="mb-4 rounded-xl border border-border p-3">
+        <p className="mb-1 text-[12px] font-semibold text-foreground">Enforcement</p>
+        <button
+          onClick={() => setRules((p) => ({ ...p, allow_direct_fine: !p.allow_direct_fine }))}
+          role="switch"
+          aria-checked={Boolean(rules.allow_direct_fine)}
+          className="flex w-full items-center justify-between gap-3 rounded-xl bg-muted px-3 py-2.5 text-left"
+        >
+          <span className="min-w-0">
+            <span className="block text-[13px] text-foreground">Allow a fine without a warning</span>
+            <span className="block text-[11.5px] text-muted-foreground">
+              {rules.allow_direct_fine
+                ? "A manager may fine a new case straight away."
+                : "A case must carry a warning before it can carry a fine."}
+            </span>
+          </span>
+          <span
+            className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
+              rules.allow_direct_fine ? "bg-success" : "bg-border"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                rules.allow_direct_fine ? "translate-x-4" : "translate-x-0.5"
+              }`}
+            />
+          </span>
+        </button>
+      </div>
+
       <div className="mb-4 flex flex-col gap-2">
         {RULE_TOGGLES.map((r) => (
           <button

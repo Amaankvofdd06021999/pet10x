@@ -20,6 +20,13 @@ export interface PetRules {
   require_license?: boolean
   require_insurance?: boolean
   require_spay_neuter?: boolean
+  /**
+   * Enforcement policy, not a compliance rule: may a manager issue a fine
+   * without a warning first? Off means the ladder insists on a warning, which
+   * is the order most bylaws assume. Deliberately NOT in RULE_TOGGLES — those
+   * feed computeCompliance, and this changes nobody's score.
+   */
+  allow_direct_fine?: boolean
   max_weight_kg?: number | null
   breed_restrictions?: string[]
   notes?: string

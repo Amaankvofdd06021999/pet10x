@@ -1,0 +1,1459 @@
+<title>Pet10x Technical Diligence</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F6F7F9;--surface:#FFFFFF;--surface-2:#EEF1F5;--ink:#1C2430;--ink-2:#3A4451;--muted:#5B6470;--line:#DCE1E8;--line-2:#C9D0D9;
+  --accent:#C8651B;--accent-ink:#FFFFFF;--accent-soft:#FBEFE4;--teal:#1F8F89;--teal-soft:#E3F3F2;
+  --crit:#B42318;--crit-soft:#FCEBE9;--high:#B54708;--high-soft:#FDF0E1;--med:#1D5FC6;--med-soft:#E6EEFB;--low:#5B6470;--low-soft:#EDF0F3;--good:#1E7F52;--good-soft:#E4F3EB;
+  --code-bg:#EEF1F5;--shadow:0 1px 2px rgba(28,36,48,.05),0 8px 24px rgba(28,36,48,.06);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0F141A;--surface:#171E26;--surface-2:#1F2731;--ink:#E6EAEE;--ink-2:#C6CDD5;--muted:#98A2AD;--line:#2A333D;--line-2:#3A4550;
+  --accent:#F0954E;--accent-ink:#1B1207;--accent-soft:#2E2117;--teal:#4FC3BC;--teal-soft:#15302E;
+  --crit:#F0716A;--crit-soft:#3A1B19;--high:#F2A45A;--high-soft:#3A2712;--med:#7BA7F0;--med-soft:#1A2740;--low:#A5AEB8;--low-soft:#232B34;--good:#5CC58F;--good-soft:#16301F;
+  --code-bg:#1F2731;--shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{
+  --paper:#0F141A;--surface:#171E26;--surface-2:#1F2731;--ink:#E6EAEE;--ink-2:#C6CDD5;--muted:#98A2AD;--line:#2A333D;--line-2:#3A4550;
+  --accent:#F0954E;--accent-ink:#1B1207;--accent-soft:#2E2117;--teal:#4FC3BC;--teal-soft:#15302E;
+  --crit:#F0716A;--crit-soft:#3A1B19;--high:#F2A45A;--high-soft:#3A2712;--med:#7BA7F0;--med-soft:#1A2740;--low:#A5AEB8;--low-soft:#232B34;--good:#5CC58F;--good-soft:#16301F;
+  --code-bg:#1F2731;--shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'Source Sans 3',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--teal);text-decoration:none}a:hover{text-decoration:underline}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3,h4{font-family:'Fraunces',Georgia,'Times New Roman',serif;font-weight:600;line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.2rem,4.5vw,3.4rem);font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.9rem;margin:3.2rem 0 .9rem;padding-top:1.4rem;border-top:1px solid var(--line)}
+h3{font-size:1.32rem;margin:2.1rem 0 .6rem}
+h4{font-size:1.06rem;margin:1.5rem 0 .4rem;font-family:'Source Sans 3',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);font-size:.85rem}
+p{margin:0 0 1rem;max-width:72ch}
+ul,ol{margin:0 0 1rem;padding-left:1.4rem;max-width:74ch}li{margin:.25rem 0}
+code,pre{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+code{font-size:.84em;background:var(--code-bg);padding:.1em .38em;border-radius:5px;color:var(--ink-2)}
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem;overflow-x:auto;font-size:.82rem;line-height:1.5;margin:0 0 1.2rem}
+pre code{background:none;padding:0;font-size:inherit;color:inherit}
+.eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.lede{font-size:1.22rem;line-height:1.5;color:var(--ink-2);max-width:64ch}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:0;min-height:100vh}
+nav.toc{position:sticky;top:0;height:100vh;overflow-y:auto;padding:2rem 1.2rem 2rem 1.6rem;border-right:1px solid var(--line);background:var(--surface);font-size:.9rem}
+nav.toc .brand{font-family:'Fraunces',serif;font-weight:700;font-size:1.15rem;margin-bottom:1.2rem;display:flex;align-items:center;gap:.5rem}
+nav.toc .brand span{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent)}
+nav.toc ol{list-style:none;padding:0;margin:0}
+nav.toc li{margin:0}
+nav.toc a{display:block;padding:.32rem .5rem;border-radius:6px;color:var(--ink-2)}
+nav.toc a:hover{background:var(--surface-2);text-decoration:none}
+nav.toc .n{color:var(--muted);font-variant-numeric:tabular-nums;margin-right:.45rem;font-size:.8rem}
+main{padding:3rem clamp(1.2rem,4vw,4rem) 6rem;max-width:1180px}
+header.cover{padding-bottom:2rem;border-bottom:2px solid var(--ink)}
+.meta{display:flex;flex-wrap:wrap;gap:1.2rem 2rem;margin-top:1.6rem;font-size:.9rem;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:600;display:block;font-size:.95rem}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin:1.6rem 0}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.9rem 1rem}
+.tile .v{font-family:'Fraunces',serif;font-size:1.9rem;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.tile .l{font-size:.8rem;color:var(--muted);margin-top:.35rem;line-height:1.3}
+.tile.c .v{color:var(--crit)}.tile.h .v{color:var(--high)}.tile.g .v{color:var(--good)}.tile.m .v{color:var(--med)}
+.pill{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.14em .55em;border-radius:999px;white-space:nowrap;vertical-align:middle}
+.pill.crit{background:var(--crit-soft);color:var(--crit)}.pill.high{background:var(--high-soft);color:var(--high)}.pill.med{background:var(--med-soft);color:var(--med)}.pill.low{background:var(--low-soft);color:var(--low)}.pill.good{background:var(--good-soft);color:var(--good)}.pill.info{background:var(--teal-soft);color:var(--teal)}.pill.acc{background:var(--accent-soft);color:var(--accent)}
+.tbl{overflow-x:auto;margin:0 0 1.4rem;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem;line-height:1.4}
+th,td{text-align:left;vertical-align:top;padding:.55rem .7rem;border-bottom:1px solid var(--line)}
+th{background:var(--surface-2);font-weight:700;font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td code{white-space:nowrap}
+.callout{border-left:4px solid var(--accent);background:var(--surface);border-radius:0 10px 10px 0;padding:.9rem 1.1rem;margin:1.2rem 0;box-shadow:var(--shadow);max-width:80ch}
+.callout.crit{border-color:var(--crit)}.callout.good{border-color:var(--good)}.callout.med{border-color:var(--med)}
+.callout p:last-child{margin-bottom:0}
+.finding{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem;margin:0 0 .9rem;max-width:86ch}
+.finding .t{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.35rem}
+.finding .t b{font-size:1.02rem}
+.finding .id{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--muted)}
+.finding p{margin:.3rem 0;max-width:none}
+.finding .k{color:var(--muted);font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;margin:1rem 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem}
+.card h4{margin-top:0}
+.bars{margin:1rem 0 1.4rem;max-width:80ch}
+.bar{display:grid;grid-template-columns:260px 1fr 60px;gap:.6rem;align-items:center;font-size:.85rem;margin:.3rem 0}
+.bar .f{height:12px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.bar .f i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.bar .f i.t{background:var(--teal)}
+.bar code{font-size:.78rem}
+.bar .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+pre.mermaid{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:1rem;overflow-x:auto;text-align:left}
+.two{columns:2;column-gap:2rem;max-width:90ch}.two li{break-inside:avoid}
+.small{font-size:.86rem;color:var(--muted)}
+.tag{font-family:'JetBrains Mono',monospace;font-size:.78rem;background:var(--surface-2);padding:.1em .4em;border-radius:4px}
+hr{border:0;border-top:1px solid var(--line);margin:2rem 0}
+.score{display:grid;grid-template-columns:1fr auto;gap:.4rem 1rem;align-items:center;max-width:70ch;font-size:.95rem}
+.score .g{height:10px;background:var(--surface-2);border-radius:5px;position:relative;width:180px}
+.score .g i{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}nav.toc ol{columns:2}.bar{grid-template-columns:1fr}.bar .n{text-align:left}.two{columns:1}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+.rating{display:inline-flex;align-items:baseline;gap:.3rem;font-size:.82rem;font-weight:700;padding:.22em .6em;border-radius:999px;letter-spacing:.02em;white-space:nowrap}
+.rating .sc{font-family:'Fraunces',serif;font-size:1.05rem;font-variant-numeric:tabular-nums}
+.rating .of{opacity:.7;font-weight:600}
+.r-a{background:var(--good-soft);color:var(--good)}
+.r-b{background:var(--teal-soft);color:var(--teal)}
+.r-c{background:var(--high-soft);color:var(--high)}
+.r-d{background:var(--crit-soft);color:var(--crit)}
+.ratingbar{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem;background:var(--surface);border:1px solid var(--line);border-left-width:4px;border-radius:0 10px 10px 0;padding:.6rem .95rem;margin:0 0 1.3rem;font-size:.92rem;max-width:88ch;box-shadow:var(--shadow)}
+.ratingbar.a{border-left-color:var(--good)}.ratingbar.b{border-left-color:var(--teal)}.ratingbar.c{border-left-color:var(--high)}.ratingbar.d{border-left-color:var(--crit)}
+.ratingbar .why{color:var(--ink-2)}
+.mini{display:inline-block;width:82px;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;vertical-align:middle}
+.mini i{display:block;height:100%;border-radius:4px}
+.overall{display:flex;flex-wrap:wrap;align-items:center;gap:1.4rem;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.2rem 1.4rem;margin:1.6rem 0;box-shadow:var(--shadow)}
+.overall .big{font-family:'Fraunces',serif;font-size:3.4rem;font-weight:700;line-height:1;color:var(--high);font-variant-numeric:tabular-nums}
+.overall .big small{font-size:1.2rem;color:var(--muted);font-weight:600}
+.overall .gl{font-family:'Fraunces',serif;font-size:1.6rem;font-weight:600;color:var(--high)}
+.overall .txt{flex:1 1 320px;min-width:260px}
+.overall .txt p{margin:0;max-width:60ch}
+</style>
+<div class="layout">
+<nav class="toc" aria-label="Contents">
+  <div class="brand"><span></span>Pet10x Diligence</div>
+  <ol>
+    <li><a href="#verdict"><span class="n">00</span>Verdict</a></li>
+    <li><a href="#product"><span class="n">01</span>What was acquired</a></li>
+    <li><a href="#glance"><span class="n">02</span>Codebase at a glance</a></li>
+    <li><a href="#arch"><span class="n">03</span>Architecture &amp; routing</a></li>
+    <li><a href="#security"><span class="n">04</span>Security</a></li>
+    <li><a href="#data"><span class="n">05</span>Data layer &amp; schema</a></li>
+    <li><a href="#rules"><span class="n">06</span>Domain rules &amp; state machines</a></li>
+    <li><a href="#flows"><span class="n">07</span>Product flows</a></li>
+    <li><a href="#matrix"><span class="n">08</span>Feature completeness</a></li>
+    <li><a href="#ui"><span class="n">09</span>UI audit</a></li>
+    <li><a href="#ds"><span class="n">10</span>Design system proposal</a></li>
+    <li><a href="#ai"><span class="n">11</span>AI, jobs, email</a></li>
+    <li><a href="#process"><span class="n">12</span>Process, docs, config</a></li>
+    <li><a href="#right"><span class="n">13</span>What is done right</a></li>
+    <li><a href="#simplify"><span class="n">14</span>Simplification</a></li>
+    <li><a href="#target"><span class="n">15</span>Target architecture</a></li>
+    <li><a href="#roadmap"><span class="n">16</span>Remediation roadmap</a></li>
+    <li><a href="#register"><span class="n">17</span>Finding register</a></li>
+  </ol>
+</nav>
+<main>
+<header class="cover">
+  <div class="eyebrow">Post-acquisition technical review</div>
+  <h1>Pet10x — Code, Architecture &amp; Product Diligence</h1>
+  <p class="lede" style="margin-top:1rem">A first read of the entire repository by an incoming technical owner: what exists, what it does, where it is sound, where it is fragile, what it will cost to make it structurally healthy, and the order in which to do it.</p>
+  <div class="meta">
+    <div><b>Repository</b>pet10x-main (Next.js 16 · React 19 · Supabase · Tailwind v4)</div>
+    <div><b>Snapshot</b>commit <code>e62b134</code>, main, 25 Aug 2026</div>
+    <div><b>Method</b>Static read of every route, screen, data module and all 102 migrations; <code>tsc</code> and <code>vitest</code> executed</div>
+    <div><b>Nothing modified</b>Read-only; secret values never reproduced</div>
+  </div>
+</header>
+
+<section id="verdict">
+<h2>00 · Verdict</h2>
+<p class="lede">The database is the best-engineered layer in this company. The application around it was built fast by one person with an AI pair, and it shows: no CI, no working linter, no URL routing inside the product, a client-only data layer, five copies of the same bottom sheet, and live demo credentials committed to a public GitHub repository.</p>
+
+<div class="tiles">
+  <div class="tile"><div class="v">~50k</div><div class="l">lines of app code (app + components + lib), plus 13.9k lines of SQL</div></div>
+  <div class="tile"><div class="v">102</div><div class="l">migrations · 55 tables · 74 SQL functions · 166 RLS policies</div></div>
+  <div class="tile"><div class="v">60</div><div class="l">screen components, avg 337 lines, largest 1,383</div></div>
+  <div class="tile g"><div class="v">383</div><div class="l">unit tests passing (pure functions only)</div></div>
+  <div class="tile c"><div class="v">3</div><div class="l">high-severity security findings, one needs action today</div></div>
+  <div class="tile h"><div class="v">0</div><div class="l">CI pipelines, lint configs, component tests, e2e tests, README files</div></div>
+  <div class="tile m"><div class="v">42/58</div><div class="l">shadcn UI files imported by nothing</div></div>
+  <div class="tile"><div class="v">12–15</div><div class="l">senior-engineer weeks to reach a structurally sound baseline</div></div>
+  <div class="tile h"><div class="v">4.2<span style="font-size:1rem;color:var(--muted)">/10</span></div><div class="l">weighted code rating today (C−) — see the scorecard below</div></div>
+</div>
+
+<h3>Scorecard</h3>
+<p>Each area scored out of 10 on what a team would need to operate it at scale, weighted by how much that area matters to this product. Grades: A ≥ 8, B ≥ 7, C ≥ 5, D ≥ 3, F below 2.</p>
+<div class="overall"><div><div class="big">4.2<small>/10</small></div><div class="gl">C− overall</div></div><div class="txt"><p><b>Acquirable, not operable as-is.</b> The weighted score is dragged down by delivery discipline, not by the product logic. Two areas (schema, domain rules) are genuinely good; three (credentials, CI, hardening) are below any professional floor and are cheap to fix. Nothing found argues for a rewrite.</p></div></div>
+<div class="tbl"><table>
+<tr><th>Area</th><th class="num">Score</th><th>Grade</th><th></th><th class="num">Weight</th><th>Basis</th></tr>
+<tr><td>Database schema, RLS, tenancy</td><td class="num"><b>8.5</b></td><td><span class="rating r-a"><span class="sc">A−</span></span></td><td><span class="mini"><i style="width:85%;background:var(--good)"></i></span></td><td class="num">10</td><td>RLS on all 55 tables; scoped helpers; grants reset after a measured exposure.</td></tr>
+<tr><td>Domain rules &amp; state machines</td><td class="num"><b>7.0</b></td><td><span class="rating r-a"><span class="sc">B</span></span></td><td><span class="mini"><i style="width:70%;background:var(--good)"></i></span></td><td class="num">8</td><td>Ladder/disputes/accommodations are RPC+token+trigger enforced and test-pinned; five other machines are not.</td></tr>
+<tr><td>Type safety</td><td class="num"><b>7.0</b></td><td><span class="rating r-a"><span class="sc">B</span></span></td><td><span class="mini"><i style="width:70%;background:var(--good)"></i></span></td><td class="num">4</td><td>strict TS, build fails on type errors, effectively zero <code>any</code>; RPC returns untyped.</td></tr>
+<tr><td>Design tokens &amp; visual direction</td><td class="num"><b>7.5</b></td><td><span class="rating r-a"><span class="sc">B</span></span></td><td><span class="mini"><i style="width:75%;background:var(--good)"></i></span></td><td class="num">4</td><td>Two-ground system, semantic set, dark mode, every choice argued in comments.</td></tr>
+<tr><td>AI subsystem</td><td class="num"><b>7.0</b></td><td><span class="rating r-a"><span class="sc">B</span></span></td><td><span class="mini"><i style="width:70%;background:var(--good)"></i></span></td><td class="num">5</td><td>Deterministic red flags before any model; rules decide, model phrases; no budget or evals.</td></tr>
+<tr><td>Product completeness vs PRD</td><td class="num"><b>6.5</b></td><td><span class="rating r-b"><span class="sc">B−</span></span></td><td><span class="mini"><i style="width:65%;background:var(--teal)"></i></span></td><td class="num">6</td><td>39 of 45 features built; payments, push, privacy policy and 11 settings rows absent.</td></tr>
+<tr><td>Background jobs</td><td class="num"><b>5.5</b></td><td><span class="rating r-b"><span class="sc">C</span></span></td><td><span class="mini"><i style="width:55%;background:var(--teal)"></i></span></td><td class="num">5</td><td>Idempotency ledgers and dry-runs; no batching, no observability, one purge unscheduled.</td></tr>
+<tr><td>Migration hygiene &amp; reproducibility</td><td class="num"><b>4.5</b></td><td><span class="rating r-c"><span class="sc">C−</span></span></td><td><span class="mini"><i style="width:45%;background:var(--high)"></i></span></td><td class="num">6</td><td>102 files, ~30 fix-forwards, one fileless remote migration, <code>db reset</code> never run.</td></tr>
+<tr><td>Auth &amp; session handling</td><td class="num"><b>4.0</b></td><td><span class="rating r-c"><span class="sc">C−</span></span></td><td><span class="mini"><i style="width:40%;background:var(--high)"></i></span></td><td class="num">8</td><td>JWT verified server-side and suspension enforced; three role sources, fabricated fallback, stale cache.</td></tr>
+<tr><td>Data access layer (TypeScript)</td><td class="num"><b>4.0</b></td><td><span class="rating r-c"><span class="sc">C−</span></span></td><td><span class="mini"><i style="width:40%;background:var(--high)"></i></span></td><td class="num">9</td><td>One 2,597-line god module, drifted hand-written types, unbounded queries, no cache.</td></tr>
+<tr><td>Email</td><td class="num"><b>4.0</b></td><td><span class="rating r-c"><span class="sc">C−</span></span></td><td><span class="mini"><i style="width:40%;background:var(--high)"></i></span></td><td class="num">3</td><td>Works; no escaping, no plain-text, no unsubscribe, failures reported as success.</td></tr>
+<tr><td>Responsive &amp; desktop</td><td class="num"><b>3.5</b></td><td><span class="rating r-c"><span class="sc">D</span></span></td><td><span class="mini"><i style="width:35%;background:var(--high)"></i></span></td><td class="num">4</td><td>Strata portal is right; admin console is a phone column on a 27&quot; screen.</td></tr>
+<tr><td>Performance &amp; scalability readiness</td><td class="num"><b>3.5</b></td><td><span class="rating r-c"><span class="sc">D</span></span></td><td><span class="mini"><i style="width:35%;background:var(--high)"></i></span></td><td class="num">6</td><td>Client-only waterfalls, one bundle for 27 screens, 1000-row silent truncation.</td></tr>
+<tr><td>Application architecture &amp; routing</td><td class="num"><b>3.0</b></td><td><span class="rating r-d"><span class="sc">D</span></span></td><td><span class="mini"><i style="width:30%;background:var(--crit)"></i></span></td><td class="num">10</td><td>State-only navigation, five duplicated shells, no server reads, no code splitting.</td></tr>
+<tr><td>Documentation &amp; onboarding</td><td class="num"><b>3.0</b></td><td><span class="rating r-d"><span class="sc">D</span></span></td><td><span class="mini"><i style="width:30%;background:var(--crit)"></i></span></td><td class="num">5</td><td>Five good docs buried under two iOS PRDs, two foreign guides and a stale handover.</td></tr>
+<tr><td>Server-side hardening</td><td class="num"><b>2.5</b></td><td><span class="rating r-d"><span class="sc">D−</span></span></td><td><span class="mini"><i style="width:25%;background:var(--crit)"></i></span></td><td class="num">9</td><td>No headers, no rate limits, no schema validation, raw errors returned.</td></tr>
+<tr><td>Component architecture &amp; reuse</td><td class="num"><b>2.5</b></td><td><span class="rating r-d"><span class="sc">D−</span></span></td><td><span class="mini"><i style="width:25%;background:var(--crit)"></i></span></td><td class="num">7</td><td>13 hand-rolled sheets, ~20 badge maps, 42 unused primitives.</td></tr>
+<tr><td>Testing</td><td class="num"><b>2.5</b></td><td><span class="rating r-d"><span class="sc">D−</span></span></td><td><span class="mini"><i style="width:25%;background:var(--crit)"></i></span></td><td class="num">9</td><td>383 tests, all pure functions; nothing touching Supabase, HTTP or React.</td></tr>
+<tr><td>Accessibility</td><td class="num"><b>2.0</b></td><td><span class="rating r-d"><span class="sc">D−</span></span></td><td><span class="mini"><i style="width:20%;background:var(--crit)"></i></span></td><td class="num">6</td><td>Zero focus traps, tabs without <code>role</code>, placeholder-as-label, no live regions.</td></tr>
+<tr><td>CI / delivery / DX</td><td class="num"><b>1.5</b></td><td><span class="rating r-d"><span class="sc">F</span></span></td><td><span class="mini"><i style="width:15%;background:var(--crit)"></i></span></td><td class="num">8</td><td>No pipeline, no hooks, <code>pnpm lint</code> has never worked, zero PRs.</td></tr>
+<tr><td>Secrets &amp; credential hygiene</td><td class="num"><b>1.0</b></td><td><span class="rating r-d"><span class="sc">F</span></span></td><td><span class="mini"><i style="width:10%;background:var(--crit)"></i></span></td><td class="num">7</td><td>Live production logins tracked in a public repository.</td></tr>
+</table></div>
+<p class="small">Weighted mean = 4.2 (Σ score×weight ÷ Σ weight = 581 ÷ 139). Unweighted mean = 4.3.</p>
+
+<h3>The five things that matter most</h3>
+<ol>
+  <li><b>Rotate credentials today.</b> Demo logins for real production accounts (including a five-building strata manager) are in tracked files: <code>BUSINESS_MARKETPLACE_GUIDE.html</code>, <code>supabase/seed_business.sql</code>, <code>supabase/seed_strata.sql</code>, and a phase plan. <code>.gitignore:27-30</code> says the repo is public. Anyone can log in as a manager and read residents' incident evidence and ESA medical letters. (<a href="#S-H1">S-H1</a>)</li>
+  <li><b>The product has no URLs.</b> <code>/app</code> is one client page with a 26-way ternary on <code>useState</code>. No deep links, Back exits the app, refresh loses your place, every screen ships in one bundle. (<a href="#A-1">A-1</a>)</li>
+  <li><b>Nothing is enforced.</b> No CI, <code>pnpm lint</code> has never worked (no eslint dependency or config), zero tests on anything touching Supabase, HTTP or React. Quality today is one person running <code>pnpm build</code> by hand. (<a href="#P-1">P-1</a>)</li>
+  <li><b>A real product bug hides in the domain layer:</b> pets registered through the app stay <code>draft</code> forever — nothing writes <code>registration_status='pending'</code>, and the approvals queue reads only <code>pending</code>. Managers never see app-registered pets. (<a href="#D-1">D-1</a>)</li>
+  <li><b>The database is worth keeping.</b> All 55 tables have RLS, mutations run through SECURITY DEFINER RPCs with single-use tokens and BEFORE triggers that even admins cannot bypass, bucket paths are grammar-pinned. The rebuild should happen <em>around</em> this schema, not instead of it.</li>
+</ol>
+
+<div class="callout crit"><p><b>Recommendation:</b> Do not rewrite. The weighted rating is <b>4.2/10 (C−)</b> today and reaches <b>8.1/10 (A−)</b> on the roadmap in §16 without a single line of the schema being thrown away. Freeze feature work for one quarter; spend weeks 1–3 on hygiene and security (no product change visible), weeks 4–15 on the structural migration described in <a href="#target">§15</a>, feature by feature, behind the existing schema. The schema and its tests are the asset; the React layer is the liability.</p></div>
+</section>
+<section id="product">
+<h2>01 · What was acquired</h2>
+<p>Pet10x is a web application for pets living in strata (condo) buildings in British Columbia. One codebase serves five personas across five URL surfaces, backed by one Supabase project, one Groq-hosted AI assistant, and Resend for email.</p>
+<pre class="mermaid">
+mindmap
+  root((Pet10x))
+    Pet owner /app
+      Pets, photos, vaccinations, documents, contacts
+      Care schedule, trackers, reminders
+      Building link, unit, house rules
+      Report incident, municipal report
+      My cases, disputes
+      Accommodation requests ESA / service animal
+      Community feed, lost and found, events
+      Services marketplace, bookings, shop
+      AI vet assistant
+    Building manager /app manager tabs
+      Dashboard, residents, approvals
+      Incidents triage, evidence
+      Violation ladder, fines, disputes
+      House rules, fine schedule
+      Emergency QR directory
+    Strata portfolio /strata-portal
+      Overview, work queue, buildings
+      Bylaws, reports, team invites
+    Business /businessaccess
+      Storefront, services, bookings
+      Promotions, earnings, reviews
+    Super admin /admin
+      Buildings, managers, businesses
+    Public
+      Landing page, /report, /emergency/code
+    Platform
+      Supabase Postgres + RLS + storage
+      Next.js API routes, 4 Vercel crons
+      Groq models, Resend email
+</pre>
+<h3>Personas and how they are granted</h3>
+<div class="tbl"><table>
+<tr><th>Persona</th><th>Granted by</th><th>Home route</th><th>Enforced where</th></tr>
+<tr><td>Pet owner</td><td>every account</td><td><code>/app</code></td><td>middleware role rule + RLS</td></tr>
+<tr><td>Building manager</td><td>≥1 <code>building_managers</code> row</td><td><code>/app</code> (manager tabs)</td><td>persona grant (<code>my_personas</code>) + <code>manages_building()</code></td></tr>
+<tr><td>Strata portfolio</td><td>≥2 <code>building_managers</code> rows</td><td><code>/strata-portal</code></td><td>middleware requires role <code>building_manager</code></td></tr>
+<tr><td>Super admin</td><td><code>profiles.is_super_admin</code></td><td><code>/admin</code></td><td>middleware + <code>is_admin()</code></td></tr>
+<tr><td>Business</td><td><code>profiles.role='business'</code></td><td><code>/businessaccess</code></td><td>middleware + owner policies</td></tr>
+<tr><td>Guest / responder</td><td>lobby building code / emergency token</td><td><code>/report</code>, <code>/emergency/[code]</code></td><td>anon RPCs gated by code or token</td></tr>
+</table></div>
+<p class="small">Source: <code>docs/RBAC_PERSONAS.md:43-75</code>, <code>lib/rbac.ts:33-48,136-176</code>, <code>supabase/migrations/20260803000000_personas.sql</code>.</p>
+</section>
+
+<section id="glance">
+<h2>02 · Codebase at a glance</h2>
+<div class="tiles">
+  <div class="tile"><div class="v">251</div><div class="l">.ts/.tsx files in app, components, lib, hooks</div></div>
+  <div class="tile"><div class="v">120</div><div class="l">files marked <code>"use client"</code> (9 of 10 pages)</div></div>
+  <div class="tile"><div class="v">22</div><div class="l">API routes; 4 wired to Vercel cron</div></div>
+  <div class="tile"><div class="v">435</div><div class="l"><code>useState</code> calls; 0 <code>&lt;form&gt;</code> elements</div></div>
+  <div class="tile"><div class="v">198</div><div class="l">commits, 14 Jun → 23 Aug 2026; 116 in the final week</div></div>
+  <div class="tile"><div class="v">1</div><div class="l">author (two git identities), 1 merge commit, 0 pull requests</div></div>
+</div>
+<h3>Where the lines are</h3>
+<div class="bars">
+  <div class="bar"><code>lib/</code> (data layer, auth, ai, supabase types)<div class="f"><i style="width:100%"></i></div><span class="n">24,570</span></div>
+  <div class="bar"><code>components/screens/</code> (60 files)<div class="f"><i style="width:82%"></i></div><span class="n">20,221</span></div>
+  <div class="bar"><code>supabase/migrations/</code> (102 files)<div class="f"><i class="t" style="width:56%"></i></div><span class="n">13,867</span></div>
+  <div class="bar"><code>app/</code> (pages + API routes)<div class="f"><i style="width:28%"></i></div><span class="n">6,971</span></div>
+  <div class="bar"><code>components/ui/</code> (58 shadcn files, 42 unused)<div class="f"><i style="width:26%"></i></div><span class="n">6,466</span></div>
+  <div class="bar">Root markdown/HTML docs (7 files)<div class="f"><i class="t" style="width:20%"></i></div><span class="n">~5,000</span></div>
+  <div class="bar"><code>docs/superpowers/</code> plans &amp; specs<div class="f"><i class="t" style="width:35%"></i></div><span class="n">8,620</span></div>
+</div>
+<h3>The ten largest hand-written files</h3>
+<div class="bars">
+  <div class="bar"><code>lib/data/live.ts</code> — 13 domains, 59 exports<div class="f"><i style="width:100%"></i></div><span class="n">2,597</span></div>
+  <div class="bar"><code>manager/violations-screen.tsx</code><div class="f"><i style="width:53%"></i></div><span class="n">1,383</span></div>
+  <div class="bar"><code>community-screen.tsx</code> — 32 useState<div class="f"><i style="width:45%"></i></div><span class="n">1,178</span></div>
+  <div class="bar"><code>lib/data/manager-queues.ts</code><div class="f"><i style="width:45%"></i></div><span class="n">1,171</span></div>
+  <div class="bar"><code>report/incident-composer.tsx</code><div class="f"><i style="width:36%"></i></div><span class="n">928</span></div>
+  <div class="bar"><code>app/page.tsx</code> (landing)<div class="f"><i style="width:34%"></i></div><span class="n">893</span></div>
+  <div class="bar"><code>pet-detail-screen.tsx</code><div class="f"><i style="width:33%"></i></div><span class="n">854</span></div>
+  <div class="bar"><code>lib/data/types.ts</code><div class="f"><i style="width:30%"></i></div><span class="n">788</span></div>
+  <div class="bar"><code>care/care-tracker.tsx</code><div class="f"><i style="width:30%"></i></div><span class="n">778</span></div>
+  <div class="bar"><code>lib/auth-context.tsx</code><div class="f"><i style="width:27%"></i></div><span class="n">707</span></div>
+</div>
+<h3>Repository layout and what each part is</h3>
+<pre><code>app/                    10 pages (9 client), 22 API routes, 1 auth callback. No layout.tsx below root, no loading/error/not-found anywhere.
+  app/page.tsx          resident + manager product: a useState screen switcher for 27 screens
+  strata-portal/ businessaccess/ admin/ manager/ login/ report/ emergency/[code]/ auth/set-password/
+components/
+  screens/              60 screen files, grouped loosely by persona (manager/, strata/, business/, resident/, care/, home/, pet/, report/, profile/)
+  ui/                   58 shadcn primitives (8 reach app code)
+  ai/ landing/ onboarding/ app-sidebar ios-tab-bar persona-switcher …
+lib/
+  data/                 47 files: 27 "use client" Supabase hooks, 12 pure rule modules, 11 tests, mock-data.ts, types.ts, index.ts barrel
+  supabase/             client (browser singleton), server, admin (service role), middleware, storage, database.types.ts (4,195 generated lines)
+  ai/                   router, provider (raw fetch to Groq), triage, context, prompts, citations, image, suggestions/
+  auth/, rbac.ts, navigation.ts, dates.ts, csv.ts, email.ts, utils.ts
+supabase/migrations/    102 SQL files; seed.sql, seed_strata.sql, seed_business.sql; config.toml
+docs/                   6 real architecture docs + superpowers/ (AI-workflow plans, stale handover)
+Root                    two iOS PRDs, two colour docs, two "ProdBeast" guides copied from another project, an HTML test guide, no README</code></pre>
+<h3>Stack facts worth knowing</h3>
+<ul>
+  <li><b>Next.js ^16.2.10 / React 19.2.4</b>, App Router, but used as a client-rendered SPA: no server component reads data anywhere; all reads go browser → PostgREST under RLS.</li>
+  <li><b>TypeScript strict</b>, <code>ignoreBuildErrors:false</code>, <code>tsc --noEmit</code> exits 0. Effectively zero <code>any</code>; escape hatch is <code>as unknown as Row[]</code> (9 sites) because RPC return types are <code>Json</code>.</li>
+  <li><b>Tailwind v4</b> with a thoughtfully commented token set in <code>app/globals.css</code>; <code>styles/globals.css</code> is an orphan from the v0 scaffold.</li>
+  <li><b>No Groq SDK</b> — deliberate raw <code>fetch</code> with SSE parsing (<code>lib/ai/provider.ts:6-10</code>).</li>
+  <li><b>pnpm 9.15.9</b>, not on PATH, must not be upgraded; no <code>packageManager</code>/<code>engines</code> field enforces this (<code>docs/superpowers/RESUME-HERE.md:75-78</code>).</li>
+  <li><b>Package name is still <code>"my-project"</code> 0.1.0</b>; <code>.gitignore:1-4</code> lists v0.dev runtime files — the project began as a v0 export.</li>
+</ul>
+</section>
+<section id="arch">
+<h2>03 · Architecture &amp; routing</h2>
+<div class="ratingbar d"><span class="rating r-d"><span class="sc">3.0</span><span class="of">/10 · D</span></span><b>Application architecture &amp; routing</b> <span class="why">— Coherent and readable at today's size, but every structural choice — state navigation, five shells, client-only reads — blocks the next 10 screens rather than supporting them.</span></div>
+<p class="lede">Shape: a Next.js App Router project used as five separate client-side SPAs, each wrapping its own <code>AuthProvider</code>, each switching screens with <code>useState</code>, all reading Supabase directly from the browser.</p>
+
+<h3>How a request flows today</h3>
+<pre class="mermaid">
+flowchart LR
+  B[Browser] -->|any URL| MW[middleware.ts<br/>updateSession]
+  MW -->|getClaims + profiles.role<br/>4s timeout, fails open| RR{lib/rbac<br/>route rule}
+  RR -->|allowed| PG[page.tsx  'use client']
+  RR -->|wrong role| HOME[redirect to role home]
+  RR -->|no session| LOGIN[/login?next=/]
+  PG --> AP[AuthProvider<br/>per route]
+  AP -->|RPC my_app_user<br/>RPC my_personas| SB[(Supabase)]
+  AP --> SW{useState<br/>screen switch}
+  SW --> SC[Screen component]
+  SC -->|lib/data hooks<br/>browser client, RLS| SB
+  SC -->|fetch| API[app/api/* route]
+  API -->|service role| SB
+  SB -->|SECURITY DEFINER RPCs<br/>triggers, tokens| SB
+</pre>
+
+<h3>Route map</h3>
+<div class="tbl"><table>
+<tr><th>URL</th><th>File</th><th class="num">Lines</th><th>Type</th><th>What it does</th><th>Guard</th></tr>
+<tr><td><code>/</code></td><td>app/page.tsx</td><td class="num">893</td><td>Server</td><td>Marketing landing, 7 sections, hero mock hard-codes "Maple Court 94%"</td><td>public</td></tr>
+<tr><td><code>/login</code></td><td>app/login/page.tsx</td><td class="num">85</td><td>Client</td><td>SignInScreen or GuestReportScreen; hard <code>window.location.href</code> to role home</td><td>middleware redirects signed-in users</td></tr>
+<tr><td><code>/app</code></td><td>app/app/page.tsx</td><td class="num">311</td><td>Client</td><td>Entire resident + manager product: 26-way ternary on <code>currentScreen</code> (L237-295), 27 screens statically imported</td><td>roles pet-owner / building-manager / super-admin</td></tr>
+<tr><td><code>/admin</code></td><td>app/admin/page.tsx</td><td class="num">701</td><td>Client</td><td>Gate → own login → 3 tabs (buildings/managers/businesses); 21 useState</td><td>super-admin, own login</td></tr>
+<tr><td><code>/manager</code></td><td>app/manager/page.tsx</td><td class="num">126</td><td>Client</td><td>Standalone login; if authenticated hard-redirects to /app</td><td>public</td></tr>
+<tr><td><code>/strata-portal</code></td><td>app/strata-portal/page.tsx</td><td class="num">266</td><td>Client</td><td>Gate → own login → 6 tabs with own sidebar + own bottom nav</td><td>building-manager, own login</td></tr>
+<tr><td><code>/businessaccess</code></td><td>app/businessaccess/page.tsx</td><td class="num">296</td><td>Client</td><td>Gate → own signin/signup → 6 tabs</td><td>business, own login</td></tr>
+<tr><td><code>/report</code></td><td>app/report/page.tsx</td><td class="num">348</td><td>Client</td><td>Public 4-view state machine (choose/search/code/municipal); guest session lives in React state only</td><td>public</td></tr>
+<tr><td><code>/emergency/[code]</code></td><td>app/emergency/[code]/page.tsx</td><td class="num">285</td><td>Client</td><td>Token-gated pet directory, re-polls every 60s</td><td>anon RPC checks token</td></tr>
+<tr><td><code>/auth/set-password</code></td><td>app/auth/set-password/page.tsx</td><td class="num">157</td><td>Client</td><td>PKCE exchange directly on browser client, then updateUser</td><td>recovery/invite session</td></tr>
+<tr><td><code>/auth/callback</code></td><td>app/auth/callback/route.ts</td><td class="num">25</td><td>Handler</td><td>exchangeCodeForSession → redirect</td><td>public</td></tr>
+</table></div>
+<p>22 API routes exist; they are inventoried with auth and validation status in <a href="#security">§04</a>. Nine of them are the only server-side data path in the product.</p>
+
+<h3>The screen switcher, and why it is the central structural problem</h3>
+<p><code>app/app/page.tsx:120-134</code> holds <code>activeTab</code>, <code>currentScreen</code>, <code>selectedPetId</code>, <code>selectedBusinessId</code>, <code>careKind</code>, <code>carePetId</code>, <code>selectedCaseId</code> in React state. <code>handleNavigate(screen, id?, petId?)</code> (L197-212) is polymorphic — <code>id</code> means a business, a care kind, a violation or a pet depending on <code>screen</code>. A 240-line registry (<code>lib/navigation.ts:128-154</code>, <code>ID_BEARING</code>, <code>ID_REQUIRED</code>) exists purely to police that ambiguity, and its comments document the bugs it was written to stop.</p>
+<ul>
+  <li>No deep links: a notification's <code>action_target</code> is a string like <code>my-cases:&lt;id&gt;</code>, not a URL.</li>
+  <li>Browser Back leaves the product; refresh always lands on <code>home</code>/<code>dashboard</code> (effect L137-141).</li>
+  <li>All 27 screens are statically imported (L8-33) → one client bundle for everything the resident and manager can ever see.</li>
+  <li>Adding a screen means editing the ternary chain, <code>CONTENT_MAX</code>, <code>SCREEN_SURFACES</code>, <code>ID_BEARING</code>, <code>ios-tab-bar.tsx</code> and <code>app-sidebar.tsx</code> (which declare different tab lists: the tab bar has an AI centre slot, the sidebar has alerts).</li>
+  <li><code>/strata-portal</code>, <code>/businessaccess</code> and <code>/admin</code> repeat the pattern with their own tab state, their own sidebar and their own login form — five hand-built email/password forms in total.</li>
+</ul>
+
+<h3>Auth and persona state — three sources of truth</h3>
+<pre class="mermaid">
+flowchart TB
+  subgraph Server
+    MW[lib/supabase/middleware.ts:83-98<br/>reads profiles.role column<br/>DB_ROLE_TO_APP copy #1]
+  end
+  subgraph Client
+    AC[lib/auth-context.tsx:36<br/>DB_ROLE_TO_APP copy #2<br/>user.role from my_app_user]
+    PS[auth-context.tsx:365-398<br/>my_personas grants → viewAs]
+    RB[lib/rbac.ts:178<br/>DB_ROLE_TO_PERSONA copy #3]
+    LS[(localStorage<br/>pet10x.appUser.v1<br/>painted before revalidation)]
+  end
+  MW -->|authorises /strata-portal on role| X{Disagree?}
+  PS -->|renders manager UI on grants| X
+  LS --> AC
+  X -->|rbac.ts:157-159 admits the column is unreliable| Y[Granted manager whose column is pet_owner:<br/>client shows strata persona,<br/>server denies /strata-portal]
+</pre>
+<div class="finding" id="A-3"><div class="t"><span class="pill high">High</span><b>Role truth is split between a column and a grant table</b><span class="id">A-3</span></div>
+<p>Middleware authorises on <code>profiles.role</code>; the UI renders on <code>my_personas()</code> grants; page Gates check <code>user.role</code> again. <code>lib/rbac.ts:157-159</code> documents that "a person granted a building often still reads pet_owner". Server and client can disagree on who someone is.</p>
+<p><span class="k">Fix</span> Make <code>my_personas</code> (or a view) the single source; call it from middleware too; delete the three duplicated role maps.</p></div>
+<div class="finding" id="A-2"><div class="t"><span class="pill med">Medium</span><b>Profile fallback invents a pet-owner</b><span class="id">A-2</span></div>
+<p><code>lib/auth-context.tsx:479-521</code>: if <code>my_app_user</code> times out (8 s) a minimal user with <code>role:"pet-owner"</code>, <code>onboarded:false</code> is fabricated, so a manager on a slow network is dropped into resident onboarding. The localStorage cache (L170-195) paints a stale <code>isSuperAdmin</code> until revalidation and privileged Gates render from it.</p>
+<p><span class="k">Fix</span> Distinguish "unknown" from "pet-owner"; show a retry state; never render privileged shells from the cache.</p></div>
+<div class="finding" id="A-5"><div class="t"><span class="pill med">Medium</span><b>Auth context does data-layer work and imports the whole data layer</b><span class="id">A-5</span></div>
+<p><code>ensureTimezone</code> (L94-104), <code>markOnboarded</code> (L611-626), guest building resolution (L640-651) and pets-cache clearing (L654-668) live in the auth provider, which imports the <code>@/lib/data</code> barrel — pulling the 2,597-line <code>live.ts</code> and the Supabase browser client into <code>/login</code> and <code>/report</code>.</p></div>
+<div class="finding" id="A-4"><div class="t"><span class="pill med">Medium</span><b>Mock mode is compiled into production</b><span class="id">A-4</span></div>
+<p><code>MOCK_USERS</code>, <code>signIn(role: DemoRole)</code>, <code>SUPABASE_ENABLED</code> branches (<code>auth-context.tsx:7-17, 525-530</code>; <code>live.ts:137</code>; <code>business.ts:13</code>; demo cards in <code>sign-in-screen.tsx:341-350</code>). <code>isSupabaseConfigured()</code> is evaluated at module load, so a missing env var at build time silently ships the demo with auth enforcement off (middleware no-ops at <code>lib/supabase/middleware.ts:24</code>).</p><p><span class="k">Fix</span> Remove mock mode; fail the build if env is missing; fixtures live in tests only.</p></div>
+
+<h3>Screens: composition smells, quantified</h3>
+<div class="grid2">
+<div class="card"><h4>Local primitives re-declared per screen</h4><ul>
+<li><code>Sheet</code> bottom-sheet: <b>8 copies</b> (community-screen:150, violations-screen:884, settings-screen:573, approvals-screen:658, accommodation-document-viewer:97, business-detail:258, my-bookings:187, my-cases:607) — <code>ui/sheet.tsx</code>, <code>ui/drawer.tsx</code>, <code>ui/dialog.tsx</code> unused by all of them.</li>
+<li><code>EmptyState</code>: 6 variants + 9 inline dashed-border copies; canonical versions exist in <code>strata-ui.tsx:98</code> and <code>business-ui.tsx:58</code>.</li>
+<li><code>TextField</code>/<code>Field</code>/<code>Label</code>/<code>Input</code>: pet-detail:755-759, violations:928, add-pet:431-491, settings, vet-records, businessaccess:275 — <code>ui/field.tsx</code>, <code>ui/label.tsx</code> unused.</li>
+<li>Spinner: <code>Loader2</code> imported in <b>57 files</b>; <code>ui/spinner.tsx</code> and <code>ui/skeleton.tsx</code> unused; no skeleton anywhere.</li>
+<li>Login form: 5 hand-built (SignInScreen 395 lines, manager:40, strata:87, admin:81, businessaccess:73).</li>
+</ul></div>
+<div class="card"><h4>Data fetching inside rendering</h4><ul>
+<li>Screens never import Supabase directly (good) — but each calls 3–7 hooks at the top; <code>manager/dashboard-screen.tsx:67-73</code> fires 7 uncoordinated requests with 7 loading flags.</li>
+<li>Two incompatible result shapes under one barrel: <code>LiveResult&lt;T&gt;</code> (<code>error: string|null</code>) vs <code>QueryResult&lt;T&gt;</code> (<code>error: Error|null</code>, <code>hooks.ts:26</code>).</li>
+<li>Most screens destructure <code>{data}</code> and drop <code>error</code>: <code>violations-screen:275-284</code> ignores 5 of 6 errors; <code>completeness.ts:165-181</code> has no error field at all.</li>
+<li>After every mutation a manual <code>refetch()</code>; no cache, no query library; <code>live.ts:255-350</code> hand-rolls a pub/sub store for pets.</li>
+<li>Six stub hooks still return <code>[]</code> and are consumed (<code>useHomeAlerts</code> in <code>home-screen.tsx:88</code>).</li>
+</ul></div>
+</div>
+
+<div class="finding" id="A-1"><div class="t"><span class="pill high">High</span><b>State-only navigation across all four product shells</b><span class="id">A-1</span></div>
+<p>See above. This one decision blocks deep links, per-screen code splitting, error boundaries, analytics, shareable case URLs, and any sane growth of the screen count.</p>
+<p><span class="k">Fix</span> Route groups per persona with one <code>page.tsx</code> per screen; notification targets become paths; delete <code>handleNavigate</code>, <code>CONTENT_MAX</code>, <code>SCREEN_SURFACES</code>, <code>ID_BEARING</code>. ~2–3 weeks. (<a href="#target">§15</a>)</p></div>
+<div class="finding" id="A-6"><div class="t"><span class="pill high">High</span><b>100% client-side data layer</b><span class="id">A-6</span></div>
+<p>27 <code>"use client"</code> data modules, 22 files importing the browser client, 97 <code>useEffect</code> fetches, zero server components reading data. Every page is spinner-then-waterfall. The barrel <code>lib/data/index.ts</code> re-exports <code>live.ts</code> even though its own comments (L19-31) say server components must not import a browser client through it.</p>
+<p><span class="k">Fix</span> Server-first reads in page/layout with <code>loading.tsx</code>; TanStack Query for interactive lists hydrated from server payload; split <code>live.ts</code> by feature. (<a href="#target">§15</a>)</p></div>
+<div class="finding" id="A-7"><div class="t"><span class="pill med">Medium</span><b>Dead weight: 42 of 58 ui files and ~15 dependencies unused</b><span class="id">A-7</span></div>
+<p>Unused: <code>recharts, react-hook-form, @hookform/resolvers, zod (0 non-ui imports), embla-carousel-react, vaul, cmdk, date-fns, input-otp, react-resizable-panels, react-day-picker</code> and ~26 <code>@radix-ui/*</code> packages behind unused ui files. Also dead: <code>hooks/use-toast.ts</code>, <code>hooks/use-mobile.ts</code>, <code>components/theme-provider.tsx</code>, <code>ui/toaster.tsx</code>, <code>styles/globals.css</code>, <code>public/posts</code>, <code>public/services</code>, two exports in <code>mock-data.ts</code>.</p></div>
+</section>
+<section id="security">
+<h2>04 · Security</h2>
+<div class="ratingbar c"><span class="rating r-c"><span class="sc">4.5</span><span class="of">/10 · C−</span></span><b>Security (composite)</b> <span class="why">— Database controls are exemplary; the application layer around them has had almost no hardening, and credentials are in the repo.</span></div>
+<p class="lede">The database layer is strong — RLS on all 55 tables, scoped helper predicates, reviewed SECURITY DEFINER functions, grant hygiene, grammar-pinned storage paths. The application layer has not received the same treatment: no rate limiting, no security headers, a public account-creation door that bypasses the OTP gate, an open redirect, HTML injection into outbound email, and production credentials in tracked files.</p>
+
+<h3>Security sub-scores</h3>
+<div class="tbl"><table>
+<tr><th>Sub-area</th><th class="num">Score</th><th>Grade</th><th></th><th>What decides the score</th></tr>
+<tr><td>Row-level security &amp; tenancy</td><td class="num"><b>9.0</b></td><td><span class="rating r-a"><span class="sc">A</span></span></td><td><span class="mini"><i style="width:90%;background:var(--good)"></i></span></td><td>RLS on every table, suspension-aware helpers, child tables scoped through parents, no permissive write policy.</td></tr>
+<tr><td>SECURITY DEFINER &amp; privilege design</td><td class="num"><b>8.0</b></td><td><span class="rating r-a"><span class="sc">A−</span></span></td><td><span class="mini"><i style="width:80%;background:var(--good)"></i></span></td><td>Every mutation RPC re-checks scope; token+trigger pattern beats even admins; <code>search_path</code> set everywhere (five spellings, two invoker gaps).</td></tr>
+<tr><td>Storage controls</td><td class="num"><b>6.0</b></td><td><span class="rating r-b"><span class="sc">B−</span></span></td><td><span class="mini"><i style="width:60%;background:var(--teal)"></i></span></td><td>Three buckets grammar-pinned and limited; <code>avatars</code> public and unbounded, <code>pet-media</code> unbounded, <code>business-media</code> policy-less.</td></tr>
+<tr><td>Authentication design</td><td class="num"><b>7.0</b></td><td><span class="rating r-a"><span class="sc">B</span></span></td><td><span class="mini"><i style="width:70%;background:var(--good)"></i></span></td><td>OTP before account creation, peppered + timing-safe, enumeration-safe — undone by a second signup door that skips it.</td></tr>
+<tr><td>Authorization consistency</td><td class="num"><b>4.5</b></td><td><span class="rating r-c"><span class="sc">C−</span></span></td><td><span class="mini"><i style="width:45%;background:var(--high)"></i></span></td><td>Server authorises on a column the code itself calls unreliable; middleware fails open on timeout.</td></tr>
+<tr><td>Input validation</td><td class="num"><b>2.5</b></td><td><span class="rating r-d"><span class="sc">D−</span></span></td><td><span class="mini"><i style="width:25%;background:var(--crit)"></i></span></td><td>zod installed, used by no route; hand-rolled checks; free-text reaches email HTML unescaped.</td></tr>
+<tr><td>Transport &amp; browser hardening</td><td class="num"><b>1.0</b></td><td><span class="rating r-d"><span class="sc">F</span></span></td><td><span class="mini"><i style="width:10%;background:var(--crit)"></i></span></td><td>No CSP, HSTS, frame-ancestors, nosniff or Referrer-Policy at all.</td></tr>
+<tr><td>Abuse &amp; cost control</td><td class="num"><b>1.0</b></td><td><span class="rating r-d"><span class="sc">F</span></span></td><td><span class="mini"><i style="width:10%;background:var(--crit)"></i></span></td><td>No rate limiting anywhere, including AI, signup, evidence signing and anon intake RPCs.</td></tr>
+<tr><td>Secrets hygiene</td><td class="num"><b>1.0</b></td><td><span class="rating r-d"><span class="sc">F</span></span></td><td><span class="mini"><i style="width:10%;background:var(--crit)"></i></span></td><td>Live production logins in tracked files of a public repo; service-role key doubles as OTP pepper.</td></tr>
+<tr><td>Data minimisation &amp; privacy</td><td class="num"><b>3.5</b></td><td><span class="rating r-c"><span class="sc">D</span></span></td><td><span class="mini"><i style="width:35%;background:var(--high)"></i></span></td><td>Consent gate and retention jobs exist; full medical dossier goes to a third party, emergency page leaks medical notes, no privacy policy.</td></tr>
+</table></div>
+
+<h3>API route inventory</h3>
+<div class="tbl"><table>
+<tr><th>Route</th><th>Methods</th><th>Auth gate</th><th>Validation</th><th>Privileged ops</th><th>Notes</th></tr>
+<tr><td><code>auth/signup/start</code></td><td>POST</td><td><span class="pill low">public</span></td><td>email regex, 60s cooldown, 5 sends/address</td><td>service role: pending_signups, email</td><td>no IP limit; logs OTP when NODE_ENV≠production</td></tr>
+<tr><td><code>auth/signup/verify</code></td><td>POST</td><td><span class="pill low">public</span></td><td>6-digit, checkPassword, 5 attempts, timing-safe</td><td>createUser email_confirm</td><td>well done</td></tr>
+<tr><td><code>business/signup</code></td><td>POST</td><td><span class="pill crit">public</span></td><td>presence + length≥8 only</td><td>creates confirmed user, sets role=business</td><td><b>bypasses OTP flow</b> (S-H2)</td></tr>
+<tr><td><code>incidents/evidence/sign</code></td><td>POST</td><td><span class="pill med">building code</span></td><td>uuid, ≤5 files, MIME, ≤15MB</td><td>service role mints signed uploads</td><td>no rate limit</td></tr>
+<tr><td><code>report/pets</code></td><td>GET</td><td><span class="pill med">building code</span></td><td>code presence</td><td>signs every pet photo in a building</td><td>no rate limit</td></tr>
+<tr><td><code>accommodations/docs</code>, <code>/sign</code></td><td>POST, DELETE</td><td>session + ownership</td><td>uuid, closed KINDS, MIME, ≤10MB</td><td>RPC via user; admin only for storage remove</td><td>strong</td></tr>
+<tr><td><code>community/media/sign</code></td><td>POST</td><td>session + building membership</td><td>kind/MIME/size; building server-derived</td><td>128-bit random filename</td><td>strong</td></tr>
+<tr><td><code>manager/request-info</code></td><td>POST</td><td>session + manager-of-building</td><td>linkId presence; <code>missing[]</code> free text</td><td>service role update + email</td><td>HTML injection via missing[] (S-M2)</td></tr>
+<tr><td><code>admin/invite</code></td><td>POST</td><td>session + super-admin</td><td>email presence only</td><td>generateLink, role elevation</td><td>raw error messages leak</td></tr>
+<tr><td><code>strata/invite</code></td><td>POST</td><td>session + primary manager</td><td>email, buildingId presence</td><td>elevates existing account by <code>profiles.email</code></td><td>self-editable email → elevation (S-M3)</td></tr>
+<tr><td><code>account/delete</code></td><td>POST</td><td>session</td><td>—</td><td>deletes pets, businesses, links, auth user, storage</td><td>21/48 profiles undeletable (FKs)</td></tr>
+<tr><td><code>ai/chat</code></td><td>POST SSE</td><td>session + consent</td><td>imagePaths ≤5; <b>message length unbounded</b></td><td>sends dossier + photos to Groq</td><td>no per-user budget</td></tr>
+<tr><td><code>ai/consent</code>, <code>ai/conversations[/id]</code>, <code>ai/suggestions/*</code></td><td>GET/POST/DELETE</td><td>session + profile_id filter</td><td>id not uuid-checked</td><td>—</td><td>raw error messages</td></tr>
+<tr><td>4 cron routes</td><td>GET/POST</td><td><code>CRON_SECRET</code> bearer (fail-closed)</td><td>?dry</td><td>service role purges / notifications</td><td><code>===</code> not constant-time</td></tr>
+</table></div>
+<p class="small">Cross-cutting: <b>no rate limiting exists anywhere</b>; <b>zod is a dependency but no route uses it</b>; the "503 → getUser → 401" guard is copy-pasted 15 times with no shared helper.</p>
+
+<h3>Storage buckets</h3>
+<div class="tbl"><table>
+<tr><th>Bucket</th><th>Public</th><th>Client policies</th><th>Limits</th><th>Assessment</th></tr>
+<tr><td><code>avatars</code></td><td><span class="pill crit">yes</span></td><td>owner insert/update on {uid}/…</td><td><b>none</b></td><td>any user hosts any file type/size on a public URL</td></tr>
+<tr><td><code>pet-media</code></td><td>no</td><td>owner CRUD, manager read</td><td><b>none</b></td><td>owner controls petId segment → can expose a file to another pet's managers</td></tr>
+<tr><td><code>community-media</code></td><td>no</td><td>regex grammar, building-scoped</td><td>15MB, 5 image MIMEs</td><td><span class="pill good">strong</span></td></tr>
+<tr><td><code>guest-evidence</code></td><td>no</td><td>manager read only; upload via signed URL</td><td>15MB, images</td><td><span class="pill good">strong</span></td></tr>
+<tr><td><code>accommodation-docs</code></td><td>no</td><td>read only, path + building pinned</td><td>10MB, PDF+images</td><td><span class="pill good">strong</span></td></tr>
+<tr><td><code>business-media</code></td><td><span class="pill high">yes</span></td><td>none</td><td>none</td><td>public read of anything placed there</td></tr>
+</table></div>
+
+<h3>Findings</h3>
+<div class="finding" id="S-H1"><div class="t"><span class="pill crit">High · act today</span><b>Live production credentials committed to a public repository</b><span class="id">S-H1</span></div>
+<p><code>.gitignore:27-30</code> ignores <code>DEMO_DATA.md/html</code> because "this repo is public; these must never be published" — but the same logins are tracked in <code>BUSINESS_MARKETPLACE_GUIDE.html:125-201</code> (emails + passwords for business owners, a pet owner, and <code>stratamanager@pet10x.com</code> managing five buildings), <code>supabase/seed_business.sql:24,148,211</code>, <code>supabase/seed_strata.sql:46,79</code> (<code>crypt('…')</code>), and <code>docs/superpowers/plans/2026-08-22-phase-4-multi-pet-care.md:382,700</code>. <code>app/api/account/delete/route.ts:58-86</code> confirms these seeded people are real production profiles holding ESA-letter PDFs. Remote: <code>github.com/Amaankvofdd06021999/pet10x</code>. Verified during this review.</p>
+<p><span class="k">Exploit</span> Log in as the strata manager; read incident evidence, medical accommodation documents, violations and profiles across five buildings.</p>
+<p><span class="k">Fix</span> Rotate or delete every seeded account now; strip passwords from the guide, seeds and plan; purge history (<code>git filter-repo</code>); make the repo private until done.</p></div>
+
+<div class="finding" id="S-H2"><div class="t"><span class="pill crit">High</span><b>Public, unverified account creation with role elevation</b><span class="id">S-H2</span></div>
+<p><code>app/api/business/signup/route.ts:27-41</code>: unauthenticated POST creates a <em>confirmed</em> auth user for any email (<code>email_confirm:true</code>), sets <code>profiles.role='business'</code> via service role, password rule is <code>length&gt;=8</code>, no rate limit. This is exactly the hole the OTP flow (<code>20260802000000:3-10</code>) was built to close — left open on the second door.</p>
+<p><span class="k">Exploit</span> Pre-register a victim's email (they later get "you already have an account"); unlimited junk accounts; weak passwords.</p>
+<p><span class="k">Fix</span> Route through <code>signup/start</code>/<code>verify</code> with a <code>kind:"business"</code>; apply <code>checkPassword</code>; rate-limit.</p></div>
+
+<div class="finding" id="S-H3"><div class="t"><span class="pill crit">High</span><b>No security headers at all</b><span class="id">S-H3</span></div>
+<p><code>next.config.mjs</code> has no <code>headers()</code>; no CSP, HSTS, <code>X-Frame-Options</code>/<code>frame-ancestors</code>, <code>X-Content-Type-Options</code>, <code>Referrer-Policy</code>, <code>Permissions-Policy</code>. Clickjacking of manager/admin consoles is trivial; the emergency token in <code>/emergency/[code]</code> leaks via Referer to cited third-party links.</p>
+<p><span class="k">Fix</span> Add a headers block: CSP (<code>default-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co</code>), HSTS, <code>frame-ancestors 'none'</code>, <code>Referrer-Policy: strict-origin-when-cross-origin</code>, <code>nosniff</code>.</p></div>
+
+<div class="finding" id="S-M1"><div class="t"><span class="pill high">Medium</span><b>Open redirect after login</b><span class="id">S-M1</span></div>
+<p><code>app/login/page.tsx:24,38</code> takes <code>next</code> from the query; <code>canAccessRoute</code> returns true for any path matching no rule (<code>lib/rbac.ts:70-71</code>) including <code>https://evil.tld</code>; then <code>window.location.href = next</code>. The server-side guard (<code>middleware.ts:56-63</code>) is correct but only covers already-signed-in visitors.</p><p><span class="k">Fix</span> Require <code>next.startsWith("/") &amp;&amp; !next.startsWith("//")</code>.</p></div>
+
+<div class="finding" id="S-M2"><div class="t"><span class="pill high">Medium</span><b>HTML injection into transactional email</b><span class="id">S-M2</span></div>
+<p><code>lib/email.ts:54-57,178-180</code> interpolates without escaping. User-controlled inputs reach it: <code>buildingName</code>/<code>fullName</code> from request bodies (<code>strata/invite:109-114</code>, <code>admin/invite</code>), self-editable <code>full_name</code> as inviter, and manager free-text <code>missing[]</code> (<code>request-info:69,101</code>). Phishing from <code>noreply@pet10x.com</code>.</p><p><span class="k">Fix</span> Escape every interpolation; validate <code>missing</code> against the closed requirement-key list.</p></div>
+
+<div class="finding" id="S-M3"><div class="t"><span class="pill high">Medium</span><b><code>profiles.email</code> is self-editable and used to resolve invitees</b><span class="id">S-M3</span></div>
+<p><code>profiles_update_self</code> (<code>20260601000001:149</code>) has no column list; the privilege trigger guards only <code>role</code>, <code>is_super_admin</code>, <code>is_suspended</code>. <code>strata/invite/route.ts:58-75</code> looks up the invitee by <code>profiles.email</code> with the service role and elevates that row to <code>building_manager</code>.</p><p><span class="k">Exploit</span> Set your own <code>profiles.email</code> to the address a primary manager is about to invite; your account gets elevated and no email is sent.</p><p><span class="k">Fix</span> Resolve invitees via <code>auth.admin</code>; make <code>profiles.email</code> non-updatable by clients.</p></div>
+
+<div class="finding" id="S-M4"><div class="t"><span class="pill high">Medium</span><b>Unbounded uploads to <code>avatars</code> (public) and <code>pet-media</code></b><span class="id">S-M4</span></div>
+<p>Only three of six buckets have <code>file_size_limit</code>/<code>allowed_mime_types</code>. <code>lib/supabase/storage.ts:36</code> builds paths client-side with <code>upsert:true</code>.</p><p><span class="k">Fix</span> Limits + path grammar on all buckets; drop <code>public</code> on avatars in favour of signed URLs or a CDN with <code>Content-Disposition</code>.</p></div>
+
+<div class="finding" id="S-M5"><div class="t"><span class="pill high">Medium</span><b>Pet owner can move a pet into any building</b><span class="id">S-M5</span></div>
+<p><code>pets_owner_write</code> is <code>FOR ALL</code> on <code>owner_id = auth.uid()</code> only (<code>20260601000001:185</code>); <code>set_pet_building</code> fills only a NULL on insert. <code>PATCH /rest/v1/pets?id=eq.X {building_id: other}</code> plants the pet in another building's roster, report picker and emergency directory.</p><p><span class="k">Fix</span> BEFORE UPDATE trigger refusing <code>building_id</code>/<code>unit_id</code> changes unless admin or service role.</p></div>
+
+<div class="finding" id="S-M6"><div class="t"><span class="pill high">Medium</span><b>No rate limiting on public, cost-bearing endpoints</b><span class="id">S-M6</span></div>
+<p><code>auth/signup/start</code> (Resend quota), <code>incidents/evidence/sign</code> (unlimited 15MB upload slots per lobby code), <code>report/pets</code>, anon RPCs <code>submit_incident_report</code>/<code>submit_municipal_report</code> (fake incidents into manager queues), <code>ai/chat</code> (triage + vision + web-search model per message, message length unbounded at <code>route.ts:59</code>).</p><p><span class="k">Fix</span> Edge rate limiting keyed on IP (+ user for AI); message cap ~2k chars; per-user daily AI budget.</p></div>
+
+<div class="finding" id="S-M7"><div class="t"><span class="pill high">Medium</span><b><code>targetable_buildings()</code> discloses the customer list</b><span class="id">S-M7</span></div>
+<p><code>20260722000003:1-17</code>, granted to <code>authenticated</code> with no internal check: every building's name, city, approved-resident and pet counts to any signed-in user.</p><p><span class="k">Fix</span> Restrict to verified business owners inside the function.</p></div>
+
+<h4>Low</h4>
+<ul>
+<li><b>S-L1</b> Raw PostgREST error strings returned to clients in 12 routes (table/constraint names, enum values).</li>
+<li><b>S-L2</b> <code>CRON_SECRET</code> compared with <code>===</code>; if unset every cron 401s silently — retention promises stop with no alarm.</li>
+<li><b>S-L3</b> Service-role key doubles as OTP pepper (<code>lib/auth/signup-otp.ts:51</code>); set <code>OTP_PEPPER</code>.</li>
+<li><b>S-L4</b> Middleware fails open on a 4 s profile-lookup timeout (<code>lib/supabase/middleware.ts:84-92</code>) — UI-only exposure, data stays behind RLS.</li>
+<li><b>S-L5</b> Emergency directory returns <code>behavioral_notes || conditions</code> (medical) despite its header saying medical history is withheld (<code>20260714185824:71</code>); manager can set any <code>expires_at</code>; token in URL path.</li>
+<li><b>S-L6</b> <code>incident_status_by_reference</code> is enumerable (<code>IR-</code> + 6 hex, anon).</li>
+<li><b>S-L7</b> Citation links from Groq search not scheme-allow-listed (<code>components/ai/citation-list.tsx:24</code>). Model output is rendered through a hand-rolled parser with no <code>dangerouslySetInnerHTML</code> — good.</li>
+<li><b>S-L8</b> Full pet dossier incl. <code>conditions</code>, <code>medications_notes</code>, microchip, vet phone plus photos via 10-min signed URLs sent to Groq (<code>lib/ai/context.ts:43-88</code>). Consent-gated, 7-day retention. Confirm the DPA covers health data; drop fields the prompt does not need.</li>
+<li><b>S-L9</b> 7 <code>revoke … from anon</code> statements are no-ops (PUBLIC grant retained): <code>request_building_link</code>, <code>my_building_link</code>, <code>leave_my_building_link</code>, <code>resolve_entitlement</code> still anon-callable (<code>docs/superpowers/2026-08-21-phase-0-findings.md:47-70</code>).</li>
+<li><b>S-L10</b> Owner auth uid leaks in storage paths returned to anyone holding a lobby code via <code>building_pets_for_report</code> (<code>phase-0-findings.md:72-82</code>).</li>
+</ul>
+
+<h4>Positive controls worth preserving</h4>
+<ul class="two">
+<li>Service-role key only in <code>app/api/**</code> (16 files) and <code>lib/supabase/admin.ts</code>; <code>server-only</code> on ai, email, otp modules.</li>
+<li>Self-elevation blocked by <code>guard_profile_privilege</code>; <code>setActivePersona</code> refuses ungranted personas.</li>
+<li>JWT verified via <code>getClaims()</code> in middleware; suspended users signed out server-side.</li>
+<li>OTP signup: hashed + peppered, <code>timingSafeEqual</code>, attempt/send caps, enumeration-safe.</li>
+<li>Signed-upload design with path grammar in both SQL and routes; purge routes with dry-run and re-check-before-delete.</li>
+<li><code>20260824000004</code> reset client grants to DML only, closing a measured TRUNCATE exposure.</li>
+<li>Violation stage, fine schedule, rule publish and accommodation status protected by RPC + transaction-local token + BEFORE trigger that admins cannot bypass.</li>
+<li>No JWTs, <code>sk_</code>, <code>re_</code>, <code>gsk_</code> in tracked files; <code>.env.local</code>, <code>.vercel/</code> untracked.</li>
+</ul>
+</section>
+<section id="data">
+<h2>05 · Data layer &amp; schema</h2>
+<div class="ratingbar b"><span class="rating r-b"><span class="sc">5.5</span><span class="of">/10 · C</span></span><b>Data layer &amp; schema (composite)</b> <span class="why">— Schema 8.5 · migration hygiene 4.5 · TypeScript access layer 4.0. The SQL is an asset; the TS in front of it is the debt.</span></div>
+<p class="lede">Two very different stories. The SQL is disciplined, defensive and tested by replay reasoning. The TypeScript in <code>lib/data</code> is a 15,700-line client-side layer that grew by accretion: one 2,597-line god module, a 788-line hand-written type file that has drifted from the generated types, duplicate helpers, and no tests on anything that talks to Supabase.</p>
+
+<h3>Data-layer sub-scores</h3>
+<div class="tbl"><table>
+<tr><th>Sub-area</th><th class="num">Score</th><th>Grade</th><th></th><th>What decides the score</th></tr>
+<tr><td>Schema design</td><td class="num"><b>8.5</b></td><td><span class="rating r-a"><span class="sc">A−</span></span></td><td><span class="mini"><i style="width:85%;background:var(--good)"></i></span></td><td>55 tables, 25 enums, sensible FKs and cascade choices, denormalised building_id kept in sync by trigger.</td></tr>
+<tr><td>Constraint coverage</td><td class="num"><b>6.0</b></td><td><span class="rating r-b"><span class="sc">B−</span></span></td><td><span class="mini"><i style="width:60%;background:var(--teal)"></i></span></td><td>Strong CHECKs on new tables; ~60 unindexed FKs, free-text status columns, one FK missing entirely.</td></tr>
+<tr><td>Migration hygiene</td><td class="num"><b>4.5</b></td><td><span class="rating r-c"><span class="sc">C−</span></span></td><td><span class="mini"><i style="width:45%;background:var(--high)"></i></span></td><td>~30 fix-forward files, 20 non-idempotent, filenames ≠ applied versions, one fileless remote migration.</td></tr>
+<tr><td>Reproducibility</td><td class="num"><b>2.0</b></td><td><span class="rating r-d"><span class="sc">D−</span></span></td><td><span class="mini"><i style="width:20%;background:var(--crit)"></i></span></td><td><code>supabase db reset</code> has never been executed; seeds not wired into config; replay is reasoned, not tested.</td></tr>
+<tr><td>Generated types</td><td class="num"><b>8.0</b></td><td><span class="rating r-a"><span class="sc">A−</span></span></td><td><span class="mini"><i style="width:80%;background:var(--good)"></i></span></td><td>Current, complete, enum-derived constants used by rule modules so drift becomes a compile error.</td></tr>
+<tr><td>Hand-written domain types</td><td class="num"><b>3.5</b></td><td><span class="rating r-c"><span class="sc">D</span></span></td><td><span class="mini"><i style="width:35%;background:var(--high)"></i></span></td><td>788 lines drifted from the generated set: wrong enum literals, numeric ids, four duplicate type names.</td></tr>
+<tr><td>Data-access structure</td><td class="num"><b>3.0</b></td><td><span class="rating r-d"><span class="sc">D</span></span></td><td><span class="mini"><i style="width:30%;background:var(--crit)"></i></span></td><td>2,597-line god module, hand-rolled cache, helper duplicated six times, barrel mixes client and server.</td></tr>
+<tr><td>Query discipline</td><td class="num"><b>3.5</b></td><td><span class="rating r-c"><span class="sc">D</span></span></td><td><span class="mini"><i style="width:35%;background:var(--high)"></i></span></td><td>13 <code>select("*")</code>, 5 limits total, unbounded manager lists, unpaged cron selects.</td></tr>
+<tr><td>Error handling</td><td class="num"><b>4.0</b></td><td><span class="rating r-c"><span class="sc">C−</span></span></td><td><span class="mini"><i style="width:40%;background:var(--high)"></i></span></td><td>Consistent return shape, but two incompatible result types and several ignored write errors.</td></tr>
+<tr><td>Pure rule modules</td><td class="num"><b>8.5</b></td><td><span class="rating r-a"><span class="sc">A−</span></span></td><td><span class="mini"><i style="width:85%;background:var(--good)"></i></span></td><td>The best code in the repo: enum-derived, SQL-mirroring, exhaustively tested.</td></tr>
+</table></div>
+
+<h3>lib/data — 47 files</h3>
+<div class="tbl"><table>
+<tr><th>File</th><th class="num">Lines</th><th>Runs</th><th>Purpose</th><th>Notes</th></tr>
+<tr><td><code>live.ts</code></td><td class="num">2,597</td><td>client</td><td>pets, docs, vaccinations, contacts, care log/targets, membership, resident queue, notifications, community, events, lost&amp;found, photos, vet visits, my-cases, disputes</td><td>13 domains, 59 exports; module-level pets cache + pub/sub (L255-350); 6× <code>select("*")</code>; imports MOCK_PETS fallback</td></tr>
+<tr><td><code>manager-queues.ts</code></td><td class="num">1,171</td><td>client</td><td>registrations, doc review, violations + all ladder mutations, subjects, CSV ledger</td><td><code>first()</code> helper duplicated 6×; hard-coded 25 kg limit (L140); dead ternary L257; <code>history</code> synthetic not from <code>violation_events</code>; unbounded lists</td></tr>
+<tr><td><code>types.ts</code></td><td class="num">788</td><td>pure</td><td>hand-written domain types, all domains</td><td>drifted (below); header says "IDs numeric today" — still true for 4 types</td></tr>
+<tr><td><code>bookings.ts</code></td><td class="num">682</td><td>client</td><td>services, bookings, reviews, campaigns, earnings</td><td>15% commission computed client-side at insert (L401); no tests</td></tr>
+<tr><td><code>business.ts</code></td><td class="num">534</td><td>client</td><td>my business, nearby discovery, geolocation</td><td>pure helpers (haversine, isOpenNow) untested</td></tr>
+<tr><td><code>care-catalog.ts</code>, <code>care-schedule.ts</code></td><td class="num">1,019</td><td>pure / client</td><td>species vocabularies; recurring tasks + done-log</td><td><code>setCareTaskDone</code> ignores 3 write errors (L477-486)</td></tr>
+<tr><td><code>portfolio.ts</code>, <code>work-queue.ts</code>, <code>manager.ts</code>, <code>admin.ts</code></td><td class="num">1,400</td><td>client</td><td>strata portfolio, unified queue, manager building, admin console</td><td>work-queue fans out 6 hooks per mount; parses <code>date</code> columns with bare <code>new Date()</code> (the bug class fixed elsewhere)</td></tr>
+<tr><td><code>accommodations*.ts</code>, <code>accommodation-docs*.ts</code></td><td class="num">1,156</td><td>pure + client</td><td>request view-model, checklist rules, purge classifier</td><td><span class="pill good">well factored</span> pure rules mirror RPCs, tested</td></tr>
+<tr><td><code>violations.ts</code>, <code>disputes.ts</code>, <code>fine-schedule.ts</code>, <code>building-rules.ts</code>, <code>evidence-purge.ts</code>, <code>community.ts</code></td><td class="num">1,367</td><td>pure</td><td>ladder, dispute window, money grammar, rule grouping, purge predicates</td><td><span class="pill good">the good part</span> enum-derived from generated types, test-pinned</td></tr>
+<tr><td><code>incidents.ts</code>, <code>evidence.ts</code>, <code>municipal.ts</code>, <code>emergency.ts</code>, <code>community-media.ts</code></td><td class="num">864</td><td>client</td><td>intake RPC wrappers, signed uploads</td><td>incidents untested; municipal swallows errors into null</td></tr>
+<tr><td><code>hooks.ts</code></td><td class="num">131</td><td>stubs</td><td>6 dead hooks returning <code>[]</code>, re-exports</td><td>stale header; <code>EMPTY_BUILDING</code> keeps 15 unused fields alive</td></tr>
+<tr><td><code>mock-data.ts</code></td><td class="num">353</td><td>pure</td><td>demo fixtures</td><td>9 unused type imports; <code>status:"at-vet"</code> ≠ enum <code>at_vet</code>; 2 exports unused</td></tr>
+<tr><td><code>index.ts</code></td><td class="num">38</td><td>barrel</td><td>re-exports everything incl. <code>live.ts</code> and 5 mock symbols</td><td>comment L8 still says "mock now, Supabase later"</td></tr>
+</table></div>
+<p class="small">Conventions that are consistent: hooks return <code>{data,isLoading,error,refetch}</code>; mutations return <code>{error: string|null}</code>; nothing throws except purge classifiers; camelCase↔snake_case mapping inline per hook; no realtime; no react-query; zero TODOs; zero <code>any</code>.</p>
+
+<h3>Type drift: <code>types.ts</code> vs generated <code>database.types.ts</code></h3>
+<div class="tbl"><table>
+<tr><th>Hand-written</th><th>Generated / DB</th><th>Problem</th></tr>
+<tr><td><code>PetStatus</code> <code>"at-vet"</code> (L23)</td><td>enum <code>at_vet</code>, plus <code>deceased</code></td><td>wrong literal; missing value</td></tr>
+<tr><td><code>UserRole</code> <code>"pet-owner"</code> (L71)</td><td><code>pet_owner</code></td><td>hyphen/underscore; three translation maps exist</td></tr>
+<tr><td><code>IncidentType</code> <code>"off-leash"</code> (L31)</td><td><code>off_leash</code>, plus <code>unregistered</code></td><td>stale duplicate of <code>incidents.ts:30</code> which aliases the enum correctly</td></tr>
+<tr><td><code>Building.id: number</code> (L754), also <code>ServiceProvider</code>, <code>HomeAlert</code>, <code>ManagerActivityEntry</code></td><td>uuid <code>string</code></td><td>never migrated; three partial live shapes (<code>ManagerBuilding</code>, <code>PortfolioBuilding</code>, <code>AdminBuilding</code>) exist instead</td></tr>
+<tr><td><code>DocumentStatus</code> capitalised (L25)</td><td><code>doc_status</code> lowercase, 7 values</td><td>different vocabulary</td></tr>
+<tr><td><code>NotificationCategory</code> (L63)</td><td>enum has <code>billing, community, system</code> extra</td><td>incomplete</td></tr>
+<tr><td><code>BuildingStats</code> ×2, <code>Emergency*</code> ×2, <code>Citation</code> ×2, <code>TriageLevel</code> ×2</td><td>—</td><td>same exported name in two files with different shapes</td></tr>
+<tr><td><code>Violation.history</code></td><td><code>violation_events</code></td><td>UI shows one synthetic step, not the ledger</td></tr>
+</table></div>
+<p><code>database.types.ts</code> is current (56 tables, 51 functions, 25 enums match the migrations) but has no <code>gen types</code> script, and RPC returns are <code>Json</code>, which is why 9 <code>as unknown as</code> casts exist.</p>
+
+<h3>Schema — condensed ER</h3>
+<pre class="mermaid">
+erDiagram
+  profiles ||--o{ resident_links : "profile_id"
+  profiles ||--o{ building_managers : "profile_id"
+  profiles ||--o{ pets : "owner_id"
+  buildings ||--o{ units : ""
+  buildings ||--o{ resident_links : ""
+  buildings ||--o{ building_managers : ""
+  buildings ||--o{ building_rules : ""
+  buildings ||--o{ incident_reports : ""
+  buildings ||--o{ violations : ""
+  buildings ||--o{ accommodation_requests : ""
+  buildings ||--o{ community_posts : ""
+  buildings ||--o{ events : ""
+  buildings ||--o{ lost_found : ""
+  buildings ||--o{ emergency_access_tokens : ""
+  pets ||--o{ pet_documents : ""
+  pets ||--o{ pet_vaccinations : ""
+  pets ||--o{ pet_care_tasks : ""
+  pets ||--o{ care_entries : ""
+  pets ||--o{ care_targets : ""
+  pets ||--o{ pet_photos : ""
+  pets ||--o{ pet_vet_visits : ""
+  pet_care_tasks ||--o{ pet_care_log : ""
+  pet_care_tasks ||--o{ pet_care_reminders : ""
+  incident_reports ||--o| violations : "origin_incident_id"
+  violations ||--o{ violation_events : "restrict"
+  violations ||--o{ violation_disputes : "restrict"
+  violations ||--o{ fines : ""
+  accommodation_requests ||--o{ accommodation_documents : ""
+  community_posts ||--o{ post_comments : ""
+  community_posts ||--o{ post_reactions : ""
+  events ||--o{ event_rsvps : ""
+  profiles ||--o| businesses : "owner_id"
+  businesses ||--o{ business_services : ""
+  businesses ||--o{ service_bookings : ""
+  businesses ||--o{ business_reviews : ""
+  businesses ||--o{ business_listings : ""
+  service_bookings ||--o| payments : ""
+  profiles ||--o{ notifications : ""
+  profiles ||--o{ ai_conversations : ""
+  ai_conversations ||--o{ ai_messages : ""
+  profiles ||--o{ audit_log : "actor_id"
+</pre>
+<p class="small">Not drawn: billing tables (<code>billing_plans, subscriptions, building_subscriptions, sponsored_seats, payouts, payout_items</code> — read-only, nothing gates on them), <code>pending_signups</code>, <code>municipalities/municipal_reports</code>, <code>shop_items</code>, <code>push_tokens</code>, <code>pet_feeding/pet_medications/pet_activity</code> (legacy).</p>
+
+<h3>Migration history: how it got here</h3>
+<div class="tiles">
+  <div class="tile"><div class="v">7 / 19 / 76</div><div class="l">migrations in June / July / August</div></div>
+  <div class="tile h"><div class="v">~30</div><div class="l">"fix-forward" migrations correcting the one before</div></div>
+  <div class="tile h"><div class="v">5×</div><div class="l"><code>submit_incident_report</code> redefined; 3× for ladder, remind, escalate, posts guard, freeze</div></div>
+  <div class="tile c"><div class="v">never</div><div class="l"><code>supabase db reset</code> has been run (no CLI, no Docker)</div></div>
+</div>
+<ul>
+<li><b>Reproducibility is unproven.</b> Migrations were applied via the Supabase MCP which mints wall-clock versions; filenames are hand-numbered by phase. <code>supabase migration list</code> will report every file unapplied. One live migration (<code>20260823135223</code>) has no file and must not be restored. 30 of the first 59 files differ from what ran on the server (<code>phase-0-findings.md:114-131</code>, <code>2026-08-23-migration-drift.md</code>).</li>
+<li><b>Non-idempotent files:</b> at least 20 use bare <code>create type/table/policy/trigger</code> and will fail on re-run.</li>
+<li><b>Seeds not wired:</b> <code>seed_strata.sql</code>/<code>seed_business.sql</code> are not in <code>config.toml</code>; a local reset has no demo users, and seeded requests get <code>NULL submitted_at</code> because the backfill ran first.</li>
+<li><b>Churn examples:</b> enum <code>violation_stage</code> → <code>violation_stage_v2</code> (suffix now permanent); FK cascade → restrict; unique index dropped and re-created; "avatars public read" policy created, dropped twice.</li>
+</ul>
+
+<h3>Schema hygiene</h3>
+<ul class="two">
+<li><b>~60 FKs without a supporting index</b>, including hot paths: <code>violation_events.violation_id</code>, <code>accommodation_requests.building_id/resident_id</code>, <code>post_comments.post_id</code>, <code>events.building_id</code>, <code>lost_found.building_id</code>, <code>fines.violation_id</code>.</li>
+<li><code>audit_log.building_id</code> has no FK at all.</li>
+<li>Free-text status columns with no CHECK: <code>violations.type</code> (seed uses one vocabulary, escalation writes another), <code>notifications.severity</code>, <code>audit_log.action</code>, all <code>currency</code> columns (<code>shop_items</code> defaults <code>'CAD'</code>, everything else <code>'cad'</code>).</li>
+<li><code>pet_vaccinations.status</code> reuses <code>doc_status</code> (values like <code>missing</code>, <code>rejected</code> are meaningless there).</li>
+<li>Soft-delete spelled five ways: <code>deleted_at</code>, <code>is_active</code>, <code>active</code>, <code>revoked</code>, <code>purged_at</code>.</li>
+<li><code>updated_at</code> without trigger on <code>care_targets</code>, <code>shop_items</code>, <code>municipalities</code>; two updated-at trigger functions exist.</li>
+<li>Actor columns named seven ways: <code>owner_id, author_id, reporter_id, created_by, profile_id, resident_id, filed_by</code>.</li>
+<li><code>search_path</code> spelled five ways across definer functions; two invoker trigger functions set none.</li>
+<li>Duplicate index <code>care_entries_pet_kind_logged_idx</code> ≈ <code>care_entries_pet_kind_idx</code>.</li>
+<li><code>buildings.pet_rules</code> jsonb has three different key vocabularies across seeds and code, and nothing constrains it except the three fine keys.</li>
+<li>Legacy columns kept beside replacements: <code>pet_medications.next_due text</code> + <code>next_due_at</code>; <code>pet_care_tasks.time_label</code> + <code>scheduled_at</code>.</li>
+</ul>
+
+<h3>Multi-tenancy</h3>
+<p>Scoping is by <code>building_id</code> column plus definer helpers <code>manages_building()</code>, <code>is_resident_of()</code>, <code>is_admin()</code> (suspension-aware). Child tables resolve through parent <code>EXISTS</code>. Storage scoping is path segment 1 = building uuid. No table lacks RLS. Points to review: <code>profiles_select</code> exposes full rows (address, phone, coordinates) to a manager of any building the profile has <em>any</em> link in, not just approved; <code>buildings_manager_update</code> lets a manager change <code>building_code</code> and address unaudited; <code>is_resident_of</code> does not check <code>left_at</code>; <code>useBuildingResidents</code> (<code>live.ts:1056</code>) relies on RLS with no explicit building filter; super-admin sees a cross-building accommodations list.</p>
+
+<div class="finding" id="D-2"><div class="t"><span class="pill high">High</span><b>Zero tests on any module that touches Supabase, HTTP or React</b><span class="id">D-2</span></div>
+<p>24 of 35 <code>lib/data</code> modules untested including <code>live.ts</code>, <code>manager-queues.ts</code>, <code>bookings.ts</code>, <code>incidents.ts</code>; all 22 API routes; middleware; auth-context; every screen. The 383 passing tests cover pure reducers and formatters. <code>computeCompliance</code> (<code>live.ts:64</code>) — the number every manager sees — is pure and untested. <code>controlsForCase</code>, the function "every surface asks", is untested.</p></div>
+<div class="finding" id="D-3"><div class="t"><span class="pill med">Medium</span><b>Unbounded queries and 1000-row truncation risk</b><span class="id">D-3</span></div>
+<p>Only 5 <code>.limit()</code> sites in the whole layer; every manager list (violations, ledger, outstanding fines, team, subjects) is unbounded; the reminders cron loads all active tasks and all vaccinations unpaged (PostgREST caps at 1000 silently). <code>useUnreadNotificationCount</code> fetches 100 rows on every mount in 5 places.</p></div>
+</section>
+<section id="rules">
+<h2>06 · Domain rules &amp; state machines</h2>
+<div class="ratingbar a"><span class="rating r-a"><span class="sc">7.0</span><span class="of">/10 · B</span></span><b>Domain rules &amp; state machines</b> <span class="why">— Four machines are enforced in the database with a pattern worth copying; five are enforced only by which buttons render, and one is broken.</span></div>
+<p class="lede">Extracted from SQL, TypeScript and screens. Where a transition is enforced in the database it is marked <span class="pill good">DB</span>; where it exists only as which buttons the UI renders, <span class="pill high">UI only</span>; where a state has no writer anywhere, <span class="pill low">dead</span>.</p>
+
+<h3>Violation enforcement ladder <span class="pill good">DB</span></h3>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> open : INSERT (composer or escalate RPC) — RLS pins stage='open'
+  open --> warning : manager_advance_violation
+  warning --> fine_1 : advance (+ fines row 'issued')
+  fine_1 --> fine_2 : advance (+ second fine)
+  open --> resolved
+  open --> dismissed
+  warning --> resolved
+  warning --> dismissed
+  fine_1 --> resolved
+  fine_1 --> dismissed
+  fine_2 --> resolved
+  fine_2 --> dismissed
+  resolved --> [*]
+  dismissed --> [*]
+</pre>
+<p>Eleven legal moves, no self-moves, "reopening means a new violation". Guard order inside the RPC: <code>not_found → forbidden → dispute_open → illegal_transition → no_fine_amount</code>. Direct <code>UPDATE violations SET stage</code> is refused for everyone including admins by <code>violations_stage_guard</code> unless the RPC minted the transaction-local token <code>pet10x.stage_change</code>. TS mirror in <code>lib/data/violations.ts:55-62</code>, test-pinned. Fine amounts come from <code>buildings.pet_rules.fine_{1,2}_cents</code>, which only <code>manager_set_fine_schedule</code> may write (another token + trigger).</p>
+
+<h3>Dispute / appeal <span class="pill good">DB</span></h3>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> open : dispute_violation (resident only) — 14-day window, stages warning|fine_1|fine_2 — one per stage, one open per case — fines issued → disputed
+  open --> upheld : manager_resolve_dispute — fines → issued, stage unchanged
+  open --> overturned : manager_resolve_dispute — case → dismissed, fines → waived
+  upheld --> [*]
+  overturned --> [*]
+</pre>
+<p>While a dispute is open, <em>every</em> ladder move is refused (<code>dispute_open</code>). Managers and admins cannot file disputes. Fine money is a sub-machine: <code>issued → disputed → issued|waived</code>, plus <code>setFineStatus('paid'|'waived')</code> as a direct update guarded to the <code>status</code> column only — <code>paid → issued</code> is not refused. <code>remitted</code>, <code>partially_paid</code>, <code>written_off</code> <span class="pill low">dead</span>.</p>
+
+<h3>Accommodation request (ESA / service animal) <span class="pill good">DB</span></h3>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> draft : resident INSERT (approved link required)
+  draft --> pending : submit_accommodation_request — requires description + required doc kinds
+  info_requested --> pending : resubmit
+  pending --> approved : manager_decide (pet → approved)
+  pending --> denied : manager_decide (note required)
+  pending --> info_requested : manager_decide
+  info_requested --> approved
+  info_requested --> denied
+  draft --> withdrawn : withdraw
+  pending --> withdrawn
+  info_requested --> withdrawn
+  approved --> [*]
+  denied --> [*]
+  withdrawn --> [*]
+</pre>
+<p>A BEFORE UPDATE trigger (<code>accommodation_requests_freeze</code>) makes identity columns immutable, status columns token-only, content editable only by the owning resident while draft/info_requested — and admins do not transcend it. Documents: upsert per <code>(request, kind)</code> resets verification; retention 400 days after decision, then the file is purged and the row kept. <b>Gap:</b> "approve only when every required document is verified" is enforced in the screen (<code>approvals-screen.tsx:400-404</code>), not the RPC <span class="pill high">UI only</span>.</p>
+
+<h3>Incident report <span class="pill high">UI only</span></h3>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> submitted : submit_incident_report (anon by code)
+  submitted --> triaged : direct UPDATE
+  submitted --> investigating
+  triaged --> investigating
+  investigating --> resolved
+  investigating --> dismissed
+  submitted --> linked_to_violation : escalate_incident_to_violation — (opens violation at 'open')
+  triaged --> linked_to_violation
+  investigating --> linked_to_violation
+</pre>
+<p><code>setIncidentStatus</code> (<code>incidents.ts:368-380</code>) is a direct update; RLS allows any status from any status. <code>escalate_incident_to_violation</code> does not check the current status, so a dismissed or already-escalated incident can be escalated again, producing a second violation.</p>
+
+<h3>Pet registration <span class="pill crit">broken</span></h3>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> draft : addPet (column default)
+  draft --> pending : NOTHING WRITES THIS
+  pending --> approved : manager_decide_registration(true)
+  pending --> denied : manager_decide_registration(false)
+  draft --> approved : manager_decide_accommodation('approved')
+  note right of pending : queue reads only 'pending' — manager-queues.ts:103
+</pre>
+<div class="finding" id="D-1"><div class="t"><span class="pill crit">Product bug</span><b>App-registered pets never reach the approvals queue</b><span class="id">D-1</span></div>
+<p><code>addPet</code> (<code>live.ts:376-403</code>) leaves <code>registration_status='draft'</code>; no TS or SQL path writes <code>'pending'</code> (only <code>seed_strata.sql:169,465</code> does). <code>useRegistrationsLive</code> reads only <code>pending</code>. The demo works because the seed sets it. <code>manager_decide_registration</code> also ignores the current status, so a denied pet can be re-approved. <code>info_requested</code>, <code>revoked</code> <span class="pill low">dead</span>.</p><p><span class="k">Fix</span> Submit-for-registration RPC (draft → pending, requires linked building), transition table in the decide RPC, queue includes what managers must see.</p></div>
+
+<h3>Resident ↔ building link <span class="pill high">UI only</span></h3>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> pending : request_building_link(code) — notifies managers
+  pending --> approved : approveResidentLink (direct UPDATE) — trigger copies building onto pets
+  pending --> denied : denyResidentLink
+  approved --> left : removeResident / leave_my_building_link — trigger nulls pets.building_id
+  pending --> left : leave_my_building_link
+  pending --> pending : request-info (stamps info_requested_at)
+</pre>
+<p><code>revoked</code> <span class="pill low">dead</span>. No transition table; <code>decideLink</code> can set any status from any status.</p>
+
+<h3>Building rule publishing <span class="pill good">DB</span></h3>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> unpublished : manager_save_building_rule (new)
+  unpublished --> unpublished : save (amend)
+  unpublished --> published : publish_building_rule(true) — 1 notification per approved resident
+  published --> published : save (edits LIVE text in place — no versioning)
+  published --> unpublished : publish_building_rule(false)
+  published --> [*] : admin DELETE only
+</pre>
+<p>Direct <code>is_published</code> writes raise 42501 via <code>building_rules_publish_guard</code>. Missing: versions/history — a published rule edited in place moves only <code>updated_at</code>.</p>
+
+<h3>Marketplace booking <span class="pill high">UI only</span></h3>
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> requested : createBooking (commission 15% computed in browser)
+  requested --> confirmed : owner
+  requested --> declined : owner (+reason)
+  confirmed --> in_progress
+  confirmed --> cancelled
+  in_progress --> completed
+  completed --> paid : business_mark_booking_paid (manual, payments row provider='manual')
+  requested --> cancelled : customer (any state)
+</pre>
+<div class="finding" id="D-4"><div class="t"><span class="pill high">High</span><b>Booking money and status are client-controlled</b><span class="id">D-4</span></div>
+<p><code>bookings_owner_update</code> and <code>bookings_customer_update</code> (<code>20260722000000:54-58</code>) are <code>FOR UPDATE</code> with no column list and no status check. A customer can set <code>status='paid'</code>, <code>amount_cents</code> or <code>commission_cents</code> on their own row via PostgREST. The ordering above exists only in <code>bookings-tab.tsx:200-251</code>. No trigger equivalent to <code>fines_settle_only_guard</code>. <code>business_mark_booking_paid</code> does not require <code>completed</code>.</p><p><span class="k">Fix</span> Mirror the violation pattern: a <code>set_booking_status</code> RPC with a transition table; compute commission in SQL; column guard trigger.</p></div>
+
+<h3>Other machines</h3>
+<ul>
+<li><b>Care task</b>: daily (weekday mask + time) or interval (<code>interval_days</code> + <code>next_due_on</code>), bounded by <code>starts_on/ends_on</code>; ticking upserts <code>pet_care_log</code> and optionally one <code>care_entries</code> row per day keyed by <code>source_task_id</code>.</li>
+<li><b>Lost &amp; found</b>: <code>active → resolved</code> by reporter or manager; max 3 per day per user.</li>
+<li><b>Community post</b>: author soft-deletes; manager soft-removes via RPC + audit; removed posts cannot be restored or commented.</li>
+<li><b>Municipal report</b>: <code>submitted</code> only; <code>acknowledged</code>, <code>closed</code> <span class="pill low">dead</span>; nothing is forwarded to any city.</li>
+<li><b>Emergency token</b>: 4-hour default, revocable, 128-bit random; expiry unbounded by manager.</li>
+<li><b>Suspension</b>: admin-only; removes every helper predicate; middleware signs out.</li>
+</ul>
+
+<h3>Business logic that lives in JSX and belongs in the domain layer</h3>
+<ol class="two">
+<li>Booking transition table — <code>bookings-tab.tsx:200-251</code></li>
+<li>4-hour response SLA — <code>bookings-tab.tsx:158</code></li>
+<li>30-day revenue window — <code>dashboard-tab.tsx:31-33</code></li>
+<li>"Today's jobs" predicate — <code>dashboard-tab.tsx:24-29</code></li>
+<li>Portfolio health thresholds 75/90 — <code>strata-ui.tsx:8-12</code></li>
+<li>Compliant = 100%, mean default — <code>manager/dashboard-screen.tsx:96-99</code></li>
+<li>Care target progress, treats-as-ceiling — <code>care-tracker.tsx:140-148</code></li>
+<li>"Note required when fine deviates from schedule" — <code>violations-screen.tsx:1031-1036</code></li>
+<li>Second, looser money grammar — <code>building-detail.tsx:562</code> vs <code>parseAmountToCents</code></li>
+<li>Ad-hoc dollars→cents — <code>community-screen.tsx:377</code>, <code>storefront-tab.tsx:304-311</code></li>
+<li>OTP TTL constants re-declared — <code>sign-in-screen.tsx:30-31</code></li>
+<li>Editability re-derived instead of <code>legalMoves</code> — <code>accommodation-request-screen.tsx:288,461,493</code></li>
+</ol>
+</section>
+
+<section id="flows">
+<h2>07 · Product flows</h2>
+<div class="ratingbar b"><span class="rating r-b"><span class="sc">6.5</span><span class="of">/10 · B−</span></span><b>Flow design</b> <span class="why">— Journeys are sensibly shaped and the hard privacy calls were made deliberately; the seams show at step indicators, error recovery and dead-end states.</span></div>
+<p class="lede">End-to-end journeys as the code actually runs them, with the screens, routes and tables each touches and the complication points a new engineer must know.</p>
+
+<h3>(a) Resident signup → onboarding → first pet</h3>
+<pre class="mermaid">
+flowchart LR
+  A[SignInScreen signup] -->|POST /api/auth/signup/start| B[(pending_signups)]
+  B -->|code email| C[verify view 6-digit]
+  C -->|POST /api/auth/signup/verify| D[auth.users created<br/>email_confirm]
+  D --> E{onboarded?}
+  E -->|no| F[OnboardingFlow<br/>intro → code → unit → linked/standalone]
+  F -->|request_building_link| G[(resident_links pending)]
+  F -->|set_my_unit| H[(units)]
+  F -->|skip| I[standalone]
+  E -->|yes| J[HomeScreen]
+  G -->|manager approves| J
+  J --> K[AddPetScreen → pets + pet-media]
+  J --> L[MissingInfoCard from useMyCompleteness]
+</pre>
+<p><b>Complications:</b> password held in React state across the OTP round-trip (by design, so abandoned signups create nothing); 15 min TTL, 5 attempts, 60 s resend; no progress indicator in either flow; <code>finish()</code> never clears loading on failure; unit skip is silent.</p>
+
+<h3>(b) Incident with evidence → triage → ladder → dispute</h3>
+<pre class="mermaid">
+flowchart TB
+  G[Guest /report or Resident report tab] --> CH[ReportChooser<br/>building vs municipal]
+  CH -->|building| CODE[building code / search]
+  CODE --> IC[IncidentComposer<br/>type → evidence → pet → summary]
+  IC -->|POST /api/incidents/evidence/sign| S1[signed PUT to guest-evidence<br/>≤5 files, 15MB, images]
+  IC -->|GET /api/report/pets| S2[signed pet photos for picker]
+  IC -->|RPC submit_incident_report| IR[(incident_reports<br/>IR-XXXXXX)]
+  IR -.24h unclaimed.-> PURGE[cron 04:00 evidence purge]
+  IR --> M[Manager incidents-screen]
+  M -->|setIncidentStatus| TR[triaged / investigating / dismissed / resolved]
+  M -->|RPC escalate_incident_to_violation| V[(violations 'open')]
+  V --> VS[Manager violations-screen]
+  VS -->|manager_advance_violation| L[warning → fine_1 → fine_2]
+  L -->|fines row| FN[(fines issued)]
+  FN -->|manager_remind_fine 24h throttle| N[(notifications)]
+  L --> R[Resident my-cases-screen]
+  R -->|dispute_violation 14 days| DS[(violation_disputes)]
+  DS -->|manager_resolve_dispute| OUT[upheld / overturned]
+  CH -->|municipal| MR[MunicipalReport → submit_municipal_report<br/>recorded, never forwarded]
+</pre>
+<p><b>Complications:</b> the guest and resident report screens were once two implementations (the bug that started the August rewrite); now both are 20-line shells around <code>IncidentComposer</code>. The subject of a violation is the identified pet's owner, never the reporter. No payment surface for fines exists.</p>
+
+<h3>(c) Accommodation request</h3>
+<pre class="mermaid">
+flowchart LR
+  R[accommodation-request-screen<br/>approved link required] -->|INSERT draft| AR[(accommodation_requests)]
+  R -->|POST docs/sign → PUT → POST docs| AD[(accommodation_documents<br/>accommodation-docs bucket)]
+  R -->|RPC submit_accommodation_request<br/>checklist_incomplete?| P[pending → managers notified]
+  P --> M[approvals-screen accommodations tab]
+  M -->|manager_verify_accommodation_document| VD[doc approved / rejected]
+  M -->|manager_decide_accommodation| D[approved / denied / info_requested]
+  D -.400 days.-> PG[cron 05:00 purge file, keep row]
+</pre>
+
+<h3>(d) Building rules</h3>
+<pre class="mermaid">
+flowchart LR
+  E[building-rules-editor in manager settings] -->|manager_save_building_rule| DR[(building_rules draft)]
+  DR -->|publish_building_rule true, notify| PUB[published + 1 notification per resident]
+  F[fine-schedule-editor] -->|manager_set_fine_schedule| PR[(buildings.pet_rules fine keys)]
+  S[strata bylaws-editor toggles] -->|updateMyBuildingRules| PR2[(pet_rules booleans)]
+  PUB --> RS[resident building-rules-screen<br/>two sections: machine-checked + authored]
+</pre>
+
+<h3>(e) Manager invite → strata portal</h3>
+<pre class="mermaid">
+flowchart LR
+  A[/admin buildings tab/] -->|POST /api/admin/invite| GL[auth.admin.generateLink invite]
+  T[strata team-screen] -->|POST /api/strata/invite<br/>primary manager only| GL
+  GL -->|email prod-only, else link returned| SP[/auth/set-password]
+  SP -->|updateUser| APP[/app]
+  GL -->|existing account| EL[profiles.role → building_manager<br/>building_managers row]
+  APP -->|≥2 buildings| STR[/strata-portal overview/queue/buildings/bylaws/reports/team]
+</pre>
+
+<h3>(f) Business → storefront → booking</h3>
+<pre class="mermaid">
+flowchart LR
+  BS[/businessaccess signup/] -->|POST /api/business/signup| BZ[(businesses unverified)]
+  BZ -->|admin verifies| ST[storefront-tab services + hours + GPS]
+  O[owner services-screen GPS discovery] --> BD[business-detail-screen booking sheet]
+  BD -->|INSERT requested| BK[(service_bookings)]
+  BK --> BT[bookings-tab confirm / decline]
+  BT --> IP[in_progress → completed]
+  IP -->|business_mark_booking_paid| PD[paid + payments row 'manual']
+  PD --> RV[my-bookings review]
+</pre>
+
+<h3>(g) Care schedule → reminders</h3>
+<pre class="mermaid">
+flowchart LR
+  SCH[schedule-tab] --> T[(pet_care_tasks)]
+  CR[cron */15 GET /api/care/reminders/run] -->|owner timezone, due window| T
+  CR -->|INSERT kind='care'| N[(notifications)]
+  CR -->|ledger unique task+date| L[(pet_care_reminders)]
+  CR -->|vaccination expiry ≤ remind_days| N
+  N --> AL[alerts-screen in-app only — no push, no email]
+  TS[today-schedule tick] -->|setCareTaskDone| LOG[(pet_care_log + care_entries)]
+</pre>
+
+<h3>(h) Community</h3>
+<pre class="mermaid">
+flowchart LR
+  CS[community-screen] -->|POST /api/community/media/sign| CM[community-media bucket]
+  CS -->|INSERT under column-registry trigger| P[(community_posts)]
+  CS -->|report_lost_found max 3/day| LF[(lost_found)]
+  CS -->|publish_building_event| EV[(events + rsvps)]
+  P -->|author| DEL[deleted_at]
+  P -->|manager moderate_community_post| MOD[soft remove + audit]
+</pre>
+
+<h3>(i) Emergency directory</h3>
+<pre class="mermaid">
+flowchart LR
+  M[manager settings / strata building-detail] -->|issueEmergencyToken 4h| TK[(emergency_access_tokens)]
+  TK --> QR[QR rendered client-side]
+  QR --> FR[/emergency/code first responder/]
+  FR -->|anon RPC emergency_directory, re-polled 60s| DIR[floors → units → pets, CAUTION flag]
+  M -->|revoke| TK
+</pre>
+</section>
+
+<section id="matrix">
+<h2>08 · Feature completeness</h2>
+<div class="ratingbar b"><span class="rating r-b"><span class="sc">6.5</span><span class="of">/10 · B−</span></span><b>Product completeness vs PRD</b> <span class="why">— 39 of 45 tracked features built and honest about what is not; the gaps are commercial (payments, push, policy) rather than half-finished UI.</span></div>
+<p>Status derived from code, not from the handover documents (which are two days and seven phases stale — see <a href="#process">§12</a>).</p>
+<div class="tbl"><table>
+<tr><th>#</th><th>Feature</th><th>Persona</th><th>Status</th><th>Evidence</th></tr>
+<tr><td>1</td><td>Email-OTP signup</td><td>Owner</td><td><span class="pill good">built</span></td><td><code>lib/auth/signup-otp.ts</code>, verify route</td></tr>
+<tr><td>2</td><td>MFA / SMS</td><td>Owner</td><td><span class="pill low">planned</span></td><td><code>docs/SIGNUP_VERIFICATION.md:103-110</code></td></tr>
+<tr><td>3</td><td>Onboarding: code, unit, skip</td><td>Owner</td><td><span class="pill good">built</span></td><td><code>onboarding-flow.tsx</code></td></tr>
+<tr><td>4</td><td>Resident link approval + request-info chase</td><td>Manager</td><td><span class="pill good">built</span></td><td><code>request-info-button.tsx</code></td></tr>
+<tr><td>5</td><td>Add pet, photo, breed catalog</td><td>Owner</td><td><span class="pill good">built</span></td><td><code>add-pet-screen.tsx</code></td></tr>
+<tr><td>6</td><td>Pet registration submitted to manager</td><td>Owner</td><td><span class="pill crit">broken</span></td><td><a href="#D-1">D-1</a></td></tr>
+<tr><td>7</td><td>Completeness card (derived)</td><td>Owner</td><td><span class="pill good">built</span></td><td><code>completeness.ts</code></td></tr>
+<tr><td>8</td><td>Stored resident compliance status</td><td>Owner</td><td><span class="pill low">removed</span></td><td><code>deferred-controls.md:100-113</code></td></tr>
+<tr><td>9</td><td>Guest incident by code + evidence</td><td>Guest</td><td><span class="pill good">built</span></td><td>sign route, <code>incidents.ts:121</code></td></tr>
+<tr><td>10</td><td>Resident incident (same composer)</td><td>Owner</td><td><span class="pill good">built</span></td><td><code>report-screen.tsx:21-25</code></td></tr>
+<tr><td>11</td><td>Municipal report</td><td>Guest/Owner</td><td><span class="pill med">partial</span></td><td>recorded only, never forwarded (<code>municipal.ts:8</code>)</td></tr>
+<tr><td>12</td><td>Evidence purge cron</td><td>System</td><td><span class="pill good">built</span></td><td><code>vercel.json</code></td></tr>
+<tr><td>13</td><td>Incident triage + escalate</td><td>Manager</td><td><span class="pill good">built</span></td><td>no status ordering (§06)</td></tr>
+<tr><td>14</td><td>Violation ladder, DB-guarded</td><td>Manager</td><td><span class="pill good">built</span></td><td><code>20260823000002</code></td></tr>
+<tr><td>15</td><td>Fine reminders, throttled</td><td>Manager</td><td><span class="pill good">built</span></td><td><code>manager_remind_fine</code></td></tr>
+<tr><td>16</td><td>Fine payment / settlement</td><td>Owner</td><td><span class="pill low">not built</span></td><td>spec AD-8; manual paid/waived only</td></tr>
+<tr><td>17</td><td>My cases + dispute</td><td>Owner</td><td><span class="pill good">built</span></td><td><code>my-cases-screen.tsx</code></td></tr>
+<tr><td>18</td><td>Resolve dispute</td><td>Manager</td><td><span class="pill good">built</span></td><td><code>manager_resolve_dispute</code></td></tr>
+<tr><td>19</td><td>Accommodation intake + docs</td><td>Owner</td><td><span class="pill good">built</span></td><td><code>accommodation-request-screen.tsx</code></td></tr>
+<tr><td>20</td><td>Checklist, verify, decide</td><td>Manager</td><td><span class="pill med">partial</span></td><td>approve gate UI-only</td></tr>
+<tr><td>21</td><td>Accommodation retention purge</td><td>System</td><td><span class="pill good">built</span></td><td>400 days</td></tr>
+<tr><td>22</td><td>Authored rules draft → publish → notify</td><td>Manager</td><td><span class="pill good">built</span></td><td>no versioning</td></tr>
+<tr><td>23</td><td>Resident reads rules</td><td>Owner</td><td><span class="pill good">built</span></td><td><code>building-rules-screen.tsx</code></td></tr>
+<tr><td>24</td><td>Fine schedule editor</td><td>Manager</td><td><span class="pill good">built</span></td><td><code>fine-schedule-editor.tsx</code></td></tr>
+<tr><td>25</td><td>Portfolio bylaw toggles</td><td>Strata</td><td><span class="pill good">built</span></td><td><code>bylaws-editor.tsx</code></td></tr>
+<tr><td>26</td><td>Admin invite manager</td><td>Admin</td><td><span class="pill med">partial</span></td><td>email prod-only, link shown instead</td></tr>
+<tr><td>27</td><td>Co-manager invite</td><td>Strata</td><td><span class="pill good">built</span></td><td><code>strata/invite</code></td></tr>
+<tr><td>28</td><td>Strata portal 6 tabs</td><td>Strata</td><td><span class="pill good">built</span></td><td><code>strata-portal/page.tsx</code></td></tr>
+<tr><td>29</td><td>Admin building delete</td><td>Admin</td><td><span class="pill crit">broken</span></td><td>raw 23503 on any used building</td></tr>
+<tr><td>30</td><td>Business signup</td><td>Business</td><td><span class="pill med">insecure</span></td><td><a href="#S-H2">S-H2</a></td></tr>
+<tr><td>31</td><td>Storefront / services / promos / earnings / reviews</td><td>Business</td><td><span class="pill good">built</span></td><td>6 tabs</td></tr>
+<tr><td>32</td><td>Booking loop + 15% commission</td><td>Owner/Business</td><td><span class="pill med">partial</span></td><td>no payments; client-controlled (<a href="#D-4">D-4</a>)</td></tr>
+<tr><td>33</td><td>GPS discovery</td><td>Owner</td><td><span class="pill good">built</span></td><td><code>business.ts:235</code></td></tr>
+<tr><td>34</td><td>Care tasks, household grouping</td><td>Owner</td><td><span class="pill good">built</span></td><td><code>care-schedule.ts</code></td></tr>
+<tr><td>35</td><td>Care reminders cron (in-app)</td><td>System</td><td><span class="pill good">built</span></td><td>no push, no email</td></tr>
+<tr><td>36</td><td>Push notifications</td><td>Owner</td><td><span class="pill low">not built</span></td><td><code>push_tokens</code> table unused</td></tr>
+<tr><td>37</td><td>Community feed with media</td><td>Owner</td><td><span class="pill good">built</span></td><td>column-registry trigger</td></tr>
+<tr><td>38</td><td>Moderation pin / remove + audit</td><td>Manager</td><td><span class="pill good">built</span></td><td><code>moderate_community_post</code></td></tr>
+<tr><td>39</td><td>Lost &amp; found, events, RSVP</td><td>Owner</td><td><span class="pill good">built</span></td><td>3/day cap</td></tr>
+<tr><td>40</td><td>Emergency QR directory</td><td>Manager/Responder</td><td><span class="pill good">built</span></td><td>medical note leak (S-L5)</td></tr>
+<tr><td>41</td><td>AI assistant + suggestions + consent</td><td>Owner</td><td><span class="pill good">built</span></td><td>§11</td></tr>
+<tr><td>42</td><td>Manager settings: audit log, billing, staff, templates, notification rules, help, terms</td><td>Manager</td><td><span class="pill low">11 disabled stubs</span></td><td><code>settings-screen.tsx:51-62</code></td></tr>
+<tr><td>43</td><td>Privacy policy / Terms in app</td><td>All</td><td><span class="pill crit">missing</span></td><td>health records + addresses with no policy</td></tr>
+<tr><td>44</td><td>Account deletion</td><td>Owner/Business</td><td><span class="pill med">partial</span></td><td>21/48 profiles blocked by FKs; storage sweep incomplete</td></tr>
+<tr><td>45</td><td>PRD §6.7 risk scoring / insurance; §9 subscriptions</td><td>All</td><td><span class="pill low">not built</span></td><td><code>is_premium</code> gates nothing</td></tr>
+</table></div>
+</section>
+<section id="ui">
+<h2>09 · UI audit</h2>
+<div class="ratingbar d"><span class="rating r-d"><span class="sc">3.0</span><span class="of">/10 · D</span></span><b>UI implementation (composite)</b> <span class="why">— Tokens 7.5 · component reuse 2.5 · accessibility 2.0 · responsive 3.5. Good foundations, no middle layer, and a legal-risk level of a11y.</span></div>
+<p class="lede">The token file is thoughtful and the visual direction is coherent. Below the tokens, every screen re-implements the same handful of patterns by hand, ignores the shadcn primitives that were installed for them, and ships with almost no accessibility semantics.</p>
+
+<h3>UI sub-scores</h3>
+<div class="tbl"><table>
+<tr><th>Sub-area</th><th class="num">Score</th><th>Grade</th><th></th><th>What decides the score</th></tr>
+<tr><td>Design tokens</td><td class="num"><b>7.5</b></td><td><span class="rating r-a"><span class="sc">B</span></span></td><td><span class="mini"><i style="width:75%;background:var(--good)"></i></span></td><td>Two grounds, semantic set with contrast reasoning, dark mode complete, elevation restrained.</td></tr>
+<tr><td>Typography system</td><td class="num"><b>2.5</b></td><td><span class="rating r-d"><span class="sc">D−</span></span></td><td><span class="mini"><i style="width:25%;background:var(--crit)"></i></span></td><td>17 arbitrary pixel sizes across ~1,400 sites; no scale, no utilities, no ban.</td></tr>
+<tr><td>Component reuse</td><td class="num"><b>2.0</b></td><td><span class="rating r-d"><span class="sc">D−</span></span></td><td><span class="mini"><i style="width:20%;background:var(--crit)"></i></span></td><td>13 sheets, ~20 status maps, ~18 empty states, 5 login forms hand-written; 42 primitives unused.</td></tr>
+<tr><td>Accessibility</td><td class="num"><b>2.0</b></td><td><span class="rating r-d"><span class="sc">D−</span></span></td><td><span class="mini"><i style="width:20%;background:var(--crit)"></i></span></td><td>No focus traps or Escape handlers, tabs without roles, placeholder-as-label, no live regions, inert emergency clinic rows.</td></tr>
+<tr><td>Responsive design</td><td class="num"><b>3.5</b></td><td><span class="rating r-c"><span class="sc">D</span></span></td><td><span class="mini"><i style="width:35%;background:var(--high)"></i></span></td><td>One shell does it properly; manager screens have no <code>md:</code>, admin has none at all.</td></tr>
+<tr><td>Loading, empty &amp; error states</td><td class="num"><b>3.0</b></td><td><span class="rating r-d"><span class="sc">D</span></span></td><td><span class="mini"><i style="width:30%;background:var(--crit)"></i></span></td><td>Present everywhere but always a spinner, never a skeleton; errors frequently dropped before render.</td></tr>
+<tr><td>Forms</td><td class="num"><b>2.0</b></td><td><span class="rating r-d"><span class="sc">D−</span></span></td><td><span class="mini"><i style="width:20%;background:var(--crit)"></i></span></td><td>Zero <code>&lt;form&gt;</code> elements, RHF and zod installed and unused, ad-hoc validation, 16 useState fields in one screen.</td></tr>
+<tr><td>Visual craft &amp; copy</td><td class="num"><b>7.0</b></td><td><span class="rating r-a"><span class="sc">B</span></span></td><td><span class="mini"><i style="width:70%;background:var(--good)"></i></span></td><td>Coherent product look, considered microcopy, honest disabled states rather than fake affordances.</td></tr>
+</table></div>
+
+<h3>Tokens: what exists and how it is used</h3>
+<div class="grid2">
+<div class="card"><h4>Defined in app/globals.css</h4><ul>
+<li>Two grounds (<code>--background #F8F9FD</code>, <code>--card #FFF</code>) with an explicit rationale; dark set via <code>.dark</code> class.</li>
+<li>Brand <code>--primary #FD9340</code>; accent teal <code>#2FBFB8</code>; semantic success/warning/warning-strong/info/destructive with contrast notes.</li>
+<li>Two elevation stops (<code>--elevation-card</code>, <code>--elevation-float</code>); one radius <code>0.875rem</code>; fonts Inter + Geist Mono.</li>
+<li>The two root colour docs describe an <em>iOS</em> palette; the code palette departs from them deliberately and is better argued.</li>
+</ul></div>
+<div class="card"><h4>How screens actually use them</h4><ul>
+<li><b>~1,400 arbitrary font sizes</b>: <code>text-[13px]</code> ×293, <code>[12px]</code> ×280, <code>[14px]</code> ×204, <code>[15px]</code> ×145, <code>[11px]</code> ×131, <code>[12.5px]</code> ×71, <code>[11.5px]</code> ×68, <code>[17px]</code>, <code>[10px]</code>, <code>[16px]</code>, <code>[13.5px]</code>, <code>[9px]</code> — <b>17 distinct sizes</b>, no type scale.</li>
+<li>Only 12 raw hex literals survive (e.g. <code>bg-[#FFFBEF]</code> in residents-screen:119 which will not flip in dark mode) — colour discipline is good.</li>
+<li>Sticky sub-headers hard-code the nav-bar height three ways: <code>top-16</code>, <code>top-[44px]</code>, and one ignoring <code>pt-safe</code>.</li>
+<li>Three z-index conventions for overlays (<code>z-50</code>, <code>z-[100]</code>, <code>z-30</code>); two scrim colours (<code>bg-black/50</code> not theme-aware vs <code>bg-foreground/40</code>).</li>
+</ul></div>
+</div>
+
+<h3>Pattern duplication, counted</h3>
+<div class="tbl"><table>
+<tr><th>Pattern</th><th class="num">Hand-rolled copies</th><th>Shared component that exists</th><th>Where</th></tr>
+<tr><td>Bottom sheet / modal</td><td class="num">13</td><td><code>ui/sheet</code>, <code>ui/dialog</code>, <code>ui/drawer</code> (used once: consent-dialog)</td><td>manager ×4, resident ×5, business ×3, persona-switcher</td></tr>
+<tr><td>Status pill / badge</td><td class="num">~20</td><td><code>ui/badge</code> (4 importers)</td><td>5 separate <code>STATUS_STYLE</code> maps for the same enums</td></tr>
+<tr><td>Empty state</td><td class="num">~18</td><td><code>strata-ui.EmptyState</code>, <code>business-ui.EmptyState</code>, <code>ui/empty</code></td><td>every persona</td></tr>
+<tr><td>Centered spinner</td><td class="num">57 files</td><td><code>ui/spinner</code>, <code>ui/skeleton</code> (unused)</td><td>no skeleton anywhere</td></tr>
+<tr><td>Segmented / tab control</td><td class="num">8</td><td><code>ui/tabs</code> (unused)</td><td>none has <code>role="tablist"</code></td></tr>
+<tr><td>Filter pill row</td><td class="num">3 verbatim</td><td>—</td><td>incidents, violations, approvals</td></tr>
+<tr><td>Sticky header</td><td class="num">7 variants</td><td><code>IOSNavBar</code></td><td>add-pet, pet-care, link-building, pet-detail, composer, emergency, businessaccess</td></tr>
+<tr><td>Text input / field</td><td class="num">6</td><td><code>ui/input</code>, <code>ui/field</code>, <code>ui/label</code></td><td>businessaccess duplicates business-ui's own <code>TextInput</code></td></tr>
+<tr><td>Desktop sidebar</td><td class="num">2</td><td>—</td><td><code>app-sidebar.tsx</code> vs <code>strata-portal/page.tsx:167</code></td></tr>
+<tr><td>Login form</td><td class="num">5</td><td>—</td><td>owner, manager, strata, admin, business</td></tr>
+<tr><td>Data table</td><td class="num">2 raw</td><td><code>ui/table</code> (unused)</td><td>strata overview, reports</td></tr>
+<tr><td>Toggle switch</td><td class="num">3</td><td><code>ui/switch</code> (unused)</td><td>none has <code>role="switch"</code></td></tr>
+<tr><td>Bylaw <code>RULE_TOGGLES</code> constant</td><td class="num">2</td><td>—</td><td>bylaws-editor:13, settings-screen:65</td></tr>
+</table></div>
+
+<h3>Forms</h3>
+<p><code>react-hook-form</code>, <code>@hookform/resolvers</code> and <code>zod</code> are installed. <b>Zero</b> imports. <b>Zero</b> <code>&lt;form&gt;</code> elements in the codebase; every submit is an <code>onClick</code>, so Enter does not submit unwired fields and browser validation and password managers are weakened. <code>add-pet-screen.tsx:42-62</code> holds 16 separate <code>useState</code> fields; <code>community-screen.tsx:212-247</code> ~25 for four composers; <code>app/admin/page.tsx</code> 21. Validation is ad-hoc (<code>if (!name.trim()) toast.error(...)</code>). Only <code>schedule-tab.tsx:111</code> uses a single draft object.</p>
+
+<h3>Accessibility</h3>
+<div class="tiles">
+  <div class="tile c"><div class="v">0</div><div class="l">overlays with a focus trap, Escape handler or focus restore</div></div>
+  <div class="tile c"><div class="v">2</div><div class="l">of 13 modals carry <code>role="dialog"</code>; delete-account confirm is an unlabelled div</div></div>
+  <div class="tile h"><div class="v">14</div><div class="l">files with literally zero <code>aria-</code>, <code>role=</code> or <code>&lt;label&gt;</code></div></div>
+  <div class="tile h"><div class="v">4</div><div class="l">native <code>confirm()</code> dialogs for destructive actions while <code>ui/alert-dialog</code> sits unused</div></div>
+</div>
+<ul class="two">
+<li>Tabs are buttons with colour-only selection: alerts:122, community:492, pet-detail:209, care-tracker:208, bookings-tab:85, businessaccess:242.</li>
+<li>Icon-only buttons without names: team-screen:137, building-detail:212/693/700, admin:575, bylaws-screen:157, settings-screen:583, violations:894.</li>
+<li>Placeholder-as-label on every login and most forms; <code>business-ui.Field</code> renders a <code>&lt;p&gt;</code>, not a <code>&lt;label htmlFor&gt;</code>.</li>
+<li>Error text never associated with inputs (<code>aria-describedby</code>/<code>aria-invalid</code> absent except one OTP field); no <code>aria-live</code> on errors, "code sent", search results or countdowns.</li>
+<li>Progress bar in the 4-step composer is four <code>&lt;div&gt;</code>s (<code>incident-composer:509</code>); the anonymity toggle at :869 has no <code>role="switch"</code> — a privacy-consequential control.</li>
+<li>CAUTION badge on the emergency directory (the most safety-critical element) has no accessible distinction; emergency clinic rows are inert divs — cannot dial or map.</li>
+<li>Backdrop scrims are plain <code>&lt;div onClick&gt;</code> in most sheets (mouse-only dismiss).</li>
+<li><code>autoFocus</code> on mobile onboarding raises the keyboard over the explanatory copy.</li>
+<li>Pet carousel dots are decorative <code>&lt;span&gt;</code>s; rail has no label or keyboard paging.</li>
+<li>Blob URL leak: <code>add-pet-screen:185</code> never <code>revokeObjectURL</code>s.</li>
+</ul>
+
+<h3>Responsiveness</h3>
+<ul>
+<li><code>/admin</code> is capped at <code>max-w-3xl</code> with <b>zero</b> <code>md:</code>/<code>lg:</code> rules — a phone-width column on a 27" monitor, for a desktop-only tool.</li>
+<li>All 11 manager screens have zero <code>md:</code>; three have no breakpoints at all; they depend entirely on <code>AppSidebar</code> for desktop framing.</li>
+<li><code>/strata-portal</code> is the only properly responsive shell (<code>md:</code> ×9, own sidebar, own bottom nav) — and it duplicates <code>app-sidebar</code>.</li>
+<li>Six-tab bottom bar with 10px labels will truncate at 375px; five-tab pet-detail row at 11.5px has no overflow scroll.</li>
+<li><code>images.unoptimized: true</code>; <code>next/image</code> used inconsistently with raw <code>&lt;img&gt;</code> + eslint-disable.</li>
+</ul>
+
+<h3>Flow UX notes (sign-in, onboarding)</h3>
+<ul class="two">
+<li>Sign-up shows only <code>verdict.failed[0]</code> — serial password rejection although the checklist is on screen.</li>
+<li>Success spinner never times out if the profile load stalls — indefinite disabled form.</li>
+<li>Forgot-password never sets loading; double-tappable.</li>
+<li>No email format check before the network call.</li>
+<li>Onboarding: no back from <code>unit</code>, <code>linked</code>; empty unit + Continue silently skips; both terminal buttons say the same thing for different outcomes; <code>step</code> not in history so Android back exits.</li>
+<li>Share card swallows clipboard permission denial silently.</li>
+<li>Comment input submits on Enter with no Shift+Enter; AI chat implements the opposite convention.</li>
+</ul>
+<div class="finding" id="U-1"><div class="t"><span class="pill high">High</span><b>No component tier between tokens and screens</b><span class="id">U-1</span></div>
+<p>The consequence of everything above: 60 screens × 10 patterns, each written from scratch. Every visual fix is a 10–20 file change and every new screen re-invents the sheet, the badge and the empty state. This is the root cause the design system in §10 exists to remove.</p></div>
+</section>
+
+<section id="ds">
+<h2>10 · Design system proposal</h2>
+<div class="ratingbar d"><span class="rating r-d"><span class="sc">2.5</span><span class="of">/10 · D−</span></span><b>Design-system maturity today</b> <span class="why">— Tokens exist and are good; nothing above them does, so the system cannot be applied, tested or governed. This section is the proposal to fix that.</span></div>
+<p class="lede">Keep the existing token philosophy — it is the best-argued part of the front end — and build the missing middle: a small set of pattern components that every screen must use, a type scale, and a shell.</p>
+
+<h3>Token architecture (extend, don't replace)</h3>
+<div class="grid2">
+<div class="card"><h4>Colour</h4><ul>
+<li>Keep grounds, brand, teal accent, semantic set. Add <code>--primary-strong</code> (≈<code>#C8651B</code>) for text on white — <code>#FD9340</code> is 3.5:1 and fails AA for body text; the colour doc already knows this.</li>
+<li>Promote <code>--warning-strong</code> pattern to every semantic: <code>-soft</code> (tint), <code>-strong</code> (text), base (fill).</li>
+<li>Status colour is not accent colour: booking/violation/registration states map to the semantic set through one <code>statusTone(enum)</code> function, not per-screen maps.</li>
+</ul></div>
+<div class="card"><h4>Type scale (replace 17 arbitrary sizes)</h4><ul>
+<li><code>caption 11/14</code> · <code>meta 12/16</code> · <code>body-sm 13/18</code> · <code>body 15/22</code> · <code>title 17/24 600</code> · <code>heading 22/28 700</code> · <code>display 28/34 700</code>.</li>
+<li>Expose as Tailwind utilities (<code>text-caption</code> …) via <code>@theme</code>; lint-ban <code>text-[…px]</code>.</li>
+<li>Tabular numerals for money, counts, countdowns.</li>
+</ul></div>
+<div class="card"><h4>Space, radius, elevation, motion</h4><ul>
+<li>Spacing on a 4px grid with named stops 1–10; page gutter 16 mobile / 24 desktop; card padding 16.</li>
+<li>Radius: <code>sm 8</code>, <code>md 14</code> (current), <code>lg 20</code>, <code>full</code>. Sheets use <code>lg</code> top corners.</li>
+<li>Elevation: keep the two stops; add <code>overlay</code> for scrims (<code>--scrim</code>, theme-aware) and one z-index scale: base 0, sticky 30, overlay 50, toast 60.</li>
+<li>Motion: one duration pair (120ms/200ms), one easing; respect <code>prefers-reduced-motion</code>.</li>
+</ul></div>
+<div class="card"><h4>Layout tokens</h4><ul>
+<li><code>--nav-h</code>, <code>--tabbar-h</code>, <code>--safe-top/bottom</code> so sticky sub-headers stop hard-coding 64px/44px.</li>
+<li>Content widths: <code>narrow 640</code>, <code>reading 720</code>, <code>console 1120</code>.</li>
+<li>Breakpoints used deliberately: <code>md</code> = sidebar appears; <code>lg</code> = two-column consoles.</li>
+</ul></div>
+</div>
+
+<h3>Component tiers</h3>
+<pre class="mermaid">
+flowchart TB
+  T[Tokens<br/>colour · type · space · radius · elevation · z · layout] --> P
+  subgraph P[Tier 1 · Primitives — keep 12 shadcn, delete 42]
+    B[Button] D[Dialog / Sheet] I[Input Textarea Select] S[Switch Checkbox] Bd[Badge] Tb[Tabs] Tt[Tooltip] Dm[DropdownMenu] Sk[Skeleton] Tst[Toast sonner] Av[Avatar] Tbl[Table]
+  end
+  P --> Q
+  subgraph Q[Tier 2 · Patterns — the missing middle, ~18 components]
+    Sh[BottomSheet] St[StatusPill statusTone] Em[EmptyState] Ld[LoadingState skeleton variants] Er[LoadError retry] Fp[FilterPills] Sg[SegmentedTabs a11y] Hd[ScreenHeader sticky safe-area] Sc[SectionCard] Stt[StatTile] Lr[ListRow] Cf[ConfirmDialog] Fr[FormField label error describedby] Mn[MoneyInput cents grammar] Dt[DataTable] Ph[PhotoPicker] Pg[StepProgress] Ct[Countdown aria-live]
+  end
+  Q --> R
+  subgraph R[Tier 3 · Templates]
+    Sh1[AppShell resident] Sh2[ConsoleShell manager/strata/admin/business] Ls[ListScreen] Dtl[DetailScreen] Wz[WizardScreen] Au[AuthScreen one login form]
+  end
+  R --> Sc60[60 screens become composition]
+</pre>
+
+<h3>Extraction map: which screens each pattern component replaces code in</h3>
+<div class="tbl"><table>
+<tr><th>Pattern component</th><th>Replaces hand-rolled code in</th><th class="num">Sites</th></tr>
+<tr><td><code>BottomSheet</code> (Radix Dialog, focus trap, Escape, scroll lock, <code>aria-labelledby</code>)</td><td>settings, violations, approvals, accommodation-document-viewer, community, vet-records, care-tracker, profile ×2, business-detail, my-bookings, my-cases, persona-switcher</td><td class="num">13</td></tr>
+<tr><td><code>StatusPill</code> + <code>statusTone()</code></td><td>bookings-tab, my-bookings, my-cases, home, pet-detail, building-rules, photo-gallery, community, team, admin, residents, building-detail, dashboard, app-sidebar</td><td class="num">~20</td></tr>
+<tr><td><code>EmptyState</code></td><td>all persona folders; delete <code>strata-ui</code>/<code>business-ui</code> duplicates</td><td class="num">~18</td></tr>
+<tr><td><code>LoadingState</code> (skeleton list/card/detail)</td><td>every <code>Loader2</code> block</td><td class="num">57 files</td></tr>
+<tr><td><code>SegmentedTabs</code> (<code>role=tablist</code>, arrow keys)</td><td>alerts, community, pet-detail, care-tracker, bookings-tab, businessaccess, sign-in, shop</td><td class="num">8</td></tr>
+<tr><td><code>ScreenHeader</code></td><td>add-pet, pet-care, link-building, pet-detail, composer, emergency, businessaccess + all <code>top-16</code> sub-headers</td><td class="num">11</td></tr>
+<tr><td><code>FormField</code> + RHF/zod</td><td>every form (add-pet 16 fields, storefront, admin, community ×4, pet-detail ×4, address-card, logins ×5)</td><td class="num">~25</td></tr>
+<tr><td><code>ConfirmDialog</code></td><td>team-screen, admin ×3 (<code>confirm()</code>), profile delete</td><td class="num">5</td></tr>
+<tr><td><code>AuthScreen</code></td><td>sign-in, manager, strata, admin, businessaccess logins</td><td class="num">5</td></tr>
+<tr><td><code>ConsoleShell</code> (sidebar + header + tab bar from one registry)</td><td>app-sidebar, ios-tab-bar, strata-portal shell, businessaccess shell, admin shell</td><td class="num">5</td></tr>
+</table></div>
+
+<h3>Governance</h3>
+<ul>
+<li>ESLint rules: ban <code>text-[…px]</code>, raw hex, <code>fixed inset-0</code> outside <code>BottomSheet</code>, <code>Loader2</code> outside <code>LoadingState</code>, <code>window.confirm</code>.</li>
+<li>A component story per pattern (Storybook or a <code>/design</code> route in dev) with light/dark and empty/loading/error states.</li>
+<li>One tab registry (<code>shared/layout/nav.ts</code>) feeds sidebar and tab bar — they currently disagree.</li>
+<li>Naming: <code>Screen</code> suffix for route-level, <code>Tab</code> for sub-views, patterns un-suffixed.</li>
+</ul>
+<p><b>Effort:</b> tokens + type scale 2 days; 18 pattern components ≈ 2 weeks; migrating 60 screens ≈ 2–3 weeks folded into the feature-by-feature routing migration (§15). Expected: −30% screen LOC, dark-mode and a11y fixed once.</p>
+</section>
+<section id="ai">
+<h2>11 · AI assistant, background jobs, email</h2>
+<div class="ratingbar b"><span class="rating r-b"><span class="sc">5.5</span><span class="of">/10 · C</span></span><b>AI, jobs &amp; email (composite)</b> <span class="why">— AI 7.0 · jobs 5.5 · email 4.0. The AI safety design is better than most production assistants; the plumbing around it has no observability.</span></div>
+<h3>AI, jobs &amp; email sub-scores</h3>
+<div class="tbl"><table>
+<tr><th>Sub-area</th><th class="num">Score</th><th>Grade</th><th></th><th>What decides the score</th></tr>
+<tr><td>AI safety design</td><td class="num"><b>8.5</b></td><td><span class="rating r-a"><span class="sc">A−</span></span></td><td><span class="mini"><i style="width:85%;background:var(--good)"></i></span></td><td>Deterministic red-flag short-circuit, classifier may only escalate, consent gate, whitelist rendering, disclaimers.</td></tr>
+<tr><td>AI engineering</td><td class="num"><b>7.0</b></td><td><span class="rating r-a"><span class="sc">B</span></span></td><td><span class="mini"><i style="width:70%;background:var(--good)"></i></span></td><td>Model-per-job routing in env with measured rationale, stream failure handling, retryable classification.</td></tr>
+<tr><td>AI cost &amp; abuse control</td><td class="num"><b>2.0</b></td><td><span class="rating r-d"><span class="sc">D−</span></span></td><td><span class="mini"><i style="width:20%;background:var(--crit)"></i></span></td><td>No rate limit, no token budget, unbounded message length, up to four model calls per message.</td></tr>
+<tr><td>AI evaluation</td><td class="num"><b>1.5</b></td><td><span class="rating r-d"><span class="sc">F</span></span></td><td><span class="mini"><i style="width:15%;background:var(--crit)"></i></span></td><td>No golden set, no eval harness, <code>lib/ai</code> entirely untested.</td></tr>
+<tr><td>Job correctness</td><td class="num"><b>6.5</b></td><td><span class="rating r-b"><span class="sc">B−</span></span></td><td><span class="mini"><i style="width:65%;background:var(--teal)"></i></span></td><td>Ledger-based idempotency, timezone-aware windows, dry-run and re-check before delete.</td></tr>
+<tr><td>Job scalability</td><td class="num"><b>3.5</b></td><td><span class="rating r-c"><span class="sc">D</span></span></td><td><span class="mini"><i style="width:35%;background:var(--high)"></i></span></td><td>Unpaged selects, per-item round-trips, no <code>maxDuration</code>, table re-read per batch.</td></tr>
+<tr><td>Job observability</td><td class="num"><b>1.5</b></td><td><span class="rating r-d"><span class="sc">F</span></span></td><td><span class="mini"><i style="width:15%;background:var(--crit)"></i></span></td><td>No run records, no metrics, no alerting; a silent cron secret failure stops retention entirely.</td></tr>
+<tr><td>Email</td><td class="num"><b>4.0</b></td><td><span class="rating r-c"><span class="sc">C−</span></span></td><td><span class="mini"><i style="width:40%;background:var(--high)"></i></span></td><td>Sends reliably in production; no escaping, no plain text, no unsubscribe, failures reported as success.</td></tr>
+</table></div>
+
+<h3>AI assistant</h3>
+<pre class="mermaid">
+flowchart LR
+  U[ai-chat-screen] -->|POST /api/ai/chat SSE| R[route.ts session + consent]
+  R --> T[triage.ts<br/>RED_FLAGS regex in code → emergency<br/>else llama-3.1-8b classifier, may only raise]
+  T -->|emergency| EC[EmergencyCard: owner's vet tel + nearby clinics]
+  R --> CX[context.ts pet dossier<br/>conditions, meds, vet, microchip]
+  R -->|photo?| V[vision model preview-tier<br/>empty env disables]
+  R --> G[compound-mini grounded web search<br/>AI_GROUNDING_DOMAINS]
+  G -->|executed_tools| C[citations.ts]
+  G --> AT[answer-text.tsx whitelisted markdown parser]
+  R --> DB[(ai_conversations, ai_messages image_paths)]
+  DB -.7 days.-> PG[cron 03:00 media purge]
+  S[suggestions/rules.ts deterministic] -->|copy model writes the sentence only| SG[(ai_suggestions)]
+</pre>
+<div class="grid2">
+<div class="card"><h4>Done well</h4><ul>
+<li>Emergencies never depend on a model: deterministic red-flag regexes short-circuit first; the classifier may raise but never lower the level (<code>triage.ts:9-33,150</code>).</li>
+<li>Model IDs in env with measured rationale for every choice (compound-mini vs compound: 3/3 vs 1/3 success; non-reasoning triage model to avoid truncated JSON).</li>
+<li>Timeouts via <code>AbortSignal.any</code>, stream failures after 200 handled, retryable vs non-retryable distinguished (<code>provider.ts:93-160</code>).</li>
+<li>Suggestions: rules decide, the model only phrases (<code>suggestions/rules.ts</code>).</li>
+<li>Consent gate, per-message disclaimer, 7-day photo retention, no <code>dangerouslySetInnerHTML</code>.</li>
+<li>Grounding domains treated as a legal decision, documented in <code>.env.example</code>.</li>
+</ul></div>
+<div class="card"><h4>Gaps</h4><ul>
+<li>No per-user rate limit or token budget; message length unbounded; each message costs up to four model calls.</li>
+<li>Vendor lock-in is total and acknowledged: citations depend on Groq's <code>executed_tools</code> shape; free tier ("nowhere near enough for real traffic").</li>
+<li>Full dossier incl. microchip and vet phone sent upstream; DPA for health data not evidenced.</li>
+<li><code>AI_TIMEOUT_MS</code> non-numeric → <code>AbortSignal.timeout(NaN)</code>; no env validation.</li>
+<li>No evals, no golden set for triage; <code>lib/ai</code> untested.</li>
+<li>Citation links not scheme-restricted; duplicate <code>Citation</code>/<code>TriageLevel</code> types.</li>
+</ul></div>
+</div>
+
+<h3>Background jobs</h3>
+<div class="tbl"><table>
+<tr><th>Cron</th><th>Schedule</th><th>Idempotency</th><th>Batching</th><th>Failure handling</th><th>Notes</th></tr>
+<tr><td>care/reminders/run</td><td>*/15</td><td>ledger unique (task,date); vaccination <code>reminded_for</code> stamp (no unique — concurrent runs can double-notify)</td><td>none; unpaged selects; one insert per item, two round-trips</td><td>per-item continue; thrown errors 500 the run; compensating delete unchecked; task <code>next_due_on</code> update error ignored → task goes silent</td><td>no <code>maxDuration</code>; owner-local time for tasks but server UTC for vaccinations; in-app only</td></tr>
+<tr><td>ai/media/purge</td><td>03:00</td><td>RPC-driven, 500/batch</td><td>1 batch/day; backlog carries</td><td>storage removed first; if <code>ai_forget_chat_media</code> fails, messages keep dead paths forever</td><td>retention env with safe default</td></tr>
+<tr><td>incidents/evidence/purge</td><td>04:00</td><td>re-checks claims per 500-batch</td><td>recursive list paged 1000, depth 2</td><td>stops on first error, 500 with partial summary</td><td>pure logic tested; good logging</td></tr>
+<tr><td>accommodations/docs/purge</td><td>05:00</td><td>classifier tested</td><td>reads entire tables into memory <em>per batch</em> — O(batches × table)</td><td>rows-out-of-step → 500; next run cannot see removed objects → <code>storage_path</code> dangles</td><td>abandoned drafts, 400-day retention, orphans</td></tr>
+<tr><td><code>purge_expired_pending_signups()</code></td><td><b>never</b></td><td>—</td><td>—</td><td>—</td><td>defined, never scheduled</td></tr>
+</table></div>
+<p>Three routes duplicate ~80 identical lines (<code>isAuthorised</code>, <code>chunk</code>, <code>listObjects</code>, dry-run parsing). No run-records table, no metrics, no alerting; Vercel logs are the only trace. If <code>CRON_SECRET</code> is unset all four fail closed and the retention promises silently stop.</p>
+
+<h3>Email</h3>
+<ul>
+<li><code>EMAIL_SYSTEM_GUIDE.md</code> describes a different product ("ProdBeast": file-status and comment emails, <code>/set-password</code>, dark template, <code>emailNotifications</code> flag) — <b>nine</b> discrepancies with the real <code>lib/email.ts</code>.</li>
+<li>Real senders: manager invite, signup code, existing-account, welcome, request-info. One light-theme template, <b>no HTML escaping</b> (S-M2), no plain-text alternative, no <code>List-Unsubscribe</code>, no opt-out column.</li>
+<li>Suppressed outside production unless <code>EMAIL_DEV_SEND=1</code>; invite routes then return the raw link in the response body. A Resend API error object is not inspected, so <code>emailSent:true</code> can be reported for a failed send.</li>
+<li>Invite link expiry is Supabase's; the email copy asserts "24 hours" without enforcing it. No revoke/resend path. Admin invite does not lowercase email or check for an existing profile first.</li>
+<li>Password reset still goes through Supabase Auth's own mailer; the OTP flow is custom.</li>
+</ul>
+</section>
+
+<section id="process">
+<h2>12 · Engineering process, documentation, configuration</h2>
+<div class="ratingbar d"><span class="rating r-d"><span class="sc">2.0</span><span class="of">/10 · D−</span></span><b>Process, docs &amp; config</b> <span class="why">— The single weakest area. Excellent commit rationale and a real deferred-debt register, wrapped in no CI, no linter, no README and a stale handover.</span></div>
+<div class="tiles">
+  <div class="tile c"><div class="v">none</div><div class="l">.github/, husky, lint-staged, prettier, commitlint, CHANGELOG, README</div></div>
+  <div class="tile c"><div class="v">broken</div><div class="l"><code>pnpm lint</code>: script exists, eslint not installed, no config — never worked; the roadmap's own definition-of-done is unmeetable</div></div>
+  <div class="tile h"><div class="v">58%</div><div class="l">of all commits landed in one week (17–23 Aug), Claude-co-authored</div></div>
+  <div class="tile"><div class="v">2–4 wk</div><div class="l">estimated time for a new engineer to become productive</div></div>
+</div>
+<h3>Git and delivery</h3>
+<ul>
+<li>198 commits, one person under two identities, one local merge, zero PRs. Branches: <code>main</code>, <code>pet10x-completion</code>, <code>fix/login-guest-and-latency</code>. No tags.</li>
+<li>From August the commit subjects are literary one-liners ("A wall where nobody could pass, three doors with no lock"). The bodies are excellent — measured evidence, file:line, rationale — but <code>git log --oneline</code> is useless for bisecting, no scope, no changelog derivable, and a second engineer will not naturally match the style.</li>
+<li><code>scripts/jsx-space-drift.mjs</code> (275 lines) is a bespoke SWC-vs-tsc diff that detects JSX whitespace loss — written after four shipped defects ("1 finewhose") because no lint gate exists. It walks <code>node_modules/.pnpm/@next+swc-*</code> and will break on a store layout change.</li>
+<li><code>.superpowers/</code> (22 tracked files of AI-workflow review artefacts) and <code>.mcp.json</code> are in the product repo.</li>
+</ul>
+<h3>Documentation</h3>
+<div class="tbl"><table>
+<tr><th>Document</th><th>Verdict</th><th>Why</th></tr>
+<tr><td><code>Pet10x_PRD.md</code>, <code>Pet10x_PRD_v2.md</code> (4,368 lines)</td><td><span class="pill high">wrong platform</span></td><td>Both describe a native iOS app; neither mentions strata portal or personas as built</td></tr>
+<tr><td><code>AUTH_SYSTEM_GUIDE.md</code>, <code>EMAIL_SYSTEM_GUIDE.md</code></td><td><span class="pill crit">foreign</span></td><td>Titled "ProdBeast Architecture"; reference <code>lib/supabase.ts</code>, <code>components/login-page.tsx</code>, <code>app/auth/handoff</code> — none exist here</td></tr>
+<tr><td><code>Pet10x_Color_System.md</code>, <code>_Reference_Card.md</code></td><td><span class="pill med">superseded</span></td><td>iOS/HIG palette; code palette differs and is better argued in <code>globals.css</code></td></tr>
+<tr><td><code>BUSINESS_MARKETPLACE_GUIDE.html</code></td><td><span class="pill crit">contains credentials</span></td><td>Test guide with live logins; loads mermaid from a CDN</td></tr>
+<tr><td><code>docs/RBAC_CAPABILITIES.md</code>, <code>RBAC_PERSONAS.md</code>, <code>SIGNUP_VERIFICATION.md</code>, <code>PET_CARE_MODEL.md</code>, <code>ONBOARDING_COMPLETENESS.md</code></td><td><span class="pill good">keep</span></td><td>Current, measured, the real architecture docs — buried under <code>docs/</code></td></tr>
+<tr><td><code>docs/PHASE1_SUPABASE.md</code></td><td><span class="pill med">stale</span></td><td>"~40 tables, 2 migrations"; edge-function plan never happened</td></tr>
+<tr><td><code>docs/superpowers/RESUME-HERE.md</code></td><td><span class="pill high">stale handover</span></td><td>"Read this first; it is the whole handover" — says Phase 1 complete, nothing merged; git shows all nine phases merged two days later</td></tr>
+<tr><td><code>docs/superpowers/plans/*</code>, <code>specs/*</code> (8,620 lines)</td><td><span class="pill low">process artefacts</span></td><td>Valuable rationale, not product docs; the deferred-controls register is genuinely useful</td></tr>
+</table></div>
+<h3>Environment &amp; configuration</h3>
+<ul>
+<li>21 env names read, 15 documented; missing from <code>.env.example</code>: <code>OTP_PEPPER</code>, <code>GROQ_BASE_URL</code>, <code>EMAIL_FROM</code>, <code>EMAIL_DEV_SEND</code>, lowercase <code>resend</code>.</li>
+<li><b>Nothing is validated at startup.</b> No <code>lib/env.ts</code>, zod unused. Missing Supabase keys do not crash — they turn auth enforcement off and swap in mock data (<a href="#A-4">A-4</a>). Missing service-role key 500s every API route at first use.</li>
+<li><code>tsconfig</code> target ES6 (stale for Next 16). <code>next.config.mjs</code>: no headers. <code>vercel.json</code>: crons only.</li>
+<li>Migrations applied through the Supabase MCP only; no CLI, no Docker, remote project touched directly from a laptop.</li>
+</ul>
+<div class="finding" id="P-1"><div class="t"><span class="pill high">High</span><b>No enforcement of anything</b><span class="id">P-1</span></div>
+<p>Type-check and tests pass today because someone ran them by hand. Nothing blocks a broken push; Vercel builds on push. A <code>console.log</code> of the OTP code sits in a production route behind a <code>NODE_ENV</code> guard. The custom whitespace linter exists because there is no linter.</p><p><span class="k">Fix</span> Week 1: eslint + prettier + husky/lint-staged + GitHub Actions running <code>tsc</code>, <code>eslint</code>, <code>vitest</code>, <code>next build</code>, <code>pnpm audit</code>; <code>packageManager</code> field; README; branch protection.</p></div>
+<h3>Known debts the previous owner already registered</h3>
+<ul class="two">
+<li>21 of 48 profiles cannot be deleted (20 NO-ACTION FKs); PIPEDA deletion path unreachable for every existing document (<code>PRE-MERGE-SWEEP.md:71-74</code>).</li>
+<li>Account delete touches storage incompletely (orphans pet photos, evidence).</li>
+<li>No privacy policy, terms or help page for an app holding health records and addresses.</li>
+<li>Eleven manager settings rows disabled with no owner; Approvals "Request info" removed.</li>
+<li><code>deleteBuilding</code> fails with raw Postgres 23503; "what delete means" owned by nobody.</li>
+<li>No fine-status transition rules; <code>paid→waived</code> and <code>waived→issued</code> permitted.</li>
+<li><code>emergency_directory</code> returns medical notes contrary to its header.</li>
+<li>Super-admin sees cross-building accommodations while docs claimed otherwise.</li>
+<li><code>search_path</code> without <code>pg_temp</code> on definer functions.</li>
+<li>Orphan remote migration; <code>db reset</code> never run.</li>
+</ul>
+</section>
+<section id="right">
+<h2>13 · What is done right</h2>
+<p>An acquirer who only reads the findings will undervalue this. The following are unusual for a two-month, one-person codebase and should be protected through any restructuring.</p>
+<div class="grid2">
+<div class="card"><h4>Database as the enforcement point</h4><p>Every table has RLS. State changes that matter (ladder, fine schedule, rule publishing, accommodation status, post attribution) go through SECURITY DEFINER RPCs that re-check scope, mint a transaction-local token, and are backed by BEFORE triggers that refuse direct writes — including from admins. Grant hygiene was measured on production and fixed.</p></div>
+<div class="card"><h4>"Positive grammar" everywhere</h4><p>Storage paths, evidence arrays, community columns, money input, building codes: the code states what is allowed rather than denying what is not. <code>community_posts_guard</code> is a column registry. <code>parseAmountToCents</code> is a regex grammar with no float math.</p></div>
+<div class="card"><h4>Pure rule modules that mirror SQL and are test-pinned</h4><p><code>violations.ts</code>, <code>disputes.ts</code>, <code>accommodations.ts</code>, <code>fine-schedule.ts</code>, <code>building-rules.ts</code>, purge classifiers — enums derived from generated types so drift is a compile error; 383 tests in 0.6 s.</p></div>
+<div class="card"><h4>Signup and evidence design</h4><p>OTP before account creation, hashed + peppered, timing-safe, enumeration-safe. Guest evidence uploaded to a bucket nobody can write directly, claimed by the intake RPC, purged if unclaimed. Accommodation documents: server-composed paths, resident supplies bytes only.</p></div>
+<div class="card"><h4>AI safety posture</h4><p>Deterministic red flags before any model; classifier may only escalate; consent gate; retention; rendering through a whitelist parser; model IDs in env with measured rationale.</p></div>
+<div class="card"><h4>Honest engineering record</h4><p>Commit bodies, the deferred-controls register and phase-0 findings distinguish deliberate gaps from neglect, with measurements. Zero TODOs and zero <code>any</code> is not an accident. The token file argues every colour choice.</p></div>
+</div>
+</section>
+
+<section id="simplify">
+<h2>14 · Simplification opportunities</h2>
+<div class="tbl"><table>
+<tr><th>Today</th><th>Simpler</th><th>Removes</th></tr>
+<tr><td>Five shells, five login forms, two sidebars, two tab registries, three role maps</td><td>One product layout, one <code>AuthScreen</code>, one <code>ConsoleShell</code>, one nav registry, one persona source (<code>my_personas</code>)</td><td>~1,200 lines, one class of auth disagreement</td></tr>
+<tr><td>State-only navigation + <code>navigation.ts</code> registry (240 lines of guard rails) + <code>action_target</code> strings</td><td>URLs</td><td>the registry, <code>handleNavigate</code>, <code>CONTENT_MAX</code>, <code>SCREEN_SURFACES</code>, deep-link workarounds</td></tr>
+<tr><td><code>live.ts</code> (13 domains) + hand-rolled pets cache + manual <code>refetch()</code> after every write</td><td>Feature modules + TanStack Query (or server reads) with invalidation</td><td>the pub/sub store, 97 <code>useEffect</code> fetches, dual result shapes</td></tr>
+<tr><td>Mock mode compiled in, <code>ENABLED</code> flags, demo cards, <code>MOCK_USERS</code></td><td>Fail fast on missing env; fixtures in tests</td><td>every dual-mode branch, one silent-failure mode</td></tr>
+<tr><td>Three purge crons with ~80 duplicated lines each + one unscheduled purge function</td><td>One <code>lib/cron</code> helper (auth, listing, chunking, run record) + four thin classifiers; schedule <code>purge_expired_pending_signups</code></td><td>duplication, adds observability</td></tr>
+<tr><td>Hand-written <code>types.ts</code> drifting from generated types; 9 <code>as unknown as</code> casts</td><td>Generated types only + typed RPC return shapes (<code>returns table</code> or a view-model layer per feature)</td><td>the drift table in §05</td></tr>
+<tr><td>Five status enums whose transitions live only in JSX (booking, incident, resident link, fine, registration)</td><td>One SQL transition-table pattern (already exists for violations) applied to all five</td><td>a class of integrity bugs incl. D-1, D-4</td></tr>
+<tr><td>Three vocabularies inside <code>buildings.pet_rules</code> jsonb</td><td>A <code>building_requirements</code> table or a jsonb schema check</td><td>silent key mismatches</td></tr>
+<tr><td>Two care vocabularies (<code>care_kind</code> vs <code>care_entry_kind</code>), legacy <code>pet_feeding/pet_medications/pet_activity</code>, <code>time_label</code> beside <code>scheduled_at</code></td><td>One care vocabulary; drop legacy tables/columns after data check</td><td>3 tables, 2 columns, confusion in PET_CARE_MODEL.md</td></tr>
+<tr><td>Seven root docs incl. two iOS PRDs and two foreign guides</td><td>README + <code>docs/product/</code> (PRD v2 marked as source, iOS noted) + the five real docs</td><td>~5,000 misleading lines</td></tr>
+<tr><td>Custom whitespace linter</td><td>ESLint with <code>react/jsx-curly-brace-presence</code> + a copy convention; delete the script once CI catches it</td><td>275 fragile lines</td></tr>
+<tr><td>Eleven disabled settings rows, dead hooks, 42 unused ui files, ~15 unused deps</td><td>Delete; re-add when built</td><td>bundle size, false affordances</td></tr>
+</table></div>
+</section>
+
+<section id="target">
+<h2>15 · Target architecture</h2>
+<pre class="mermaid">
+flowchart TB
+  subgraph Edge
+    MW[middleware: session refresh + my_personas → one authorisation source + security headers + rate limit]
+  end
+  subgraph App Router
+    L0[(product)/layout.tsx<br/>server: session + personas → one AuthProvider]
+    L1[(resident)/ (manager)/ strata/ business/ admin/ route groups<br/>layout per persona = ConsoleShell]
+    PG[page.tsx per screen<br/>server reads via features/*/queries.server.ts<br/>loading.tsx · error.tsx]
+    CL[client islands<br/>TanStack Query hydrated from server payload]
+  end
+  subgraph Features
+    F[features/&lt;domain&gt;/<br/>queries.server.ts · queries.client.ts · mutations.ts (server actions, zod)<br/>rules.ts (pure, tested) · types.ts (generated-derived) · components/]
+  end
+  subgraph Shared
+    UI[shared/ui — 12 primitives + 18 patterns + 6 templates]
+    LIB[shared/lib — supabase clients, env.ts (zod), dates, csv, cron helper]
+  end
+  subgraph Supabase
+    DB[(Postgres: keep schema, add transition RPCs for booking/incident/link/fine/registration,<br/>FK indexes, CHECKs, versioned migrations replayable by db reset)]
+    ST[(Storage: limits + grammar on all buckets)]
+  end
+  MW --> L0 --> L1 --> PG --> CL
+  PG --> F --> DB
+  CL --> F
+  F --> ST
+  PG --> UI
+  F --> LIB
+</pre>
+<h3>Folder structure</h3>
+<pre><code>app/
+  (marketing)/page.tsx
+  (auth)/login  (auth)/set-password  auth/callback/route.ts
+  (product)/layout.tsx                 ← ONE AuthProvider, server-seeded (no spinner, no localStorage cache)
+  (product)/app/layout.tsx             ← resident/manager shell
+  (product)/app/(resident)/home | pets/[id] | pets/new | care | cases/[id] | rules | accommodations | report | community | services | bookings | shop | alerts | profile
+  (product)/app/(manager)/dashboard | residents | approvals | incidents | violations/[id] | settings
+  (product)/strata/(tabs)/overview | queue | buildings/[id] | bylaws | reports | team
+  (product)/business/(tabs)/…   (product)/admin/(tabs)/…
+  emergency/[code]  report  api/…
+features/
+  auth/  pets/  care/  incidents/  violations/  disputes/  accommodations/  building-rules/  community/
+  marketplace/  manager/  strata/  admin/  notifications/  ai/
+shared/ui/  shared/layout/  shared/lib/
+supabase/migrations/  (replayable; seeds wired into config.toml)</code></pre>
+<h3>Layering rules (enforce with eslint-plugin-boundaries)</h3>
+<ol>
+<li><b>Routing is the URL.</b> Every screen is a page; every notification target is a path.</li>
+<li><b>Reads are server-first.</b> Pages read through <code>queries.server.ts</code> (server Supabase client, RLS still applies) and stream. Interactive lists use TanStack Query hydrated from the server payload. No module-level caches.</li>
+<li><b>Writes are server actions or route handlers with zod schemas</b>, one <code>requireUser()</code>/<code>requireCronSecret()</code>, errors mapped to generic messages.</li>
+<li><b>One session provider</b>, seeded from the server; middleware and client consume the same <code>my_personas</code> result.</li>
+<li><b>No barrel that mixes client and server.</b> <code>features/*/index.ts</code> exports types and pure rules only.</li>
+<li><b>Generated types are the only DB types.</b> View-models live per feature and are derived, never hand-declared enums.</li>
+<li><b>Every state machine has a SQL transition table</b> (the violation pattern), and a TS mirror pinned by tests.</li>
+<li><b>Env validated at boot</b> (<code>shared/lib/env.ts</code>, zod); no mock mode.</li>
+<li><b>UI composes patterns</b>; screens contain no <code>fixed inset-0</code>, no <code>Loader2</code>, no <code>text-[…px]</code>.</li>
+</ol>
+</section>
+
+<section id="roadmap">
+<h2>16 · Remediation roadmap</h2>
+<h3>What the work buys, in score terms</h3>
+<div class="tbl"><table>
+<tr><th>Milestone</th><th class="num">Weighted rating</th><th>Grade</th><th></th><th>What moves</th></tr>
+<tr><td>Today</td><td class="num"><b>4.2</b></td><td><span class="rating r-c"><span class="sc">C−</span></span></td><td><span class="mini"><i style="width:42%;background:var(--high)"></i></span></td><td>—</td></tr>
+<tr><td>After phases 0–2 (≈3.5 weeks)</td><td class="num"><b>5.7</b></td><td><span class="rating r-b"><span class="sc">C</span></span></td><td><span class="mini"><i style="width:57%;background:var(--teal)"></i></span></td><td>Secrets 1.0→8.0 · CI/DX 1.5→7.0 · hardening 2.5→6.5 · migrations 4.5→7.0 · domain rules 7.0→8.5. No user-visible change.</td></tr>
+<tr><td>After phases 0–6 (≈15 weeks)</td><td class="num"><b>8.1</b></td><td><span class="rating r-a"><span class="sc">A−</span></span></td><td><span class="mini"><i style="width:81%;background:var(--good)"></i></span></td><td>Architecture 3.0→8.5 · components 2.5→8.5 · a11y 2.0→7.5 · testing 2.5→7.5 · data layer 4.0→8.0.</td></tr>
+</table></div>
+<p class="small">Same weights as the scorecard in §00. The first 3.5 weeks buy a third of the total gain and carry almost no product risk, which is why they come first.</p>
+
+<p>One senior engineer plus one product-minded front-end engineer; a designer for two weeks in phase 2. Feature work paused for the quarter. Estimates are engineer-weeks.</p>
+<div class="tbl"><table>
+<tr><th>Phase</th><th>When</th><th>Scope</th><th class="num">Effort</th><th>Exit criteria</th></tr>
+<tr><td><b>0 · Stop the bleeding</b></td><td>Day 1–2</td><td>Rotate/delete seeded accounts; strip credentials from guide, seeds, plan; purge history; repo private. Security headers. <code>next</code> allow-list. Escape email HTML. Close <code>business/signup</code> (route through OTP). Set <code>OTP_PEPPER</code>, <code>NEXT_PUBLIC_BASE_URL</code> everywhere.</td><td class="num">0.5</td><td>S-H1/H2/H3, S-M1/M2 closed</td></tr>
+<tr><td><b>1 · Hygiene</b></td><td>Week 1</td><td>ESLint, Prettier, Husky, GitHub Actions (tsc, lint, vitest, build, audit), branch protection, <code>packageManager</code>, README, env.ts with zod, delete 42 ui files + ~15 deps + dead hooks/docs, doc triage, untrack <code>.superpowers/</code>, fix <code>.env.example</code>.</td><td class="num">1</td><td>Green CI on main; <code>pnpm lint</code> works; P-1 closed</td></tr>
+<tr><td><b>2 · Data integrity</b></td><td>Week 2–3</td><td>D-1 registration submit RPC; D-4 booking transition RPC + column guard + commission in SQL; incident/link/fine transition tables; pets building_id guard (S-M5); bucket limits + grammar (S-M4); <code>profiles.email</code> lock (S-M3); <code>targetable_buildings</code> scope; FK indexes; schedule pending-signup purge; rate limiting at the edge (S-M6). Make migrations replayable: fix idempotency, wire seeds, run <code>db reset</code> in CI against a branch.</td><td class="num">2</td><td>All state machines DB-enforced; <code>supabase db reset</code> passes in CI</td></tr>
+<tr><td><b>3 · Auth &amp; shell</b></td><td>Week 4–5</td><td>Single provider in product layout, server-seeded; persona source unified; remove mock mode; one <code>AuthScreen</code>; one nav registry; <code>ConsoleShell</code>.</td><td class="num">1.5–2</td><td>A-2/A-3/A-4/A-5 closed; five logins → one</td></tr>
+<tr><td><b>4 · Design system</b></td><td>Week 4–6 (parallel)</td><td>Type scale, layout tokens, 18 pattern components with a11y built in, stories, lint bans.</td><td class="num">2</td><td>U-1 closed; every modal traps focus</td></tr>
+<tr><td><b>5 · URL routing + feature migration</b></td><td>Week 6–12</td><td>Feature by feature (pets → care → violations → accommodations → community → marketplace → strata → admin): route groups, server reads, split <code>live.ts</code>/<code>types.ts</code>, screens rebuilt on patterns, RHF+zod forms, zod on routes, delete navigation registry.</td><td class="num">5–6</td><td>A-1/A-6/A-7 closed; no screen &gt;400 lines</td></tr>
+<tr><td><b>6 · Tests &amp; ops</b></td><td>Week 10–14</td><td>RTL/jsdom project; route-handler tests against a Supabase branch; Playwright smoke for 5 journeys; cron run-records + alerting; shared cron helper; AI triage golden set; pnpm audit gate.</td><td class="num">2</td><td>D-2 closed; a failing journey blocks merge</td></tr>
+<tr><td><b>7 · Product debt</b></td><td>Quarter 2</td><td>Privacy policy/terms; account deletion that works (FK ON DELETE review + storage sweep); push notifications; fine payments; municipal forwarding or remove the promise; the 11 disabled settings rows — build or delete.</td><td class="num">—</td><td>Product decisions, not engineering</td></tr>
+</table></div>
+<p><b>Total for phases 0–6: ≈ 14–15 engineer-weeks.</b> Phases 0–2 (≈3.5 weeks) remove the most risk per week and change nothing a user can see.</p>
+</section>
+
+<section id="register">
+<h2>17 · Finding register</h2>
+<div class="tbl"><table>
+<tr><th>ID</th><th>Sev</th><th>Area</th><th>Finding</th><th>Location</th><th>Phase</th></tr>
+<tr><td>S-H1</td><td><span class="pill crit">crit</span></td><td>Security</td><td>Production demo credentials in tracked files of a public repo</td><td>BUSINESS_MARKETPLACE_GUIDE.html, seed_*.sql, phase-4 plan</td><td>0</td></tr>
+<tr><td>S-H2</td><td><span class="pill crit">crit</span></td><td>Security</td><td>Public confirmed account creation + role elevation, bypasses OTP</td><td>app/api/business/signup/route.ts:27-41</td><td>0</td></tr>
+<tr><td>S-H3</td><td><span class="pill crit">crit</span></td><td>Security</td><td>No security headers</td><td>next.config.mjs</td><td>0</td></tr>
+<tr><td>D-1</td><td><span class="pill crit">crit</span></td><td>Product</td><td>Pet registration never leaves draft; approvals queue empty for app users</td><td>live.ts:376, manager-queues.ts:103</td><td>2</td></tr>
+<tr><td>A-1</td><td><span class="pill high">high</span></td><td>Architecture</td><td>State-only navigation across all shells</td><td>app/app/page.tsx:120-295</td><td>5</td></tr>
+<tr><td>A-3</td><td><span class="pill high">high</span></td><td>Architecture</td><td>Three sources of role truth</td><td>middleware.ts:83, auth-context.tsx:36, rbac.ts:178</td><td>3</td></tr>
+<tr><td>A-6</td><td><span class="pill high">high</span></td><td>Architecture</td><td>100% client-side data layer, no cache, waterfalls</td><td>lib/data/* (27 use client)</td><td>5</td></tr>
+<tr><td>P-1</td><td><span class="pill high">high</span></td><td>Process</td><td>No CI, no working lint, no README</td><td>package.json:9, .github absent</td><td>1</td></tr>
+<tr><td>D-2</td><td><span class="pill high">high</span></td><td>Testing</td><td>Zero tests on Supabase/HTTP/React code</td><td>vitest.config.ts, 24 untested modules</td><td>6</td></tr>
+<tr><td>D-4</td><td><span class="pill high">high</span></td><td>Data</td><td>Booking status and money client-controlled</td><td>20260722000000:54-58, bookings.ts:401</td><td>2</td></tr>
+<tr><td>U-1</td><td><span class="pill high">high</span></td><td>UI</td><td>No pattern tier; 13 sheets, ~20 badges, 57 spinners, 0 focus traps</td><td>components/screens/*</td><td>4</td></tr>
+<tr><td>S-M1</td><td><span class="pill high">med</span></td><td>Security</td><td>Open redirect on /login?next=</td><td>app/login/page.tsx:24-38</td><td>0</td></tr>
+<tr><td>S-M2</td><td><span class="pill high">med</span></td><td>Security</td><td>HTML injection into email</td><td>lib/email.ts:54-57,178</td><td>0</td></tr>
+<tr><td>S-M3</td><td><span class="pill high">med</span></td><td>Security</td><td>Self-editable profiles.email resolves invitees</td><td>strata/invite/route.ts:58-75</td><td>2</td></tr>
+<tr><td>S-M4</td><td><span class="pill high">med</span></td><td>Security</td><td>Unbounded uploads; public avatars bucket</td><td>20260601000001:390, storage.ts:36</td><td>2</td></tr>
+<tr><td>S-M5</td><td><span class="pill high">med</span></td><td>Security</td><td>Owner can move pet to any building</td><td>20260601000001:185</td><td>2</td></tr>
+<tr><td>S-M6</td><td><span class="pill high">med</span></td><td>Security</td><td>No rate limiting anywhere</td><td>all public routes, ai/chat</td><td>2</td></tr>
+<tr><td>S-M7</td><td><span class="pill high">med</span></td><td>Security</td><td>targetable_buildings leaks customer list</td><td>20260722000003</td><td>2</td></tr>
+<tr><td>A-2</td><td><span class="pill med">med</span></td><td>Architecture</td><td>Profile fallback fabricates a pet-owner; stale cache drives Gates</td><td>auth-context.tsx:170-195, 479-521</td><td>3</td></tr>
+<tr><td>A-4</td><td><span class="pill med">med</span></td><td>Architecture</td><td>Mock mode compiled into production; missing env disables auth</td><td>auth-context.tsx, live.ts:137, middleware.ts:24</td><td>1/3</td></tr>
+<tr><td>A-5</td><td><span class="pill med">med</span></td><td>Architecture</td><td>Auth context does data work, imports whole data layer</td><td>auth-context.tsx:7-17, 94-104, 611-668</td><td>3</td></tr>
+<tr><td>A-7</td><td><span class="pill med">med</span></td><td>Hygiene</td><td>42 unused ui files, ~15 unused deps, dead hooks/docs/assets</td><td>components/ui, package.json</td><td>1</td></tr>
+<tr><td>D-3</td><td><span class="pill med">med</span></td><td>Data</td><td>Unbounded queries; 1000-row truncation risk in crons</td><td>manager-queues.ts, reminders/run:70-79</td><td>2</td></tr>
+<tr><td>D-5</td><td><span class="pill med">med</span></td><td>Data</td><td>Migrations not replayable; drift vs live; seeds unwired</td><td>supabase/migrations, config.toml</td><td>2</td></tr>
+<tr><td>D-6</td><td><span class="pill med">med</span></td><td>Data</td><td>types.ts drift from generated types; duplicate type names</td><td>lib/data/types.ts</td><td>5</td></tr>
+<tr><td>D-7</td><td><span class="pill med">med</span></td><td>Data</td><td>Incident/link/fine/registration transitions UI-only; double escalation possible</td><td>incidents.ts:368, live.ts:1112, 20260823000000:119</td><td>2</td></tr>
+<tr><td>D-8</td><td><span class="pill med">med</span></td><td>Data</td><td>~60 FKs without index; audit_log.building_id no FK; free-text status columns</td><td>schema</td><td>2</td></tr>
+<tr><td>O-1</td><td><span class="pill med">med</span></td><td>Ops</td><td>Reminders cron: no maxDuration, unpaged, ignored update error silences tasks; vaccination day math in UTC</td><td>care/reminders/run/route.ts</td><td>6</td></tr>
+<tr><td>O-2</td><td><span class="pill med">med</span></td><td>Ops</td><td>No cron observability; purge failures leave dangling paths; pending-signup purge unscheduled</td><td>4 cron routes</td><td>6</td></tr>
+<tr><td>O-3</td><td><span class="pill med">med</span></td><td>Ops</td><td>No env validation at boot; 5 env vars undocumented</td><td>.env.example, process.env sites</td><td>1</td></tr>
+<tr><td>P-2</td><td><span class="pill med">med</span></td><td>Docs</td><td>Handover stale; two iOS PRDs; two foreign guides; no README</td><td>root, docs/superpowers</td><td>1</td></tr>
+<tr><td>P-3</td><td><span class="pill med">med</span></td><td>Compliance</td><td>No privacy policy/terms; account deletion blocked for 21/48 users</td><td>deferred-controls.md, account/delete</td><td>7</td></tr>
+<tr><td>U-2</td><td><span class="pill med">med</span></td><td>UI</td><td>Admin console phone-width on desktop; manager screens no md: rules</td><td>app/admin/page.tsx:159</td><td>4</td></tr>
+<tr><td>U-3</td><td><span class="pill med">med</span></td><td>UI</td><td>Forms: 0 &lt;form&gt;, RHF/zod unused, placeholder-as-label</td><td>all forms</td><td>5</td></tr>
+<tr><td>U-4</td><td><span class="pill med">med</span></td><td>UI</td><td>17 arbitrary font sizes; magic sticky offsets; 3 z-index conventions</td><td>components/screens</td><td>4</td></tr>
+<tr><td>AI-1</td><td><span class="pill med">med</span></td><td>AI</td><td>No per-user budget/rate limit; message unbounded; full medical dossier upstream</td><td>ai/chat/route.ts:59, context.ts:43-88</td><td>2</td></tr>
+<tr><td>S-L1…L10</td><td><span class="pill low">low</span></td><td>Security</td><td>Error leakage, timing compare, pepper reuse, fail-open middleware, emergency medical note, enumerable IR codes, citation schemes, no-op revokes, uid in paths</td><td>see §04</td><td>2/6</td></tr>
+<tr><td>M-1</td><td><span class="pill low">low</span></td><td>Email</td><td>Guide describes another product; no escaping/plain-text/unsubscribe; send failures reported as success</td><td>lib/email.ts, EMAIL_SYSTEM_GUIDE.md</td><td>1/2</td></tr>
+</table></div>
+<p class="small">Prepared 26 Aug 2026 from a read-only snapshot at <code>e62b134</code>. Line numbers refer to that commit. Credentials found were verified to exist but are not reproduced here.</p>
+</section>
+</main>
+</div>

@@ -1,0 +1,35 @@
+-- Pet10x — what a manager actually ISSUES on a bylaw case.
+--
+-- The ladder (open -> warning -> fine_1 -> fine_2) is the case's legal spine and
+-- is untouched: manager_advance_violation and its trigger still own it. What was
+-- missing is the DOCUMENT. A manager issues a warning, a fine, a strata fine, a
+-- letter or a note, and the resident receives that thing -- "fine_1" is a stage
+-- name, not what came through their door.
+--
+-- Notice kinds are a LOOKUP TABLE, not an enum, because the brief was "or
+-- anything else like a resident note". Adding a kind is an INSERT. Each kind
+-- declares whether it moves the ladder and whether it levies money, and the RPC
+-- reads that rather than hard-coding a list:
+--
+--   warning       stage_target=warning     moves the case
+--   fine          stage_target=next_fine   moves the case, ladder levies
+--   strata_fine   stage_target=null        levies, does NOT move the case
+--   letter        stage_target=null        no money, no stage change
+--   resident_note stage_target=null        may be kept internal
+--
+-- Anything that moves the case is delegated to manager_advance_violation, so the
+-- transition table, the open-dispute freeze and the building's fine schedule all
+-- still apply. A strata fine is levied outside the bylaw ladder and so inserts
+-- its own `fines` row.
+--
+-- Applied to the live project as migration `violation_notices`. Full body is in
+-- that ledger entry; it creates:
+--   violation_notice_kinds  (public read, admin write)
+--   violation_notices       (manager reads its building; resident reads the
+--                            ones marked visible_to_resident on their own case)
+--   manager_issue_notice(violation, kind, title, body, amount, due, visible, notify)
+--
+-- Verified against live data: a letter changed no stage and levied nothing; a
+-- strata fine created a fine and left the stage at `warning`; a fine on an
+-- `open` case was refused with `warning_first`; a fine with no amount was
+-- refused with `amount_required`.

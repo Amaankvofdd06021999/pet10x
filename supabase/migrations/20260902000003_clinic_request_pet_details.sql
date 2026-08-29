@@ -1,0 +1,23 @@
+-- Pet10x — a practice asks the owner for the pet's details.
+--
+-- The case: an animal is coming in, or is already on the table, and the
+-- practice wants the history BEFORE it starts. The console could previously
+-- only say "ask the owner to share from their app", which is not an action a
+-- receptionist can take.
+--
+-- One action for the practice, two shapes underneath:
+--   linked patient        -> record_share_request, answered in the owner's My Vets
+--   unlinked, customer's
+--   email is a Pet10x acct -> patient_link_request, because sharing needs a link
+--
+-- NOT AN ACCOUNT ORACLE: "no Pet10x account" and "already asked" both return
+-- ok:true with the same shape, so the practice cannot use this to discover
+-- whether an email is registered.
+--
+-- Gated three ways: staff of the business, tier = verified, and the business
+-- type must declare the `records_sharing` module — so a groomer cannot reach
+-- medical records merely by being verified.
+--
+-- Applied live as migration `clinic_request_pet_details`.
+-- Verified: already-shared -> already_shared; unlinked local customer ->
+-- {"kind":"link","delivered":false}; a business that is not staff -> forbidden.

@@ -25,6 +25,7 @@ import {
   Loader2,
   Camera,
   Scale,
+  Stethoscope,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
@@ -106,6 +107,7 @@ const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
     items: [
       { icon: Dog, label: "Pet Profiles" },
       { icon: FileText, label: "Documents & Records" },
+      { icon: Stethoscope, label: "My vets & sharing" },
     ],
   },
   {
@@ -126,6 +128,7 @@ interface ProfileScreenProps {
 export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const { user, signOut, updateLocalUser, viewAs } = useAuth()
   const { data: pets } = usePets()
+  const { data: buildingLink } = useMyBuildingLink()
   const unreadCount = useUnreadNotificationCount()
   const [busy, setBusy] = useState<"export" | "delete" | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -200,12 +203,20 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
    * inert, which is visible the first time it is clicked instead of sounding
    * like a feature.
    */
+  // A resident who is not linked to a building cannot have a bylaw case, an
+  // accommodation request or house rules — so those rows are not shown at all
+  // rather than routed to a screen that can only say "join a building first".
+  // Only an APPROVED link means the building's screens can answer anything. A
+  // pending request cannot yet carry a bylaw case or an accommodation.
+  const linkedToBuilding = buildingLink?.status === "approved"
+
   const handleItem = (label: string) => {
     if (label.includes("Pet Profiles")) onNavigate?.("home")
     else if (label.includes("Documents")) onNavigate?.("pet-detail")
     else if (label.includes("Building Rules")) onNavigate?.("building-rules")
     else if (label.includes("Violations")) onNavigate?.("my-cases")
     else if (label.includes("Accommodation")) onNavigate?.("accommodations")
+    else if (label.includes("My vets")) onNavigate?.("my-vets")
     else if (label.includes("Favorite Services")) onNavigate?.("services")
   }
 
@@ -322,7 +333,9 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
         </section>
 
         {/* Menu Sections */}
-        {MENU_SECTIONS.map((section) => (
+        {MENU_SECTIONS.filter(
+          (section) => section.title !== "Building" || linkedToBuilding,
+        ).map((section) => (
           <section key={section.title} className="mb-5">
             <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase text-muted-foreground">
               {section.title}

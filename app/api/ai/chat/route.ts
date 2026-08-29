@@ -398,6 +398,7 @@ async function buildEmergencyCard(
   return {
     reasons: reasons.length > 0 ? reasons : ["This sounds like it could be an emergency"],
     petName: dossier?.petName ?? null,
+    petId: dossier?.petId ?? null,
     vetPhone: dossier?.vetPhone ?? null,
     vetClinic: dossier?.vetClinic ?? null,
     clinics,

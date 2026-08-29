@@ -196,16 +196,32 @@ export async function findEmergencyClinics(
   supabase: Client,
   origin: { latitude: number | null; longitude: number | null; city?: string | null },
   limit = 3,
-): Promise<{ name: string; address: string | null; city: string | null; distanceKm: number | null }[]> {
+): Promise<
+  {
+    id: string
+    name: string
+    address: string | null
+    city: string | null
+    distanceKm: number | null
+    phone: string | null
+    canNotify: boolean
+  }[]
+> {
   const { data } = await supabase
     .from("businesses")
-    .select("name, address, city, latitude, longitude, is_verified, rating_avg")
-    .eq("category", "Veterinary")
+    .select("id, name, address, city, latitude, longitude, is_verified, rating_avg, tier, business_kind, business_locations(phone, is_primary)")
+    .eq("business_kind", "veterinary")
     .limit(50)
 
   const originCity = origin.city?.trim().toLowerCase() ?? null
   const rows = data ?? []
   const scored = rows.map((b) => ({
+    id: b.id,
+    phone:
+      (b.business_locations ?? []).find((l) => l.is_primary)?.phone ??
+      (b.business_locations ?? [])[0]?.phone ??
+      null,
+    canNotify: b.tier === "listed" || b.tier === "verified",
     name: b.name,
     address: b.address,
     city: b.city,
@@ -232,7 +248,15 @@ export async function findEmergencyClinics(
   const useful = scored.filter((c) => c.distanceKm == null || c.distanceKm <= 150)
   return (useful.length > 0 ? useful : scored)
     .slice(0, limit)
-    .map(({ name, address, city, distanceKm }) => ({ name, address, city, distanceKm }))
+    .map(({ id, name, address, city, distanceKm, phone, canNotify }) => ({
+      id,
+      name,
+      address,
+      city,
+      distanceKm,
+      phone,
+      canNotify,
+    }))
 }
 
 /* -------------------------------- helpers -------------------------------- */

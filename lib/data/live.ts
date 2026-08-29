@@ -1170,6 +1170,9 @@ const NOTIF_ICON: Record<Database["public"]["Enums"]["notification_kind"], AppNo
   system: "alert",
   assistant: "sparkles",
   care: "calendar",
+  appointment: "calendar",
+  reminder: "calendar",
+  clinic: "shield",
 }
 
 function mapNotification(row: {

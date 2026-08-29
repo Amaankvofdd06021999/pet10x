@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -383,6 +383,207 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_entitlements"
             referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      appointment_types: {
+        Row: {
+          business_id: string
+          colour: string
+          created_at: string
+          description: string | null
+          duration_min: number
+          id: string
+          is_active: boolean
+          is_online_bookable: boolean
+          name: string
+          price_cents: number
+          requires_confirmation: boolean
+          sort_order: number
+          species: Database["public"]["Enums"]["pet_species"][]
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          colour?: string
+          created_at?: string
+          description?: string | null
+          duration_min?: number
+          id?: string
+          is_active?: boolean
+          is_online_bookable?: boolean
+          name: string
+          price_cents?: number
+          requires_confirmation?: boolean
+          sort_order?: number
+          species?: Database["public"]["Enums"]["pet_species"][]
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          colour?: string
+          created_at?: string
+          description?: string | null
+          duration_min?: number
+          id?: string
+          is_active?: boolean
+          is_online_bookable?: boolean
+          name?: string
+          price_cents?: number
+          requires_confirmation?: boolean
+          sort_order?: number
+          species?: Database["public"]["Enums"]["pet_species"][]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_types_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointments: {
+        Row: {
+          arrived_at: string | null
+          booked_by: string | null
+          business_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string
+          customer_id: string | null
+          ends_at: string
+          id: string
+          location_id: string | null
+          note: string | null
+          patient_id: string | null
+          ready_at: string | null
+          reason: string | null
+          resource_id: string | null
+          source: string
+          staff_id: string | null
+          started_at: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          type_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          arrived_at?: string | null
+          booked_by?: string | null
+          business_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          ends_at: string
+          id?: string
+          location_id?: string | null
+          note?: string | null
+          patient_id?: string | null
+          ready_at?: string | null
+          reason?: string | null
+          resource_id?: string | null
+          source?: string
+          staff_id?: string | null
+          started_at?: string | null
+          starts_at: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          type_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          arrived_at?: string | null
+          booked_by?: string | null
+          business_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          ends_at?: string
+          id?: string
+          location_id?: string | null
+          note?: string | null
+          patient_id?: string | null
+          ready_at?: string | null
+          reason?: string | null
+          resource_id?: string | null
+          source?: string
+          staff_id?: string | null
+          started_at?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          type_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_booked_by_fkey"
+            columns: ["booked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_booked_by_fkey"
+            columns: ["booked_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "appointments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_resources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "business_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_type_id_fkey"
+            columns: ["type_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_types"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -797,6 +998,80 @@ export type Database = {
           },
         ]
       }
+      business_locations: {
+        Row: {
+          address: string | null
+          after_hours_note: string | null
+          business_id: string
+          city: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          hours: Json
+          id: string
+          is_active: boolean
+          is_primary: boolean
+          latitude: number | null
+          longitude: number | null
+          name: string
+          phone: string | null
+          postal_code: string | null
+          region: string | null
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          after_hours_note?: string | null
+          business_id: string
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          hours?: Json
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          phone?: string | null
+          postal_code?: string | null
+          region?: string | null
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          after_hours_note?: string | null
+          business_id?: string
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          hours?: Json
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          phone?: string | null
+          postal_code?: string | null
+          region?: string | null
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_locations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_reviews: {
         Row: {
           author_id: string
@@ -912,9 +1187,235 @@ export type Database = {
           },
         ]
       }
+      business_staff: {
+        Row: {
+          business_id: string
+          colour: string | null
+          created_at: string
+          id: string
+          invited_at: string
+          invited_by: string | null
+          is_active: boolean
+          is_bookable: boolean
+          joined_at: string | null
+          licence_expires_on: string | null
+          licence_number: string | null
+          location_id: string | null
+          profile_id: string
+          role: Database["public"]["Enums"]["clinic_staff_role"]
+          title: string | null
+        }
+        Insert: {
+          business_id: string
+          colour?: string | null
+          created_at?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          is_active?: boolean
+          is_bookable?: boolean
+          joined_at?: string | null
+          licence_expires_on?: string | null
+          licence_number?: string | null
+          location_id?: string | null
+          profile_id: string
+          role?: Database["public"]["Enums"]["clinic_staff_role"]
+          title?: string | null
+        }
+        Update: {
+          business_id?: string
+          colour?: string | null
+          created_at?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          is_active?: boolean
+          is_bookable?: boolean
+          joined_at?: string | null
+          licence_expires_on?: string | null
+          licence_number?: string | null
+          location_id?: string | null
+          profile_id?: string
+          role?: Database["public"]["Enums"]["clinic_staff_role"]
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_staff_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_staff_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_staff_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "business_staff_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_staff_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_staff_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      business_types: {
+        Row: {
+          client_label: string
+          code: string
+          created_at: string
+          description: string | null
+          icon: string | null
+          is_active: boolean
+          label: string
+          may_request_records: boolean
+          modules: string[]
+          plural_label: string | null
+          sort_order: number
+          subject_label: string
+          subject_plural: string
+          updated_at: string
+        }
+        Insert: {
+          client_label?: string
+          code: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          is_active?: boolean
+          label: string
+          may_request_records?: boolean
+          modules?: string[]
+          plural_label?: string | null
+          sort_order?: number
+          subject_label?: string
+          subject_plural?: string
+          updated_at?: string
+        }
+        Update: {
+          client_label?: string
+          code?: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          is_active?: boolean
+          label?: string
+          may_request_records?: boolean
+          modules?: string[]
+          plural_label?: string | null
+          sort_order?: number
+          subject_label?: string
+          subject_plural?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      business_verifications: {
+        Row: {
+          business_id: string
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          document_path: string | null
+          expires_on: string | null
+          id: string
+          issuing_body: string | null
+          kind: string
+          licence_number: string | null
+          note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          document_path?: string | null
+          expires_on?: string | null
+          id?: string
+          issuing_body?: string | null
+          kind: string
+          licence_number?: string | null
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          document_path?: string | null
+          expires_on?: string | null
+          id?: string
+          issuing_body?: string | null
+          kind?: string
+          licence_number?: string | null
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_verifications_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_verifications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_verifications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           address: string | null
+          booking_mode: string
+          business_kind: string
           category: string
           city: string | null
           country: string | null
@@ -937,10 +1438,14 @@ export type Database = {
           region: string | null
           service_radius_m: number | null
           tags: string[]
+          tier: Database["public"]["Enums"]["business_tier"]
+          timezone: string
           updated_at: string
         }
         Insert: {
           address?: string | null
+          booking_mode?: string
+          business_kind?: string
           category: string
           city?: string | null
           country?: string | null
@@ -963,10 +1468,14 @@ export type Database = {
           region?: string | null
           service_radius_m?: number | null
           tags?: string[]
+          tier?: Database["public"]["Enums"]["business_tier"]
+          timezone?: string
           updated_at?: string
         }
         Update: {
           address?: string | null
+          booking_mode?: string
+          business_kind?: string
           category?: string
           city?: string | null
           country?: string | null
@@ -989,9 +1498,18 @@ export type Database = {
           region?: string | null
           service_radius_m?: number | null
           tags?: string[]
+          tier?: Database["public"]["Enums"]["business_tier"]
+          timezone?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "businesses_kind_fk"
+            columns: ["business_kind"]
+            isOneToOne: false
+            referencedRelation: "business_types"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "businesses_owner_id_fkey"
             columns: ["owner_id"]
@@ -1129,6 +1647,458 @@ export type Database = {
           },
         ]
       }
+      clinic_customers: {
+        Row: {
+          address: string | null
+          alert_note: string | null
+          alt_phone: string | null
+          business_id: string
+          city: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          first_name: string
+          id: string
+          import_batch_id: string | null
+          is_active: boolean
+          last_name: string | null
+          marketing_consent: boolean
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          profile_id: string | null
+          region: string | null
+          service_reminders: boolean
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          alert_note?: string | null
+          alt_phone?: string | null
+          business_id: string
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          import_batch_id?: string | null
+          is_active?: boolean
+          last_name?: string | null
+          marketing_consent?: boolean
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          profile_id?: string | null
+          region?: string | null
+          service_reminders?: boolean
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          alert_note?: string | null
+          alt_phone?: string | null
+          business_id?: string
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          import_batch_id?: string | null
+          is_active?: boolean
+          last_name?: string | null
+          marketing_consent?: boolean
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          profile_id?: string | null
+          region?: string | null
+          service_reminders?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_customers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_customers_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_customers_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "clinic_customers_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_customers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_customers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      clinic_patients: {
+        Row: {
+          allergies: string | null
+          behavioural_alert: string | null
+          breed: string | null
+          business_id: string
+          colour: string | null
+          conditions: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          deceased_on: string | null
+          dob: string | null
+          id: string
+          import_batch_id: string | null
+          is_active: boolean
+          is_deceased: boolean
+          medications_notes: string | null
+          microchip: string | null
+          name: string
+          neutered: boolean | null
+          notes: string | null
+          pet_id: string | null
+          sex: Database["public"]["Enums"]["pet_sex"] | null
+          species: Database["public"]["Enums"]["pet_species"]
+          updated_at: string
+          weight_grams: number | null
+        }
+        Insert: {
+          allergies?: string | null
+          behavioural_alert?: string | null
+          breed?: string | null
+          business_id: string
+          colour?: string | null
+          conditions?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          deceased_on?: string | null
+          dob?: string | null
+          id?: string
+          import_batch_id?: string | null
+          is_active?: boolean
+          is_deceased?: boolean
+          medications_notes?: string | null
+          microchip?: string | null
+          name: string
+          neutered?: boolean | null
+          notes?: string | null
+          pet_id?: string | null
+          sex?: Database["public"]["Enums"]["pet_sex"] | null
+          species?: Database["public"]["Enums"]["pet_species"]
+          updated_at?: string
+          weight_grams?: number | null
+        }
+        Update: {
+          allergies?: string | null
+          behavioural_alert?: string | null
+          breed?: string | null
+          business_id?: string
+          colour?: string | null
+          conditions?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          deceased_on?: string | null
+          dob?: string | null
+          id?: string
+          import_batch_id?: string | null
+          is_active?: boolean
+          is_deceased?: boolean
+          medications_notes?: string | null
+          microchip?: string | null
+          name?: string
+          neutered?: boolean | null
+          notes?: string | null
+          pet_id?: string | null
+          sex?: Database["public"]["Enums"]["pet_sex"] | null
+          species?: Database["public"]["Enums"]["pet_species"]
+          updated_at?: string
+          weight_grams?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_patients_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_patients_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_patients_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "clinic_patients_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_patients_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_patients_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clinic_resources: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          location_id: string | null
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          location_id?: string | null
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          location_id?: string | null
+          name?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_resources_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_resources_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clinic_tasks: {
+        Row: {
+          assigned_to: string | null
+          business_id: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          detail: string | null
+          done_at: string | null
+          due_on: string | null
+          id: string
+          patient_id: string | null
+          status: string
+          title: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          detail?: string | null
+          done_at?: string | null
+          due_on?: string | null
+          id?: string
+          patient_id?: string | null
+          status?: string
+          title: string
+        }
+        Update: {
+          assigned_to?: string | null
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          detail?: string | null
+          done_at?: string | null
+          due_on?: string | null
+          id?: string
+          patient_id?: string | null
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "business_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_tasks_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "clinic_tasks_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_tasks_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_log: {
+        Row: {
+          body: string | null
+          business_id: string
+          channel: string
+          created_at: string
+          customer_id: string | null
+          direction: string
+          id: string
+          occurred_at: string
+          outcome: string | null
+          patient_id: string | null
+          staff_id: string | null
+          subject: string | null
+        }
+        Insert: {
+          body?: string | null
+          business_id: string
+          channel: string
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          id?: string
+          occurred_at?: string
+          outcome?: string | null
+          patient_id?: string | null
+          staff_id?: string | null
+          subject?: string | null
+        }
+        Update: {
+          body?: string | null
+          business_id?: string
+          channel?: string
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          id?: string
+          occurred_at?: string
+          outcome?: string | null
+          patient_id?: string | null
+          staff_id?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_log_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_log_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_log_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "business_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_posts: {
         Row: {
           author_id: string | null
@@ -1242,6 +2212,191 @@ export type Database = {
           {
             foreignKeyName: "emergency_access_tokens_issued_by_fkey"
             columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      emergency_arrivals: {
+        Row: {
+          allergies: string | null
+          business_id: string
+          contact_phone: string | null
+          created_at: string
+          eta_minutes: number | null
+          id: string
+          location_id: string | null
+          patient_id: string | null
+          pet_id: string | null
+          pet_name: string | null
+          problem: string
+          reported_by: string | null
+          species: Database["public"]["Enums"]["pet_species"] | null
+          status: string
+          triage_level: string
+          updated_at: string
+          weight_grams: number | null
+        }
+        Insert: {
+          allergies?: string | null
+          business_id: string
+          contact_phone?: string | null
+          created_at?: string
+          eta_minutes?: number | null
+          id?: string
+          location_id?: string | null
+          patient_id?: string | null
+          pet_id?: string | null
+          pet_name?: string | null
+          problem: string
+          reported_by?: string | null
+          species?: Database["public"]["Enums"]["pet_species"] | null
+          status?: string
+          triage_level?: string
+          updated_at?: string
+          weight_grams?: number | null
+        }
+        Update: {
+          allergies?: string | null
+          business_id?: string
+          contact_phone?: string | null
+          created_at?: string
+          eta_minutes?: number | null
+          id?: string
+          location_id?: string | null
+          patient_id?: string | null
+          pet_id?: string | null
+          pet_name?: string | null
+          problem?: string
+          reported_by?: string | null
+          species?: Database["public"]["Enums"]["pet_species"] | null
+          status?: string
+          triage_level?: string
+          updated_at?: string
+          weight_grams?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_arrivals_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_arrivals_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_arrivals_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_arrivals_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_arrivals_reported_by_fkey"
+            columns: ["reported_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_arrivals_reported_by_fkey"
+            columns: ["reported_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      emergency_pulls: {
+        Row: {
+          business_id: string
+          id: string
+          owner_notified_at: string | null
+          pet_id: string
+          pulled_at: string
+          reason: string
+          review_outcome: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          staff_profile_id: string | null
+        }
+        Insert: {
+          business_id: string
+          id?: string
+          owner_notified_at?: string | null
+          pet_id: string
+          pulled_at?: string
+          reason: string
+          review_outcome?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          staff_profile_id?: string | null
+        }
+        Update: {
+          business_id?: string
+          id?: string
+          owner_notified_at?: string | null
+          pet_id?: string
+          pulled_at?: string
+          reason?: string
+          review_outcome?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          staff_profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_pulls_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_pulls_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_pulls_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_pulls_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "emergency_pulls_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emergency_pulls_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
             isOneToOne: false
             referencedRelation: "user_entitlements"
             referencedColumns: ["profile_id"]
@@ -1444,6 +2599,76 @@ export type Database = {
           },
         ]
       }
+      import_batches: {
+        Row: {
+          business_id: string
+          committed_at: string | null
+          created_at: string
+          created_by: string | null
+          created_count: number
+          error_note: string | null
+          filename: string | null
+          id: string
+          kind: string
+          mapping: Json
+          row_count: number
+          status: string
+          undone_at: string | null
+        }
+        Insert: {
+          business_id: string
+          committed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_count?: number
+          error_note?: string | null
+          filename?: string | null
+          id?: string
+          kind?: string
+          mapping?: Json
+          row_count?: number
+          status?: string
+          undone_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          committed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_count?: number
+          error_note?: string | null
+          filename?: string | null
+          id?: string
+          kind?: string
+          mapping?: Json
+          row_count?: number
+          status?: string
+          undone_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       incident_reports: {
         Row: {
           building_id: string
@@ -1551,6 +2776,173 @@ export type Database = {
           },
         ]
       }
+      invoice_lines: {
+        Row: {
+          business_id: string
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          product_id: string | null
+          quantity: number
+          unit_price_cents: number
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          product_id?: string | null
+          quantity?: number
+          unit_price_cents?: number
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          product_id?: string | null
+          quantity?: number
+          unit_price_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_lines_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          customer_id: string | null
+          due_on: string | null
+          id: string
+          issued_on: string | null
+          kind: string
+          note: string | null
+          number: string | null
+          owner_approved_at: string | null
+          paid_cents: number
+          patient_id: string | null
+          status: string
+          subtotal_cents: number
+          tax_cents: number
+          total_cents: number
+          updated_at: string
+          visit_id: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_id?: string | null
+          due_on?: string | null
+          id?: string
+          issued_on?: string | null
+          kind?: string
+          note?: string | null
+          number?: string | null
+          owner_approved_at?: string | null
+          paid_cents?: number
+          patient_id?: string | null
+          status?: string
+          subtotal_cents?: number
+          tax_cents?: number
+          total_cents?: number
+          updated_at?: string
+          visit_id?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          customer_id?: string | null
+          due_on?: string | null
+          id?: string
+          issued_on?: string | null
+          kind?: string
+          note?: string | null
+          number?: string | null
+          owner_approved_at?: string | null
+          paid_cents?: number
+          patient_id?: string | null
+          status?: string
+          subtotal_cents?: number
+          tax_cents?: number
+          total_cents?: number
+          updated_at?: string
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lost_found: {
         Row: {
           breed: string | null
@@ -1618,6 +3010,53 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_entitlements"
             referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      message_templates: {
+        Row: {
+          body: string
+          business_id: string
+          channel: string
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          business_id: string
+          channel?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_templates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1800,6 +3239,233 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_entitlements"
             referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      on_call_shifts: {
+        Row: {
+          business_id: string
+          created_at: string
+          ends_at: string
+          id: string
+          location_id: string | null
+          note: string | null
+          phone: string | null
+          staff_id: string | null
+          starts_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          location_id?: string | null
+          note?: string | null
+          phone?: string | null
+          staff_id?: string | null
+          starts_at: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          location_id?: string | null
+          note?: string | null
+          phone?: string | null
+          staff_id?: string | null
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "on_call_shifts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "on_call_shifts_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "on_call_shifts_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "business_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_link_requests: {
+        Row: {
+          business_id: string
+          created_at: string
+          decided_at: string | null
+          expires_at: string
+          id: string
+          invite_email: string | null
+          message: string | null
+          patient_id: string
+          pet_id: string | null
+          profile_id: string | null
+          requested_by: string | null
+          status: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          decided_at?: string | null
+          expires_at?: string
+          id?: string
+          invite_email?: string | null
+          message?: string | null
+          patient_id: string
+          pet_id?: string | null
+          profile_id?: string | null
+          requested_by?: string | null
+          status?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          decided_at?: string | null
+          expires_at?: string
+          id?: string
+          invite_email?: string | null
+          message?: string | null
+          patient_id?: string
+          pet_id?: string | null
+          profile_id?: string | null
+          requested_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_link_requests_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_link_requests_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_link_requests_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_link_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_link_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "patient_link_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_link_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      patient_vaccinations: {
+        Row: {
+          administered_by: string | null
+          batch: string | null
+          business_id: string
+          created_at: string
+          expires_on: string | null
+          given_on: string
+          id: string
+          name: string
+          note: string | null
+          patient_id: string
+          product: string | null
+          visit_id: string | null
+        }
+        Insert: {
+          administered_by?: string | null
+          batch?: string | null
+          business_id: string
+          created_at?: string
+          expires_on?: string | null
+          given_on?: string
+          id?: string
+          name: string
+          note?: string | null
+          patient_id: string
+          product?: string | null
+          visit_id?: string | null
+        }
+        Update: {
+          administered_by?: string | null
+          batch?: string | null
+          business_id?: string
+          created_at?: string
+          expires_on?: string | null
+          given_on?: string
+          id?: string
+          name?: string
+          note?: string | null
+          patient_id?: string
+          product?: string | null
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_vaccinations_administered_by_fkey"
+            columns: ["administered_by"]
+            isOneToOne: false
+            referencedRelation: "business_staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_vaccinations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_vaccinations_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_vaccinations_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2181,10 +3847,13 @@ export type Database = {
           kind: Database["public"]["Enums"]["doc_kind"]
           name: string | null
           pet_id: string | null
+          provenance: string
+          publication_id: string | null
           status: Database["public"]["Enums"]["doc_status"]
           storage_path: string | null
           verified_at: string | null
           verified_by: string | null
+          verified_by_business: string | null
         }
         Insert: {
           created_at?: string
@@ -2193,10 +3862,13 @@ export type Database = {
           kind: Database["public"]["Enums"]["doc_kind"]
           name?: string | null
           pet_id?: string | null
+          provenance?: string
+          publication_id?: string | null
           status?: Database["public"]["Enums"]["doc_status"]
           storage_path?: string | null
           verified_at?: string | null
           verified_by?: string | null
+          verified_by_business?: string | null
         }
         Update: {
           created_at?: string
@@ -2205,10 +3877,13 @@ export type Database = {
           kind?: Database["public"]["Enums"]["doc_kind"]
           name?: string | null
           pet_id?: string | null
+          provenance?: string
+          publication_id?: string | null
           status?: Database["public"]["Enums"]["doc_status"]
           storage_path?: string | null
           verified_at?: string | null
           verified_by?: string | null
+          verified_by_business?: string | null
         }
         Relationships: [
           {
@@ -2216,6 +3891,13 @@ export type Database = {
             columns: ["pet_id"]
             isOneToOne: false
             referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_documents_verified_by_business_fkey"
+            columns: ["verified_by_business"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
           {
@@ -2413,9 +4095,12 @@ export type Database = {
           kind: string
           name: string
           pet_id: string
+          provenance: string
+          publication_id: string | null
           remind_days_before: number
           reminded_for: string | null
           status: Database["public"]["Enums"]["doc_status"]
+          verified_by_business: string | null
         }
         Insert: {
           created_at?: string
@@ -2426,9 +4111,12 @@ export type Database = {
           kind?: string
           name: string
           pet_id: string
+          provenance?: string
+          publication_id?: string | null
           remind_days_before?: number
           reminded_for?: string | null
           status?: Database["public"]["Enums"]["doc_status"]
+          verified_by_business?: string | null
         }
         Update: {
           created_at?: string
@@ -2439,9 +4127,12 @@ export type Database = {
           kind?: string
           name?: string
           pet_id?: string
+          provenance?: string
+          publication_id?: string | null
           remind_days_before?: number
           reminded_for?: string | null
           status?: Database["public"]["Enums"]["doc_status"]
+          verified_by_business?: string | null
         }
         Relationships: [
           {
@@ -2456,6 +4147,13 @@ export type Database = {
             columns: ["pet_id"]
             isOneToOne: false
             referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_vaccinations_verified_by_business_fkey"
+            columns: ["verified_by_business"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
@@ -2757,6 +4455,59 @@ export type Database = {
           },
         ]
       }
+      products: {
+        Row: {
+          business_id: string
+          category: string | null
+          cost_cents: number | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          price_cents: number
+          reorder_point: number | null
+          sku: string | null
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          category?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          price_cents?: number
+          reorder_point?: number | null
+          sku?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          category?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_cents?: number
+          reorder_point?: number | null
+          sku?: string | null
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address_unit: string | null
@@ -2901,6 +4652,616 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_entitlements"
             referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      record_access_log: {
+        Row: {
+          basis: string
+          business_id: string
+          id: string
+          occurred_at: string
+          patient_id: string | null
+          pet_id: string | null
+          scopes: string[]
+          staff_profile_id: string | null
+        }
+        Insert: {
+          basis?: string
+          business_id: string
+          id?: string
+          occurred_at?: string
+          patient_id?: string | null
+          pet_id?: string | null
+          scopes?: string[]
+          staff_profile_id?: string | null
+        }
+        Update: {
+          basis?: string
+          business_id?: string
+          id?: string
+          occurred_at?: string
+          patient_id?: string | null
+          pet_id?: string | null
+          scopes?: string[]
+          staff_profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_access_log_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_access_log_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_access_log_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_access_log_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_access_log_staff_profile_id_fkey"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      record_desk_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          pet_id: string
+          profile_id: string
+          redeemed_at: string | null
+          redeemed_by_business: string | null
+          scopes: string[]
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          pet_id: string
+          profile_id: string
+          redeemed_at?: string | null
+          redeemed_by_business?: string | null
+          scopes?: string[]
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          pet_id?: string
+          profile_id?: string
+          redeemed_at?: string | null
+          redeemed_by_business?: string | null
+          scopes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_desk_codes_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_desk_codes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_desk_codes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "record_desk_codes_redeemed_by_business_fkey"
+            columns: ["redeemed_by_business"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      record_publications: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          patient_id: string
+          pet_id: string
+          published_at: string
+          published_by: string | null
+          source_id: string | null
+          source_kind: string
+          summary: string | null
+          target_id: string | null
+          target_kind: string | null
+          title: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          patient_id: string
+          pet_id: string
+          published_at?: string
+          published_by?: string | null
+          source_id?: string | null
+          source_kind: string
+          summary?: string | null
+          target_id?: string | null
+          target_kind?: string | null
+          title: string
+          withdrawn_at?: string | null
+          withdrawn_by?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          patient_id?: string
+          pet_id?: string
+          published_at?: string
+          published_by?: string | null
+          source_id?: string | null
+          source_kind?: string
+          summary?: string | null
+          target_id?: string | null
+          target_kind?: string | null
+          title?: string
+          withdrawn_at?: string | null
+          withdrawn_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_publications_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_publications_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_publications_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_publications_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_publications_published_by_fkey"
+            columns: ["published_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "record_publications_withdrawn_by_fkey"
+            columns: ["withdrawn_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_publications_withdrawn_by_fkey"
+            columns: ["withdrawn_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      record_share_requests: {
+        Row: {
+          business_id: string
+          created_at: string
+          decided_at: string | null
+          expires_at: string
+          id: string
+          message: string | null
+          patient_id: string | null
+          pet_id: string
+          profile_id: string
+          requested_by: string | null
+          scopes: string[]
+          status: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          decided_at?: string | null
+          expires_at?: string
+          id?: string
+          message?: string | null
+          patient_id?: string | null
+          pet_id: string
+          profile_id: string
+          requested_by?: string | null
+          scopes?: string[]
+          status?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          decided_at?: string | null
+          expires_at?: string
+          id?: string
+          message?: string | null
+          patient_id?: string | null
+          pet_id?: string
+          profile_id?: string
+          requested_by?: string | null
+          scopes?: string[]
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_share_requests_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_share_requests_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_share_requests_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_share_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_share_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "record_share_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_share_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      record_shares: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_via: string
+          expires_at: string | null
+          granted_by: string
+          id: string
+          note: string | null
+          pet_id: string
+          revoked_at: string | null
+          revoked_by: string | null
+          scopes: string[]
+          starts_at: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_via?: string
+          expires_at?: string | null
+          granted_by: string
+          id?: string
+          note?: string | null
+          pet_id: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          scopes?: string[]
+          starts_at?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_via?: string
+          expires_at?: string | null
+          granted_by?: string
+          id?: string
+          note?: string | null
+          pet_id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          scopes?: string[]
+          starts_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_shares_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_shares_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_shares_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "record_shares_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_shares_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_shares_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      reminder_items: {
+        Row: {
+          appointment_id: string | null
+          business_id: string
+          channel: string
+          created_at: string
+          customer_id: string | null
+          due_on: string
+          handled_by: string | null
+          id: string
+          kind: string
+          label: string
+          note: string | null
+          notification_id: string | null
+          patient_id: string | null
+          rule_id: string | null
+          sent_at: string | null
+          snoozed_until: string | null
+          source_id: string | null
+          source_kind: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          business_id: string
+          channel?: string
+          created_at?: string
+          customer_id?: string | null
+          due_on: string
+          handled_by?: string | null
+          id?: string
+          kind: string
+          label: string
+          note?: string | null
+          notification_id?: string | null
+          patient_id?: string | null
+          rule_id?: string | null
+          sent_at?: string | null
+          snoozed_until?: string | null
+          source_id?: string | null
+          source_kind?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          business_id?: string
+          channel?: string
+          created_at?: string
+          customer_id?: string | null
+          due_on?: string
+          handled_by?: string | null
+          id?: string
+          kind?: string
+          label?: string
+          note?: string | null
+          notification_id?: string | null
+          patient_id?: string | null
+          rule_id?: string | null
+          sent_at?: string | null
+          snoozed_until?: string | null
+          source_id?: string | null
+          source_kind?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_items_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminder_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminder_items_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminder_items_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminder_items_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "reminder_items_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminder_items_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminder_items_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "reminder_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reminder_rules: {
+        Row: {
+          business_id: string
+          channel: string
+          cooldown_days: number
+          created_at: string
+          id: string
+          is_active: boolean
+          lapse_days: number
+          lead_days: number
+          name: string
+          template_id: string | null
+          trigger_kind: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          channel?: string
+          cooldown_days?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          lapse_days?: number
+          lead_days?: number
+          name: string
+          template_id?: string | null
+          trigger_kind: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          channel?: string
+          cooldown_days?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          lapse_days?: number
+          lead_days?: number
+          name?: string
+          template_id?: string | null
+          trigger_kind?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_rules_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminder_rules_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "message_templates"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3225,6 +5586,161 @@ export type Database = {
           },
         ]
       }
+      staff_availability: {
+        Row: {
+          business_id: string
+          created_at: string
+          end_time: string
+          id: string
+          location_id: string | null
+          staff_id: string
+          start_time: string
+          valid_from: string | null
+          valid_to: string | null
+          weekday: number
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          end_time: string
+          id?: string
+          location_id?: string | null
+          staff_id: string
+          start_time: string
+          valid_from?: string | null
+          valid_to?: string | null
+          weekday: number
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          location_id?: string | null
+          staff_id?: string
+          start_time?: string
+          valid_from?: string | null
+          valid_to?: string | null
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_availability_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_availability_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_availability_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "business_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_time_off: {
+        Row: {
+          business_id: string
+          created_at: string
+          ends_at: string
+          id: string
+          reason: string | null
+          staff_id: string
+          starts_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          reason?: string | null
+          staff_id: string
+          starts_at: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          reason?: string | null
+          staff_id?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_time_off_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_time_off_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "business_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_levels: {
+        Row: {
+          business_id: string
+          id: string
+          location_id: string | null
+          product_id: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          id?: string
+          location_id?: string | null
+          product_id: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          id?: string
+          location_id?: string | null
+          product_id?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_levels_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_levels_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "business_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_levels_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean
@@ -3451,6 +5967,142 @@ export type Database = {
           },
         ]
       }
+      violation_notice_kinds: {
+        Row: {
+          code: string
+          creates_fine: boolean
+          default_visible: boolean
+          description: string | null
+          is_active: boolean
+          label: string
+          requires_amount: boolean
+          requires_body: boolean
+          sort_order: number
+          stage_target: string | null
+          tone: string
+        }
+        Insert: {
+          code: string
+          creates_fine?: boolean
+          default_visible?: boolean
+          description?: string | null
+          is_active?: boolean
+          label: string
+          requires_amount?: boolean
+          requires_body?: boolean
+          sort_order?: number
+          stage_target?: string | null
+          tone?: string
+        }
+        Update: {
+          code?: string
+          creates_fine?: boolean
+          default_visible?: boolean
+          description?: string | null
+          is_active?: boolean
+          label?: string
+          requires_amount?: boolean
+          requires_body?: boolean
+          sort_order?: number
+          stage_target?: string | null
+          tone?: string
+        }
+        Relationships: []
+      }
+      violation_notices: {
+        Row: {
+          amount_cents: number | null
+          body: string | null
+          building_id: string
+          currency: string
+          due_on: string | null
+          fine_id: string | null
+          id: string
+          issued_at: string
+          issued_by: string | null
+          kind: string
+          stage_after: Database["public"]["Enums"]["violation_stage_v2"] | null
+          title: string | null
+          violation_id: string
+          visible_to_resident: boolean
+        }
+        Insert: {
+          amount_cents?: number | null
+          body?: string | null
+          building_id: string
+          currency?: string
+          due_on?: string | null
+          fine_id?: string | null
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          kind: string
+          stage_after?: Database["public"]["Enums"]["violation_stage_v2"] | null
+          title?: string | null
+          violation_id: string
+          visible_to_resident?: boolean
+        }
+        Update: {
+          amount_cents?: number | null
+          body?: string | null
+          building_id?: string
+          currency?: string
+          due_on?: string | null
+          fine_id?: string | null
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          kind?: string
+          stage_after?: Database["public"]["Enums"]["violation_stage_v2"] | null
+          title?: string | null
+          violation_id?: string
+          visible_to_resident?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "violation_notices_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "violation_notices_fine_id_fkey"
+            columns: ["fine_id"]
+            isOneToOne: false
+            referencedRelation: "fines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "violation_notices_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "violation_notices_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "violation_notices_kind_fkey"
+            columns: ["kind"]
+            isOneToOne: false
+            referencedRelation: "violation_notice_kinds"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "violation_notices_violation_id_fkey"
+            columns: ["violation_id"]
+            isOneToOne: false
+            referencedRelation: "violations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       violations: {
         Row: {
           building_id: string
@@ -3556,6 +6208,333 @@ export type Database = {
           },
         ]
       }
+      visit_attachments: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          label: string | null
+          mime_type: string | null
+          patient_id: string
+          size_bytes: number | null
+          storage_path: string
+          uploaded_by: string | null
+          visit_id: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          mime_type?: string | null
+          patient_id: string
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_by?: string | null
+          visit_id?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          mime_type?: string | null
+          patient_id?: string
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_by?: string | null
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_attachments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_attachments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "visit_attachments_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visit_services: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          name: string
+          note: string | null
+          quantity: number
+          unit_price_cents: number
+          visit_id: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          name: string
+          note?: string | null
+          quantity?: number
+          unit_price_cents?: number
+          visit_id: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          note?: string | null
+          quantity?: number
+          unit_price_cents?: number
+          visit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_services_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_services_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visits: {
+        Row: {
+          appointment_id: string | null
+          business_id: string
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          id: string
+          internal_note: string | null
+          next_due_on: string | null
+          next_due_reason: string | null
+          patient_id: string
+          reason: string | null
+          staff_id: string | null
+          status: string
+          summary: string | null
+          temperature_c: number | null
+          updated_at: string
+          visited_on: string
+          weight_grams: number | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          business_id: string
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          internal_note?: string | null
+          next_due_on?: string | null
+          next_due_reason?: string | null
+          patient_id: string
+          reason?: string | null
+          staff_id?: string | null
+          status?: string
+          summary?: string | null
+          temperature_c?: number | null
+          updated_at?: string
+          visited_on?: string
+          weight_grams?: number | null
+        }
+        Update: {
+          appointment_id?: string | null
+          business_id?: string
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          internal_note?: string | null
+          next_due_on?: string | null
+          next_due_reason?: string | null
+          patient_id?: string
+          reason?: string | null
+          staff_id?: string | null
+          status?: string
+          summary?: string | null
+          temperature_c?: number | null
+          updated_at?: string
+          visited_on?: string
+          weight_grams?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "visits_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "business_staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      waitlist_entries: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          earliest_on: string | null
+          id: string
+          latest_on: string | null
+          note: string | null
+          offered_at: string | null
+          patient_id: string | null
+          status: string
+          type_id: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          earliest_on?: string | null
+          id?: string
+          latest_on?: string | null
+          note?: string | null
+          offered_at?: string | null
+          patient_id?: string | null
+          status?: string
+          type_id?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          earliest_on?: string | null
+          id?: string
+          latest_on?: string | null
+          note?: string | null
+          offered_at?: string | null
+          patient_id?: string | null
+          status?: string
+          type_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waitlist_entries_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlist_entries_type_id_fkey"
+            columns: ["type_id"]
+            isOneToOne: false
+            referencedRelation: "appointment_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       user_entitlements: {
@@ -3593,11 +6572,91 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      building_allows_direct_fine: {
+        Args: { p_building: string }
+        Returns: boolean
+      }
       building_pets_for_report: { Args: { p_code: string }; Returns: Json }
       buildings_matching_my_address: { Args: never; Returns: Json }
+      business_has_module: {
+        Args: { p_business: string; p_module: string }
+        Returns: boolean
+      }
+      business_is_public: { Args: { p_business: string }; Returns: boolean }
       business_mark_booking_paid: {
         Args: { p_booking: string }
         Returns: string
+      }
+      business_tier_of: {
+        Args: { p_business: string }
+        Returns: Database["public"]["Enums"]["business_tier"]
+      }
+      can_admin_business: { Args: { p_business: string }; Returns: boolean }
+      can_read_shared_records: {
+        Args: { p_business: string }
+        Returns: boolean
+      }
+      clinic_available_slots: {
+        Args: {
+          p_business: string
+          p_date: string
+          p_location?: string
+          p_type: string
+        }
+        Returns: Json
+      }
+      clinic_emergency_pull: {
+        Args: { p_business: string; p_pet: string; p_reason: string }
+        Returns: Json
+      }
+      clinic_fetch_shared_record: { Args: { p_patient: string }; Returns: Json }
+      clinic_generate_reminders: { Args: { p_business: string }; Returns: Json }
+      clinic_may_read: {
+        Args: { p_pet: string; p_scope: string }
+        Returns: boolean
+      }
+      clinic_open_visit: { Args: { p_appointment: string }; Returns: string }
+      clinic_publish_record: {
+        Args: { p_patient: string; p_source_id: string; p_source_kind: string }
+        Returns: Json
+      }
+      clinic_redeem_desk_code: {
+        Args: { p_business: string; p_code: string; p_patient?: string }
+        Returns: Json
+      }
+      clinic_reminder_action: {
+        Args: {
+          p_action: string
+          p_days?: number
+          p_item: string
+          p_note?: string
+        }
+        Returns: Json
+      }
+      clinic_request_pet_details: {
+        Args: {
+          p_email?: string
+          p_message?: string
+          p_patient: string
+          p_scopes?: string[]
+        }
+        Returns: Json
+      }
+      clinic_set_appointment_status: {
+        Args: {
+          p_appointment: string
+          p_note?: string
+          p_status: Database["public"]["Enums"]["appointment_status"]
+        }
+        Returns: Json
+      }
+      clinic_set_invoice_status: {
+        Args: { p_invoice: string; p_paid_cents?: number; p_status: string }
+        Returns: Json
+      }
+      clinic_withdraw_publication: {
+        Args: { p_publication: string; p_reason?: string }
+        Returns: Json
       }
       community_identities: {
         Args: never
@@ -3648,6 +6707,19 @@ export type Database = {
         Args: { p_approve: boolean; p_pet: string }
         Returns: undefined
       }
+      manager_issue_notice: {
+        Args: {
+          p_amount_cents?: number
+          p_body?: string
+          p_due_on?: string
+          p_kind: string
+          p_notify?: boolean
+          p_title?: string
+          p_violation: string
+          p_visible?: boolean
+        }
+        Returns: Json
+      }
       manager_remind_fine: {
         Args: { p_note?: string; p_violation: string }
         Returns: Json
@@ -3692,6 +6764,52 @@ export type Database = {
       my_app_user: { Args: never; Returns: Json }
       my_building_link: { Args: never; Returns: Json }
       my_personas: { Args: never; Returns: Json }
+      owner_approve_estimate: { Args: { p_invoice: string }; Returns: Json }
+      owner_book_appointment: {
+        Args: {
+          p_business: string
+          p_note?: string
+          p_pet: string
+          p_share?: boolean
+          p_staff?: string
+          p_starts_at: string
+          p_type: string
+        }
+        Returns: Json
+      }
+      owner_create_desk_code: {
+        Args: { p_pet: string; p_scopes?: string[] }
+        Returns: Json
+      }
+      owner_decide_patient_link: {
+        Args: { p_accept: boolean; p_pet?: string; p_request: string }
+        Returns: Json
+      }
+      owner_decide_share_request: {
+        Args: { p_approve: boolean; p_request: string }
+        Returns: Json
+      }
+      owner_grant_record_share: {
+        Args: {
+          p_business: string
+          p_expires_at?: string
+          p_pet: string
+          p_scopes?: string[]
+          p_via?: string
+        }
+        Returns: Json
+      }
+      owner_notify_arrival: {
+        Args: {
+          p_business: string
+          p_eta_minutes?: number
+          p_pet: string
+          p_problem: string
+        }
+        Returns: Json
+      }
+      owner_revoke_record_share: { Args: { p_share: string }; Returns: Json }
+      owner_unlink_patient: { Args: { p_patient: string }; Returns: Json }
       publish_building_event: {
         Args: { p_event: string; p_note?: string }
         Returns: Json
@@ -3738,6 +6856,11 @@ export type Database = {
       search_buildings_public: { Args: { q: string }; Returns: Json }
       set_my_unit: { Args: { p_unit: string }; Returns: Json }
       shares_managed_building_with: { Args: { p: string }; Returns: boolean }
+      staff_of_business: { Args: { p_business: string }; Returns: boolean }
+      staff_role_in: {
+        Args: { p_business: string }
+        Returns: Database["public"]["Enums"]["clinic_staff_role"]
+      }
       submit_accommodation_request: {
         Args: { p_request: string }
         Returns: Json
@@ -3793,6 +6916,15 @@ export type Database = {
         | "info_requested"
         | "withdrawn"
       accommodation_type: "esa" | "service_animal"
+      appointment_status:
+        | "requested"
+        | "booked"
+        | "arrived"
+        | "in_progress"
+        | "ready"
+        | "completed"
+        | "no_show"
+        | "cancelled"
       booking_status:
         | "requested"
         | "confirmed"
@@ -3809,6 +6941,7 @@ export type Database = {
         | "common_areas"
         | "other"
       business_listing_tier: "basic" | "featured" | "premium"
+      business_tier: "registered" | "listed" | "verified"
       care_entry_kind:
         | "food"
         | "medicine"
@@ -3821,6 +6954,12 @@ export type Database = {
         | "play"
         | "outing"
       care_kind: "meal" | "medication" | "water" | "walk" | "grooming" | "other"
+      clinic_staff_role:
+        | "owner"
+        | "manager"
+        | "veterinarian"
+        | "nurse"
+        | "reception"
       dispute_outcome: "upheld" | "overturned"
       doc_kind:
         | "vaccination"
@@ -3876,6 +7015,9 @@ export type Database = {
         | "system"
         | "assistant"
         | "care"
+        | "appointment"
+        | "reminder"
+        | "clinic"
       payment_status: "pending" | "succeeded" | "failed" | "refunded"
       payout_status: "pending" | "in_transit" | "paid" | "failed" | "reversed"
       pet_sex: "male" | "female" | "unknown"
@@ -4052,6 +7194,16 @@ export const Constants = {
         "withdrawn",
       ],
       accommodation_type: ["esa", "service_animal"],
+      appointment_status: [
+        "requested",
+        "booked",
+        "arrived",
+        "in_progress",
+        "ready",
+        "completed",
+        "no_show",
+        "cancelled",
+      ],
       booking_status: [
         "requested",
         "confirmed",
@@ -4070,6 +7222,7 @@ export const Constants = {
         "other",
       ],
       business_listing_tier: ["basic", "featured", "premium"],
+      business_tier: ["registered", "listed", "verified"],
       care_entry_kind: [
         "food",
         "medicine",
@@ -4083,6 +7236,13 @@ export const Constants = {
         "outing",
       ],
       care_kind: ["meal", "medication", "water", "walk", "grooming", "other"],
+      clinic_staff_role: [
+        "owner",
+        "manager",
+        "veterinarian",
+        "nurse",
+        "reception",
+      ],
       dispute_outcome: ["upheld", "overturned"],
       doc_kind: [
         "vaccination",
@@ -4144,6 +7304,9 @@ export const Constants = {
         "system",
         "assistant",
         "care",
+        "appointment",
+        "reminder",
+        "clinic",
       ],
       payment_status: ["pending", "succeeded", "failed", "refunded"],
       payout_status: ["pending", "in_transit", "paid", "failed", "reversed"],

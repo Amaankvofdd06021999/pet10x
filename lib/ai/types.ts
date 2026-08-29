@@ -20,7 +20,18 @@ export interface EmergencyCard {
   petName: string | null
   vetPhone: string | null
   vetClinic: string | null
-  clinics: { name: string; address: string | null; city: string | null; distanceKm: number | null }[]
+  /** Set when the message named a pet, so the owner can warn a clinic they are coming. */
+  petId: string | null
+  clinics: {
+    id: string
+    name: string
+    address: string | null
+    city: string | null
+    distanceKm: number | null
+    phone: string | null
+    /** Listed practices can be told you are on your way; unlisted ones cannot. */
+    canNotify: boolean
+  }[]
   poisonControl: { name: string; phone: string; note: string }[]
 }
 

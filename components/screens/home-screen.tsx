@@ -9,6 +9,7 @@ import { TodayCareTiles } from "@/components/screens/home/today-care-tiles"
 import { TodayScheduleStrip } from "@/components/screens/home/today-schedule"
 import { PetChips } from "@/components/screens/home/pet-chips"
 import { MissingInfoCard } from "@/components/screens/home/missing-info-card"
+import { CaseCard } from "@/components/screens/home/case-card"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
   Bell,
@@ -218,6 +219,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             screen made reporting your neighbour the loudest thing in an app
             people open to log a walk. */}
         <div className="mb-6">
+          <CaseCard onNavigate={onNavigate} />
           <MissingInfoCard onNavigate={onNavigate} />
         </div>
 
