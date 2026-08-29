@@ -26,7 +26,6 @@ import {
   Siren,
 } from "lucide-react"
 import { LandingNav } from "@/components/landing/landing-nav"
-import { DogScrubber } from "@/components/landing/dog-scrubber"
 import { Reveal } from "@/components/landing/reveal"
 
 /* ------------------------------------------------------------------ */
@@ -576,9 +575,6 @@ export default function LandingPage() {
               }}
             />
             <div className="relative">
-              {/* Sits directly above the closing pitch and follows the cursor.
-                  Decorative, so it is aria-hidden and carries no text. */}
-              <DogScrubber className="mb-7" />
               <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-card px-3 py-1 text-[12px] font-semibold text-primary">
                 <PawPrint className="h-3.5 w-3.5" />
                 Free for residents
