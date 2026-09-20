@@ -387,10 +387,15 @@ function EmptyState({
       <h2 className="mt-3 text-[18px] font-semibold text-foreground">
         {petName ? `Ask about ${petName}` : "Ask about your pet"}
       </h2>
+      {/* Says nothing about citations. Whether an answer carries them depends on
+          the configured answer model, which this screen cannot see — and copy
+          that promises sources the server may never send is how a page starts
+          lying on a pet-health screen. When sources do arrive, CitationList
+          shows them; when they do not, nothing here was overstated. */}
       <p className="mt-1 max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground">
         {petName
-          ? `I can see ${petName}'s chart — vaccinations, medications and care log — and I'll cite the veterinary references I read.`
-          : "Questions about food, behaviour, or preventive care. Answers cite the veterinary references they came from."}
+          ? `I can see ${petName}'s chart — vaccinations, medications and care log. General guidance only, never a diagnosis.`
+          : "Questions about food, behaviour, or preventive care. General guidance only, never a diagnosis."}
       </p>
 
       <div className="mt-5 flex w-full max-w-md flex-col gap-2">

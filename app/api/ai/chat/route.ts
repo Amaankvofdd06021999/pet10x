@@ -4,7 +4,7 @@ import { buildPetDossier, findEmergencyClinics, resolveOrigin, type PetDossier }
 import { extractCitations } from "@/lib/ai/citations"
 import { groqComplete, groqStream, isGroqConfigured, GroqError, type ChatMessage, type ExecutedTool } from "@/lib/ai/provider"
 import { TITLE_SYSTEM_PROMPT, VISION_SYSTEM_PROMPT, vetQaSystemPrompt, visionHandoff } from "@/lib/ai/prompts"
-import { groundingDomains, isVisionAvailable, modelFor } from "@/lib/ai/router"
+import { groundingDomains, isGroundingAvailable, isVisionAvailable, modelFor } from "@/lib/ai/router"
 import { triage } from "@/lib/ai/triage"
 import type { Json } from "@/lib/supabase/database.types"
 import type { ChatStreamEvent, Citation, EmergencyCard } from "@/lib/ai/types"
@@ -31,7 +31,21 @@ const POISON_CONTROL = [
   { name: "ASPCA Animal Poison Control", phone: "1-888-426-4435", note: "24/7 · fee applies" },
 ]
 
-const MAX_HISTORY_TURNS = 12
+/**
+ * How much thread to replay, and how long an answer may run.
+ *
+ * Both are sized against the answer model's tokens-per-minute ceiling, because
+ * Groq reports a single request that exceeds TPM as 413 `request_too_large` —
+ * the same error that made compound unusable, reachable here through sheer
+ * conversation length. compound-mini had 70K TPM and could afford 12 turns;
+ * gpt-oss-120b has 8K, and 12 turns of 1200-token answers would breach it on
+ * its own. At 6 turns the worst case is roughly 5K including the reply and the
+ * model's own reasoning tokens, which leaves real headroom.
+ *
+ * Raise these together with the tier, never alone.
+ */
+const MAX_HISTORY_TURNS = 6
+const MAX_ANSWER_TOKENS = 900
 const MAX_IMAGES = 5 // Groq's per-request ceiling on the vision model.
 
 interface ChatBody {
@@ -168,8 +182,14 @@ export async function POST(request: Request) {
           }
         }
 
-        /* -------------------------- grounded answer ------------------------- */
-        send({ type: "status", text: "Checking veterinary references…" })
+        /* ---------------------------- the answer ---------------------------- */
+        // Name the wait for what it actually is. Claiming to check references
+        // while answering from a model's own weights is the same lie the prompt
+        // is written to prevent.
+        send({
+          type: "status",
+          text: isGroundingAvailable() ? "Checking veterinary references…" : "Thinking about your question…",
+        })
 
         const messages: ChatMessage[] = [
           { role: "system", content: vetQaSystemPrompt(dossier?.text) },
@@ -200,8 +220,11 @@ export async function POST(request: Request) {
               model: modelFor("vet_qa"),
               messages,
               temperature: 0.3,
-              max_completion_tokens: 1200,
-              search_settings: { include_domains: groundingDomains() },
+              max_completion_tokens: MAX_ANSWER_TOKENS,
+              // Only compound acts on this. Every other model accepts the field
+              // and ignores it, which would leave the code reading as though the
+              // answer were grounded when nothing was ever fetched.
+              ...(isGroundingAvailable() ? { search_settings: { include_domains: groundingDomains() } } : {}),
             },
             request.signal,
           )) {
@@ -213,7 +236,12 @@ export async function POST(request: Request) {
               canRetry = !!event.retryable && !sentText && attempt === 0
               if (canRetry) {
                 executedTools = []
-                send({ type: "status", text: "That search came back too large — trying a narrower one…" })
+                send({
+                  type: "status",
+                  text: isGroundingAvailable()
+                    ? "That search came back too large — trying a narrower one…"
+                    : "That answer ran long — trying again…",
+                })
               }
               break
             }

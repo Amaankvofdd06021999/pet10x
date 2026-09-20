@@ -29,3 +29,6 @@ next-env.d.ts
 # This repo is public; these must never be published.
 DEMO_DATA.md
 DEMO_DATA.html
+
+# Local rescue copies of deleted production rows — never commit.
+/backups/
