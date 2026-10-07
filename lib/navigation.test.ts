@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
-import { SCREEN_SURFACES, isScreenKey, resolveActionTarget, type ScreenKey } from "./navigation"
+import { MY_VETS_TABS, SCREEN_SURFACES, isScreenKey, resolveActionTarget, type ScreenKey } from "./navigation"
 
 describe("resolveActionTarget", () => {
   it("returns null for an absent target, which is what a notification with no action carries", () => {
@@ -98,6 +98,31 @@ describe("resolveActionTarget", () => {
     expect(resolveActionTarget("accommodations:25000000-0000-4000-8000-000000000001", "resident")).toEqual({
       screen: "accommodations",
     })
+  })
+
+  it("routes my-vets:bills to the Bills tab, which clinic_set_invoice_status writes", () => {
+    /* Written to the pet's OWNER when a practice sends a bill
+       (20261010000001). The owner may also hold a manager persona, so both
+       surfaces route it. The second half is a TAB, never an id: it must not
+       land in `selectedPetId`. */
+    expect(resolveActionTarget("my-vets:bills", "resident")).toEqual({ screen: "my-vets", tab: "bills" })
+    expect(resolveActionTarget("my-vets:bills", "manager")).toEqual({ screen: "my-vets", tab: "bills" })
+    expect(resolveActionTarget("my-vets:records", "resident")).toEqual({ screen: "my-vets", tab: "records" })
+    // Bare, as every earlier my-vets writer emits it: the default tab.
+    expect(resolveActionTarget("my-vets", "resident")).toEqual({ screen: "my-vets" })
+  })
+
+  it("drops a tab the screen does not have, and never turns it into an id", () => {
+    expect(resolveActionTarget("my-vets:payments", "resident")).toEqual({ screen: "my-vets" })
+    expect(resolveActionTarget("my-vets:e5ceea21-5b53-4e57-b0d2-bf2222b50e5c", "resident")).toEqual({
+      screen: "my-vets",
+    })
+    expect(resolveActionTarget("my-vets:", "resident")).toEqual({ screen: "my-vets" })
+    expect(resolveActionTarget("my-vets:  bills  ", "resident")).toEqual({ screen: "my-vets", tab: "bills" })
+  })
+
+  it("lists every tab the My Vets screen offers", () => {
+    expect(MY_VETS_TABS).toEqual(["sharing", "records", "visits", "bills"])
   })
 
   it("returns null for a screen whose whole subject is an id it was not given", () => {

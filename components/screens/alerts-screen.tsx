@@ -73,8 +73,9 @@ export function AlertsScreen({
   onBack,
 }: {
   /** `id` is the second half of a `screen:id` action target — a pet id, or a
-      care kind for the tracker. Matches `handleNavigate` in app/app/page.tsx. */
-  onNavigate?: (screen: string, id?: string) => void
+      care kind for the tracker. `tab` is that half instead for a tab-bearing
+      screen (`my-vets:bills`). Matches `handleNavigate` in app/app/page.tsx. */
+  onNavigate?: (screen: string, id?: string, petId?: string, tab?: string) => void
   /** Returns to the tab the viewer came from — managers have no "home". */
   onBack?: () => void
 }) {
@@ -270,7 +271,7 @@ export function AlertsScreen({
                           // The row's own handler would mark it too; once is enough.
                           e.stopPropagation()
                           open(alert.id)
-                          onNavigate?.(route.screen, route.id)
+                          onNavigate?.(route.screen, route.id, undefined, route.tab)
                         }}
                         className="mt-1.5 text-[12px] font-semibold text-primary"
                       >

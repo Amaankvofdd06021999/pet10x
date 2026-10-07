@@ -197,10 +197,29 @@ const ID_BEARING: readonly ScreenKey[] = [
  * any notification written before this phase. */
 const ID_REQUIRED: readonly ScreenKey[] = ["pet-detail", "business-detail"]
 
+/**
+ * Screens whose second half is a TAB, not an id — and the tabs each accepts.
+ *
+ * `clinic_set_invoice_status` writes `my-vets:bills` to the pet's owner when a
+ * practice sends a bill (20261010000001). `my-vets` lists the viewer's own
+ * pets and practices, so it has no id to carry; the tab rides in the id's
+ * place and goes to `handleNavigate`'s fourth argument, never into
+ * `selectedPetId`. A tab not on the list is dropped and the screen opens on
+ * its default — the target still names a screen this viewer can render.
+ */
+export const MY_VETS_TABS = ["sharing", "records", "visits", "bills"] as const
+export type MyVetsTab = (typeof MY_VETS_TABS)[number]
+
+const TAB_BEARING: Partial<Record<ScreenKey, readonly string[]>> = {
+  "my-vets": MY_VETS_TABS,
+}
+
 export interface ActionRoute {
   screen: ScreenKey
   /** Only ever set for a screen in `ID_BEARING`. */
   id?: string
+  /** Only ever set for a screen in `TAB_BEARING`, and only to a tab it lists. */
+  tab?: string
 }
 
 /** Is this one of the screens the router knows how to render? */
@@ -239,6 +258,8 @@ export function resolveActionTarget(
   if (!SCREEN_SURFACES[screen].includes(surface)) return null
 
   const id = rawId.trim()
+  const tabs = TAB_BEARING[screen]
+  if (tabs) return tabs.includes(id) ? { screen, tab: id } : { screen }
   if (!id || !ID_BEARING.includes(screen)) {
     // A screen whose subject IS the id cannot be opened without one.
     if (ID_REQUIRED.includes(screen)) return null
