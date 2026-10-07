@@ -6,7 +6,9 @@
 -- 20261011000002 (preferences are the account's to change; push
 -- subscriptions are own-rows only, and registering takes an endpoint over;
 -- the dispatcher's claims are service-role only and never hand the same row
--- out twice) and 20261011000003 (no new SMS reminder rule).
+-- out twice) and 20261011000003/20261011000004 (no rule may choose SMS; a historic sms rule
+-- stays editable) and 20261011000005 (a permanently refused email is not
+-- retried).
 --
 -- Not yet run: written before these migrations were applied (no database was
 -- reachable from the session that wrote it). Run it after they are, as the
@@ -364,6 +366,15 @@ begin
   if coalesce(v_push2, '{}') && v_push1 then raise exception 'FAIL: a push lease was handed out twice'; end if;
   raise notice 'ok: push claims take every kind and lease each row once';
 
+  -- 20261011000005: a message Resend refused for good is never claimed again.
+  update public.notifications set email_claimed_at = null, email_failed_at = now() where id = v_old;
+  if exists (select 1 from public.claim_notification_emails(array['billing']::public.notification_kind[], 1000) c
+              where c.id = v_old) then
+    raise exception 'FAIL: a permanently refused email was claimed again';
+  end if;
+  update public.notifications set email_failed_at = null where id = v_old;
+  raise notice 'ok: email_failed_at stops the retries';
+
   update public.profiles set notify_email = false where id = current_setting('part_d.customer')::uuid;
   update public.notifications set email_claimed_at = null where id = v_old;
   if exists (select 1 from public.claim_notification_emails(array['billing']::public.notification_kind[], 1000) c
@@ -386,7 +397,29 @@ begin
   end;
   insert into public.reminder_rules (business_id, name, trigger_kind, channel)
   values (current_setting('part_d.biz')::uuid, 'Part D email', 'vaccination_due', 'email');
-  raise notice 'ok: SMS is refused, email is accepted';
+  begin
+    update public.reminder_rules set channel = 'sms'
+     where business_id = current_setting('part_d.biz')::uuid and name = 'Part D email';
+    raise exception 'FAIL: a rule was switched to SMS';
+  exception when check_violation then null;
+  end;
+  raise notice 'ok: SMS is refused on insert and on a channel change, email is accepted';
+end $$;
+
+-- A rule saved as sms before 20261011000004 is history: it stays editable.
+alter table public.reminder_rules disable trigger trg_reminder_rules_refuse_sms;
+insert into public.reminder_rules (business_id, name, trigger_kind, channel)
+values (current_setting('part_d.biz')::uuid, 'Part D historic sms', 'vaccination_due', 'sms');
+alter table public.reminder_rules enable trigger trg_reminder_rules_refuse_sms;
+do $$
+begin
+  update public.reminder_rules set is_active = false, name = 'Part D historic sms (off)'
+   where business_id = current_setting('part_d.biz')::uuid and name = 'Part D historic sms';
+  if not found then raise exception 'FAIL: a historic sms rule could not be switched off'; end if;
+  update public.reminder_rules set channel = 'email'
+   where business_id = current_setting('part_d.biz')::uuid and name = 'Part D historic sms (off)';
+  if not found then raise exception 'FAIL: a historic sms rule could not move to email'; end if;
+  raise notice 'ok: a historic sms rule can be switched off and moved off sms';
 end $$;
 
 rollback;
