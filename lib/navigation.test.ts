@@ -1,7 +1,17 @@
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
-import { MY_VETS_TABS, SCREEN_SURFACES, isScreenKey, resolveActionTarget, type ScreenKey } from "./navigation"
+import {
+  BUSINESS_TABS,
+  MY_VETS_TABS,
+  SCREEN_SURFACES,
+  isScreenKey,
+  readTargetParam,
+  resolveActionTarget,
+  resolveConsoleTarget,
+  targetHref,
+  type ScreenKey,
+} from "./navigation"
 
 describe("resolveActionTarget", () => {
   it("returns null for an absent target, which is what a notification with no action carries", () => {
@@ -187,6 +197,90 @@ describe("resolveActionTarget", () => {
     expect(isScreenKey("toString")).toBe(false)
     expect(isScreenKey("constructor")).toBe(false)
     expect(resolveActionTarget("constructor", "resident")).toBeNull()
+  })
+})
+
+describe("the Part D notification targets", () => {
+  it("routes a new incident to the manager's Incidents screen, and only there", () => {
+    // notify_managers_of_incident writes a bare `incidents` to each manager.
+    expect(resolveActionTarget("incidents", "manager")).toEqual({ screen: "incidents" })
+    expect(resolveActionTarget("incidents", "resident")).toBeNull()
+  })
+
+  it("routes a booking decision to My Bookings on either surface", () => {
+    // notify_customer_of_booking_status addresses the CUSTOMER, who may also
+    // hold a manager persona.
+    expect(resolveActionTarget("my-bookings", "resident")).toEqual({ screen: "my-bookings" })
+    expect(resolveActionTarget("my-bookings", "manager")).toEqual({ screen: "my-bookings" })
+  })
+
+  it("never routes a console target inside /app", () => {
+    expect(resolveActionTarget("business:bookings", "resident")).toBeNull()
+    expect(resolveActionTarget("business:bookings", "manager")).toBeNull()
+  })
+})
+
+describe("resolveConsoleTarget", () => {
+  it("opens the business console on the tab a new booking names", () => {
+    expect(resolveConsoleTarget("business:bookings")).toEqual({
+      console: "business",
+      path: "/businessaccess",
+      tab: "bookings",
+    })
+  })
+
+  it("drops a tab the console does not have, and keeps the console", () => {
+    expect(resolveConsoleTarget("business:payroll")).toEqual({ console: "business", path: "/businessaccess" })
+    expect(resolveConsoleTarget("business")).toEqual({ console: "business", path: "/businessaccess" })
+  })
+
+  it("is null for an /app target, an empty one, and inherited properties", () => {
+    expect(resolveConsoleTarget("my-bookings")).toBeNull()
+    expect(resolveConsoleTarget("")).toBeNull()
+    expect(resolveConsoleTarget(null)).toBeNull()
+    expect(resolveConsoleTarget("constructor:bookings")).toBeNull()
+  })
+
+  it("lists the tabs the business console renders", () => {
+    expect(BUSINESS_TABS).toEqual(["dashboard", "bookings", "storefront", "promotions", "earnings", "reviews"])
+  })
+})
+
+describe("targetHref and readTargetParam", () => {
+  it("sends an /app target to /app with the target encoded", () => {
+    expect(targetHref("my-vets:bills")).toBe("/app?target=my-vets%3Abills")
+    expect(targetHref("pet-detail:e5ceea21-5b53-4e57-b0d2-bf2222b50e5c")).toBe(
+      "/app?target=pet-detail%3Ae5ceea21-5b53-4e57-b0d2-bf2222b50e5c",
+    )
+  })
+
+  it("sends a console target to its console", () => {
+    expect(targetHref("business:bookings")).toBe("/businessaccess?target=business%3Abookings")
+  })
+
+  it("opens /app with nothing for no target, or one too long to be real", () => {
+    expect(targetHref(null)).toBe("/app")
+    expect(targetHref("  ")).toBe("/app")
+    expect(targetHref("x".repeat(201))).toBe("/app")
+  })
+
+  it("encodes characters that would break out of the query", () => {
+    expect(targetHref("a&b=c#d")).toBe("/app?target=a%26b%3Dc%23d")
+  })
+
+  it("reads back exactly what targetHref wrote", () => {
+    for (const t of ["my-vets:bills", "business:bookings", "pet-care:vaccination:booster", "a&b=c#d"]) {
+      const href = targetHref(t)
+      expect(readTargetParam(href.slice(href.indexOf("?")))).toBe(t)
+    }
+  })
+
+  it("reads nothing from a search with no target, an empty one, or an oversized one", () => {
+    expect(readTargetParam("")).toBeNull()
+    expect(readTargetParam("?next=/app")).toBeNull()
+    expect(readTargetParam("?target=")).toBeNull()
+    expect(readTargetParam("?target=%20%20")).toBeNull()
+    expect(readTargetParam(`?target=${"x".repeat(201)}`)).toBeNull()
   })
 })
 

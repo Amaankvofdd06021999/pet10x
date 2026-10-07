@@ -56,9 +56,13 @@ export async function updateSession(request: NextRequest) {
   if (userId && pathname === "/login") {
     const next = request.nextUrl.searchParams.get("next")
     if (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login")) {
+      /* `next` may carry its own query — `/app?target=…` from a notification
+         link — so it is parsed rather than assigned to `pathname`, which would
+         percent-encode the `?` into the path. */
+      const dest = new URL(next, request.nextUrl.origin)
       const url = request.nextUrl.clone()
-      url.search = ""
-      url.pathname = next
+      url.pathname = dest.pathname
+      url.search = dest.search
       return NextResponse.redirect(url)
     }
   }
@@ -72,7 +76,10 @@ export async function updateSession(request: NextRequest) {
     if (rule.ownLogin) return response
     const url = request.nextUrl.clone()
     url.pathname = "/login"
-    url.searchParams.set("next", pathname)
+    /* The query travels inside `next`, not beside it: a notification link is
+       `/app?target=…`, and signing in first must still open what it named. */
+    url.search = ""
+    url.searchParams.set("next", pathname + request.nextUrl.search)
     return NextResponse.redirect(url)
   }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { IOSTabBar } from "@/components/ios-tab-bar"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -32,7 +32,7 @@ import { ManagerIncidentsScreen } from "@/components/screens/manager/incidents-s
 import { ManagerSettingsScreen } from "@/components/screens/manager/settings-screen"
 import { MyVetsScreen } from "@/components/screens/my-vets-screen"
 import { AccommodationRequestScreen } from "@/components/screens/accommodation-request-screen"
-import { isScreenKey, type ScreenKey } from "@/lib/navigation"
+import { isScreenKey, readTargetParam, resolveActionTarget, type ScreenKey } from "@/lib/navigation"
 import { Loader2, PawPrint } from "lucide-react"
 
 /**
@@ -117,7 +117,7 @@ function AppContent() {
    * `viewAs` resolves the fallback centrally so the tab bar, the sidebar and
    * this router cannot reach different answers.
    */
-  const { isAuthenticated, isGuest, isLoading, user, viewAs } = useAuth()
+  const { isAuthenticated, isGuest, isLoading, user, viewAs, activePersona } = useAuth()
   const isManager = viewAs === "building-manager"
   const [activeTab, setActiveTab] = useState("home")
   const [currentScreen, setCurrentScreen] = useState("home")
@@ -145,6 +145,72 @@ function AppContent() {
     setActiveTab(tab)
     setCurrentScreen(tab)
   }, [isManager])
+
+  /* `id` is polymorphic: a business id for the services flow, otherwise a pet id.
+   *
+   * `petId` is a third, OPTIONAL parameter rather than a fourth meaning loaded
+   * onto `id`, because for the tracker `id` is already spoken for — it is the
+   * care kind a Today's Care tile lands on. A schedule row needs to carry both
+   * ("open Lola, on no particular tab"), and every existing call site still
+   * compiles because the parameter is optional.
+   *
+   * `tab` is a fourth for the same reason: for `pet-detail` the id is the pet,
+   * so the tab to open it on cannot ride there too.
+   *
+   * Declared above the early returns so the deep-link effect below can call
+   * it; it holds nothing but setters. */
+  const handleNavigate = (screen: string, id?: string, petId?: string, tab?: string) => {
+    setScreenTab(tab)
+    if (screen === "business-detail") setSelectedBusinessId(id)
+    // For the tracker the id is a care kind, not a pet — a Today's Care tile
+    // says which tab to land on.
+    else if (screen === "pet-care") {
+      setCareKind(id)
+      setCarePetId(petId)
+    }
+    // A violation id, not a pet id.
+    else if (screen === "my-cases") setSelectedCaseId(id)
+    else if (id !== undefined) setSelectedPetId(id)
+    // Entering the assistant from the tab bar or the sidebar carries no pet, and a
+    // pet left over from an earlier screen would silently scope the answer.
+    else if (screen === "ai-chat") setSelectedPetId(undefined)
+    setCurrentScreen(screen)
+  }
+
+  /* `/app?target=<action_target>` — the link a notification email or a push
+   * notification opens (`targetHref` in lib/navigation.ts). It goes through
+   * `resolveActionTarget` exactly as an Alerts button does, for the persona
+   * being WORN, so a manager-only target opened while viewing as a resident
+   * does nothing rather than rendering a blank screen. Read once, after the
+   * session and persona have resolved (and after the reset above has run),
+   * then removed from the address bar so a reload does not re-open it. A
+   * resident still onboarding keeps it until onboarding finishes.
+   *
+   * "Persona resolved" means `my_personas()` has answered: until then `viewAs`
+   * is the role-column fallback, and the reset above runs again when the real
+   * persona lands — which would throw the deep link away. If that RPC never
+   * answers, the fallback is the persona the screen is showing anyway, so the
+   * link is honoured against it after a short wait rather than never. */
+  const deepLinkDone = useRef(false)
+  const [personaWaitOver, setPersonaWaitOver] = useState(false)
+  useEffect(() => {
+    const t = window.setTimeout(() => setPersonaWaitOver(true), 3000)
+    return () => window.clearTimeout(t)
+  }, [])
+  const userReady = !isLoading && isAuthenticated && !isGuest && !!user && (activePersona !== null || personaWaitOver)
+  const onboardingPending = viewAs === "pet-owner" && !!user && !user.onboarded
+  useEffect(() => {
+    if (deepLinkDone.current || !userReady || onboardingPending) return
+    deepLinkDone.current = true
+    const target = readTargetParam(window.location.search)
+    if (!target) return
+    const url = new URL(window.location.href)
+    url.searchParams.delete("target")
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash)
+    const route = resolveActionTarget(target, isManager ? "manager" : "resident")
+    if (route) handleNavigate(route.screen, route.id, undefined, route.tab)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, when the session is ready
+  }, [userReady, onboardingPending, isManager])
 
   // Session still resolving — avoid flashing the sign-in screen before we know.
   if (isLoading) {
@@ -191,34 +257,6 @@ function AppContent() {
         <OnboardingFlow />
       </div>
     )
-  }
-
-  /* `id` is polymorphic: a business id for the services flow, otherwise a pet id.
-   *
-   * `petId` is a third, OPTIONAL parameter rather than a fourth meaning loaded
-   * onto `id`, because for the tracker `id` is already spoken for — it is the
-   * care kind a Today's Care tile lands on. A schedule row needs to carry both
-   * ("open Lola, on no particular tab"), and every existing call site still
-   * compiles because the parameter is optional.
-   *
-   * `tab` is a fourth for the same reason: for `pet-detail` the id is the pet,
-   * so the tab to open it on cannot ride there too. */
-  const handleNavigate = (screen: string, id?: string, petId?: string, tab?: string) => {
-    setScreenTab(tab)
-    if (screen === "business-detail") setSelectedBusinessId(id)
-    // For the tracker the id is a care kind, not a pet — a Today's Care tile
-    // says which tab to land on.
-    else if (screen === "pet-care") {
-      setCareKind(id)
-      setCarePetId(petId)
-    }
-    // A violation id, not a pet id.
-    else if (screen === "my-cases") setSelectedCaseId(id)
-    else if (id !== undefined) setSelectedPetId(id)
-    // Entering the assistant from the tab bar or the sidebar carries no pet, and a
-    // pet left over from an earlier screen would silently scope the answer.
-    else if (screen === "ai-chat") setSelectedPetId(undefined)
-    setCurrentScreen(screen)
   }
 
   const handleTabChange = (tab: string) => {

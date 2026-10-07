@@ -9,6 +9,7 @@ import { checkPassword } from "@/lib/auth/password-rules"
 import { BUSINESS_CATEGORIES } from "@/lib/auth/signup-intent"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { canAccessRoute } from "@/lib/rbac"
+import { readTargetParam, resolveConsoleTarget } from "@/lib/navigation"
 import { Toaster } from "@/components/ui/sonner"
 import { useMyBusiness } from "@/lib/data/business"
 import { DashboardTab } from "@/components/screens/business/dashboard-tab"
@@ -327,6 +328,21 @@ function Portal() {
   const { user, signOut } = useAuth()
   const { data: biz, isLoading, refetch } = useMyBusiness()
   const [tab, setTab] = useState<TabId>("dashboard")
+
+  /* `?target=business:bookings` — the link a booking notification's email or
+     push opens (`targetHref` in lib/navigation.ts). Only a tab this console
+     renders is honoured; anything else opens the Dashboard as before. Removed
+     from the address bar once read, so a reload does not re-open it. */
+  useEffect(() => {
+    const target = readTargetParam(window.location.search)
+    if (!target) return
+    const url = new URL(window.location.href)
+    url.searchParams.delete("target")
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash)
+    const route = resolveConsoleTarget(target)
+    const match = route?.console === "business" ? TABS.find((t) => t.id === route.tab) : undefined
+    if (match) setTab(match.id)
+  }, [])
 
   if (isLoading) {
     return (

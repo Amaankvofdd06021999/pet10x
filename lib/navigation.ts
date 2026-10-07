@@ -267,3 +267,80 @@ export function resolveActionTarget(
   }
   return { screen, id }
 }
+
+/* ------------------------------------------------------------------ */
+/* Targets outside /app, and the link that carries a target            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The business console's tabs (`app/businessaccess/page.tsx`).
+ *
+ * A business account never reaches `/app` — middleware sends it to its own
+ * console — so a notification addressed to one cannot name an `/app` screen.
+ * `notify_business_of_booking` (20261011000001) writes `business:bookings`:
+ * the same `screen:tab` grammar as `my-vets:bills`, where `business` names a
+ * CONSOLE rather than a screen. `resolveActionTarget` returns null for it on
+ * either `/app` surface, so the in-app Alerts list (which a business account
+ * never sees anyway) renders no button, and only the console reads it.
+ */
+export const BUSINESS_TABS = ["dashboard", "bookings", "storefront", "promotions", "earnings", "reviews"] as const
+export type BusinessTab = (typeof BUSINESS_TABS)[number]
+
+const CONSOLES = {
+  business: { path: "/businessaccess", tabs: BUSINESS_TABS as readonly string[] },
+} as const
+
+export interface ConsoleRoute {
+  console: keyof typeof CONSOLES
+  path: string
+  /** Only ever a tab the console lists. */
+  tab?: string
+}
+
+/** A `console:tab` target, or null if the target is not a console's. */
+export function resolveConsoleTarget(target: string | null | undefined): ConsoleRoute | null {
+  if (!target) return null
+  const separator = target.indexOf(":")
+  const head = separator === -1 ? target : target.slice(0, separator)
+  if (!Object.prototype.hasOwnProperty.call(CONSOLES, head)) return null
+  const name = head as keyof typeof CONSOLES
+  const { path, tabs } = CONSOLES[name]
+  const tab = separator === -1 ? "" : target.slice(separator + 1).trim()
+  return tabs.includes(tab) ? { console: name, path, tab } : { console: name, path }
+}
+
+/** Longer than any target a writer emits; anything past it is not ours. */
+const MAX_TARGET_LENGTH = 200
+
+/**
+ * The path an email or a push notification opens for a target: the console
+ * that renders it, or `/app` with the target in `?target=`, where
+ * `app/app/page.tsx` runs it through `resolveActionTarget` for whichever
+ * persona the reader is wearing. The persona check happens THERE, on the
+ * device, not here: a link cannot know who will open it.
+ */
+export function targetHref(target: string | null | undefined): string {
+  const t = target?.trim()
+  if (!t || t.length > MAX_TARGET_LENGTH) return "/app"
+  const consoleRoute = resolveConsoleTarget(t)
+  const path = consoleRoute ? consoleRoute.path : "/app"
+  return `${path}?target=${encodeURIComponent(t)}`
+}
+
+/**
+ * The `target` query parameter of a location's search string, or null.
+ * Untrusted — anyone can craft the URL — so it is only ever handed to
+ * `resolveActionTarget` / `resolveConsoleTarget`, which accept nothing they
+ * do not list.
+ */
+export function readTargetParam(search: string): string | null {
+  let value: string | null
+  try {
+    value = new URLSearchParams(search).get("target")
+  } catch {
+    return null
+  }
+  const t = value?.trim()
+  if (!t || t.length > MAX_TARGET_LENGTH) return null
+  return t
+}
