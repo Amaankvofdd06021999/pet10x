@@ -16,6 +16,21 @@ import {
 
 type View = "due" | "sent" | "rules"
 
+/** What each rule channel is called, including the retired one old rules may carry. */
+const CHANNEL_LABEL: Record<string, string> = {
+  app: "In-app notification",
+  call: "Call list",
+  email: "Email",
+  sms: "SMS (retired — works as in-app)",
+}
+
+/** What choosing it actually does when the queue's Notify is pressed. */
+const CHANNEL_HINT: Record<string, string> = {
+  app: "Sends an in-app notification to the owner.",
+  call: "For working the list by phone. Notify, if you use it, sends an in-app notification.",
+  email: "Sends an in-app notification and an email to the owner.",
+}
+
 /**
  * The call list. A receptionist with twenty minutes opens one queue, most
  * overdue first, with the phone number right there.
@@ -96,7 +111,8 @@ export function ClinicRemindersScreen({ clinic }: { clinic: ClinicMembership }) 
                   <div>
                     <p className="text-[13.5px] font-semibold text-foreground">{r.name}</p>
                     <p className="text-[12px] text-muted-foreground">
-                      {r.triggerKind.replace(/_/g, " ")} · {r.leadDays} days ahead · via {r.channel}
+                      {r.triggerKind.replace(/_/g, " ")} · {r.leadDays} days ahead · via{" "}
+                      {CHANNEL_LABEL[r.channel] ?? r.channel}
                     </p>
                   </div>
                   <Pill tone={r.isActive ? "good" : "neutral"}>{r.isActive ? "Active" : "Off"}</Pill>
@@ -246,13 +262,16 @@ function RuleModal({
             />
           )}
         </Field>
-        <Field label="Default channel">
+        {/* No SMS: nothing sends it (Part D, 20261011000003). Email is real —
+            Notify writes a `reminder` notification and the dispatcher mails it
+            when the item came from an Email rule (claim_notification_emails),
+            unless the owner turned email off. */}
+        <Field label="Default channel" hint={CHANNEL_HINT[f.channel]}>
           {(p) => (
             <Select {...p} value={f.channel} onChange={(e) => setF({ ...f, channel: e.target.value })}>
-              <option value="app">In-app notification</option>
-              <option value="call">Call list</option>
-              <option value="email">Email</option>
-              <option value="sms">SMS</option>
+              <option value="app">{CHANNEL_LABEL.app}</option>
+              <option value="call">{CHANNEL_LABEL.call}</option>
+              <option value="email">{CHANNEL_LABEL.email}</option>
             </Select>
           )}
         </Field>

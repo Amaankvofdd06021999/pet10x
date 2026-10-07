@@ -176,6 +176,9 @@ export async function saveReminderRule(input: {
   const { error } = input.id
     ? await db.from("reminder_rules").update(payload).eq("id", input.id)
     : await db.from("reminder_rules").insert(payload)
+  if (error?.message.includes("reminder_rules_channel_not_sms")) {
+    return { error: "SMS reminders aren't sent any more. Choose in-app, call list or email." }
+  }
   return { error: error?.message ?? null }
 }
 

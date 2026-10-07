@@ -139,7 +139,8 @@ grant execute on function public.register_web_push_subscription(text, text, text
    granted to `authenticated`. */
 
 -- Email: unread, 2 minutes to 24 hours old (an in-app read in the first two
--- minutes suppresses it), recipient opted in, kind on the route's list, and
+-- minutes suppresses it), recipient opted in, kind on the route's list (and a
+-- clinic reminder only from an Email rule), and
 -- every pending row of at most p_max_recipients people, so one person's
 -- digest is never split across runs.
 create or replace function public.claim_notification_emails(
@@ -163,6 +164,12 @@ as $$
        and n.created_at <= now() - interval '2 minutes'
        and (n.email_claimed_at is null or n.email_claimed_at < now() - interval '15 minutes')
        and n.kind = any (p_kinds)
+       /* A practice's reminder goes by email only when its rule says Email
+          (20261011000003). `clinic_reminder_action('notify')` links the item
+          to the notification it wrote; an in-app or call-list rule's
+          reminder stays in the app (and push). */
+       and not exists (select 1 from public.reminder_items ri
+                        where ri.notification_id = n.id and ri.channel <> 'email')
        and exists (select 1 from public.profiles p
                     where p.id = n.profile_id and p.notify_email and not p.is_suspended
                       -- An account with no address is never claimed, rather
