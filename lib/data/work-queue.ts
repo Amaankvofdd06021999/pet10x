@@ -31,8 +31,10 @@ export interface QueueItem {
   sortTs: number // ms; smaller (older / more overdue) sorts first within an urgency band
   ageLabel: string
   safeToBulk: boolean
+  /** Set on `fine` items: the fine's status, which decides what may be done to it. */
+  fineStatus?: string
   /** Set on `document` items: what the review controls need to act. */
-  doc?: Pick<DocumentReviewItem, "id" | "pet" | "type" | "storagePath" | "docStatus">
+  doc?: Pick<DocumentReviewItem, "id" | "pet" | "type" | "storagePath" | "docStatus" | "expiresOn">
 }
 
 const DAY = 86_400_000
@@ -214,12 +216,13 @@ export function useWorkQueue(): UseWorkQueueResult {
         kind: "fine",
         buildingId: f.buildingId,
         title: `Fine ${overdue ? "overdue" : "outstanding"} — $${f.amount.toFixed(2)}`,
-        subtitle: `${f.resident} · ${f.status.replace(/_/g, " ")}`,
+        subtitle: `${f.resident} · ${f.status === "disputed" ? "under appeal" : f.status.replace(/_/g, " ")}`,
         meta: `Unit ${f.unit}`,
         urgency,
         sortTs: ts(f.createdAt),
         ageLabel: ageLabel(f.createdAt),
         safeToBulk: false,
+        fineStatus: f.status,
       })
     }
 

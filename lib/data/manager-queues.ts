@@ -19,7 +19,7 @@ import { useCallback, useEffect, useState } from "react"
  * `shortDay` reads a bare `YYYY-MM-DD` as the calendar day it names and an
  * instant as an instant, so both callers are right for the reason they are right.
  */
-import { localDayKey, parseDbDate, shortDay } from "@/lib/dates"
+import { daysUntil, localDayKey, parseDbDate, shortDay } from "@/lib/dates"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type {
   Registration,
@@ -217,11 +217,17 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
         `id, kind, name, status, expires_on, storage_path,
          pet:pets!inner ( id, name, building_id, unit:units ( unit_number ), owner:profiles!pets_owner_id_fkey ( full_name ) )`,
       )
-      /* Everything still awaiting a verdict. Since 20261008000003 a manager
-         can approve or reject, so a document leaves this list when it is
-         ruled on — approved, or rejected back to its owner — rather than
-         when it stops expiring. */
-      .not("status", "in", "(approved,rejected)")
+      /* Everything still awaiting a verdict — and approved documents whose
+         expiry is past or within 30 days. Since 20261008000003 a manager can
+         approve or reject, so a ruled-on document leaves this list; but an
+         APPROVAL is not forever: a licence approved in March that lapses in
+         October has to come back, or approving it would have hidden the
+         expiry for good. */
+      .or(
+        `status.not.in.(approved,rejected),and(status.eq.approved,expires_on.lte.${localDayKey(
+          new Date(Date.now() + 30 * 86_400_000),
+        )})`,
+      )
       /* A removed pet's documents are nobody's to review. `!inner` makes the
          embed filter drop the document row, not just blank its pet. */
       .is("pet.deleted_at", null)
@@ -265,9 +271,10 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
           type: r.name ?? r.kind.replace(/_/g, " "),
           expiring: r.expires_on ? shortDay(r.expires_on) : "—",
           expiresOn: r.expires_on,
-          status: (["expiring", "expired", "missing"].includes(r.status) ? "expiring" : "current") as
-            | "expiring"
-            | "current",
+          status: (["expiring", "expired", "missing"].includes(r.status) ||
+          (r.expires_on !== null && (daysUntil(r.expires_on) ?? Infinity) <= 30)
+            ? "expiring"
+            : "current") as "expiring" | "current",
           docStatus: r.status,
           storagePath: r.storage_path,
           petId: r.pet!.id,

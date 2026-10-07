@@ -6,6 +6,7 @@ import { CheckCircle2, ExternalLink, Loader2, XCircle } from "lucide-react"
 import { reviewPetDocument } from "@/lib/data/manager-queues"
 import { canApprovePetDocument } from "@/lib/data/pet-document-review"
 import { petFileSignedUrl } from "@/lib/supabase/storage"
+import { localDayKey } from "@/lib/dates"
 import type { DocumentReviewItem } from "@/lib/data/types"
 
 /**
@@ -21,7 +22,7 @@ export function PetDocumentReviewControls({
   doc,
   onDone,
 }: {
-  doc: Pick<DocumentReviewItem, "id" | "pet" | "type" | "storagePath" | "docStatus">
+  doc: Pick<DocumentReviewItem, "id" | "pet" | "type" | "storagePath" | "docStatus" | "expiresOn">
   onDone: () => void
 }) {
   const [busy, setBusy] = useState<"approve" | "reject" | "view" | null>(null)
@@ -72,7 +73,7 @@ export function PetDocumentReviewControls({
             View
           </button>
         )}
-        {canApprovePetDocument(doc) && (
+        {canApprovePetDocument(doc, localDayKey(new Date())) && (
           <button
             onClick={() => void decide("approve")}
             disabled={busy !== null}
