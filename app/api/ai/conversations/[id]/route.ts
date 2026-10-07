@@ -53,7 +53,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   })
 }
 
-/** Soft delete — the thread disappears from the owner's list. */
+/**
+ * Delete a conversation and what was said in it (20261012000003).
+ *
+ * The messages are deleted, not hidden, and the title — written from the first
+ * message — is cleared. What remains is a content-free row (who, which pet,
+ * when, deleted_at) so the admin Overview can still count that a conversation
+ * was started. Nothing rate-limits on messages, so no counter goes with them.
+ */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await getSupabaseServerClient()
@@ -91,12 +98,23 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (mediaError) console.error("[ai] couldn't remove chat media on delete", mediaError)
   }
 
+  // Content first. If this fails the thread is still listed and the owner can
+  // try again; the other order would hide a thread whose text survived.
+  const { error: messagesError } = await supabase.from("ai_messages").delete().eq("conversation_id", id)
+  if (messagesError) {
+    console.error("[ai] couldn't delete conversation messages", messagesError)
+    return NextResponse.json({ error: "Couldn't delete the conversation. Try again." }, { status: 500 })
+  }
+
   const { error } = await supabase
     .from("ai_conversations")
-    .update({ deleted_at: new Date().toISOString() })
+    .update({ deleted_at: new Date().toISOString(), title: null })
     .eq("id", id)
     .eq("profile_id", user.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error("[ai] couldn't close the deleted conversation", error)
+    return NextResponse.json({ error: "Couldn't delete the conversation. Try again." }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true, mediaRemoved: paths.length })
 }
