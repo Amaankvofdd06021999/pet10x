@@ -3191,9 +3191,13 @@ export type Database = {
           body: string | null
           building_id: string | null
           created_at: string
+          email_claimed_at: string | null
+          emailed_at: string | null
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
           profile_id: string
+          push_claimed_at: string | null
+          pushed_at: string | null
           read_at: string | null
           severity: string
           title: string
@@ -3204,9 +3208,13 @@ export type Database = {
           body?: string | null
           building_id?: string | null
           created_at?: string
+          email_claimed_at?: string | null
+          emailed_at?: string | null
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
           profile_id: string
+          push_claimed_at?: string | null
+          pushed_at?: string | null
           read_at?: string | null
           severity?: string
           title: string
@@ -3217,9 +3225,13 @@ export type Database = {
           body?: string | null
           building_id?: string | null
           created_at?: string
+          email_claimed_at?: string | null
+          emailed_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
           profile_id?: string
+          push_claimed_at?: string | null
+          pushed_at?: string | null
           read_at?: string | null
           severity?: string
           title?: string
@@ -4542,6 +4554,8 @@ export type Database = {
           location_source: string | null
           longitude: number | null
           member_since: string | null
+          notify_email: boolean
+          notify_push: boolean
           onboarded: boolean
           phone: string | null
           plan_label: string | null
@@ -4572,6 +4586,8 @@ export type Database = {
           location_source?: string | null
           longitude?: number | null
           member_since?: string | null
+          notify_email?: boolean
+          notify_push?: boolean
           onboarded?: boolean
           phone?: string | null
           plan_label?: string | null
@@ -4602,6 +4618,8 @@ export type Database = {
           location_source?: string | null
           longitude?: number | null
           member_since?: string | null
+          notify_email?: boolean
+          notify_push?: boolean
           onboarded?: boolean
           phone?: string | null
           plan_label?: string | null
@@ -6550,6 +6568,47 @@ export type Database = {
           },
         ]
       }
+      web_push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          last_used_at: string | null
+          p256dh: string
+          profile_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          last_used_at?: string | null
+          p256dh: string
+          profile_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          last_used_at?: string | null
+          p256dh?: string
+          profile_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_push_subscriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       user_entitlements: {
@@ -6630,6 +6689,40 @@ export type Database = {
       can_read_shared_records: {
         Args: { p_business: string }
         Returns: boolean
+      }
+      claim_notification_emails: {
+        Args: {
+          p_kinds: Database["public"]["Enums"]["notification_kind"][]
+          p_max_recipients?: number
+        }
+        Returns: {
+          action_label: string | null
+          action_target: string | null
+          body: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          notify_email: boolean
+          profile_id: string
+          read_at: string | null
+          severity: string
+          title: string
+        }[]
+      }
+      claim_notification_pushes: {
+        Args: { p_limit?: number }
+        Returns: {
+          action_target: string | null
+          body: string | null
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          profile_id: string
+          severity: string
+          title: string
+        }[]
       }
       clinic_available_slots: {
         Args: {
@@ -6888,6 +6981,15 @@ export type Database = {
           p_path: string
           p_request: string
           p_size?: number
+        }
+        Returns: Json
+      }
+      register_web_push_subscription: {
+        Args: {
+          p_auth: string
+          p_endpoint: string
+          p_p256dh: string
+          p_user_agent?: string
         }
         Returns: Json
       }
