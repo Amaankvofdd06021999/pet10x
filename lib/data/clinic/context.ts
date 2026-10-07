@@ -17,6 +17,10 @@ export interface ClinicMembership {
   staffId: string
   /** Owning the business confers administration whatever the clinical role is. */
   isOwner: boolean
+  /** `businesses.owner_id` — the Team screen never offers to deactivate that row. */
+  ownerId: string
+  /** The signed-in person's profile id. */
+  profileId: string
 }
 
 export interface ClinicLocation {
@@ -70,6 +74,8 @@ export function useMyClinics(): LiveResult<ClinicMembership[]> {
           tier: r.businesses?.tier ?? "registered",
           staffId: r.id,
           isOwner: r.businesses?.owner_id === uid,
+          ownerId: r.businesses?.owner_id ?? "",
+          profileId: uid,
         }))
     },
     [],
@@ -229,4 +235,40 @@ export async function updateStaff(
   if (!db) return { error: "Not configured." }
   const { error } = await db.from("business_staff").update(patch).eq("id", id)
   return { error: error?.message ?? null }
+}
+
+export interface InviteStaffResult {
+  error: string | null
+  emailSent?: boolean
+  /** Returned only when email is suppressed (dev), so the link can be copied. */
+  inviteUrl?: string
+  /** The address already had an account; they were added without an email. */
+  existing?: boolean
+}
+
+/** Invite someone to the practice's team (server route; see app/api/clinic/invite). */
+export async function inviteStaff(input: {
+  businessId: string
+  email: string
+  fullName: string
+  role: string
+}): Promise<InviteStaffResult> {
+  try {
+    const res = await fetch("/api/clinic/invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    })
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean
+      error?: string
+      emailSent?: boolean
+      inviteUrl?: string
+      existing?: boolean
+    }
+    if (!res.ok || !json.ok) return { error: json.error ?? "The invite could not be sent. Try again." }
+    return { error: null, emailSent: json.emailSent, inviteUrl: json.inviteUrl, existing: json.existing }
+  } catch {
+    return { error: "The invite could not be sent. Check your connection and try again." }
+  }
 }
