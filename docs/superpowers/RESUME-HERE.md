@@ -67,6 +67,7 @@ before applying, and apply in filename order:
 20261012000006_user_flags_one_door.sql
 20261012000007_anonymous_incident_audit.sql
 20261012000008_booking_insert_guard.sql
+20261012000009_booking_status_notify_former_customer.sql
 ```
 
 ## Deploy order

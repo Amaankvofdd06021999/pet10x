@@ -26,7 +26,9 @@
 --   violations_stage_guard     — WHEN (old.stage is distinct from new.stage)
 --   pet_documents_verdict_guard — exempts non-client roles; a NULL verified_by
 --                                 is not an upgrade either way
---   guard_profile_privilege    — suspended_by is not one of its columns
+--   guard_profile_privilege    — from 20261012000006 it does guard suspended_by,
+--                                but only for callers with a JWT; the deletion
+--                                cascade carries none, so it passes
 --   accommodation_requests_freeze — already admits decided_by / pet_id going
 --                                 NULL (20260827000006/7)
 --   business_staff_guard       — exempts non-client roles
