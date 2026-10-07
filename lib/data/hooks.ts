@@ -13,11 +13,9 @@ import type {
   Building,
   DocumentReviewItem,
   EmergencyBuildingDirectory,
-  HomeAlert,
   ManagerActivityEntry,
   Registration,
   ResolvedViolation,
-  ServiceProvider,
   UrgentItem,
   Violation,
 } from "./types"
@@ -79,16 +77,9 @@ const EMPTY_DIRECTORY: EmergencyBuildingDirectory = {
 /* ----------------------------- Services --------------------------- */
 /* The real services directory lives in ./business (useNearbyBusinesses). */
 
-export function useServiceProviders(): QueryResult<ServiceProvider[]> {
-  return resolved([])
-}
-
 /* --------------------------- Notifications ------------------------ */
-/* useNotifications is now LIVE — see ./live. */
-
-export function useHomeAlerts(): QueryResult<HomeAlert[]> {
-  return resolved([])
-}
+/* useNotifications is now LIVE — see ./live. Home's Recent Activity reads the
+ * same store; the `useHomeAlerts` stub that used to feed it returned []. */
 
 /* ------------------------- Manager: residents --------------------- */
 /* The real resident queue is `live.ts:useBuildingResidents()`. `useResidents`

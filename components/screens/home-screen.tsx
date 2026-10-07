@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { usePets, useHomeAlerts, useMyBuildingLink, useUnreadNotificationCount, useSelectedPet } from "@/lib/data"
+import { usePets, useNotifications, useMyBuildingLink, useSelectedPet } from "@/lib/data"
 import { useAiSuggestions } from "@/lib/ai/client"
 import { SuggestionCard } from "@/components/ai/suggestion-card"
 import { TodayCareTiles } from "@/components/screens/home/today-care-tiles"
@@ -71,8 +71,11 @@ const QUICK_ACTIONS: { icon: typeof Building2; label: string; color: string; unb
   { icon: ShoppingBag, label: "Shop", color: "bg-accent/10 text-accent" },
 ]
 
+/* Keyed on notification severity — Recent Activity is the newest three rows of
+   the same notifications Alerts shows, not a separate feed. */
 const ALERT_DOT = {
   warning: "bg-warning-strong",
+  error: "bg-destructive",
   info: "bg-info",
   success: "bg-success",
 } as const
@@ -86,11 +89,15 @@ interface HomeScreenProps {
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const { user } = useAuth()
   const { data: pets } = usePets()
-  const { data: alerts } = useHomeAlerts()
+  /* One read of the shared notification store feeds both the bell and Recent
+     Activity. That block used to read `useHomeAlerts()`, a stub that returned
+     [] — so it had never rendered for anybody. */
+  const { data: notifications } = useNotifications()
+  const alerts = notifications.slice(0, 3)
   const { data: buildingLink } = useMyBuildingLink()
   // Alerts is no longer a tab (the assistant took the slot), so the unread
   // count has to surface here or it is invisible until you open the screen.
-  const unreadCount = useUnreadNotificationCount()
+  const unreadCount = notifications.filter((n) => !n.read).length
   const suggestions = useAiSuggestions()
   const { greeting, icon: GreetingIcon } = getGreeting()
   /* Which pet the GOALS are about — chosen, remembered, and shared with the
@@ -531,7 +538,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 <div key={alert.id} className="rounded-2xl card-raised p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className={`h-2 w-2 flex-shrink-0 rounded-full ${ALERT_DOT[alert.type]}`} />
+                      <span className={`h-2 w-2 flex-shrink-0 rounded-full ${ALERT_DOT[alert.severity]}`} />
                       <h4 className="text-[14px] font-semibold text-foreground">{alert.title}</h4>
                     </div>
                     <span className="flex-shrink-0 text-[11px] text-muted-foreground">{alert.time}</span>

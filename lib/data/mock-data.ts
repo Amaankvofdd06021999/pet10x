@@ -21,12 +21,10 @@ import type {
   Building,
   DocumentReviewItem,
   EmergencyBuildingDirectory,
-  HomeAlert,
   ManagerActivityEntry,
   Pet,
   Registration,
   ResolvedViolation,
-  ServiceProvider,
   UrgentItem,
   UserRole,
   Violation,
@@ -201,34 +199,6 @@ export const PETS: Pet[] = [
       { id: "luna-f2", name: "Dinner", time: "6:00 PM", portion: "1/2 cup", food: "Fancy Feast Wet" },
     ],
     medications: [],
-  },
-]
-
-/* ================================================================== */
-/* Owner home: recent activity alerts                                 */
-/* ================================================================== */
-
-export const HOME_RECENT_ALERTS: HomeAlert[] = [
-  {
-    id: 1,
-    type: "warning",
-    title: "Vaccination Expiring",
-    body: "Max's rabies vaccination expires in 14 days",
-    time: "2h ago",
-  },
-  {
-    id: 2,
-    type: "info",
-    title: "Building Pet Meeting",
-    body: "Annual pet policy review — March 15 at 7 PM",
-    time: "5h ago",
-  },
-  {
-    id: 3,
-    type: "success",
-    title: "Compliance Updated",
-    body: "Luna's municipal license has been renewed",
-    time: "1d ago",
   },
 ]
 

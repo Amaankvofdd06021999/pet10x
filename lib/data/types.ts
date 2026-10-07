@@ -429,25 +429,6 @@ export interface CommunityEvent {
 }
 
 /* ------------------------------------------------------------------ */
-/* Services                                                            */
-/* ------------------------------------------------------------------ */
-
-export interface ServiceProvider {
-  id: number
-  name: string
-  category: string
-  rating: number
-  reviews: number
-  distance: string
-  image: string
-  priceRange: string
-  isOpen: boolean
-  featured?: boolean
-  tags?: string[]
-  nextAvailable?: string | null
-}
-
-/* ------------------------------------------------------------------ */
 /* Notifications / alerts                                              */
 /* ------------------------------------------------------------------ */
 
@@ -480,15 +461,6 @@ export interface AppNotification {
    */
   actionTarget?: string
   iconKey: NotificationIconKey
-}
-
-/** Lighter "recent activity" alerts shown on the owner home screen. */
-export interface HomeAlert {
-  id: number
-  type: "warning" | "info" | "success"
-  title: string
-  body: string
-  time: string
 }
 
 /* ------------------------------------------------------------------ */
