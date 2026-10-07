@@ -98,7 +98,21 @@ export async function POST(request: Request) {
   }
 
   // Existing account → a staff row; they see the practice next time they sign in.
-  const { data: existing } = await admin.from("profiles").select("id").eq("email", email).maybeSingle()
+  // Case-insensitive: `profiles.email` keeps whatever case the account signed
+  // up with, and `email` here is lower-cased. ilike's wildcards are escaped
+  // so `a_b@x.co` cannot match `axb@x.co`.
+  const pattern = email.replace(/[\\%_]/g, (c) => `\\${c}`)
+  const { data: matches, error: lookupErr } = await admin
+    .from("profiles")
+    .select("id")
+    .ilike("email", pattern)
+    .order("created_at")
+    .limit(1)
+  if (lookupErr) {
+    console.error("[clinic/invite] profile lookup", lookupErr)
+    return NextResponse.json({ error: "Couldn't check that address. Try again." }, { status: 500 })
+  }
+  const existing = matches?.[0]
   if (existing) {
     const refused = await addStaff(existing.id)
     if (refused) return refused
@@ -128,7 +142,20 @@ export async function POST(request: Request) {
   if (nameErr) console.error("[clinic/invite] profile name", nameErr)
 
   const refused = await addStaff(invitedId)
-  if (refused) return refused
+  if (refused) {
+    /* generateLink created this account a moment ago and nothing references
+       it yet. Leaving it would send the retry down the existing-account path
+       with no email and no link, for a person who has never signed in. Only
+       an account that is that fresh and unused is removed — never one that
+       existed before this request. */
+    const created = link.user.created_at ? Date.parse(link.user.created_at) : NaN
+    const fresh = !link.user.last_sign_in_at && Number.isFinite(created) && Date.now() - created < 5 * 60_000
+    if (fresh) {
+      const { error: delErr } = await admin.auth.admin.deleteUser(invitedId)
+      if (delErr) console.error("[clinic/invite] cleanup deleteUser", delErr)
+    }
+    return refused
+  }
 
   const sent = await sendClinicInviteEmail({
     to: email,
