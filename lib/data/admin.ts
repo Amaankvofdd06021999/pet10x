@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
+import { buildingDeleteError, buildingHasHistory } from "./building-archive"
 
 type BuildingRow = Database["public"]["Tables"]["buildings"]["Row"]
 type BusinessRow = Database["public"]["Tables"]["businesses"]["Row"]
@@ -41,6 +42,14 @@ export interface AdminBuilding {
   region: string | null
   rules: PetRules
   createdAt: string
+  /** Set when an admin took the building off Pet10x; null when live. */
+  archivedAt: string | null
+  /**
+   * Whether anything would block a delete (fines, notifications, payouts,
+   * listings) or is enforcement history (violations). True when unknown, so
+   * Delete is never offered on a guess.
+   */
+  hasHistory: boolean
 }
 
 export interface AdminBusiness {
@@ -52,7 +61,7 @@ export interface AdminBusiness {
   createdAt: string
 }
 
-function mapBuilding(r: BuildingRow): AdminBuilding {
+function mapBuilding(r: BuildingRow, hasHistory: boolean): AdminBuilding {
   return {
     id: r.id,
     name: r.name,
@@ -62,6 +71,8 @@ function mapBuilding(r: BuildingRow): AdminBuilding {
     region: r.region,
     rules: (r.pet_rules as PetRules) ?? {},
     createdAt: r.created_at,
+    archivedAt: r.archived_at,
+    hasHistory,
   }
 }
 
@@ -75,12 +86,16 @@ export function useAdminBuildings() {
       setLoading(false)
       return
     }
-    const { data: rows, error: err } = await supabase.from("buildings").select("*").order("created_at", { ascending: false })
+    const [{ data: rows, error: err }, { data: history }] = await Promise.all([
+      supabase.from("buildings").select("*").order("created_at", { ascending: false }),
+      supabase.rpc("admin_building_history"),
+    ])
     if (err) {
       setError(err.message)
       setData([])
     } else {
-      setData((rows ?? []).map(mapBuilding))
+      const counts = new Map((history ?? []).map((h) => [h.building_id, h]))
+      setData((rows ?? []).map((r) => mapBuilding(r, buildingHasHistory(counts.get(r.id)))))
       setError(null)
     }
     setLoading(false)
@@ -149,35 +164,44 @@ export async function updateBuildingDetails(
 }
 
 /**
- * Delete a building.
+ * Delete a building — only one nobody has used.
  *
- * The doc line here used to read "Cascades to units, resident_links,
- * building_managers rows", which described a call that in practice ALWAYS
- * FAILS on any building anyone has used. Measured against the live schema
- * 2026-08-23 — four foreign keys into `buildings` are NO ACTION, not cascade:
+ * Four foreign keys into `buildings` are NO ACTION (business_listings, fines,
+ * notifications, payouts) and `violation_events` is RESTRICT behind
+ * `violations`, so a building with any history cannot be deleted, and that is
+ * deliberate: those rows are other people's records. The console offers Delete
+ * only where `admin_building_history` counts nothing, and Archive otherwise.
+ * A delete that still hits a 23503 (something arrived since the list loaded)
+ * reads as the same advice — never the raw constraint text.
  *
- *   business_listings_building_id_fkey   notifications_building_id_fkey
- *   fines_building_id_fkey               payouts_building_id_fkey
- *
- * and since Phase 2 a fifth route is closed too: `violations` cascades, but
- * `violation_events_violation_id_fkey` is ON DELETE RESTRICT, so a building
- * holding any enforcement case cannot be deleted either. That restriction is
- * deliberate — it is what stopped an admin erasing a building's entire
- * enforcement history through this very button.
- *
- * So this succeeds only on a genuinely empty building, and otherwise surfaces
- * raw Postgres 23503 constraint text to the admin. Deciding what "delete a
- * building" should mean — archive, transfer, or refuse with a readable reason
- * — is a product question no phase currently owns; recorded in
- * docs/superpowers/2026-08-21-deferred-controls.md. The doc line is corrected
- * here because a comment that says a call cascades, when it raises, is how
- * somebody comes to rely on the cascade.
+ * A building with no history has only cascading children (units, links,
+ * manager assignments), which go with it.
  */
 export async function deleteBuilding(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("buildings").delete().eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? buildingDeleteError(error) : null }
+}
+
+/**
+ * Take a building off Pet10x without deleting anything (20261008000004).
+ *
+ * An archived building cannot be found by code, joined, reported to, searched
+ * or posted to; its residents, pets, cases and fines stay. `buildings_archive_guard`
+ * refuses the change to anyone but an admin. Restoring clears the column.
+ */
+export async function setBuildingArchived(id: string, archived: boolean): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { data, error } = await supabase
+    .from("buildings")
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq("id", id)
+    .select("id")
+  if (error) return { error: error.code === "42501" ? "Only an admin can archive or restore a building." : error.message }
+  if (!data || data.length === 0) return { error: "That building no longer exists." }
+  return { error: null }
 }
 
 export async function deleteBusiness(id: string): Promise<{ error: string | null }> {

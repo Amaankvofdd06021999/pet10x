@@ -13,6 +13,7 @@ import {
   updateBuildingRules,
   updateBuildingDetails,
   deleteBuilding,
+  setBuildingArchived,
   inviteManager,
   useAdminBusinesses,
   verifyBusiness,
@@ -44,6 +45,8 @@ import {
   Trash2,
   AlertTriangle,
   Landmark,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react"
 import { municipalTypeLabel } from "@/lib/data/municipal"
 
@@ -356,12 +359,25 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
   }
 
   async function remove() {
-    if (!confirm(`Delete ${building.name}? This also removes its units, residents links, and manager assignments.`)) return
+    if (!confirm(`Delete ${building.name}? It has no history, so this removes it with its units, resident links and manager assignments.`)) return
     setBusy(true)
     const { error } = await deleteBuilding(building.id)
     setBusy(false)
     if (error) return toast.error("Couldn't delete", { description: error })
     toast.success("Building deleted")
+    onChange()
+  }
+
+  async function archive(archived: boolean) {
+    const question = archived
+      ? `Archive ${building.name}? Residents will no longer be able to join it or file reports with its code, and it disappears from search and from managers' portfolios. Its residents, pets, cases and fines are kept, and you can restore it.`
+      : `Restore ${building.name}? Its code works again for joining and reporting.`
+    if (!confirm(question)) return
+    setBusy(true)
+    const { error } = await setBuildingArchived(building.id, archived)
+    setBusy(false)
+    if (error) return toast.error(archived ? "Couldn't archive" : "Couldn't restore", { description: error })
+    toast.success(archived ? "Building archived" : "Building restored")
     onChange()
   }
 
@@ -372,7 +388,14 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
           <Building2 className="h-5 w-5 text-primary" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold">{building.name}</p>
+          <p className="flex items-center gap-2 truncate text-[15px] font-semibold">
+            <span className="truncate">{building.name}</span>
+            {building.archivedAt && (
+              <span className="flex-shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground">
+                Archived
+              </span>
+            )}
+          </p>
           <p className="text-[12px] text-muted-foreground">
             {building.code}
             {building.city ? ` · ${building.city}` : ""}
@@ -438,13 +461,33 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
             </button>
           </div>
 
+          {/* Archive is the answer for any building with history; Delete exists
+              only for one nobody has used — a used one would be refused by
+              its foreign keys, and those rows are other people's records. */}
           <button
-            onClick={remove}
+            onClick={() => archive(!building.archivedAt)}
             disabled={busy}
-            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-destructive/10 py-2 text-[13px] font-semibold text-destructive disabled:opacity-60"
+            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-muted py-2 text-[13px] font-semibold text-foreground disabled:opacity-60"
           >
-            <Trash2 className="h-3.5 w-3.5" /> Delete building
+            {building.archivedAt ? (
+              <>
+                <ArchiveRestore className="h-3.5 w-3.5" /> Restore building
+              </>
+            ) : (
+              <>
+                <Archive className="h-3.5 w-3.5" /> Archive building
+              </>
+            )}
           </button>
+          {!building.hasHistory && (
+            <button
+              onClick={remove}
+              disabled={busy}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-destructive/10 py-2 text-[13px] font-semibold text-destructive disabled:opacity-60"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete building
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -53,7 +53,7 @@ export function usePortfolioBuildings(): LiveResult<PortfolioBuilding[]> {
     const { data: rows, error: err } = await supabase
       .from("building_managers")
       .select(
-        "is_primary, building:buildings!building_managers_building_id_fkey ( id, name, building_code, city, region, total_units, pet_rules )",
+        "is_primary, building:buildings!building_managers_building_id_fkey ( id, name, building_code, city, region, total_units, pet_rules, archived_at )",
       )
       .eq("profile_id", user.id)
 
@@ -75,6 +75,7 @@ export function usePortfolioBuildings(): LiveResult<PortfolioBuilding[]> {
             region: string | null
             total_units: number | null
             pet_rules: unknown
+            archived_at: string | null
           }
         | { id: string }[]
         | null
@@ -91,8 +92,11 @@ export function usePortfolioBuildings(): LiveResult<PortfolioBuilding[]> {
           region: string | null
           total_units: number | null
           pet_rules: unknown
+          archived_at: string | null
         } | null
-        if (!b) return null
+        // An archived building is off Pet10x (20261008000004): it leaves the
+        // portfolio, though its manager link and its history remain.
+        if (!b || b.archived_at) return null
         return {
           id: b.id,
           name: b.name,
