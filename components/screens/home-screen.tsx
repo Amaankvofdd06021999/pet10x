@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { usePets, useNotifications, useMyBuildingLink, useSelectedPet } from "@/lib/data"
+import { usePets, useNotifications, refreshNotifications, useMyBuildingLink, useSelectedPet } from "@/lib/data"
 import { useAiSuggestions } from "@/lib/ai/client"
 import { SuggestionCard } from "@/components/ai/suggestion-card"
 import { TodayCareTiles } from "@/components/screens/home/today-care-tiles"
@@ -93,6 +93,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
      Activity. That block used to read `useHomeAlerts()`, a stub that returned
      [] — so it had never rendered for anybody. */
   const { data: notifications } = useNotifications()
+  // Home carries the bell and Recent Activity; landing here re-reads the inbox.
+  useEffect(() => {
+    void refreshNotifications()
+  }, [])
   const alerts = notifications.slice(0, 3)
   const { data: buildingLink } = useMyBuildingLink()
   // Alerts is no longer a tab (the assistant took the slot), so the unread

@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
 import { toast } from "sonner"
 import {
   markAllNotificationsRead,
   markNotificationRead,
+  refreshNotifications,
   useNotifications,
   type NotificationIconKey,
   type NotificationCategory,
@@ -78,7 +79,11 @@ export function AlertsScreen({
   onBack?: () => void
 }) {
   const [activeTab, setActiveTab] = useState<AlertTab>("all")
-  const { data: alerts } = useNotifications()
+  const { data: alerts, error: loadError, isLoading } = useNotifications()
+  // Opening the inbox is when it must be current — there is no realtime feed.
+  useEffect(() => {
+    void refreshNotifications()
+  }, [])
   const { activePersona, viewAs } = useAuth()
 
   /* Which half of the router will be rendering when we navigate. Read from
@@ -116,13 +121,13 @@ export function AlertsScreen({
      so the toast is the only trace of a failure, never a silent lie. */
   const open = (id: string) => {
     void markNotificationRead(id).then(({ error }) => {
-      if (error) toast.error(`Couldn't mark that as read — ${error}`)
+      if (error) toast.error(error)
     })
   }
 
   const markAll = () => {
     void markAllNotificationsRead().then(({ error }) => {
-      if (error) toast.error(`Couldn't mark everything as read — ${error}`)
+      if (error) toast.error(error)
     })
   }
 
@@ -193,7 +198,20 @@ export function AlertsScreen({
 
         {/* Alert List */}
         <div className="flex flex-col gap-2.5">
-          {filteredAlerts.length === 0 && (
+          {/* A failed load is said as one, with a way to try again — never
+              as "You're all caught up", which is a claim about the inbox. */}
+          {loadError && (
+            <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-center">
+              <p className="text-[13px] leading-relaxed text-foreground">{loadError}</p>
+              <button
+                onClick={() => void refreshNotifications()}
+                className="mt-2 text-[13px] font-semibold text-primary"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+          {filteredAlerts.length === 0 && !loadError && !isLoading && (
             <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
                 <BellOff className="h-6 w-6 text-primary" />

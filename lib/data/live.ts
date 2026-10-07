@@ -11,7 +11,7 @@
  * navigation, so cross-screen freshness comes "for free" — no global cache.
  */
 
-import { useCallback, useEffect, useReducer, useState, useSyncExternalStore } from "react"
+import { useCallback, useEffect, useReducer, useState } from "react"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client"
 import { petFileSignedUrls, signedUrlsIn, isStoragePath, uploadPetFile, deletePetFile } from "@/lib/supabase/storage"
 import type { Database } from "@/lib/supabase/database.types"
@@ -22,7 +22,7 @@ import { describeWhyNot } from "./disputes"
 import { toViolationStage } from "./violations"
 import { formatReward } from "./community"
 import { uploadCommunityImage } from "./community-media"
-import { createNotificationStore } from "./notification-store"
+import { createNotificationStore, type NotificationLoad } from "./notification-store"
 import { memorialYears, type ArchiveReason } from "./pet-archive"
 import type {
   AppNotification,
@@ -1308,10 +1308,13 @@ function mapNotification(row: {
  * read in Alerts could never clear the bell on Home, the profile or the
  * sidebar badge.
  */
-async function loadNotifications(): Promise<{ data: AppNotification[]; error: string | null }> {
-  if (!ENABLED) return { data: [], error: null }
+const NOTIFICATIONS_LOAD_FAILED = "Couldn't load your notifications. Check your connection and try again."
+
+async function loadNotifications(): Promise<NotificationLoad<AppNotification>> {
+  // Offline/mock mode has no inbox; a fixed owner lets the empty list cache.
+  if (!ENABLED) return { data: [], error: null, profileId: "offline" }
   const supabase = getSupabaseBrowserClient()
-  if (!supabase) return { data: [], error: null }
+  if (!supabase) return { data: [], error: null, profileId: "offline" }
 
   /* Scope to the signed-in account explicitly.
    *
@@ -1326,8 +1329,18 @@ async function loadNotifications(): Promise<{ data: AppNotification[]; error: st
    * actually wants; RLS then guarantees it cannot get more. */
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
-  if (!user) return { data: [], error: null }
+  if (!user) {
+    /* No session is "signed out", not a failure. Anything else — a network
+       error resolving the user — is a failure, and must not read as an empty
+       inbox. Either way nothing is cached (profileId null). */
+    if (authError && authError.name !== "AuthSessionMissingError") {
+      console.error("[notifications] getUser failed", authError)
+      return { data: [], error: NOTIFICATIONS_LOAD_FAILED, profileId: null }
+    }
+    return { data: [], error: null, profileId: null }
+  }
 
   const { data: rows, error } = await supabase
     .from("notifications")
@@ -1335,19 +1348,23 @@ async function loadNotifications(): Promise<{ data: AppNotification[]; error: st
     .eq("profile_id", user.id)
     .order("created_at", { ascending: false })
     .limit(100)
-  if (error) return { data: [], error: error.message }
-  return { data: (rows ?? []).map(mapNotification), error: null }
+  if (error) {
+    console.error("[notifications] load failed", error)
+    return { data: [], error: NOTIFICATIONS_LOAD_FAILED, profileId: user.id }
+  }
+  return { data: (rows ?? []).map(mapNotification), error: null, profileId: user.id }
 }
 
 async function persistNotificationRead(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
-  if (!supabase) return { error: "Not configured." }
+  if (!supabase) return { error: "Notifications can't be updated right now — backend not configured." }
   const { error } = await supabase
     .from("notifications")
     .update({ read_at: new Date().toISOString() })
     .eq("id", id)
     .is("read_at", null)
-  return { error: error?.message ?? null }
+  if (error) console.error("[notifications] mark read failed", error)
+  return { error: error ? "Couldn't mark that as read. Try again." : null }
 }
 
 /* Same explicit scoping as the read: `notifs_update` would also let an admin
@@ -1358,13 +1375,14 @@ async function persistAllNotificationsRead(): Promise<{ error: string | null }> 
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { error: "You're signed out." }
+  if (!user) return { error: "You're signed out. Sign in again to mark notifications read." }
   const { error } = await supabase
     .from("notifications")
     .update({ read_at: new Date().toISOString() })
     .eq("profile_id", user.id)
     .is("read_at", null)
-  return { error: error?.message ?? null }
+  if (error) console.error("[notifications] mark all read failed", error)
+  return { error: error ? "Couldn't mark everything as read. Try again." : null }
 }
 
 const notificationStore = createNotificationStore<AppNotification>({
@@ -1378,17 +1396,66 @@ export function clearNotificationsCache() {
   notificationStore.clear()
 }
 
-const nullSnapshot = () => null
+/**
+ * Called by the auth context whenever the Supabase user changes. A list loaded
+ * for anyone else is dropped — the session that loaded it may have ended in
+ * another tab, or by refresh-token expiry, without this tab's signOut() ever
+ * running.
+ */
+export function syncNotificationsAccount(profileId: string | null) {
+  notificationStore.resetUnless(profileId)
+}
+
+/** Re-read the inbox now. Alerts and Home call this on mount. With no list yet
+    it defers to `ensure()`, so a first mount does not start two loads. */
+export function refreshNotifications(): Promise<void> {
+  if (notificationStore.get() === null) {
+    notificationStore.ensure()
+    return Promise.resolve()
+  }
+  return notificationStore.refresh()
+}
+
+/* There is no realtime channel, so the window coming back into view is the
+ * moment a list can be stale — another tab, a cron reminder, a manager's
+ * decision. Debounced, because `focus` and `visibilitychange` both fire on one
+ * return, and only once a list exists: before that, `ensure()` is in charge. */
+let focusTimer: ReturnType<typeof setTimeout> | null = null
+let focusListening = false
+
+function scheduleFocusRefresh() {
+  if (notificationStore.get() === null) return
+  if (focusTimer) clearTimeout(focusTimer)
+  focusTimer = setTimeout(() => {
+    focusTimer = null
+    void notificationStore.refresh()
+  }, 500)
+}
+
+function listenForFocus() {
+  if (focusListening || typeof window === "undefined") return
+  focusListening = true
+  window.addEventListener("focus", scheduleFocusRefresh)
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") scheduleFocusRefresh()
+  })
+}
 
 export function useNotifications(): LiveResult<AppNotification[]> {
-  const data = useSyncExternalStore(notificationStore.subscribe, notificationStore.get, nullSnapshot)
+  /* A forced re-render on every store change rather than useSyncExternalStore
+     over the list alone: the error and loading state change without the list
+     changing, and the screen must hear about both. Same as usePets. */
+  const [, force] = useReducer((c: number) => c + 1, 0)
   useEffect(() => {
+    const unsubscribe = notificationStore.subscribe(force)
+    listenForFocus()
     notificationStore.ensure()
+    return unsubscribe
   }, [])
-
+  const data = notificationStore.get()
   return {
     data: data ?? [],
-    isLoading: ENABLED && data === null,
+    isLoading: ENABLED && notificationStore.isLoading(),
     error: notificationStore.error(),
     refetch: notificationStore.refresh,
   }
