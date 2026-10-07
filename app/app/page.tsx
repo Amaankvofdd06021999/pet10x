@@ -228,11 +228,15 @@ function AppContent() {
       handleNavigate("ai-chat")
       return
     }
+    // A tab asked for by an earlier navigation (Pet Events → Events) must not
+    // follow the viewer onto a tab they chose themselves.
+    setScreenTab(undefined)
     setActiveTab(tab)
     setCurrentScreen(tab)
   }
 
   const handleBack = () => {
+    setScreenTab(undefined)
     setCurrentScreen(activeTab)
   }
 

@@ -11,6 +11,8 @@ import {
   clearNotificationsCache,
   clearPetsCache,
   clearSelectedPet,
+  refreshPets,
+  syncNotificationsAccount,
   type AppUser,
   type DemoRole,
   type GuestSession,
@@ -175,6 +177,23 @@ async function loadAppUser(authUser: User): Promise<AppUser> {
  * Module scope is per-tab; the localStorage mirror below survives reloads.
  */
 let cachedAppUser: AppUser | null = null
+
+/**
+ * Whose session the module-level data caches (pets, notifications) were last
+ * filled under. A session can end WITHOUT this tab's signOut() running — signed
+ * out in another tab, a refresh token that expired — and the next person to
+ * sign in here inline must not be shown the previous one's pets or inbox.
+ */
+let cachesFilledFor: string | null = null
+
+function dropAccountCaches() {
+  clearPetsCache()
+  clearNotificationsCache()
+  // Same reason signOut() gives: not bleed (the key carries the profile id),
+  // but not leaving the previous person's pet named in storage either.
+  clearSelectedPet()
+  cachesFilledFor = null
+}
 
 /**
  * ...and mirrored into localStorage so a hard reload paints from cache too.
@@ -489,6 +508,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthUser(session?.user ?? null)
       if (!session) {
+        // Every way a session ends, not only the signOut() button.
+        dropAccountCaches()
         cachedAppUser = null
         persistUser(null)
         setUser(null)
@@ -512,6 +533,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // A real session supersedes any guest one, in state and in storage.
     persistGuest(null)
     setGuestSession(null)
+
+    /* A different account from the one the caches were filled under: drop
+       them and reload pets for this one (a mounted usePets would otherwise
+       sit on an empty cache). The notification store also checks the
+       profile id on every load; this is the eager half. */
+    if (cachesFilledFor !== null && cachesFilledFor !== authUser.id) {
+      dropAccountCaches()
+      void refreshPets()
+    }
+    cachesFilledFor = authUser.id
+    syncNotificationsAccount(authUser.id)
 
     // Same user we already resolved before → paint from cache now and revalidate
     // below, instead of blocking the screen on a cross-region round trip.
@@ -716,6 +748,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (supabase) await supabase.auth.signOut().catch(() => {})
     clearPetsCache()
     clearNotificationsCache()
+    cachesFilledFor = null
     // The pets are gone, so the id remembered against them names nothing. The
     // storage key already carries the profile id, so this is not about bleed
     // between accounts — it is about not leaving the previous person's pet
