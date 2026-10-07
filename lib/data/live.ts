@@ -23,7 +23,7 @@ import { toViolationStage } from "./violations"
 import { formatReward } from "./community"
 import { uploadCommunityImage } from "./community-media"
 import { createNotificationStore, type NotificationLoad } from "./notification-store"
-import { memorialYears, type ArchiveReason } from "./pet-archive"
+import { archiveErrorSentence, memorialYears, type ArchiveReason } from "./pet-archive"
 import type {
   AppNotification,
   BuildingLink,
@@ -546,7 +546,10 @@ export async function archivePet(petId: string, reason: ArchiveReason): Promise<
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Pets can't be removed right now — backend not configured." }
   const { error } = await supabase.rpc("owner_archive_pet", { p_pet_id: petId, p_reason: reason })
-  if (error) return { error: error.message }
+  if (error) {
+    console.error("[pets] owner_archive_pet failed", error)
+    return { error: archiveErrorSentence(error.code) }
+  }
   /* Drop it from the shared cache NOW, so the navigation the caller makes next
      renders in the same batch and no list ever shows it again; then reload
      behind it for anything else the archive changed. */

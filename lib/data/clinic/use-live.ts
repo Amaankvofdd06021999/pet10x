@@ -103,6 +103,8 @@ export function sentenceFor(code: string | undefined): string {
       return "Your role does not allow reading shared records."
     case "not_linked":
       return "This patient is not linked to a Pet10x account yet."
+    case "pet_archived":
+      return "The owner has removed this pet from Pet10x, so records can no longer be sent to them."
     case "illegal_transition":
       return "That is not a move this appointment can make from where it is."
     case "slot_taken":

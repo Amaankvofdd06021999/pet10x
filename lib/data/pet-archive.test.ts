@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { ARCHIVE_REASONS, ARCHIVE_REASON_LABEL, memorialYears, parseArchiveReason } from "./pet-archive"
+import { ARCHIVE_REASONS, ARCHIVE_REASON_LABEL, archiveErrorSentence, memorialYears, parseArchiveReason } from "./pet-archive"
 
 describe("parseArchiveReason", () => {
   it("accepts exactly the three reasons the database accepts", () => {
@@ -43,5 +43,19 @@ describe("memorialYears", () => {
   it("says nothing when the archive date is missing or unreadable", () => {
     expect(memorialYears("2014-05-02", null)).toBeNull()
     expect(memorialYears("2014-05-02", "not a date")).toBeNull()
+  })
+})
+
+describe("archiveErrorSentence", () => {
+  it("says each refusal in words, never the Postgres message", () => {
+    expect(archiveErrorSentence("42501")).toMatch(/isn't on your account|already removed/)
+    expect(archiveErrorSentence("22023")).toMatch(/reason/)
+    expect(archiveErrorSentence("PGRST202")).toMatch(/isn't available yet/)
+    expect(archiveErrorSentence("42883")).toMatch(/isn't available yet/)
+  })
+
+  it("falls back to a generic sentence for anything else", () => {
+    expect(archiveErrorSentence(undefined)).toMatch(/Couldn't remove this pet/)
+    expect(archiveErrorSentence("XX000")).toMatch(/Couldn't remove this pet/)
   })
 })

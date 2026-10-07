@@ -29,6 +29,31 @@ export const ARCHIVE_REASON_HINT: Record<ArchiveReason, string> = {
   mistake: "Removed from your account.",
 }
 
+/**
+ * What the owner reads when owner_archive_pet refuses. Keyed on the SQLSTATE /
+ * PostgREST code, never the message: the message is Postgres talking to a
+ * developer.
+ *
+ *   42501     not their pet, or already removed (a second tap, another tab)
+ *   22023     a reason outside the three — the sheet cannot send one, so this
+ *             means a stale client
+ *   PGRST202  / 42883  the function does not exist: the migration is not
+ *             applied yet
+ */
+export function archiveErrorSentence(code: string | null | undefined): string {
+  switch (code) {
+    case "42501":
+      return "This pet isn't on your account, or it was already removed."
+    case "22023":
+      return "Choose a reason for removing this pet."
+    case "PGRST202":
+    case "42883":
+      return "Removing a pet isn't available yet. Please try again later."
+    default:
+      return "Couldn't remove this pet. Check your connection and try again."
+  }
+}
+
 /** Anything not exactly one of the three is not a reason — including case variants. */
 export function parseArchiveReason(value: unknown): ArchiveReason | null {
   return typeof value === "string" && (ARCHIVE_REASONS as readonly string[]).includes(value)

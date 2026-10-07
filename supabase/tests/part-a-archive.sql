@@ -1,8 +1,11 @@
 -- Part A — owner_archive_pet, impersonated, in ONE rolled-back transaction.
 --
--- Not yet run: written before the migration was applied (no database was
--- reachable from the session that wrote it). Run it after
--- 20261007000001_owner_archive_pet.sql is applied, as the project's own
+-- Covers 20261007000001 and 20261007000002 (the archive guard and
+-- clinic_publish_record's refusal).
+--
+-- Not yet run: written before the migrations were applied (no database was
+-- reachable from the session that wrote it). Run it after both are applied,
+-- as the project's own
 -- connection role (the Supabase SQL editor or MCP `execute_sql`):
 --
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/part-a-archive.sql
@@ -29,6 +32,7 @@ begin;
 do $$
 declare
   v_building uuid; v_pet uuid; v_owner uuid; v_manager uuid; v_other uuid; v_biz uuid;
+  v_clinic uuid; v_clinic_owner uuid; v_customer uuid; v_patient uuid;
   v_token text := 'part-a-test-' || replace(gen_random_uuid()::text, '-', '');
 begin
   select b.id into v_building from public.buildings b where upper(b.building_code) = 'MCR2026';
@@ -63,6 +67,21 @@ begin
    limit 1;
   if v_biz is null then raise exception 'FIXTURE: no business to share with'; end if;
 
+  -- A practice, run by someone who is neither the owner nor an admin, with a
+  -- chart linked to the pet — for clinic_publish_record (20261007000002).
+  select b.id, b.owner_id into v_clinic, v_clinic_owner
+    from public.businesses b join public.profiles pr on pr.id = b.owner_id
+   where b.owner_id <> v_owner and not pr.is_suspended
+     and not coalesce(pr.is_super_admin, false)
+     and not exists (select 1 from public.clinic_patients cp
+                      where cp.business_id = b.id and cp.pet_id = v_pet)
+   limit 1;
+  if v_clinic is null then raise exception 'FIXTURE: no practice to publish from'; end if;
+  insert into public.clinic_customers (business_id, profile_id, first_name)
+  values (v_clinic, v_owner, 'Part A') returning id into v_customer;
+  insert into public.clinic_patients (business_id, customer_id, pet_id, name)
+  values (v_clinic, v_customer, v_pet, 'Part A patient') returning id into v_patient;
+
   -- Something for the archive to revoke, delete and deactivate.
   insert into public.record_shares (pet_id, business_id, granted_by)
   values (v_pet, v_biz, v_owner);
@@ -77,6 +96,8 @@ begin
   perform set_config('part_a.manager', v_manager::text, true);
   perform set_config('part_a.other', v_other::text, true);
   perform set_config('part_a.token', v_token, true);
+  perform set_config('part_a.clinic_owner', v_clinic_owner::text, true);
+  perform set_config('part_a.patient', v_patient::text, true);
   raise notice 'fixtures: pet % owner % manager % other %', v_pet, v_owner, v_manager, v_other;
 end $$;
 
@@ -147,6 +168,26 @@ end $$;
 reset role;
 
 -- ---------------------------------------------------------------------------
+-- 2b. BEFORE archive, publishing reaches past the pet check (it fails later,
+--     on the made-up source id or the practice's tier — anything but
+--     pet_archived), so the refusal after archive is the archive's doing
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_a.clinic_owner'), 'role', 'authenticated')::text, true);
+do $$
+declare r jsonb;
+begin
+  if public.is_admin() then raise exception 'FIXTURE: practice owner is an admin'; end if;
+  r := public.clinic_publish_record(current_setting('part_a.patient')::uuid, 'vaccination', gen_random_uuid());
+  if r->>'error' = 'pet_archived' or r->>'error' in ('forbidden', 'role_not_permitted', 'not_linked') then
+    raise exception 'FAIL: publish before archive answered %', r;
+  end if;
+  raise notice 'ok: publish before archive gets past the pet (%)', r->>'error';
+end $$;
+reset role;
+
+-- ---------------------------------------------------------------------------
 -- 3. The owner: an invalid reason is refused (22023), then the archive works
 -- ---------------------------------------------------------------------------
 set local role authenticated;
@@ -155,6 +196,24 @@ select set_config('request.jwt.claims',
 do $$
 begin
   if public.is_admin() then raise exception 'FIXTURE: owner is an admin'; end if;
+
+  -- The guard (20261007000002): pets_owner_write would otherwise let the
+  -- owner archive by hand, skipping every consequence below.
+  begin
+    update public.pets set deleted_at = now(), archived_reason = 'mistake'
+     where id = current_setting('part_a.pet')::uuid;
+    raise exception 'FAIL: owner archived by direct UPDATE';
+  exception when insufficient_privilege then
+    raise notice 'ok: direct archive UPDATE refused (42501)';
+  end;
+
+  begin
+    insert into public.pets (owner_id, name, species, deleted_at, archived_reason)
+    values (auth.uid(), 'Part A ghost', 'dog', now(), 'passed_away');
+    raise exception 'FAIL: owner created a pet already archived';
+  exception when insufficient_privilege then
+    raise notice 'ok: pre-archived INSERT refused (42501)';
+  end;
 
   begin
     perform public.owner_archive_pet(current_setting('part_a.pet')::uuid, 'ran_away');
@@ -189,13 +248,19 @@ begin
     raise notice 'ok: second archive refused (42501)';
   end;
 
-  -- The constraint: deleted_at without a reason is refused even to the owner,
-  -- who holds pets_owner_write.
+  -- The owner cannot un-archive, nor rewrite the reason (the guard).
   begin
-    update public.pets set archived_reason = null where id = current_setting('part_a.pet')::uuid;
-    raise exception 'FAIL: archived_reason cleared while deleted_at is set';
-  exception when check_violation then
-    raise notice 'ok: archived_reason/deleted_at must agree (23514)';
+    update public.pets set deleted_at = null, archived_reason = null
+     where id = current_setting('part_a.pet')::uuid;
+    raise exception 'FAIL: owner un-archived by direct UPDATE';
+  exception when insufficient_privilege then
+    raise notice 'ok: un-archive refused (42501)';
+  end;
+  begin
+    update public.pets set archived_reason = 'mistake' where id = current_setting('part_a.pet')::uuid;
+    raise exception 'FAIL: owner rewrote the archive reason';
+  exception when insufficient_privilege then
+    raise notice 'ok: reason rewrite refused (42501)';
   end;
 end $$;
 reset role;
@@ -206,6 +271,15 @@ reset role;
 do $$
 declare v_pet uuid := current_setting('part_a.pet')::uuid;
 begin
+  -- Past the guard (not a client role), the constraint still holds the two
+  -- columns together.
+  begin
+    update public.pets set archived_reason = null where id = v_pet;
+    raise exception 'FAIL: archived_reason cleared while deleted_at is set';
+  exception when check_violation then
+    raise notice 'ok: archived_reason/deleted_at must agree (23514)';
+  end;
+
   if exists (select 1 from public.record_shares where pet_id = v_pet and revoked_at is null) then
     raise exception 'FAIL: an open record share survived the archive';
   end if;
@@ -255,6 +329,23 @@ begin
   raise notice 'ok: manager registry query no longer returns the pet';
   raise notice 'info: unfiltered, RLS still shows the manager % row(s) — the floor, not the filter',
     (select count(*) from public.pets where id = current_setting('part_a.pet')::uuid);
+end $$;
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- 5b. The practice cannot publish onto the removed pet
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_a.clinic_owner'), 'role', 'authenticated')::text, true);
+do $$
+declare r jsonb;
+begin
+  r := public.clinic_publish_record(current_setting('part_a.patient')::uuid, 'vaccination', gen_random_uuid());
+  if r->>'error' is distinct from 'pet_archived' then
+    raise exception 'FAIL: publish after archive answered %', r;
+  end if;
+  raise notice 'ok: publish onto an archived pet refused (pet_archived)';
 end $$;
 reset role;
 
