@@ -9,7 +9,8 @@ import {
   issueFine, remindAboutFine,
   type ViolationSubject,
 } from "@/lib/data/manager-queues"
-import { usePortfolioBuildings, setFineStatus } from "@/lib/data/portfolio"
+import { setFineStatus } from "@/lib/data/portfolio"
+import { useBuildingPetRules } from "@/lib/data/building-rules-live"
 import { useIncidents, setIncidentStatus, escalateIncident } from "@/lib/data/incidents"
 import { useNoticeKinds, useViolationNotices, issueNotice } from "@/lib/data/clinic/notices"
 import { useCaseTimeline, stampOf, type CaseEvent } from "@/lib/data/case-timeline"
@@ -67,9 +68,6 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   const incidents = useIncidents()
   const [logOpen, setLogOpen] = useState(false)
   const [selected, setSelected] = useState<Violation | null>(null)
-  // The fine schedule lives on each building's pet_rules; the case view reads
-  // the one for the case's building to default an "Issue fine" amount.
-  const buildings = usePortfolioBuildings()
 
   const rows = active.data
   const source = active
@@ -278,10 +276,6 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
         // The freshest copy of the row: settling a fine re-reads the list, and
         // the modal must not keep offering Mark paid on the fine just paid.
         violation={selected ? (active.data.find((v) => v.id === selected.id) ?? selected) : null}
-        schedule={(() => {
-          const b = selected ? buildings.data.find((x) => x.id === selected.buildingId) : undefined
-          return b ? readFineSchedule(b.rules) : null
-        })()}
         onClose={() => setSelected(null)}
         onChanged={() => {
           active.refetch()
@@ -601,16 +595,19 @@ type MoneyAct =
   | { kind: "fine"; degree: "fine_1" | "fine_2" }
 
 function CaseModal({
-  violation, schedule, onClose, onChanged,
+  violation, onClose, onChanged,
 }: {
   violation: Violation | null
-  /** The case's building's fine schedule, or null when it is not known. */
-  schedule: FineSchedule | null
   onClose: () => void
   onChanged: () => void
 }) {
   const notices = useViolationNotices(violation?.id ?? null)
   const timeline = useCaseTimeline(violation?.id ?? null)
+  // The schedule of THIS case's building, read directly: the portfolio list
+  // leaves out archived buildings and is empty for an admin, and either would
+  // have shown "no fine schedule" on a building that has one.
+  const rules = useBuildingPetRules(violation?.buildingId ?? undefined)
+  const schedule = rules.data ? readFineSchedule(rules.data) : null
   const [issuing, setIssuing] = useState(false)
   const [money, setMoney] = useState<MoneyAct | null>(null)
   const [busy, setBusy] = useState(false)

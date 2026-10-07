@@ -6,6 +6,8 @@ import { approveResidentLink, denyResidentLink } from "@/lib/data"
 import { decideRegistration } from "@/lib/data/manager-queues"
 import { setIncidentStatus, escalateIncident } from "@/lib/data/incidents"
 import { setFineStatus } from "@/lib/data/portfolio"
+import { SETTLEABLE_IN_CASE } from "@/lib/data/fine-actions"
+import type { FineStatus } from "@/lib/data/violations"
 import { useWorkQueue, type QueueItem, type Urgency } from "@/lib/data/work-queue"
 import { PetDocumentReviewControls } from "@/components/screens/manager/pet-document-review"
 import { useStrata } from "./portal-context"
@@ -88,6 +90,10 @@ function actionsFor(item: QueueItem): RowAction[] {
        *   information" with no statement of what is not a request. */
       return []
     case "fine":
+      // A disputed fine is under an open appeal: deciding the appeal is the
+      // only move (the case view offers exactly that), so settling it here
+      // would decide the appeal by the back door. Same rule as the case view.
+      if (!SETTLEABLE_IN_CASE.includes(item.fineStatus as FineStatus)) return []
       return [
         // manager_set_fine_status: the only write path to a fine. It tells the
         // resident and refuses anything but an outstanding fine.

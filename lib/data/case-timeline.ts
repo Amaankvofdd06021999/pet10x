@@ -91,12 +91,16 @@ export function useCaseTimeline(violationId: string | null): LiveResult<CaseEven
         // case — a fine settled (manager_set_fine_status) or an appeal upheld.
         // "Moved to First fine" would be false, so the note is the title.
         if (e.from_stage === e.to_stage) {
+          // An upheld appeal's event ("Dispute upheld: <reasoning>") repeats
+          // the "Appeal upheld" row the dispute itself produces, so it gets a
+          // short title and its text goes underneath, not into the headline.
+          const isAppeal = (e.note ?? "").startsWith("Dispute ")
           out.push({
             id: `stage-${e.id}`,
             kind: "stage",
             at: e.created_at,
-            title: e.note ?? "Recorded on the case",
-            detail: null,
+            title: isAppeal ? "Case stays where it is" : (e.note ?? "Recorded on the case"),
+            detail: isAppeal ? e.note : null,
             amountCents: null,
             tone: "info",
           })
