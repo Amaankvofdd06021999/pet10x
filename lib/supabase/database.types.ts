@@ -3192,6 +3192,7 @@ export type Database = {
           building_id: string | null
           created_at: string
           email_claimed_at: string | null
+          email_failed_at: string | null
           emailed_at: string | null
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -3209,6 +3210,7 @@ export type Database = {
           building_id?: string | null
           created_at?: string
           email_claimed_at?: string | null
+          email_failed_at?: string | null
           emailed_at?: string | null
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -3226,6 +3228,7 @@ export type Database = {
           building_id?: string | null
           created_at?: string
           email_claimed_at?: string | null
+          email_failed_at?: string | null
           emailed_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]

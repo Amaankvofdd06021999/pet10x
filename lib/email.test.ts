@@ -3,6 +3,7 @@ import {
   DIGEST_MAX_ITEMS,
   clinicInviteHtml,
   escapeHtml,
+  isPermanentEmailFailure,
   notificationDigestHtml,
   notificationEmailHtml,
   notificationUrl,
@@ -67,6 +68,23 @@ describe("clinicInviteHtml", () => {
     expect(html).toContain("Eve &quot;the&quot; &lt;admin&gt;")
     expect(html).toContain("Vet &amp; &lt;i&gt;")
     expect(html).toContain(`href="https://example.test/x?a=1&amp;b=&quot;2&quot;"`)
+  })
+})
+
+describe("isPermanentEmailFailure", () => {
+  it("is permanent for a message Resend rejects on its content", () => {
+    expect(isPermanentEmailFailure({ statusCode: 422, name: "validation_error" })).toBe(true)
+    expect(isPermanentEmailFailure({ statusCode: 400, name: "invalid_parameter" })).toBe(true)
+    expect(isPermanentEmailFailure({ statusCode: 400, name: "missing_required_field" })).toBe(true)
+  })
+
+  it("is retryable for configuration, quota, rate and server failures", () => {
+    expect(isPermanentEmailFailure({ statusCode: 403, name: "validation_error" })).toBe(false) // domain not verified
+    expect(isPermanentEmailFailure({ statusCode: 401, name: "missing_api_key" })).toBe(false)
+    expect(isPermanentEmailFailure({ statusCode: 429, name: "rate_limit_exceeded" })).toBe(false)
+    expect(isPermanentEmailFailure({ statusCode: 500, name: "internal_server_error" })).toBe(false)
+    expect(isPermanentEmailFailure({ statusCode: null, name: "application_error" })).toBe(false)
+    expect(isPermanentEmailFailure(null)).toBe(false)
   })
 })
 
@@ -156,6 +174,16 @@ describe("send, when email is enabled", () => {
     const { sendClinicInviteEmail: sendInvite } = await loadEnabled()
     expect(await sendInvite(opts)).toEqual({ ok: false, error: "domain not verified" })
     expect(err).toHaveBeenCalledOnce()
+  })
+
+  it("marks a recipient Resend rejects as a permanent failure", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    sendMock.mockResolvedValue({
+      data: null,
+      error: { message: "Invalid `to` field", name: "validation_error", statusCode: 422 },
+    })
+    const { sendClinicInviteEmail: sendInvite } = await loadEnabled()
+    expect(await sendInvite(opts)).toEqual({ ok: false, error: "Invalid `to` field", permanent: true })
   })
 
   it("reports a thrown call as a failure", async () => {

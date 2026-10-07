@@ -106,7 +106,25 @@ export function emailHtml({ headline, body, ctaUrl, ctaLabel, footnote }: Templa
 export type SendResult =
   | { ok: true; id: string | null }
   | { ok: false; suppressed: true }
-  | { ok: false; error: string }
+  | { ok: false; error: string; permanent?: true }
+
+/**
+ * Whether Resend refused THIS MESSAGE for good — a malformed or invalid
+ * recipient, a missing field — so sending it again can only fail again.
+ *
+ * Deliberately narrow. A 403 "domain not verified", a bad API key, a 429 or
+ * a 5xx is a problem with us or with Resend, not with the message, and every
+ * email would fail the same way until it is fixed; treating those as
+ * permanent would throw away a day of notifications over one config slip.
+ */
+export function isPermanentEmailFailure(err: { statusCode?: number | null; name?: string } | null | undefined): boolean {
+  if (!err) return false
+  if (err.statusCode === 422) return true
+  return (
+    err.statusCode === 400 &&
+    (err.name === "validation_error" || err.name === "invalid_parameter" || err.name === "missing_required_field")
+  )
+}
 
 async function send(opts: { to: string | string[]; subject: string; html: string }): Promise<SendResult> {
   if (!EMAIL_ENABLED) {
@@ -120,7 +138,9 @@ async function send(opts: { to: string | string[]; subject: string; html: string
     const { data, error } = await resend!.emails.send({ from: FROM, to: opts.to, subject: opts.subject, html: opts.html })
     if (error) {
       console.error(`[email] send failed: "${opts.subject}"`, error)
-      return { ok: false, error: error.message || "send failed" }
+      return isPermanentEmailFailure(error)
+        ? { ok: false, error: error.message || "send failed", permanent: true }
+        : { ok: false, error: error.message || "send failed" }
     }
     return { ok: true, id: data?.id ?? null }
   } catch (e) {

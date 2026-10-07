@@ -28,12 +28,17 @@ import {
  * statement (20261011000002), so a slow run and the next tick never hold the
  * same row. `emailed_at` / `pushed_at` are written only after a send
  * succeeds; a row whose send failed keeps its lease, and the lease expiring
- * (15 minutes) is the retry. A row this run claimed but had no time left to
- * send is released at the end, so the next tick takes it.
+ * (15 minutes) is the retry — unless Resend refused the message itself (an
+ * invalid recipient), which is stamped `email_failed_at` and never retried.
+ * A row this run claimed but had no time left to send is released at the
+ * end, so the next tick takes it.
+ *
+ * Each pass has its OWN time budget. With one shared clock a slow email
+ * backlog could spend the whole run and starve push every tick.
  */
 
-/** Stop starting new sends after this much of the run; the rest are released. */
-const TIME_BUDGET_MS = 45_000
+/** Per pass: stop starting new sends after this long; the rest are released. */
+const PASS_BUDGET_MS = 25_000
 const PUSH_CONCURRENCY = 10
 
 export const maxDuration = 60
@@ -51,9 +56,8 @@ export async function GET(request: NextRequest) {
   const supabase = getSupabaseAdmin()
   if (!supabase) return NextResponse.json({ error: "Supabase not configured" }, { status: 503 })
 
-  const started = Date.now()
-  const email = await emailPass(supabase, started)
-  const push = await pushPass(supabase, started)
+  const email = await emailPass(supabase, Date.now())
+  const push = await pushPass(supabase, Date.now())
   return NextResponse.json({ email, push })
 }
 
@@ -84,10 +88,11 @@ async function emailPass(supabase: Admin, started: number) {
   let sent = 0
   let failed = 0
   const unsent: string[] = []
+  const refused: string[] = []
 
   for (const g of groups) {
     const ids = g.items.map((i) => i.id)
-    if (Date.now() - started > TIME_BUDGET_MS) {
+    if (Date.now() - started > PASS_BUDGET_MS) {
       unsent.push(...ids)
       continue
     }
@@ -98,8 +103,10 @@ async function emailPass(supabase: Admin, started: number) {
         : await sendNotificationDigest({ to, items: g.items.map(toItem), ctaTarget: digestTarget(g.items) })
 
     if (!res.ok) {
-      // Leased, not stamped: the lease expiring is the retry.
       failed += 1
+      // Refused for good: stop. Anything else stays leased, and the lease
+      // expiring is the retry.
+      if ("permanent" in res && res.permanent) refused.push(...ids)
       continue
     }
     const { error: markErr } = await supabase
@@ -113,8 +120,18 @@ async function emailPass(supabase: Admin, started: number) {
   if (unsent.length) {
     await supabase.from("notifications").update({ email_claimed_at: null }).in("id", unsent)
   }
+  if (refused.length) {
+    await supabase.from("notifications").update({ email_failed_at: new Date().toISOString() }).in("id", refused)
+  }
 
-  return { claimed: data?.length ?? 0, recipients: groups.length, sent, failed, deferred: unsent.length }
+  return {
+    claimed: data?.length ?? 0,
+    recipients: groups.length,
+    sent,
+    failed,
+    refused: refused.length,
+    deferred: unsent.length,
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -168,7 +185,7 @@ async function pushPass(supabase: Admin, started: number) {
   let failed = 0
 
   async function deliver(n: (typeof notes)[number]) {
-    if (Date.now() - started > TIME_BUDGET_MS) {
+    if (Date.now() - started > PASS_BUDGET_MS) {
       unsent.push(n.id)
       return
     }
