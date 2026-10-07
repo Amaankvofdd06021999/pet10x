@@ -81,15 +81,41 @@ export function emailHtml({ headline, body, ctaUrl, ctaLabel, footnote }: Templa
 </html>`
 }
 
-async function send(opts: { to: string | string[]; subject: string; html: string }) {
+/**
+ * What a send came to. Resend's `emails.send` does NOT throw on a refused
+ * message — it resolves `{ data: null, error }` — so a caller that only
+ * caught exceptions reported a bounced invite as sent and threw the link
+ * away. Every outcome is now one of three shapes, and a failure is logged
+ * here once:
+ *
+ *   { ok: true, id }                  delivered to Resend
+ *   { ok: false, suppressed: true }   not sent on purpose (dev, no key)
+ *   { ok: false, error }              Resend refused it, or the call threw
+ */
+export type SendResult =
+  | { ok: true; id: string | null }
+  | { ok: false; suppressed: true }
+  | { ok: false; error: string }
+
+async function send(opts: { to: string | string[]; subject: string; html: string }): Promise<SendResult> {
   if (!EMAIL_ENABLED) {
     const why = !resend ? "no RESEND_API_KEY/resend key" : "not production and EMAIL_DEV_SEND is not 1"
     console.log(
       `[email] suppressed (${why}): "${opts.subject}" -> ${Array.isArray(opts.to) ? opts.to.join(", ") : opts.to}`,
     )
-    return { suppressed: true as const }
+    return { ok: false, suppressed: true }
   }
-  return resend!.emails.send({ from: FROM, to: opts.to, subject: opts.subject, html: opts.html })
+  try {
+    const { data, error } = await resend!.emails.send({ from: FROM, to: opts.to, subject: opts.subject, html: opts.html })
+    if (error) {
+      console.error(`[email] send failed: "${opts.subject}"`, error)
+      return { ok: false, error: error.message || "send failed" }
+    }
+    return { ok: true, id: data?.id ?? null }
+  } catch (e) {
+    console.error(`[email] send threw: "${opts.subject}"`, e)
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
 }
 
 /* ------------------------------------------------------------------ */

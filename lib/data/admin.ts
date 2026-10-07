@@ -258,9 +258,11 @@ export async function deleteBusiness(id: string): Promise<{ error: string | null
 
 export interface InviteResult {
   error: string | null
-  /** False when the server suppressed the email (non-production) — inviteUrl is then set. */
+  /** False when the email was suppressed (non-production) or failed — inviteUrl is then set. */
   emailSent?: boolean
   inviteUrl?: string
+  /** The email was attempted and refused, as opposed to suppressed. */
+  emailFailed?: boolean
 }
 
 export async function inviteManager(input: {
@@ -286,9 +288,10 @@ export async function inviteManager(input: {
       error?: string
       emailSent?: boolean
       inviteUrl?: string
+      emailFailed?: boolean
     }
     if (!res.ok || !json.ok) return { error: json.error ?? "Invite failed." }
-    return { error: null, emailSent: json.emailSent, inviteUrl: json.inviteUrl }
+    return { error: null, emailSent: json.emailSent, inviteUrl: json.inviteUrl, emailFailed: json.emailFailed }
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Invite failed." }
   }

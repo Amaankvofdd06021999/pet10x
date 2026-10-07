@@ -244,6 +244,8 @@ export interface InviteStaffResult {
   inviteUrl?: string
   /** The address already had an account; they were added without an email. */
   existing?: boolean
+  /** The email was attempted and refused (inviteUrl is set), not suppressed. */
+  emailFailed?: boolean
 }
 
 /** Invite someone to the practice's team (server route; see app/api/clinic/invite). */
@@ -265,9 +267,16 @@ export async function inviteStaff(input: {
       emailSent?: boolean
       inviteUrl?: string
       existing?: boolean
+      emailFailed?: boolean
     }
     if (!res.ok || !json.ok) return { error: json.error ?? "The invite could not be sent. Try again." }
-    return { error: null, emailSent: json.emailSent, inviteUrl: json.inviteUrl, existing: json.existing }
+    return {
+      error: null,
+      emailSent: json.emailSent,
+      inviteUrl: json.inviteUrl,
+      existing: json.existing,
+      emailFailed: json.emailFailed,
+    }
   } catch {
     return { error: "The invite could not be sent. Check your connection and try again." }
   }

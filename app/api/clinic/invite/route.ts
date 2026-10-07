@@ -137,10 +137,14 @@ export async function POST(request: Request) {
     inviterName: me?.full_name ?? "Your practice",
     roleLabel: STAFF_ROLE_LABEL[role],
   })
-  const suppressed = "suppressed" in sent && sent.suppressed
+  // Suppressed (dev) or refused by Resend: either way nobody got the link,
+  // so hand it back for the inviter to pass on. `emailFailed` tells the UI
+  // which of the two to say.
   return NextResponse.json({
     ok: true,
-    emailSent: !suppressed,
-    ...(suppressed ? { inviteUrl: link.properties.action_link } : {}),
+    emailSent: sent.ok,
+    ...(sent.ok
+      ? {}
+      : { inviteUrl: link.properties.action_link, ...("error" in sent ? { emailFailed: true } : {}) }),
   })
 }

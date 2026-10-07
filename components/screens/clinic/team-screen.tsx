@@ -221,7 +221,9 @@ function InviteStaffModal({
       setDone({ message: `${fullName.trim()} already had a Pet10x account and is now on your team.` })
     } else if (res.emailSent === false && res.inviteUrl) {
       setDone({
-        message: "Added — the email was not sent (email is off outside production). Copy the invite link to share it.",
+        message: res.emailFailed
+          ? "Added — but the invite email failed. Copy the link and send it to them yourself."
+          : "Added — the email was not sent (email is off outside production). Copy the invite link to share it.",
         inviteUrl: res.inviteUrl,
       })
     } else {

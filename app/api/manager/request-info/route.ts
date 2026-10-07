@@ -100,9 +100,8 @@ export async function POST(request: Request) {
       buildingName,
       missing,
     })
-    // send() returns { suppressed: true } when RESEND_API_KEY is absent, and
-    // a Resend result otherwise — neither shape guarantees an `error` key.
-    emailed = !("suppressed" in res) && !("error" in res && res.error)
+    // `ok` is false when suppressed (no key, dev) or refused by Resend.
+    emailed = res.ok
   }
 
   return NextResponse.json({ ok: true, requested: true, emailed, missing })

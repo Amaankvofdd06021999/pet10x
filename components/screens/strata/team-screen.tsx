@@ -75,8 +75,10 @@ function BuildingTeam({
     if (res.error) return toast.error("Invite failed", { description: res.error })
     if (res.emailSent === false && res.inviteUrl) {
       const url = res.inviteUrl
-      toast.success("Manager added — email not sent", {
-        description: "Email is disabled outside production. Copy the invite link to share it.",
+      toast.success(res.emailFailed ? "Manager added — the email failed" : "Manager added — email not sent", {
+        description: res.emailFailed
+          ? "The invite email could not be sent. Copy the invite link to share it."
+          : "Email is disabled outside production. Copy the invite link to share it.",
         duration: 15000,
         action: { label: "Copy link", onClick: () => void navigator.clipboard.writeText(url) },
       })
