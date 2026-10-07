@@ -20,8 +20,33 @@ export interface ReportPet {
   unit: string | null
   registrationStatus: string
   neutered: boolean | null
-  vax: { name: string; status: string; expiresOn: string | null }[]
-  docs: { kind: string; status: string; expiresOn: string | null }[]
+  /** `recordedAt` orders records of the same vaccine: given_on, else created_at. */
+  vax: { name: string; status: string; expiresOn: string | null; recordedAt?: string | null }[]
+  docs: { kind: string; status: string; expiresOn: string | null; recordedAt?: string | null }[]
+}
+
+/**
+ * The records that currently stand: per vaccine (by name, case-insensitive)
+ * and per document kind, the most recent one that was not rejected. A rabies
+ * shot replaced last spring, or a licence the manager rejected, is history —
+ * counting its expiry would report a pet "expired" that is in fact covered.
+ * A record with no date sorts oldest, so a dated replacement always wins.
+ */
+export function currentRecords(p: Pick<ReportPet, "vax" | "docs">): Pick<ReportPet, "vax" | "docs"> {
+  const latest = <T extends { status: string; recordedAt?: string | null }>(items: T[], key: (t: T) => string) => {
+    const by = new Map<string, T>()
+    for (const it of items) {
+      if (it.status === "rejected") continue
+      const k = key(it)
+      const prev = by.get(k)
+      if (!prev || (it.recordedAt ?? "") > (prev.recordedAt ?? "")) by.set(k, it)
+    }
+    return [...by.values()]
+  }
+  return {
+    vax: latest(p.vax, (v) => v.name.trim().toLowerCase()),
+    docs: latest(p.docs, (d) => d.kind),
+  }
 }
 
 export interface ExpiringItem {
@@ -90,9 +115,10 @@ export function buildComplianceReport(input: {
 
   const expiring: ExpiringItem[] = []
   for (const p of input.pets) {
+    const standing = currentRecords(p)
     const items = [
-      ...p.vax.map((v) => ({ item: v.name, kind: "vaccination" as const, expiresOn: v.expiresOn })),
-      ...p.docs.map((d) => ({ item: DOC_LABEL[d.kind] ?? "Document", kind: "document" as const, expiresOn: d.expiresOn })),
+      ...standing.vax.map((v) => ({ item: v.name, kind: "vaccination" as const, expiresOn: v.expiresOn })),
+      ...standing.docs.map((d) => ({ item: DOC_LABEL[d.kind] ?? "Document", kind: "document" as const, expiresOn: d.expiresOn })),
     ]
     for (const it of items) {
       if (!it.expiresOn) continue
@@ -171,8 +197,9 @@ export function complianceCensusCsv(
   return toCsv(rows, opts.detailed ? [...base, ...detail] : base)
 }
 
-/** The soonest expiry date a pet carries, for the CSV. */
+/** The soonest expiry among the records that currently stand, for the CSV. */
 export function nextExpiry(p: Pick<ReportPet, "vax" | "docs">): string | null {
-  const dates = [...p.vax, ...p.docs].map((x) => x.expiresOn).filter((d): d is string => !!d)
+  const standing = currentRecords(p)
+  const dates = [...standing.vax, ...standing.docs].map((x) => x.expiresOn).filter((d): d is string => !!d)
   return dates.length ? dates.sort()[0] : null
 }

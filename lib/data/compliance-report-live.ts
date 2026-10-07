@@ -29,8 +29,8 @@ export function useComplianceReport(buildingId: string | undefined, rules: Build
         .select(
           `id, name, species, breed, neutered, registration_status,
            unit:units ( unit_number ),
-           pet_vaccinations ( name, status, expires_on ),
-           pet_documents ( kind, status, expires_on )`,
+           pet_vaccinations ( name, status, expires_on, given_on, created_at ),
+           pet_documents ( kind, status, expires_on, created_at )`,
         )
         .eq("building_id", buildingId)
         .is("deleted_at", null)
@@ -53,8 +53,10 @@ export function useComplianceReport(buildingId: string | undefined, rules: Build
       neutered: boolean | null
       registration_status: string
       unit: { unit_number: string } | { unit_number: string }[] | null
-      pet_vaccinations: { name: string; status: string; expires_on: string | null }[] | null
-      pet_documents: { kind: string; status: string; expires_on: string | null }[] | null
+      pet_vaccinations:
+        | { name: string; status: string; expires_on: string | null; given_on: string | null; created_at: string }[]
+        | null
+      pet_documents: { kind: string; status: string; expires_on: string | null; created_at: string }[] | null
     }
     const pets: ReportPet[] = ((petsRes.data ?? []) as unknown as Row[]).map((r) => {
       const unit = Array.isArray(r.unit) ? r.unit[0] : r.unit
@@ -66,8 +68,18 @@ export function useComplianceReport(buildingId: string | undefined, rules: Build
         unit: unit?.unit_number ?? null,
         registrationStatus: r.registration_status,
         neutered: r.neutered,
-        vax: (r.pet_vaccinations ?? []).map((v) => ({ name: v.name, status: v.status, expiresOn: v.expires_on })),
-        docs: (r.pet_documents ?? []).map((d) => ({ kind: d.kind, status: d.status, expiresOn: d.expires_on })),
+        vax: (r.pet_vaccinations ?? []).map((v) => ({
+          name: v.name,
+          status: v.status,
+          expiresOn: v.expires_on,
+          recordedAt: v.given_on ?? v.created_at,
+        })),
+        docs: (r.pet_documents ?? []).map((d) => ({
+          kind: d.kind,
+          status: d.status,
+          expiresOn: d.expires_on,
+          recordedAt: d.created_at,
+        })),
       }
     })
     setData(

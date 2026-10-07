@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildComplianceReport, complianceCensusCsv, nextExpiry, type ReportPet } from "./compliance-report"
+import { buildComplianceReport, complianceCensusCsv, currentRecords, nextExpiry, type ReportPet } from "./compliance-report"
 
 const pet = (over: Partial<ReportPet>): ReportPet => ({
   id: "p",
@@ -106,5 +106,48 @@ describe("nextExpiry", () => {
       }),
     ).toBe("2026-12-01")
     expect(nextExpiry({ vax: [], docs: [] })).toBeNull()
+  })
+})
+
+describe("superseded and rejected records", () => {
+  const renewed = pet({
+    id: "r",
+    name: "Biscuit",
+    vax: [
+      { name: "Rabies", status: "expired", expiresOn: "2026-09-01", recordedAt: "2025-09-01" },
+      { name: "rabies ", status: "current", expiresOn: "2027-09-01", recordedAt: "2026-09-02" },
+      { name: "DHPP", status: "rejected", expiresOn: "2026-10-10", recordedAt: "2026-10-01" },
+    ],
+    docs: [
+      { kind: "municipal_license", status: "expired", expiresOn: "2026-08-01", recordedAt: "2025-08-01T10:00:00Z" },
+      { kind: "municipal_license", status: "current", expiresOn: "2027-08-01", recordedAt: "2026-08-02T10:00:00Z" },
+      { kind: "liability_insurance", status: "rejected", expiresOn: "2026-10-09", recordedAt: "2026-10-01T10:00:00Z" },
+    ],
+  })
+
+  it("keeps only the latest non-rejected record per vaccine and per document kind", () => {
+    const s = currentRecords(renewed)
+    expect(s.vax.map((v) => v.expiresOn)).toEqual(["2027-09-01"])
+    expect(s.docs.map((d) => d.expiresOn)).toEqual(["2027-08-01"])
+  })
+
+  it("does not report a renewed or rejected record as expired or expiring", () => {
+    const r = buildComplianceReport({ rules, today, openCaseStages: [], pets: [renewed] })
+    expect(r.expiring).toEqual([])
+  })
+
+  it("takes the next expiry from standing records only", () => {
+    expect(nextExpiry(renewed)).toBe("2027-08-01")
+  })
+
+  it("lets a dated record replace an undated one", () => {
+    const s = currentRecords({
+      vax: [
+        { name: "Rabies", status: "current", expiresOn: "2026-01-01" },
+        { name: "Rabies", status: "current", expiresOn: "2028-01-01", recordedAt: "2027-01-01" },
+      ],
+      docs: [],
+    })
+    expect(s.vax.map((v) => v.expiresOn)).toEqual(["2028-01-01"])
   })
 })
