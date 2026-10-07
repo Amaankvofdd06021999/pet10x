@@ -228,6 +228,42 @@ function persistUser(u: AppUser | null): void {
   }
 }
 
+/**
+ * A guest's building, kept for the life of the TAB so a reload does not drop a
+ * half-written incident report back onto the sign-in screen.
+ *
+ * sessionStorage, not localStorage: a guest session is anonymous and borrowed,
+ * and should not outlive the tab on a shared device. It is a convenience, never
+ * an authority — every report a guest files is still checked server-side
+ * against the building code. Restored only when nobody is signed in; cleared
+ * by sign-out and by a real sign-in.
+ */
+const GUEST_KEY = "pet10x.guest.v1"
+
+function readGuest(): GuestSession | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = window.sessionStorage.getItem(GUEST_KEY)
+    if (!raw) return null
+    const g = JSON.parse(raw) as Partial<GuestSession>
+    return typeof g.buildingCode === "string" && typeof g.buildingName === "string"
+      ? { buildingCode: g.buildingCode, buildingName: g.buildingName }
+      : null
+  } catch {
+    return null
+  }
+}
+
+function persistGuest(g: GuestSession | null): void {
+  if (typeof window === "undefined") return
+  try {
+    if (g) window.sessionStorage.setItem(GUEST_KEY, JSON.stringify(g))
+    else window.sessionStorage.removeItem(GUEST_KEY)
+  } catch {
+    /* private mode / quota — a reload just asks for the code again */
+  }
+}
+
 interface AuthContextValue {
   user: AppUser | null
   guestSession: GuestSession | null
@@ -418,6 +454,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [grants, authUser],
   )
 
+  /* Restore a guest session after a reload — but only for a tab nobody is
+     signed into. Without Supabase there is no session to wait for. */
+  const restoreGuest = useCallback(() => {
+    const g = readGuest()
+    if (!g) return
+    setGuestSession(g)
+    setAuthMode("guest")
+  }, [])
+
+  useEffect(() => {
+    if (!SUPABASE_ENABLED) restoreGuest()
+  }, [restoreGuest])
+
   // Track the Supabase session (real mode only). Profile is loaded in a separate
   // effect to avoid running queries inside the onAuthStateChange callback.
   useEffect(() => {
@@ -429,7 +478,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return
       setAuthUser(data.session?.user ?? null)
-      if (!data.session) setIsLoading(false)
+      if (!data.session) {
+        restoreGuest()
+        setIsLoading(false)
+      }
     })
 
     const {
@@ -448,7 +500,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false
       subscription.unsubscribe()
     }
-  }, [])
+  }, [restoreGuest])
 
   // Load the app user whenever the Supabase auth user changes.
   useEffect(() => {
@@ -456,6 +508,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!authUser) return
     const supabase = getSupabaseBrowserClient()!
     let active = true
+
+    // A real session supersedes any guest one, in state and in storage.
+    persistGuest(null)
+    setGuestSession(null)
 
     // Same user we already resolved before → paint from cache now and revalidate
     // below, instead of blocking the screen on a cross-region round trip.
@@ -526,6 +582,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback((role: DemoRole) => {
     if (SUPABASE_ENABLED) return // demo sign-in is mock-mode only
     setUser(MOCK_USERS[role])
+    persistGuest(null)
     setGuestSession(null)
     setAuthMode("full")
   }, [])
@@ -647,7 +704,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!building) return "That building code isn't recognised. Check with your building management."
     setUser(null)
-    setGuestSession({ buildingCode: code.trim().toUpperCase(), buildingName: building })
+    const session = { buildingCode: code.trim().toUpperCase(), buildingName: building }
+    persistGuest(session)
+    setGuestSession(session)
     setAuthMode("guest")
     return null
   }, [])
@@ -666,6 +725,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistUser(null)
     setUser(null)
     setAuthUser(null)
+    persistGuest(null)
     setGuestSession(null)
     setAuthMode(null)
   }, [])
