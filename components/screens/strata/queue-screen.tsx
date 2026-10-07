@@ -43,6 +43,8 @@ interface RowAction {
   label: string
   tone: "approve" | "deny" | "neutral" | "escalate"
   run: () => Promise<{ error: string | null }>
+  /** Asked before running. Money acts cannot be undone from here. */
+  confirm?: string
 }
 
 function actionsFor(item: QueueItem): RowAction[] {
@@ -86,8 +88,20 @@ function actionsFor(item: QueueItem): RowAction[] {
       return []
     case "fine":
       return [
-        { label: "Mark paid", tone: "approve", run: () => setFineStatus(item.refId, "paid") },
-        { label: "Waive", tone: "neutral", run: () => setFineStatus(item.refId, "waived") },
+        // manager_set_fine_status: the only write path to a fine. It tells the
+        // resident and refuses anything but an outstanding fine.
+        {
+          label: "Mark paid",
+          tone: "approve",
+          confirm: `Record this fine as paid? Only do this for money already received — nothing is charged, and the resident is told.`,
+          run: () => setFineStatus(item.refId, "paid"),
+        },
+        {
+          label: "Waive",
+          tone: "neutral",
+          confirm: `Waive this fine? The resident will owe nothing on it and is told.`,
+          run: () => setFineStatus(item.refId, "waived"),
+        },
       ]
     case "document":
       return [] // managers can't write pet_documents — informational only
@@ -114,6 +128,7 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
   const safe = scoped.filter((i) => i.safeToBulk)
 
   async function runAction(item: QueueItem, action: RowAction) {
+    if (action.confirm && !window.confirm(action.confirm)) return
     setBusy(item.key)
     const { error: e } = await action.run()
     setBusy(null)

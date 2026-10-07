@@ -551,6 +551,14 @@ export interface ViolationHistoryStep {
   date: string
 }
 
+/** One fine on a case, as the case view needs it to act on it. */
+export interface CaseFine {
+  id: string
+  amountCents: number
+  currency: string
+  status: Database["public"]["Enums"]["fine_status"]
+}
+
 export interface Violation {
   id: string
   buildingId: string | null
@@ -567,6 +575,11 @@ export interface Violation {
   stageLabel: string
   /** Every fine on the case, whatever its status. This is "issued", not "owed". */
   amount: number
+  /**
+   * The fines themselves, so the case view can settle one: Mark paid and Waive
+   * act on a fine id, not on the case. `amount`/`outstanding` are sums of these.
+   */
+  fines: CaseFine[]
   /**
    * The part of `amount` still owed — computed by `summariseFines`, which is
    * also what `useOutstandingFines` filters on, so the manager's screen and the

@@ -15,6 +15,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { LiveResult } from "./live"
 import type { PetRules, InviteResult } from "./admin"
 import { OUTSTANDING_FINE_STATUSES, type FineStatus } from "./violations"
+import { fineStatusError } from "./fine-actions"
 
 /* ------------------------------------------------------------------ */
 /* Buildings I manage                                                  */
@@ -391,36 +392,48 @@ export async function removeCoManager(linkId: string): Promise<{ error: string |
 
 /**
  * Waive or mark-paid an outstanding fine. Behind "Mark paid" and "Waive" in the
- * strata work queue (`components/screens/strata/queue-screen.tsx:74-75`).
+ * strata work queue and in the manager's case view.
  *
- * Authorised by RLS `fines_manager_update` (`manages_building or is_admin`,
- * both USING and WITH CHECK). The line here used to cite `fines_manager_write`,
- * a policy Phase 2 deleted; the name mattered because the next person to reason
- * about who may settle money would have started from a policy that no longer
- * exists.
+ * Goes through `manager_set_fine_status` (20261008000001), which is now the
+ * ONLY client write path to `fines`: that migration dropped
+ * `fines_manager_update`, so the bare `.update({ status })` this used to be
+ * would match zero rows. The function allows exactly
+ * issued | partially_paid | disputed -> paid | waived, writes a
+ * `violation_events` row on the fine's case and tells the resident. The
+ * triggers that guarded the old path still fire under it:
  *
- * Two triggers make this narrower and better recorded than the bare
- * `.update()` suggests, and neither needs anything from this function:
+ *   trg_fines_settle_only      only `status` may change on a fine.
+ *   trg_fines_settlement_event one `fine.status_changed` audit_log row per
+ *                              real change, with the old status and the new.
  *
- *   trg_fines_settle_only     BEFORE UPDATE. `status` is the ONLY column a
- *                             client may change. Bundling an amount rewrite
- *                             with a legal status change raises 42501; the
- *                             guard compares whole rows as jsonb, so a column
- *                             added later is protected on the day it is added.
- *   trg_fines_settlement_event AFTER UPDATE OF status. Writes one
- *                             `fine.status_changed` audit_log row per real
- *                             change, carrying the old status, the new one and
- *                             the amount. Before it, settling money was the one
- *                             act on an enforcement case that left no record.
+ * "Mark paid" records money received offline. Pet10x takes no payment.
  *
- * Both fire for definer functions and for `service_role` too — a trigger is not
- * RLS — so any future payment webhook is audited without asking.
+ * `note` is optional and is quoted to the resident in their notification.
  */
-export async function setFineStatus(id: string, status: "paid" | "waived"): Promise<{ error: string | null }> {
+export async function setFineStatus(
+  id: string,
+  status: "paid" | "waived",
+  note?: string,
+): Promise<{ error: string | null; notified?: boolean }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
-  const { error } = await supabase.from("fines").update({ status }).eq("id", id)
-  return { error: error?.message ?? null }
+  const { data, error } = await supabase.rpc("manager_set_fine_status", {
+    p_fine: id,
+    p_status: status,
+    p_note: note?.trim() ? note.trim() : undefined,
+  })
+  if (error) return { error: error.hint ? `${error.message} ${error.hint}` : error.message }
+  const r = data as unknown as {
+    ok: boolean
+    error?: string
+    from?: string
+    to?: string
+    length?: number
+    max?: number
+    notified?: boolean
+  }
+  if (!r.ok) return { error: fineStatusError(r) }
+  return { error: null, notified: r.notified ?? false }
 }
 
 /*

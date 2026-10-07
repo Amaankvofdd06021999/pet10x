@@ -1,17 +1,21 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { toast } from "sonner"
 import { Plus, Search, FileWarning, Gavel, Download } from "lucide-react"
 import {
   useViolationsLive, useResolvedViolationsLive, useViolationSubjects,
   openViolation, fetchCaseLedger, resolveViolation, dismissViolation, resolveDispute,
+  issueFine, remindAboutFine,
   type ViolationSubject,
 } from "@/lib/data/manager-queues"
+import { usePortfolioBuildings, setFineStatus } from "@/lib/data/portfolio"
 import { useIncidents, setIncidentStatus, escalateIncident } from "@/lib/data/incidents"
 import { useNoticeKinds, useViolationNotices, issueNotice } from "@/lib/data/clinic/notices"
 import { useCaseTimeline, stampOf, type CaseEvent } from "@/lib/data/case-timeline"
-import { parseAmountToCents } from "@/lib/data/fine-schedule"
-import type { Violation } from "@/lib/data/types"
+import { parseAmountToCents, readFineSchedule, formatCentsForInput, type FineSchedule } from "@/lib/data/fine-schedule"
+import { settleableFines, fineDegreeToIssue } from "@/lib/data/fine-actions"
+import type { CaseFine, Violation } from "@/lib/data/types"
 import { toCsv, downloadCsv } from "@/lib/csv"
 import { DataTable, type Column } from "@/components/screens/shared/data-table"
 import {
@@ -63,6 +67,9 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   const incidents = useIncidents()
   const [logOpen, setLogOpen] = useState(false)
   const [selected, setSelected] = useState<Violation | null>(null)
+  // The fine schedule lives on each building's pet_rules; the case view reads
+  // the one for the case's building to default an "Issue fine" amount.
+  const buildings = usePortfolioBuildings()
 
   const rows = active.data
   const source = active
@@ -268,7 +275,13 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
       />
 
       <CaseModal
-        violation={selected}
+        // The freshest copy of the row: settling a fine re-reads the list, and
+        // the modal must not keep offering Mark paid on the fine just paid.
+        violation={selected ? (active.data.find((v) => v.id === selected.id) ?? selected) : null}
+        schedule={(() => {
+          const b = selected ? buildings.data.find((x) => x.id === selected.buildingId) : undefined
+          return b ? readFineSchedule(b.rules) : null
+        })()}
         onClose={() => setSelected(null)}
         onChanged={() => {
           active.refetch()
@@ -581,16 +594,25 @@ function Stepper({ step }: { step: 1 | 2 }) {
 
 /* ------------------------------- case view ------------------------------- */
 
+/** The money acts a case offers, each behind its own confirm. */
+type MoneyAct =
+  | { kind: "paid" | "waived"; fine: CaseFine }
+  | { kind: "remind" }
+  | { kind: "fine"; degree: "fine_1" | "fine_2" }
+
 function CaseModal({
-  violation, onClose, onChanged,
+  violation, schedule, onClose, onChanged,
 }: {
   violation: Violation | null
+  /** The case's building's fine schedule, or null when it is not known. */
+  schedule: FineSchedule | null
   onClose: () => void
   onChanged: () => void
 }) {
   const notices = useViolationNotices(violation?.id ?? null)
   const timeline = useCaseTimeline(violation?.id ?? null)
   const [issuing, setIssuing] = useState(false)
+  const [money, setMoney] = useState<MoneyAct | null>(null)
   const [busy, setBusy] = useState(false)
   const openedId = violation?.id ?? null
 
@@ -604,10 +626,15 @@ function CaseModal({
 
   if (!violation) return null
 
+  // Asked of the pure helpers, which copy the ladder rule rather than
+  // restating it here. Under an open appeal both answer "nothing".
+  const owed = violation.openDispute ? [] : settleableFines(violation.fines)
+  const degree = fineDegreeToIssue(violation.stage, violation.openDispute !== null)
+
   return (
     <>
       <Modal
-        open={violation !== null && !issuing}
+        open={violation !== null && !issuing && money === null}
         onClose={onClose}
         title={`${violation.pet || "Case"} · ${violation.stageLabel}`}
         description={`${violation.resident || "Resident"} · Unit ${violation.unit || "—"} · ${violation.type}`}
@@ -635,6 +662,11 @@ function CaseModal({
                   if (res.error) window.alert(res.error)
                   else { onChanged(); onClose() }
                 }}>Mark resolved</Button>
+              {degree && (
+                <Button variant="danger" onClick={() => setMoney({ kind: "fine", degree })}>
+                  {degree === "fine_1" ? "Issue fine" : "Issue second fine"}
+                </Button>
+              )}
               <Button onClick={() => setIssuing(true)}>Issue a notice</Button>
             </>
           )
@@ -664,6 +696,44 @@ function CaseModal({
                 window.setTimeout(() => window.alert(why), 0)
               }}
             />
+          )}
+
+          {owed.length > 0 && (
+            <SectionCard
+              title="Fines owed"
+              subtitle="Record money received offline, waive a fine, or remind the resident"
+              actions={
+                violation.chaseable ? (
+                  <Button size="sm" variant="secondary" onClick={() => setMoney({ kind: "remind" })}>
+                    Send reminder
+                  </Button>
+                ) : undefined
+              }
+            >
+              <ul className="flex flex-col divide-y divide-border">
+                {owed.map((f) => (
+                  <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span className="flex items-center gap-2">
+                      <span className="text-[13.5px] font-semibold tabular-nums text-foreground">
+                        {fromCents(f.amountCents)}
+                        {f.currency.toUpperCase() !== "CAD" && ` ${f.currency.toUpperCase()}`}
+                      </span>
+                      <Pill tone={f.status === "issued" ? "bad" : "warn"}>
+                        {f.status === "issued" ? "Owed" : "Partly paid"}
+                      </Pill>
+                    </span>
+                    <span className="flex gap-1.5">
+                      <Button size="sm" variant="secondary" onClick={() => setMoney({ kind: "paid", fine: f })}>
+                        Mark paid
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setMoney({ kind: "waived", fine: f })}>
+                        Waive
+                      </Button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
           )}
 
           <SectionCard
@@ -698,7 +768,185 @@ function CaseModal({
           }}
         />
       </Modal>
+
+      {money && (
+        <MoneyActModal
+          act={money}
+          violation={violation}
+          schedule={schedule}
+          onClose={() => setMoney(null)}
+          onDone={() => {
+            setMoney(null)
+            timeline.refetch()
+            notices.refetch()
+            onChanged()
+          }}
+        />
+      )}
     </>
+  )
+}
+
+const MONEY_TITLE: Record<MoneyAct["kind"], string> = {
+  paid: "Mark this fine paid?",
+  waived: "Waive this fine?",
+  remind: "Send a reminder?",
+  fine: "Issue a fine",
+}
+
+/**
+ * The confirm for every money act on a case.
+ *
+ * One component, because the four differ only in what they say and which
+ * mutation they call; four copies of the busy / error / refetch handling is
+ * where they would drift. The fine branch carries the retired
+ * `violations-screen.tsx` ActionSheet's amount rule: the bylaw schedule is the
+ * default, and a fine the schedule does not price — or priced differently —
+ * must say why.
+ */
+function MoneyActModal({
+  act, violation, schedule, onClose, onDone,
+}: {
+  act: MoneyAct
+  violation: Violation
+  schedule: FineSchedule | null
+  onClose: () => void
+  onDone: () => void
+}) {
+  const degree = act.kind === "fine" ? act.degree : "fine_1"
+  /** What the bylaw says this degree costs, in cents, or null when unset. */
+  const bylawCents = schedule ? (degree === "fine_1" ? schedule.fine_1 : schedule.fine_2) : null
+
+  const [note, setNote] = useState("")
+  const [amount, setAmount] = useState(bylawCents !== null ? formatCentsForInput(bylawCents) : "")
+  const [dueOn, setDueOn] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const parsed = act.kind === "fine" ? parseAmountToCents(amount) : null
+  const enteredCents = typeof parsed === "number" ? parsed : null
+  const noSchedule = act.kind === "fine" && bylawCents === null
+  const deviates = act.kind === "fine" && bylawCents !== null && enteredCents !== null && enteredCents !== bylawCents
+  // The only place a note is compulsory: a fine nobody's bylaw prices, or one
+  // priced differently from it, is a decision the record has to explain.
+  const noteRequired = noSchedule || deviates
+
+  async function submit() {
+    setError(null)
+    if (act.kind === "fine") {
+      if (enteredCents === null) return setError("Enter an amount like 250 or 1,000.")
+      if (noteRequired && !note.trim()) return setError("Say what this amount is based on.")
+    }
+    setBusy(true)
+    let err: string | null = null
+    let success = ""
+    if (act.kind === "paid" || act.kind === "waived") {
+      const r = await setFineStatus(act.fine.id, act.kind, note)
+      err = r.error
+      const what = act.kind === "paid" ? "Fine recorded as paid" : "Fine waived"
+      success = r.notified ? `${what} and the resident notified.` : `${what}. No resident is assigned, so nobody was notified.`
+    } else if (act.kind === "remind") {
+      const r = await remindAboutFine(violation.id, note)
+      err = r.error
+      success = r.amountCents !== undefined ? `Reminder sent — ${fromCents(r.amountCents)} outstanding.` : "Reminder sent."
+    } else {
+      const r = await issueFine(violation.id, degree, {
+        // Left off when the manager kept the bylaw figure, so the DATABASE
+        // applies the schedule rather than the client echoing it back.
+        amountCents: enteredCents !== null && enteredCents !== bylawCents ? enteredCents : undefined,
+        dueOn: dueOn || undefined,
+        note: note.trim() || undefined,
+      })
+      err = r.error
+      const sum = r.amountCents !== undefined ? `${fromCents(r.amountCents)} ` : ""
+      success = r.notified
+        ? `${sum}fine issued and the resident notified.`
+        : `${sum}fine issued. No resident is assigned, so nobody was notified.`
+    }
+    setBusy(false)
+    if (err) return setError(err)
+    toast.success(success)
+    onDone()
+  }
+
+  const confirmLabel =
+    act.kind === "paid" ? "Mark paid" : act.kind === "waived" ? "Waive fine" : act.kind === "remind" ? "Send reminder" : "Issue fine"
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={MONEY_TITLE[act.kind]}
+      description={`${violation.pet || "This case"} · ${violation.resident || "Resident"} · Unit ${violation.unit || "—"}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant={act.kind === "fine" ? "danger" : "primary"} busy={busy} onClick={() => void submit()}>
+            {confirmLabel}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        {(act.kind === "paid" || act.kind === "waived") && (
+          <p className="text-[13px] leading-relaxed text-foreground">
+            {act.kind === "paid" ? (
+              <>
+                Record the <span className="font-semibold">{fromCents(act.fine.amountCents)}</span> fine as paid. This
+                records money you have already received outside Pet10x — nothing is charged.
+              </>
+            ) : (
+              <>
+                Waive the <span className="font-semibold">{fromCents(act.fine.amountCents)}</span> fine. The resident will
+                owe nothing on it.
+              </>
+            )}{" "}
+            The resident is told, and a settled fine can&apos;t be reopened.
+          </p>
+        )}
+        {act.kind === "remind" && (
+          <p className="text-[13px] leading-relaxed text-foreground">
+            The resident is reminded of everything still owed on this case ({fromDollars(violation.outstanding)}). One
+            reminder per case per day.
+          </p>
+        )}
+        {act.kind === "fine" && (
+          <>
+            {noSchedule ? (
+              <p className="rounded-xl border border-warning/40 bg-warning/5 p-3 text-[12px] leading-relaxed text-foreground">
+                <span className="font-semibold">This building has no fine schedule.</span> Nothing in its bylaws says what a{" "}
+                {degree === "fine_1" ? "first" : "second"} fine should cost, so the amount below is yours. Say what it is
+                based on — the note is kept with the case.
+              </p>
+            ) : (
+              <p className="rounded-xl bg-primary/5 p-3 text-[12px] leading-relaxed text-foreground">
+                <span className="font-semibold">
+                  Bylaw schedule: ${formatCentsForInput(bylawCents)} {schedule?.currency}
+                </span>{" "}
+                for a {degree === "fine_1" ? "first" : "second"} fine. Leave it and the schedule is applied; change it and
+                you are recording a deliberate deviation.
+              </p>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Amount" required hint={deviates ? "Differs from the bylaw schedule — explain below." : "Dollars, e.g. 250 or 1,000"}>
+                {(p) => <TextInput {...p} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}
+              </Field>
+              <Field label="Due by">
+                {(p) => <TextInput {...p} type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} />}
+              </Field>
+            </div>
+          </>
+        )}
+        <Field
+          label={act.kind === "fine" ? "Note" : "Note (optional)"}
+          required={act.kind === "fine" && noteRequired}
+          hint="The resident reads this exactly as written."
+        >
+          {(p) => <TextArea {...p} value={note} onChange={(e) => setNote(e.target.value)} />}
+        </Field>
+        {error && <p className="text-[12.5px] font-medium text-destructive">{error}</p>}
+      </div>
+    </Modal>
   )
 }
 

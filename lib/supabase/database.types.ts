@@ -884,6 +884,7 @@ export type Database = {
       buildings: {
         Row: {
           address: string | null
+          archived_at: string | null
           building_code: string
           bylaw_enacted_on: string | null
           bylaw_version: number | null
@@ -903,6 +904,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          archived_at?: string | null
           building_code: string
           bylaw_enacted_on?: string | null
           bylaw_version?: number | null
@@ -922,6 +924,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          archived_at?: string | null
           building_code?: string
           bylaw_enacted_on?: string | null
           bylaw_version?: number | null
@@ -6564,6 +6567,17 @@ export type Database = {
         Args: { p_type: Database["public"]["Enums"]["accommodation_type"] }
         Returns: Database["public"]["Enums"]["doc_kind"][]
       }
+      admin_building_history: {
+        Args: never
+        Returns: {
+          building_id: string
+          business_listings: number
+          fines: number
+          notifications: number
+          payouts: number
+          violations: number
+        }[]
+      }
       ai_expired_chat_media: {
         Args: { p_days?: number; p_limit?: number }
         Returns: {
@@ -6723,6 +6737,19 @@ export type Database = {
         }
         Returns: Json
       }
+      manager_municipal_reports: {
+        Args: { p_building: string }
+        Returns: {
+          created_at: string
+          description: string
+          evidence_count: number
+          id: string
+          location_text: string
+          reference_code: string
+          status: string
+          type: string
+        }[]
+      }
       manager_remind_fine: {
         Args: { p_note?: string; p_violation: string }
         Returns: Json
@@ -6733,6 +6760,10 @@ export type Database = {
           p_outcome: Database["public"]["Enums"]["dispute_outcome"]
           p_violation: string
         }
+        Returns: Json
+      }
+      manager_review_pet_document: {
+        Args: { p_doc: string; p_note?: string; p_verdict: string }
         Returns: Json
       }
       manager_save_building_rule: {
@@ -6752,6 +6783,14 @@ export type Database = {
           p_currency?: string
           p_fine_1_cents: number
           p_fine_2_cents: number
+        }
+        Returns: Json
+      }
+      manager_set_fine_status: {
+        Args: {
+          p_fine: string
+          p_note?: string
+          p_status: Database["public"]["Enums"]["fine_status"]
         }
         Returns: Json
       }

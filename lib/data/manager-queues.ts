@@ -37,6 +37,7 @@ import {
   tabFor,
   toViolationStage,
   type FineStage,
+  type FineStatus,
 } from "./violations"
 
 interface Result<T> {
@@ -302,7 +303,7 @@ export function useViolationsLive(): Result<Violation[]> {
          resident:profiles!violations_resident_id_fkey ( full_name ),
          unit:units ( unit_number ),
          pet:pets ( name ),
-         fines ( amount_cents, status ),
+         fines ( id, amount_cents, currency, status ),
          disputes:violation_disputes ( stage, reason, filed_at, outcome, decided_note, decided_at )`,
       )
       .is("resolved_at", null)
@@ -325,7 +326,7 @@ export function useViolationsLive(): Result<Violation[]> {
       resident: { full_name: string | null } | { full_name: string | null }[] | null
       unit: { unit_number: string } | { unit_number: string }[] | null
       pet: { name: string } | { name: string }[] | null
-      fines: { amount_cents: number; status: string }[] | null
+      fines: { id: string; amount_cents: number; currency: string; status: string }[] | null
       disputes:
         | {
             stage: string
@@ -382,6 +383,12 @@ export function useViolationsLive(): Result<Violation[]> {
           stage,
           stageLabel: STAGE_LABEL[stage],
           amount: money.totalCents / 100,
+          fines: fines.map((f) => ({
+            id: f.id,
+            amountCents: f.amount_cents,
+            currency: f.currency,
+            status: f.status as FineStatus,
+          })),
           outstanding: money.outstandingCents / 100,
           disputed: money.disputedCents / 100,
           chaseable: money.chaseable,

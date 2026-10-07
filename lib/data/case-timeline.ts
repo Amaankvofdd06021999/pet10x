@@ -87,6 +87,21 @@ export function useCaseTimeline(violationId: string | null): LiveResult<CaseEven
       >) {
         // The opening event duplicates the row above; one origin story is enough.
         if (e.from_stage === null) continue
+        // A self-transition moved no stage: it is something recorded ON the
+        // case — a fine settled (manager_set_fine_status) or an appeal upheld.
+        // "Moved to First fine" would be false, so the note is the title.
+        if (e.from_stage === e.to_stage) {
+          out.push({
+            id: `stage-${e.id}`,
+            kind: "stage",
+            at: e.created_at,
+            title: e.note ?? "Recorded on the case",
+            detail: null,
+            amountCents: null,
+            tone: "info",
+          })
+          continue
+        }
         out.push({
           id: `stage-${e.id}`,
           kind: "stage",
