@@ -57,16 +57,36 @@ before applying, and apply in filename order:
 20261011000001_notify_incidents_and_bookings.sql Part D
 20261011000002_notification_delivery.sql
 20261011000003_reminder_rules_no_sms.sql
+20261011000004_reminder_rules_sms_trigger.sql
+20261011000005_notification_email_failed.sql
 20261012000001_account_deletion_set_null.sql    Part F
 20261012000002_admin_users_and_stats.sql
 20261012000003_ai_conversation_delete_purges.sql
 20261012000004_customer_cancel_booking.sql
 20261012000005_estimate_approved_target.sql
+20261012000006_user_flags_one_door.sql
+20261012000007_anonymous_incident_audit.sql
+20261012000008_booking_insert_guard.sql
 ```
 
-The app code on this branch calls RPCs and columns these create
-(`admin_list_users`, `customer_cancel_booking`, `notify_email`, …). **Deploy
-the code only after the migrations are applied**, or those screens fail.
+## Deploy order
+
+1. **Apply every migration above, in filename order**, to the production
+   database.
+2. Run `supabase/tests/part-*.sql` (below); each must end in ROLLBACK with
+   only `ok:` notices.
+3. Set any missing environment variables (below).
+4. **Only then deploy this branch's code.**
+
+The code calls RPCs and columns these migrations create
+(`admin_list_users`, `admin_set_user_flags`, `customer_cancel_booking`,
+`notify_email`, …) and no longer writes the paths they close — the admin
+console's suspend button, a customer's Cancel, the Audit Log and the console
+inboxes all fail against an unmigrated database. Migrations first is the
+right order, but it opens a short gap for the code still deployed: its
+customer Cancel (a direct UPDATE, policy dropped by `20261012000004`) and its
+admin suspend button (a direct profile PATCH, refused by `20261012000006`)
+fail until the new code is live. Keep the gap between steps 1 and 4 short.
 
 `20261012000003` deletes the messages of every AI conversation already marked
 deleted — irreversible, and intended.

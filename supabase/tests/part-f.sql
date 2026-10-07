@@ -7,7 +7,10 @@
 -- refuse non-admins, and an admin cannot suspend or demote themselves),
 -- the audit log's reach (a building's manager reads it, nobody else does) and
 -- 20261012000004 (a customer cancels through the RPC, the business is told,
--- and the direct UPDATE path is gone).
+-- and the direct UPDATE path is gone). The review round added 20261012000006
+-- (no direct PATCH of admin/suspension flags, admins included),
+-- 20261012000007 (anonymous reports name nobody in audit_log) and
+-- 20261012000008 (a client's booking insert is rewritten by the server).
 --
 -- Not yet run: written before these migrations were applied (no database was
 -- reachable from the session that wrote it). Run it after they are, as the
@@ -338,6 +341,93 @@ begin
   exception when invalid_parameter_value then null;
   end;
   raise notice 'ok: a completed booking cannot be cancelled';
+end $$;
+
+-- ===========================================================================
+-- 6. (review) Admin flags have one door, for admins too
+-- ===========================================================================
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_f.admin'), 'role', 'authenticated')::text, true);
+do $$
+begin
+  if not public.is_admin() then raise exception 'FIXTURE: admin is not an admin'; end if;
+  begin
+    update public.profiles set is_suspended = true, suspended_at = now()
+     where id = current_setting('part_f.outsider')::uuid;
+    raise exception 'FAIL: an admin suspended someone by a direct PATCH';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.profiles set is_super_admin = false where id = auth.uid();
+    raise exception 'FAIL: an admin demoted themselves by a direct PATCH';
+  exception when insufficient_privilege then null;
+  end;
+  -- An ordinary profile edit still works, and the RPC still does.
+  update public.profiles set full_name = full_name where id = auth.uid();
+  perform public.admin_set_user_flags(current_setting('part_f.outsider')::uuid, true, null);
+  perform public.admin_set_user_flags(current_setting('part_f.outsider')::uuid, false, null);
+  raise notice 'ok: flags change only through admin_set_user_flags';
+end $$;
+
+-- ===========================================================================
+-- 7. (review) An anonymous report names nobody in the audit log
+-- ===========================================================================
+reset role;
+select set_config('part_f.code',
+  (select building_code from public.buildings where id = current_setting('part_f.building')::uuid), true);
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_f.outsider'), 'role', 'authenticated')::text, true);
+do $$
+declare v jsonb;
+begin
+  v := public.submit_incident_report(current_setting('part_f.code'), 'off_leash', 'Part F anonymous report', null, null, true);
+  if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: the report was refused: %', v; end if;
+  perform set_config('part_f.anon_ref', v->>'reference', true);
+end $$;
+reset role;
+do $$
+begin
+  if exists (select 1 from public.audit_log
+              where action = 'incident.submitted'
+                and metadata->>'reference' = current_setting('part_f.anon_ref')
+                and actor_id is not null) then
+    raise exception 'FAIL: the anonymous report''s audit row names the reporter';
+  end if;
+  if exists (select 1 from public.audit_log a join public.incident_reports ir on ir.id = a.entity_id
+              where a.action = 'incident.submitted' and ir.is_anonymous and a.actor_id is not null) then
+    raise exception 'FAIL: an older anonymous report''s audit row still names its reporter';
+  end if;
+  raise notice 'ok: anonymous reports name nobody, old or new';
+end $$;
+
+-- ===========================================================================
+-- 8. (review) A customer's booking is written by the server, not the customer
+-- ===========================================================================
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_f.outsider'), 'role', 'authenticated')::text, true);
+do $$
+declare v record;
+begin
+  insert into public.service_bookings
+    (business_id, customer_id, service_id, amount_cents, commission_cents, status, responded_at, scheduled_for)
+  values (current_setting('part_f.biz')::uuid, auth.uid(), current_setting('part_f.service')::uuid,
+          1, 0, 'paid', now(), now() + interval '4 days')
+  returning status, amount_cents, commission_cents, responded_at, payment_id into v;
+  if v.status <> 'requested' or v.amount_cents <> 4000 or v.commission_cents <> 600
+     or v.responded_at is not null or v.payment_id is not null then
+    raise exception 'FAIL: the customer''s values survived: %', row_to_json(v);
+  end if;
+  begin
+    insert into public.service_bookings (business_id, customer_id, service_id)
+    values (current_setting('part_f.biz')::uuid, auth.uid(), gen_random_uuid());
+    raise exception 'FAIL: a booking for a service that is not the business''s was accepted';
+  exception when invalid_parameter_value then null;
+  end;
+  raise notice 'ok: status, amount and commission come from the server';
 end $$;
 
 rollback;
