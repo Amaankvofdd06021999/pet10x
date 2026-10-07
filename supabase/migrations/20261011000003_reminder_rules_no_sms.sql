@@ -6,6 +6,9 @@
 -- queue's Notify action writes a `reminder` notification to the owner, and
 -- `/api/notifications/dispatch` emails it.
 --
+-- SUPERSEDED by 20261011000004, which replaces this check with a trigger so a
+-- historic sms rule can still be edited.
+--
 -- NOT VALID on purpose: a rule saved as `sms` before today stays a valid row
 -- (the original check still admits it, and it is shown as "SMS (retired)"),
 -- but no insert and no update can produce one again. A historic `sms` rule
