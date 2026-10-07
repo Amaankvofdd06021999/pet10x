@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { usePets, useUnreadNotificationCount, useMyBuildingLink } from "@/lib/data"
+import { usePets, useUnreadNotificationCount, useMyBuildingLink, useMemorialPets } from "@/lib/data"
 import { exportMyData, deleteMyAccount, updateMyProfile, setMyUnit } from "@/lib/data/account"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
@@ -137,6 +137,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const { user, signOut, updateLocalUser, viewAs } = useAuth()
   const { data: pets } = usePets()
   const { data: buildingLink } = useMyBuildingLink()
+  const { data: memorial } = useMemorialPets()
   const unreadCount = useUnreadNotificationCount()
   const [busy, setBusy] = useState<"export" | "delete" | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -354,6 +355,31 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             })}
           </div>
         </section>
+
+        {/* In memory — pets removed as "Passed away", and only those. Read-only
+            on purpose: no row opens anything, because there is nothing left to
+            manage, and a pet removed as rehomed or added by mistake never
+            appears here or anywhere else. */}
+        {memorial.length > 0 && (
+          <section className="mb-5">
+            <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase text-muted-foreground">In memory</h3>
+            <div className="flex flex-wrap gap-2.5">
+              {memorial.map((pet) => (
+                <div key={pet.id} className="flex flex-1 items-center gap-2.5 rounded-2xl card-raised p-2.5">
+                  <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl bg-muted">
+                    <Image src={pet.image} alt={pet.name} fill className="object-cover grayscale" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block truncate text-[13px] font-semibold text-foreground">{pet.name}</span>
+                    {pet.years && (
+                      <span className="mt-0.5 block text-[10px] text-muted-foreground">{pet.years}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Menu Sections */}
         {MENU_SECTIONS.filter(

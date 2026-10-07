@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { CareTracker } from "@/components/screens/care/care-tracker"
 import { PetPhotoGallery } from "@/components/screens/pet/photo-gallery"
 import { VetRecords } from "@/components/screens/pet/vet-records"
+import { RemovePetSheet } from "@/components/screens/pet/remove-pet-sheet"
 import {
   ArrowLeft,
   Camera,
@@ -233,7 +234,13 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
         <div className="px-4">
           {activeTab === "overview" &&
             (editing ? (
-              <EditForm pet={pet} onDone={() => setEditing(false)} onSaved={refetch} />
+              <EditForm
+                pet={pet}
+                onDone={() => setEditing(false)}
+                onSaved={refetch}
+                /* Home, not Back: Back could be a screen about this pet. */
+                onRemoved={() => (onNavigate ? onNavigate("home") : onBack())}
+              />
             ) : (
               <>
                 <PetPhotoGallery petId={pet.id} />
@@ -353,10 +360,12 @@ function EditForm({
   pet,
   onDone,
   onSaved,
+  onRemoved,
 }: {
   pet: NonNullable<ReturnType<typeof usePet>["data"]>
   onDone: () => void
   onSaved: () => void
+  onRemoved: () => void
 }) {
   const m = pet.medical
   const [f, setF] = useState({
@@ -377,6 +386,7 @@ function EditForm({
     vetPhone: m?.vetPhone ?? "",
   })
   const [saving, setSaving] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const set = (k: keyof typeof f, v: string | boolean) => setF((p) => ({ ...p, [k]: v }))
 
   async function save() {
@@ -479,6 +489,19 @@ function EditForm({
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save
         </button>
       </div>
+
+      {/* Destructive, and last: below Save so it is never the button a thumb
+          lands on by habit, and behind a sheet that asks why. */}
+      <button
+        onClick={() => setRemoving(true)}
+        className="mt-4 flex items-center justify-center gap-1.5 rounded-xl border border-destructive/20 bg-destructive/5 py-3 text-[15px] font-semibold text-destructive"
+      >
+        <Trash2 className="h-4 w-4" /> Remove pet
+      </button>
+
+      {removing && (
+        <RemovePetSheet petId={pet.id} petName={pet.name} onClose={() => setRemoving(false)} onRemoved={onRemoved} />
+      )}
     </div>
   )
 }

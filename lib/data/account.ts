@@ -43,6 +43,9 @@ export async function exportMyData(): Promise<Record<string, unknown> | null> {
   if (!user) return null
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle()
+  /* No `deleted_at` filter, deliberately — the one read of the owner's pets
+     that wants the removed ones too. An archived pet is still this person's
+     data, and an export that silently omits it is not an export. */
   const { data: pets } = await supabase
     .from("pets")
     .select("*, pet_vaccinations(*), pet_documents(*), pet_emergency_contacts(*)")

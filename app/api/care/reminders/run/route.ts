@@ -73,6 +73,10 @@ export async function GET(request: NextRequest) {
       "id, label, detail, kind, scheduled_at, days_of_week, remind_minutes_before, pet_id, recurrence, interval_days, next_due_on, starts_on, ends_on, pets!inner(id, name, owner_id, profiles:owner_id(timezone))",
     )
     .eq("is_active", true)
+    /* owner_archive_pet deactivates a removed pet's tasks; this says so again
+       at the read, because RLS is not in play here (service role) and the
+       query is the only filter there is. */
+    .is("pets.deleted_at", null)
     // No `scheduled_at is not null` filter any more: an interval task (monthly
     // flea, six-month heartworm) is due on a DATE, not at a time of day, and
     // that filter excluded every one of them.
@@ -249,6 +253,8 @@ export async function GET(request: NextRequest) {
     .from("pet_vaccinations")
     .select("id, name, kind, expires_on, remind_days_before, reminded_for, pets!inner(id, name, owner_id)")
     .not("expires_on", "is", null)
+    // A removed pet's booster is not due. Nothing else stops this one.
+    .is("pets.deleted_at", null)
 
   let vaccineReminders = 0
   const todayKey = new Date().toISOString().slice(0, 10)

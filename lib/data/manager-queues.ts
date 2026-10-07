@@ -213,9 +213,12 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
       .from("pet_documents")
       .select(
         `id, kind, name, status, expires_on,
-         pet:pets ( name, building_id, unit:units ( unit_number ), owner:profiles!pets_owner_id_fkey ( full_name ) )`,
+         pet:pets!inner ( name, building_id, unit:units ( unit_number ), owner:profiles!pets_owner_id_fkey ( full_name ) )`,
       )
       .in("status", ["expiring", "expired", "missing", "rejected"])
+      /* A removed pet's documents are nobody's to review. `!inner` makes the
+         embed filter drop the document row, not just blank its pet. */
+      .is("pet.deleted_at", null)
       .order("expires_on", { ascending: true })
 
     if (err) {

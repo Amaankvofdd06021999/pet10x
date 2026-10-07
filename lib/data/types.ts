@@ -312,6 +312,15 @@ export interface ManagerPet {
   missing: string[]
 }
 
+/** A pet archived as `passed_away`, as Profile's "In memory" shows it. Read-only. */
+export interface MemorialPet {
+  id: string
+  name: string
+  image: string
+  /** "2014–2026" (birth–removal); null when there is no birth date. */
+  years: string | null
+}
+
 export interface Pet {
   id: string
   ownerId: string

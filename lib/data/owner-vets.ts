@@ -63,6 +63,7 @@ export function useMyVetShares(): LiveResult<VetShare[]> {
           .from("record_shares")
           .select("*, businesses(id, name, city, address), pets!inner(id, name, owner_id)")
           .eq("pets.owner_id", uid)
+          .is("pets.deleted_at", null)
           .is("revoked_at", null)
           .order("created_at", { ascending: false }),
       ) as Array<
@@ -260,9 +261,12 @@ export function usePendingShareRequests(): LiveResult<PendingShareRequest[]> {
       const rows = must(
         await db
           .from("record_share_requests")
-          .select("*, businesses(name), pets(name)")
+          .select("*, businesses(name), pets!inner(name)")
           .eq("profile_id", uid)
           .eq("status", "pending")
+          /* A request about a removed pet cannot be approved —
+             owner_grant_record_share refuses it — so it must not be offered. */
+          .is("pets.deleted_at", null)
           .order("created_at", { ascending: false }),
       ) as Array<
         Database["public"]["Tables"]["record_share_requests"]["Row"] & {
@@ -322,6 +326,7 @@ export function useClinicRecords(petId?: string | null): LiveResult<ClinicRecord
         .from("record_publications")
         .select("*, businesses(name), pets!inner(id, name, owner_id)")
         .eq("pets.owner_id", uid)
+        .is("pets.deleted_at", null)
         .is("withdrawn_at", null)
         .order("published_at", { ascending: false })
         .limit(100)

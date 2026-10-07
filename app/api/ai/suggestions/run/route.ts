@@ -18,8 +18,10 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("ai_suggestions")
-    .select("id, pet_id, kind, severity, title, body, action_label, action_target, created_at, pets(name)")
+    .select("id, pet_id, kind, severity, title, body, action_label, action_target, created_at, pets!inner(name)")
     .eq("profile_id", user.id)
+    // A nudge about a removed pet points at a pet-detail that no longer opens.
+    .is("pets.deleted_at", null)
     .eq("status", "active")
     .or(`valid_until.is.null,valid_until.gt.${new Date().toISOString()}`)
     .order("created_at", { ascending: false })

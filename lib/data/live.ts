@@ -23,6 +23,7 @@ import { toViolationStage } from "./violations"
 import { formatReward } from "./community"
 import { uploadCommunityImage } from "./community-media"
 import { createNotificationStore } from "./notification-store"
+import { memorialYears, type ArchiveReason } from "./pet-archive"
 import type {
   AppNotification,
   BuildingLink,
@@ -34,6 +35,7 @@ import type {
   LostFoundItem,
   LostFoundType,
   ManagerPet,
+  MemorialPet,
   Pet,
   PetContact,
   PetDoc,
@@ -528,6 +530,90 @@ export async function setPetPhoto(petId: string, file: File): Promise<{ error: s
   const { error: uerr } = await supabase.from("pets").update({ image_url: path }).eq("id", petId)
   if (!uerr) await refreshPets()
   return { error: uerr?.message ?? null }
+}
+
+/* ----------------------------- removing a pet ---------------------------- */
+
+/**
+ * Archive, never delete — see 20261007000001_owner_archive_pet.sql. The RPC
+ * stamps the reason, revokes open record shares and stops the pet's care
+ * reminders in one transaction; violations, incidents and clinic records that
+ * name the pet keep resolving. Until that migration is applied this returns
+ * the database's error, which the sheet shows — it never reports success it
+ * did not get.
+ */
+export async function archivePet(petId: string, reason: ArchiveReason): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Pets can't be removed right now — backend not configured." }
+  const { error } = await supabase.rpc("owner_archive_pet", { p_pet_id: petId, p_reason: reason })
+  if (error) return { error: error.message }
+  /* Drop it from the shared cache NOW, so the navigation the caller makes next
+     renders in the same batch and no list ever shows it again; then reload
+     behind it for anything else the archive changed. */
+  if (petsCache) {
+    petsCache = petsCache.filter((p) => p.id !== petId)
+    notifyPets()
+  }
+  void refreshPets()
+  return { error: null }
+}
+
+/**
+ * Pets the owner archived as `passed_away`, for Profile's "In memory".
+ *
+ * The only read of `pets` that asks for `deleted_at is not null`, and it asks
+ * for one reason by name: a rehomed pet or one added by mistake must not turn
+ * up here, or anywhere. RLS lets an owner read all their own pets; this query
+ * is what narrows it.
+ */
+export function useMemorialPets(): LiveResult<MemorialPet[]> {
+  const [data, setData] = useState<MemorialPet[]>([])
+  const [isLoading, setLoading] = useState(ENABLED)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    const supabase = ENABLED ? getSupabaseBrowserClient() : null
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setData([])
+      setLoading(false)
+      return
+    }
+    const { data: rows, error: err } = await supabase
+      .from("pets")
+      .select("id, name, dob, image_url, deleted_at")
+      .eq("owner_id", user.id)
+      .not("deleted_at", "is", null)
+      .eq("archived_reason", "passed_away")
+      .order("deleted_at", { ascending: false })
+    if (err) {
+      setError(err.message)
+      setData([])
+      setLoading(false)
+      return
+    }
+    const paths = (rows ?? []).map((r) => r.image_url).filter((p): p is string => !!p && isStoragePath(p))
+    const urls = paths.length ? await petFileSignedUrls(paths) : {}
+    setData(
+      (rows ?? []).map((r) => ({
+        id: r.id,
+        name: r.name,
+        image: r.image_url ? (isStoragePath(r.image_url) ? urls[r.image_url] ?? "/placeholder.svg" : r.image_url) : "/placeholder.svg",
+        years: memorialYears(r.dob, r.deleted_at),
+      })),
+    )
+    setError(null)
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
 }
 
 /* ---------------------- pet documents / vax / contacts ------------------ */
