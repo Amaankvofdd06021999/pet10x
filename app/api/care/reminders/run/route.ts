@@ -16,11 +16,12 @@ import { addCalendarDays, calendarDaysBetween } from "@/lib/dates"
  * created in rather than UTC, because being wrong by a whole continent is
  * worse than being wrong for the minority who have moved away.
  *
- * Delivery is in-app: a row in `notifications`, which surfaces on the Alerts
- * screen and in the header bell's unread count. It is deliberately NOT push —
- * `push_tokens` is shaped for Expo (a native client that does not exist yet),
- * and web push would need VAPID keys and a service worker. Adding either
- * changes only this function.
+ * Delivery: this only writes a row in `notifications`, which surfaces on the
+ * Alerts screen and in the header bell's unread count. Getting it further is
+ * `/api/notifications/dispatch`'s job, as for every other notification: a
+ * `care` reminder goes out as web push to owners who turned it on, and is not
+ * emailed (care is a push-only kind); a `compliance` vaccination reminder is
+ * both.
  */
 
 const DEFAULT_TZ = "America/Vancouver"
