@@ -1,7 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { PasswordField } from "@/components/ui/password-field"
+import { CodeEntry, CODE_TTL_MS, RESEND_COOLDOWN_MS } from "@/components/auth/code-entry"
+import { ConsentLine } from "@/components/legal/consent-line"
+import { HelpLegalLinks } from "@/components/legal/help-legal-section"
+import { checkPassword } from "@/lib/auth/password-rules"
+import { BUSINESS_CATEGORIES } from "@/lib/auth/signup-intent"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { canAccessRoute } from "@/lib/rbac"
 import { Toaster } from "@/components/ui/sonner"
@@ -22,9 +27,12 @@ import {
   DollarSign,
   MessageSquare,
   BadgeCheck,
+  ArrowLeft,
+  MailCheck,
 } from "lucide-react"
 
-const CATEGORIES = ["Veterinary", "Grooming", "Boarding", "Dog walking", "Training", "Pet store", "Other"]
+/** The server validates against the same list (lib/auth/signup-intent.ts). */
+const CATEGORIES = BUSINESS_CATEGORIES
 
 const TABS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -70,52 +78,118 @@ function Gate() {
   return <Portal />
 }
 
+/**
+ * Sign in, or sign up in two steps: details, then the 6-digit code emailed to
+ * the address. It is the resident OTP gate (/api/auth/signup/start + /verify)
+ * with `intent: 'business'` — no account exists until the code is entered, and
+ * the verify route creates the business with it. The password stays in this
+ * component's state until then, exactly as on the resident screen.
+ */
 function BusinessAuth() {
-  const { signInWithPassword } = useAuth()
+  const { signInWithPassword, startSignup, verifySignup } = useAuth()
   const [mode, setMode] = useState<"signin" | "signup">("signin")
-  const [f, setF] = useState({ businessName: "", category: CATEGORIES[0], fullName: "", email: "", password: "" })
+  const [step, setStep] = useState<"details" | "code">("details")
+  const [f, setF] = useState({ businessName: "", category: CATEGORIES[0] as string, fullName: "", email: "", password: "" })
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }))
 
+  const [otp, setOtp] = useState("")
+  const [expiresAt, setExpiresAt] = useState(0)
+  const [resendAt, setResendAt] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
+  const otpInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (step !== "code") return
+    otpInputRef.current?.focus()
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [step])
+
+  const msLeft = Math.max(0, expiresAt - now)
+  const codeExpired = expiresAt > 0 && msLeft === 0
+  const resendLeft = Math.max(0, resendAt - now)
+
+  const business = () => ({ businessName: f.businessName.trim(), category: f.category })
+
+  /** Send (or resend) the code. Creates nothing. */
+  async function sendCode(): Promise<boolean> {
+    const { error: e, retryAfterSeconds } = await startSignup(f.email.trim(), f.fullName.trim() || undefined, business())
+    if (e) {
+      setError(e)
+      return false
+    }
+    const t = Date.now()
+    setExpiresAt(t + CODE_TTL_MS)
+    setResendAt(t + (retryAfterSeconds ? retryAfterSeconds * 1000 : RESEND_COOLDOWN_MS))
+    setNow(t)
+    setOtp("")
+    return true
+  }
+
   async function submit() {
     setError(null)
+    setInfo(null)
     if (!f.email || !f.password) {
       setError("Enter your email and password.")
       return
     }
-    setLoading(true)
     if (mode === "signin") {
+      setLoading(true)
       const { error: e } = await signInWithPassword(f.email.trim(), f.password)
       setLoading(false)
       if (e) setError(e)
       return
     }
     if (!f.businessName.trim()) {
-      setLoading(false)
       setError("Enter your business name.")
       return
     }
-    const res = await fetch("/api/business/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: f.email.trim(),
-        password: f.password,
-        businessName: f.businessName.trim(),
-        category: f.category,
-        fullName: f.fullName.trim() || undefined,
-      }),
-    })
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
-    if (!res.ok || !json.ok) {
-      setLoading(false)
-      setError(json.error ?? "Couldn't create your business account.")
+    // The same rules the server enforces at verify, checked before a code is
+    // spent on a password that would be refused.
+    const verdict = checkPassword(f.password)
+    if (!verdict.ok) {
+      setError(verdict.failed[0])
       return
     }
-    const { error: e } = await signInWithPassword(f.email.trim(), f.password)
+    setLoading(true)
+    const sent = await sendCode()
     setLoading(false)
-    if (e) setError(e)
+    if (sent) setStep("code")
+  }
+
+  async function verify() {
+    setError(null)
+    setInfo(null)
+    if (otp.length !== 6) {
+      setError("Enter the 6-digit code from your email.")
+      return
+    }
+    if (codeExpired) {
+      setError("That code has expired. Request a new one.")
+      return
+    }
+    setLoading(true)
+    const { error: e, expired } = await verifySignup(f.email.trim(), otp, f.password, f.fullName.trim() || undefined)
+    if (e) {
+      setLoading(false)
+      setError(e)
+      if (expired) setExpiresAt(0)
+      setOtp("")
+    }
+    // Success: the account and business exist and we're signed in. Gate swaps
+    // to the portal once the profile loads; keep the spinner until then.
+  }
+
+  async function resend() {
+    setError(null)
+    setInfo(null)
+    setLoading(true)
+    const sent = await sendCode()
+    setLoading(false)
+    if (sent) setInfo(`New code sent to ${f.email.trim()}.`)
   }
 
   return (
@@ -130,63 +204,120 @@ function BusinessAuth() {
         </div>
 
         <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm sm:p-7">
-          <div className="mb-4 flex rounded-xl bg-muted p-1">
-            {(["signin", "signup"] as const).map((m) => (
+          {step === "code" ? (
+            <div className="flex flex-col">
               <button
-                key={m}
                 onClick={() => {
-                  setMode(m)
+                  // Back, not cancel: the details are kept so a mistyped
+                  // address can be corrected without retyping everything.
+                  setStep("details")
                   setError(null)
+                  setInfo(null)
+                  setOtp("")
                 }}
-                className={`flex-1 rounded-lg py-2 text-[14px] font-semibold transition-all ${
-                  mode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-                }`}
+                className="mb-3 flex items-center gap-1.5 self-start text-[13px] font-semibold text-muted-foreground"
               >
-                {m === "signin" ? "Sign in" : "Sign up"}
+                <ArrowLeft className="h-4 w-4" /> Back
               </button>
-            ))}
-          </div>
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
+                <MailCheck className="h-6 w-6 text-accent" />
+              </div>
+              <h2 className="text-center text-[18px] font-semibold text-foreground">Enter your code</h2>
+              <p className="mt-1.5 text-center text-[13px] leading-relaxed text-muted-foreground">
+                We sent a 6-digit code to <span className="font-semibold text-foreground">{f.email.trim()}</span>. Your
+                business account is created once it&rsquo;s verified.
+              </p>
+              <div className="mt-5">
+                <CodeEntry
+                  value={otp}
+                  onChange={(code) => {
+                    setOtp(code)
+                    setError(null)
+                  }}
+                  onEnter={verify}
+                  inputRef={otpInputRef}
+                  invalid={!!error}
+                  msLeft={msLeft}
+                  codeExpired={codeExpired}
+                  resendLeft={resendLeft}
+                  loading={loading}
+                  onResend={resend}
+                />
+              </div>
+              {error && <p className="mt-3 text-[13px] text-destructive">{error}</p>}
+              {info && <p className="mt-3 text-[13px] text-success">{info}</p>}
+              <button
+                onClick={verify}
+                disabled={loading || otp.length !== 6 || codeExpired}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
+              >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                Verify &amp; create business account
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="mb-4 flex rounded-xl bg-muted p-1">
+                {(["signin", "signup"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => {
+                      setMode(m)
+                      setError(null)
+                      setInfo(null)
+                    }}
+                    className={`flex-1 rounded-lg py-2 text-[14px] font-semibold transition-all ${
+                      mode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+                    }`}
+                  >
+                    {m === "signin" ? "Sign in" : "Sign up"}
+                  </button>
+                ))}
+              </div>
 
-          <div className="flex flex-col gap-3">
-            {mode === "signup" && (
-              <>
-                <Input placeholder="Business name" value={f.businessName} onChange={(v) => set("businessName", v)} />
-                <select
-                  value={f.category}
-                  onChange={(e) => set("category", e.target.value)}
-                  className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none"
+              <div className="flex flex-col gap-3">
+                {mode === "signup" && (
+                  <>
+                    <Input placeholder="Business name" value={f.businessName} onChange={(v) => set("businessName", v)} />
+                    <select
+                      value={f.category}
+                      onChange={(e) => set("category", e.target.value)}
+                      className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none"
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c}>{c}</option>
+                      ))}
+                    </select>
+                    <Input placeholder="Your name" value={f.fullName} onChange={(v) => set("fullName", v)} />
+                  </>
+                )}
+                <Input placeholder="Email" type="email" value={f.email} onChange={(v) => set("email", v)} />
+                {/* Business signup creates an account too, so it gets the same
+                    checklist; signing in does not. */}
+                <PasswordField
+                  value={f.password}
+                  onChange={(v) => set("password", v)}
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  onEnter={submit}
+                  showRules={mode === "signup"}
+                />
+                {error && <p className="text-[13px] text-destructive">{error}</p>}
+                <button
+                  onClick={submit}
+                  disabled={loading}
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
                 >
-                  {CATEGORIES.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-                <Input placeholder="Your name" value={f.fullName} onChange={(v) => set("fullName", v)} />
-              </>
-            )}
-            <Input placeholder="Email" type="email" value={f.email} onChange={(v) => set("email", v)} />
-            {/* Business signup creates an account too, so it gets the same
-                checklist; signing in does not. */}
-            <PasswordField
-              value={f.password}
-              onChange={(v) => set("password", v)}
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              onEnter={submit}
-              showRules={mode === "signup"}
-            />
-            {error && <p className="text-[13px] text-destructive">{error}</p>}
-            <button
-              onClick={submit}
-              disabled={loading}
-              className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {mode === "signin" ? "Sign in" : "Create business account"}
-            </button>
-          </div>
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {mode === "signin" ? "Sign in" : "Email me a code"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
         <p className="mt-5 text-center text-[12px] text-muted-foreground sm:mt-6">
           New businesses are reviewed before appearing in the directory.
         </p>
+        {mode === "signup" && <ConsentLine className="mt-2" />}
       </div>
     </div>
   )
@@ -264,6 +395,7 @@ function Portal() {
         {tab === "promotions" && <PromotionsTab business={biz} />}
         {tab === "earnings" && <EarningsTab businessId={biz.id} />}
         {tab === "reviews" && <ReviewsTab business={biz} />}
+        <HelpLegalLinks className="mt-10 border-t border-border pt-4" />
       </main>
     </div>
   )

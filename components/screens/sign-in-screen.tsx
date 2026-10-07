@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useAuth, MOCK_USERS, type DemoRole } from "@/lib/auth-context"
 import { PasswordField } from "@/components/ui/password-field"
 import { checkPassword } from "@/lib/auth/password-rules"
+import { CodeEntry, CODE_TTL_MS, RESEND_COOLDOWN_MS } from "@/components/auth/code-entry"
 import {
   Dog,
   Building2,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { ConsentLine } from "@/components/legal/consent-line"
 
 const ROLE_CARDS: { role: DemoRole; icon: typeof Dog; iconColor: string; iconBg: string; accent: string }[] = [
   { role: "pet-owner", icon: Dog, iconColor: "text-primary", iconBg: "bg-primary/10", accent: "border-primary/20 active:border-primary/40" },
@@ -25,15 +27,6 @@ const ROLE_CARDS: { role: DemoRole; icon: typeof Dog; iconColor: string; iconBg:
 
 type SignInView = "main" | "verify-email"
 type AuthMode = "signin" | "signup"
-
-/** Mirrors the server's CODE_TTL_MINUTES / RESEND_COOLDOWN_SECONDS. */
-const CODE_TTL_MS = 15 * 60 * 1000
-const RESEND_COOLDOWN_MS = 60 * 1000
-
-const mmss = (ms: number) => {
-  const total = Math.max(0, Math.ceil(ms / 1000))
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`
-}
 
 export function SignInScreen() {
   const { signIn, signInWithPassword, startSignup, verifySignup, resetPassword, supabaseEnabled } =
@@ -198,39 +191,21 @@ export function SignInScreen() {
           </p>
 
           <div className="mt-6">
-            <label htmlFor="otp" className="sr-only">
-              6-digit verification code
-            </label>
-            <input
-              id="otp"
-              ref={otpInputRef}
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
+            <CodeEntry
               value={otp}
-              onChange={(e) => {
-                setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+              onChange={(code) => {
+                setOtp(code)
                 setError(null)
               }}
-              onKeyDown={(e) => e.key === "Enter" && handleVerify()}
-              placeholder="••••••"
-              aria-invalid={!!error}
-              className="w-full rounded-xl border border-input bg-card py-4 text-center font-mono text-[28px] font-bold tracking-[0.4em] text-foreground placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              onEnter={handleVerify}
+              inputRef={otpInputRef}
+              invalid={!!error}
+              msLeft={msLeft}
+              codeExpired={codeExpired}
+              resendLeft={resendLeft}
+              loading={loading}
+              onResend={handleResend}
             />
-
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <span className={`text-[13px] ${codeExpired ? "text-destructive" : "text-muted-foreground"}`}>
-                {codeExpired ? "Code expired" : `Expires in ${mmss(msLeft)}`}
-              </span>
-              <button
-                onClick={handleResend}
-                disabled={loading || (resendLeft > 0 && !codeExpired)}
-                className="text-[13px] font-semibold text-primary disabled:text-muted-foreground"
-              >
-                {resendLeft > 0 && !codeExpired ? `Resend in ${Math.ceil(resendLeft / 1000)}s` : "Send a new code"}
-              </button>
-            </div>
 
             {error && <p className="mt-3 text-[13px] text-destructive">{error}</p>}
             {info && <p className="mt-3 text-[13px] text-success">{info}</p>}
@@ -386,9 +361,7 @@ export function SignInScreen() {
         >
           Are you a manager at a building? Sign in here
         </Link>
-        <p className="mt-3 text-center text-[11px] text-muted-foreground">
-          By continuing, you agree to our Terms &amp; Privacy Policy
-        </p>
+        <ConsentLine className="mt-3" />
       </div>
     </div>
   )

@@ -322,10 +322,12 @@ interface AuthContextValue {
   /**
    * Step 1 of signup: email a 6-digit code. Creates no account.
    * `retryAfterSeconds` is set when a still-valid code was sent recently.
+   * `business` makes the verified code create a business account.
    */
   startSignup: (
     email: string,
     fullName?: string,
+    business?: { businessName: string; category: string },
   ) => Promise<{ error: string | null; retryAfterSeconds?: number }>
   /**
    * Step 2: verify the code and create the account, then sign in.
@@ -639,20 +641,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * component's state until the code is verified, so an abandoned signup
    * leaves neither an account nor a credential behind.
    */
-  const startSignup = useCallback(async (email: string, fullName?: string) => {
-    try {
-      const res = await fetch("/api/auth/signup/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, fullName }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) return { error: json.error ?? "Something went wrong. Try again." }
-      return { error: null, retryAfterSeconds: json.retryAfterSeconds as number | undefined }
-    } catch {
-      return { error: "Network error. Check your connection and try again." }
-    }
-  }, [])
+  const startSignup = useCallback(
+    async (email: string, fullName?: string, business?: { businessName: string; category: string }) => {
+      try {
+        const res = await fetch("/api/auth/signup/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // The resident body is unchanged; a business adds its intent.
+          body: JSON.stringify(business ? { email, fullName, intent: "business", ...business } : { email, fullName }),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) return { error: json.error ?? "Something went wrong. Try again." }
+        return { error: null, retryAfterSeconds: json.retryAfterSeconds as number | undefined }
+      } catch {
+        return { error: "Network error. Check your connection and try again." }
+      }
+    },
+    [],
+  )
 
   const verifySignup = useCallback(
     async (email: string, code: string, password: string, fullName?: string) => {

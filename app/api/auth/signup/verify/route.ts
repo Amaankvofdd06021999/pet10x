@@ -9,6 +9,7 @@ import {
   isValidEmail,
   normaliseEmail,
 } from "@/lib/auth/signup-otp"
+import { pendingBusiness } from "@/lib/auth/signup-intent"
 
 /**
  * Step 2 of signup: check the code, then create the account.
@@ -26,6 +27,15 @@ import {
  * Nothing here, and nothing in the expiry sweep, can reach auth.users — the
  * sweep deletes from public.pending_signups only, and a verified signup has no
  * row there to find.
+ *
+ * A BUSINESS SIGNUP (pending intent = 'business') creates the same account and
+ * then makes it a business: role `business` (self-elevation is blocked by
+ * guard_profile_privilege, so this runs with the service role) and a
+ * `businesses` row at tier `registered`, unverified and out of the directory
+ * until an admin reviews it. If either step fails the new user is deleted so
+ * the address can be reused, and the pending row is left so the same code can
+ * be retried. The intent comes from the pending row, which start wrote when it
+ * sent the code — never from this request.
  */
 export const runtime = "nodejs"
 
@@ -59,7 +69,7 @@ export async function POST(request: Request) {
 
   const { data: pending, error: readError } = await admin
     .from("pending_signups")
-    .select("email, code_hash, full_name, expires_at, attempts")
+    .select("email, code_hash, full_name, expires_at, attempts, intent, business")
     .eq("email", email)
     .maybeSingle()
 
@@ -104,6 +114,18 @@ export async function POST(request: Request) {
     )
   }
 
+  // A business row whose details cannot be read would create a business
+  // account with no business. Refuse before anything is created.
+  const business = pending.intent === "business" ? pendingBusiness(pending.business) : null
+  if (pending.intent === "business" && !business) {
+    console.error("[signup/verify] business signup without business details", email)
+    await admin.from("pending_signups").delete().eq("email", email)
+    return NextResponse.json(
+      { error: "That signup is incomplete. Start again.", expired: true },
+      { status: 400 },
+    )
+  }
+
   /* Verified. Create the real account. */
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,
@@ -131,6 +153,32 @@ export async function POST(request: Request) {
     // Pending row deliberately left in place: the code is still valid, so a
     // retry costs the person nothing.
     return NextResponse.json({ error: "We couldn't create your account. Try again." }, { status: 500 })
+  }
+
+  if (business) {
+    const uid = created.user.id
+    const name = pending.full_name ?? fullName
+    const { error: roleError } = await admin
+      .from("profiles")
+      .update({ role: "business", full_name: name })
+      .eq("id", uid)
+    const { error: bizError } = roleError
+      ? { error: roleError }
+      : await admin.from("businesses").insert({
+          owner_id: uid,
+          name: business.businessName,
+          category: business.category,
+          is_verified: false,
+        })
+    if (bizError) {
+      console.error("[signup/verify] business setup failed; removing the new user", bizError)
+      // Roll back the orphaned auth user so the email can be reused. The
+      // pending row stays, so the same code works on a retry.
+      await admin.auth.admin.deleteUser(uid).catch((e) =>
+        console.error("[signup/verify] rollback deleteUser failed", e),
+      )
+      return NextResponse.json({ error: "We couldn't create your business account. Try again." }, { status: 500 })
+    }
   }
 
   // The account now exists and is confirmed. From this point the pending row

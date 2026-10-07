@@ -11,6 +11,7 @@ import {
   isValidEmail,
   normaliseEmail,
 } from "@/lib/auth/signup-otp"
+import { parseSignupIntent } from "@/lib/auth/signup-intent"
 
 /**
  * Step 1 of signup: park the attempt and email a 6-digit code.
@@ -19,6 +20,11 @@ import {
  * caller's password is not accepted at this step and never reaches the server
  * until the code is verified, so an unverified signup leaves no account and no
  * credential behind.
+ *
+ * Residents and businesses both start here. A business signup posts
+ * `intent: 'business'` with `businessName` and `category`; those ride on the
+ * pending row and the verify route creates the business from them. Cooldown,
+ * send cap and the code email are the same for both.
  */
 export const runtime = "nodejs"
 
@@ -33,7 +39,7 @@ const OK = (extra: Record<string, unknown> = {}) =>
   NextResponse.json({ ok: true, expiresInMinutes: CODE_TTL_MINUTES, ...extra })
 
 export async function POST(request: Request) {
-  let body: { email?: string; fullName?: string }
+  let body: { email?: string; fullName?: string; intent?: unknown; businessName?: unknown; category?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -46,6 +52,16 @@ export async function POST(request: Request) {
   if (!isValidEmail(email)) {
     return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 })
   }
+
+  const parsed = parseSignupIntent(body)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
+  }
+  const intent = parsed.intent
+  // Spelled out so it is a plain JSON object for the jsonb column.
+  const business = parsed.business
+    ? { businessName: parsed.business.businessName, category: parsed.business.category }
+    : null
 
   const admin = getSupabaseAdmin()
 
@@ -69,7 +85,7 @@ export async function POST(request: Request) {
 
   const { data: existing } = await admin
     .from("pending_signups")
-    .select("send_count, last_sent_at")
+    .select("send_count, last_sent_at, intent")
     .eq("email", email)
     .maybeSingle()
 
@@ -78,6 +94,21 @@ export async function POST(request: Request) {
     if (since < RESEND_COOLDOWN_SECONDS) {
       // Not an error — the previous code is still valid and still in their
       // inbox. Tell the UI how long until a resend is allowed.
+      //
+      // The code stays, but what it creates follows the latest form: someone
+      // who started as a resident and switched to the business form within the
+      // minute must not verify into the account they backed out of.
+      // A resident resending within the minute is untouched, as before.
+      if (existing.intent !== intent || intent === "business") {
+        const { error: intentError } = await admin
+          .from("pending_signups")
+          .update({ intent, business, full_name: fullName })
+          .eq("email", email)
+        if (intentError) {
+          console.error("[signup/start] could not update pending intent", intentError)
+          return NextResponse.json({ error: "Something went wrong. Try again." }, { status: 500 })
+        }
+      }
       return OK({ resent: false, retryAfterSeconds: Math.ceil(RESEND_COOLDOWN_SECONDS - since) })
     }
     if (existing.send_count >= MAX_SENDS) {
@@ -98,6 +129,8 @@ export async function POST(request: Request) {
       email,
       code_hash: hashCode(code, email),
       full_name: fullName,
+      intent,
+      business,
       expires_at: expiresAt,
       attempts: 0,
       send_count: (existing?.send_count ?? 0) + 1,
