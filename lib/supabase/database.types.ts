@@ -4232,6 +4232,7 @@ export type Database = {
       pets: {
         Row: {
           allergies: string | null
+          archived_reason: string | null
           behavioral_notes: string | null
           breed: string | null
           building_id: string | null
@@ -4268,6 +4269,7 @@ export type Database = {
         }
         Insert: {
           allergies?: string | null
+          archived_reason?: string | null
           behavioral_notes?: string | null
           breed?: string | null
           building_id?: string | null
@@ -4304,6 +4306,7 @@ export type Database = {
         }
         Update: {
           allergies?: string | null
+          archived_reason?: string | null
           behavioral_notes?: string | null
           breed?: string | null
           building_id?: string | null
@@ -6776,6 +6779,10 @@ export type Database = {
           p_type: string
         }
         Returns: Json
+      }
+      owner_archive_pet: {
+        Args: { p_pet_id: string; p_reason: string }
+        Returns: undefined
       }
       owner_create_desk_code: {
         Args: { p_pet: string; p_scopes?: string[] }
