@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
+import { safeNextPath } from "@/lib/safe-next"
 
 /**
  * PKCE code-exchange endpoint. Email confirmations, magic links, OAuth, invites
@@ -16,7 +17,8 @@ export async function GET(request: Request) {
     if (supabase) {
       const { error } = await supabase.auth.exchangeCodeForSession(code)
       if (!error) {
-        return NextResponse.redirect(`${origin}${next.startsWith("/") ? next : "/app"}`)
+        // Same-origin only: an email link's `next` is attacker-editable.
+        return NextResponse.redirect(`${origin}${safeNextPath(next, origin) ?? "/app"}`)
       }
     }
   }

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { safeNextPath } from "@/lib/safe-next"
 import { isSupabaseConfigured, SUPABASE_URL, SUPABASE_ANON_KEY } from "./client"
 import { findRouteRule, canAccessRoute, getHomeRouteForRole } from "@/lib/rbac"
 import type { UserRole } from "@/lib/data/types"
@@ -55,11 +56,12 @@ export async function updateSession(request: NextRequest) {
   // have no Supabase session (userId is null), so they're untouched.
   if (userId && pathname === "/login") {
     const next = request.nextUrl.searchParams.get("next")
-    if (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login")) {
-      /* `next` may carry its own query — `/app?target=…` from a notification
-         link — so it is parsed rather than assigned to `pathname`, which would
-         percent-encode the `?` into the path. */
-      const dest = new URL(next, request.nextUrl.origin)
+    /* Same-origin only (lib/safe-next.ts). `next` may carry its own query —
+       `/app?target=…` from a notification link — so it is parsed rather than
+       assigned to `pathname`, which would percent-encode the `?` into it. */
+    const safe = safeNextPath(next, request.nextUrl.origin)
+    if (safe && !safe.startsWith("/login")) {
+      const dest = new URL(safe, request.nextUrl.origin)
       const url = request.nextUrl.clone()
       url.pathname = dest.pathname
       url.search = dest.search

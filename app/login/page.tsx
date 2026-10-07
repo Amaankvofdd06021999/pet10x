@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { SignInScreen } from "@/components/screens/sign-in-screen"
 import { GuestReportScreen } from "@/components/screens/guest-report-screen"
 import { getHomeRouteForRole, canAccessRoute } from "@/lib/rbac"
+import { safeNextPath } from "@/lib/safe-next"
 import { Loader2, PawPrint, Ban } from "lucide-react"
 
 function LoginContent() {
@@ -35,10 +36,10 @@ function LoginContent() {
     // Cache then serves that stale unauthenticated redirect back to /login
     // forever after a real sign-in — only a full page load re-hits the
     // server/middleware with the now-valid session.
-    // Same-origin paths only (never `//host`), and the role check reads the
-    // PATH: `next` may carry a query (`/app?target=…`) that the route table
-    // would otherwise fail to match.
-    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null
+    // Same-origin only (lib/safe-next.ts), and the role check reads the PATH:
+    // `next` may carry a query (`/app?target=…`) that the route table would
+    // otherwise fail to match.
+    const safeNext = safeNextPath(next, window.location.origin)
     const nextPath = safeNext ? new URL(safeNext, window.location.origin).pathname : null
     window.location.href =
       safeNext && nextPath && canAccessRoute(nextPath, subject) ? safeNext : getHomeRouteForRole(subject)
