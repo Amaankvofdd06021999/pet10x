@@ -293,15 +293,27 @@ export interface CoManager {
   joinedAt: string
 }
 
-/** Every manager assignment across the buildings I manage (RLS bm_select). */
-export function usePortfolioTeam(): LiveResult<CoManager[]> {
+/**
+ * Every manager assignment on the named buildings (RLS bm_select is the
+ * floor). The query names its buildings: without the filter an admin wearing
+ * the manager persona would read every building's team here. An empty list
+ * reads nothing.
+ */
+export function usePortfolioTeam(buildingIds: string[]): LiveResult<CoManager[]> {
   const [data, setData] = useState<CoManager[]>([])
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const idsKey = [...buildingIds].sort().join(",")
 
   const refetch = useCallback(async () => {
     const supabase = getSupabaseBrowserClient()
     if (!supabase) return setLoading(false)
+    const ids = idsKey ? idsKey.split(",") : []
+    if (ids.length === 0) {
+      setData([])
+      setError(null)
+      return setLoading(false)
+    }
     setLoading(true)
     const { data: rows, error: err } = await supabase
       .from("building_managers")
@@ -310,6 +322,7 @@ export function usePortfolioTeam(): LiveResult<CoManager[]> {
          profile:profiles!building_managers_profile_id_fkey ( id, full_name, email ),
          building:buildings!building_managers_building_id_fkey ( name )`,
       )
+      .in("building_id", ids)
       .order("created_at", { ascending: true })
 
     if (err) {
@@ -346,7 +359,7 @@ export function usePortfolioTeam(): LiveResult<CoManager[]> {
     )
     setError(null)
     setLoading(false)
-  }, [])
+  }, [idsKey])
 
   useEffect(() => {
     void refetch()

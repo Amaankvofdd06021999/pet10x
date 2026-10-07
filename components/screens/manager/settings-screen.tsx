@@ -25,14 +25,10 @@ import {
   FileText,
   Bell,
   Search,
-  Lock,
-  Globe,
-  Moon,
   LogOut,
   ChevronRight,
   QrCode,
   Users,
-  CreditCard,
   Clipboard,
   Loader2,
   X,
@@ -48,19 +44,9 @@ import { ArchivedBuildingBanner } from "@/components/screens/manager/archived-bu
 import { stripFineSchedule } from "@/lib/data/fine-schedule"
 import { HelpLegalSection } from "@/components/legal/help-legal-section"
 import { NotificationSettingsSheet } from "@/components/notification-settings-sheet"
-
-/** Menu items that don't have a real destination yet — kept, but honestly labelled. */
-const UNBUILT: { icon: typeof Bell; label: string; section: string }[] = [
-  { icon: FileText, label: "Document Templates", section: "Building Configuration" },
-  { icon: Bell, label: "Notification Rules", section: "Building Configuration" },
-  { icon: Users, label: "Staff & Access Control", section: "Administration" },
-  { icon: Search, label: "Audit Log", section: "Administration" },
-  { icon: Clipboard, label: "Compliance Report", section: "Administration" },
-  { icon: CreditCard, label: "Subscription & Billing", section: "Administration" },
-  { icon: Lock, label: "Security & Access", section: "Account" },
-  { icon: Globe, label: "Language", section: "Account" },
-  { icon: Moon, label: "Appearance", section: "Account" },
-]
+import { AuditLogScreen } from "./audit-log-screen"
+import { ComplianceReportScreen } from "./compliance-report-screen"
+import { StaffAccessScreen } from "./staff-access-screen"
 
 const RULE_TOGGLES: { key: keyof PetRules; label: string }[] = [
   { key: "requires_registry", label: "Requires pet registration" },
@@ -72,6 +58,8 @@ const RULE_TOGGLES: { key: keyof PetRules; label: string }[] = [
 ]
 
 type Sheet = "profile" | "bylaws" | "rules" | "qr" | "notifications" | null
+/** Full screens opened from the Administration section. */
+type Page = "audit" | "staff" | "compliance" | null
 
 export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const { user, signOut, activeBuildingId, viewAs } = useAuth()
@@ -83,6 +71,24 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
   const { data: houseRules } = useManagerBuildingRules(building?.id)
   const publishedRules = houseRules.filter((r) => r.isPublished).length
   const [sheet, setSheet] = useState<Sheet>(null)
+  const [page, setPage] = useState<Page>(null)
+
+  if (building && page === "audit") {
+    return <AuditLogScreen buildingId={building.id} buildingName={building.name} onBack={() => setPage(null)} />
+  }
+  if (building && page === "staff") {
+    return <StaffAccessScreen buildingId={building.id} buildingName={building.name} onBack={() => setPage(null)} />
+  }
+  if (building && page === "compliance") {
+    return (
+      <ComplianceReportScreen
+        buildingId={building.id}
+        buildingName={building.name}
+        rules={building.rules}
+        onBack={() => setPage(null)}
+      />
+    )
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -167,35 +173,32 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
           </MenuSection>
         )}
 
-        {/* Not built yet — say so rather than pretending.
-            These eleven rows already carried an honest "Not available yet" and
-            an honest toast. Phase 3 makes them DISABLED as well, because the
-            phase's rule is that an unbuilt control must not be clickable: a row
-            that highlights, depresses and answers is a control, and reading
-            "This isn't built yet" is a worse way to learn that than seeing it
-            before you press. None of the eleven has an owning phase — the spec
-            lists the settings-menu stubs as explicitly out of scope for every
-            one of Phases 4-8. Part C built the two Support rows (Help & FAQ,
-            Terms & Privacy) — they are real links below now, not stubs. */}
-        {["Administration", "Account"].map((section) => (
-          <MenuSection key={section} title={section}>
-            {/* Part D: the one Account row that is built. Email and push for
-                this account, the same sheet the resident Profile opens. */}
-            {section === "Account" && (
-              <MenuRow icon={Bell} label="Notifications" detail="Email, push" onClick={() => setSheet("notifications")} />
-            )}
-            {UNBUILT.filter((i) => i.section === section).map((item, idx, arr) => (
-              <MenuRow
-                key={item.label}
-                icon={item.icon}
-                label={item.label}
-                detail="Not available yet"
-                disabled
-                last={idx === arr.length - 1}
-              />
-            ))}
+        {/* Every row here acts. The unbuilt ones (Subscription & Billing,
+            Security & Access, Language, Appearance, Document Templates,
+            Notification Rules) were removed in Part F rather than kept as
+            disabled promises; the old loop also rendered only the sections it
+            named, so the Building Configuration stubs never appeared at all.
+            Administration reads an archived building too — its history and
+            its team do not stop existing when it is taken off Pet10x. */}
+        {building && (
+          <MenuSection title="Administration">
+            <MenuRow icon={Search} label="Audit Log" detail="Every recorded change" onClick={() => setPage("audit")} />
+            <MenuRow icon={Users} label="Staff & Access" detail="Managers" onClick={() => setPage("staff")} />
+            <MenuRow
+              icon={Clipboard}
+              label="Compliance Report"
+              detail="CSV, print"
+              onClick={() => setPage("compliance")}
+              last
+            />
           </MenuSection>
-        ))}
+        )}
+
+        <MenuSection title="Account">
+          {/* Part D: email and push for this account, the same sheet the
+              resident Profile opens. */}
+          <MenuRow icon={Bell} label="Notifications" detail="Email, push" onClick={() => setSheet("notifications")} last />
+        </MenuSection>
 
         <HelpLegalSection title="Support" />
 

@@ -6,12 +6,14 @@ import { useAuth } from "@/lib/auth-context"
 import { usePortfolioTeam, inviteCoManager, removeCoManager, type CoManager } from "@/lib/data/portfolio"
 import { useStrata } from "./portal-context"
 import { SectionCard, Spinner, LoadError } from "./strata-ui"
-import { Users, Mail, Loader2, UserMinus, ShieldCheck, Building2 } from "lucide-react"
+import { NotificationSettingsSheet } from "@/components/notification-settings-sheet"
+import { Mail, Loader2, UserMinus, ShieldCheck, Building2, Bell } from "lucide-react"
 
 export function TeamScreen() {
   const { user } = useAuth()
   const { buildings } = useStrata()
-  const { data: team, isLoading, error, refetch } = usePortfolioTeam()
+  const { data: team, isLoading, error, refetch } = usePortfolioTeam(buildings.map((b) => b.id))
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
 
   const byBuilding = useMemo(() => {
     const m = new Map<string, CoManager[]>()
@@ -28,6 +30,25 @@ export function TeamScreen() {
 
   return (
     <div className="space-y-4">
+      {/* Part D's sheet, for this account: new incidents and link requests
+          reach a manager by email and push, and this is where they choose. */}
+      <SectionCard
+        title={<span className="text-[14px] font-semibold text-foreground">Your notifications</span>}
+        action={
+          <button
+            onClick={() => setNotificationsOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-info px-3 py-1.5 text-[12px] font-semibold text-info-foreground"
+          >
+            <Bell className="h-3.5 w-3.5" /> Email &amp; push
+          </button>
+        }
+      >
+        <p className="text-[12.5px] text-muted-foreground">
+          Choose whether building alerts — new incidents, link requests, decisions — also reach you by email or as a
+          push notification on this device.
+        </p>
+      </SectionCard>
+      {notificationsOpen && <NotificationSettingsSheet onClose={() => setNotificationsOpen(false)} />}
       <p className="text-[13px] text-muted-foreground">
         Managers per building. As a <strong className="text-foreground">primary</strong> manager you can invite a
         co-manager or remove one — scoped to that building only.
@@ -47,7 +68,9 @@ export function TeamScreen() {
   )
 }
 
-function BuildingTeam({
+/** One building's managers, with invite / remove for its primary manager. Also
+    manager Settings › Staff & Access, for the active building. */
+export function BuildingTeam({
   buildingId,
   buildingName,
   isPrimary,
