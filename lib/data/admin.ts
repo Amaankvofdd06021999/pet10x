@@ -11,6 +11,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { buildingDeleteError, buildingHasHistory } from "./building-archive"
 import { businessTierError, isOpenRequest, type BusinessTier } from "./business-tier"
+import { parsePlatformStats, userFlagsError, type AdminUser, type PlatformStats } from "./admin-users"
 
 type BuildingRow = Database["public"]["Tables"]["buildings"]["Row"]
 type BusinessRow = Database["public"]["Tables"]["businesses"]["Row"]
@@ -492,22 +493,116 @@ export async function revokeManagerFromBuilding(linkId: string): Promise<{ error
   return { error: error?.message ?? null }
 }
 
-/** Suspend or unsuspend a manager's whole account — blocks login/RLS scope everywhere, not just this building. */
-export async function setManagerSuspended(profileId: string, suspended: boolean): Promise<{ error: string | null }> {
+/**
+ * Suspend / unsuspend an account, or grant / revoke super-admin, through
+ * admin_set_user_flags (20261012000002) — audit-logged, and refusing an admin
+ * who would lock themselves out. A suspension blocks login and RLS scope
+ * everywhere, not just one building. Omit a flag to leave it alone.
+ */
+export async function setUserFlags(
+  profileId: string,
+  flags: { suspended?: boolean; superAdmin?: boolean },
+): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      is_suspended: suspended,
-      suspended_at: suspended ? new Date().toISOString() : null,
-      suspended_by: suspended ? (user?.id ?? null) : null,
+  const { error } = await supabase.rpc("admin_set_user_flags", {
+    p_profile: profileId,
+    p_suspended: flags.suspended,
+    p_super_admin: flags.superAdmin,
+  })
+  return { error: error ? userFlagsError(error) : null }
+}
+
+/** The Managers tab's freeze button — one account, every building. */
+export function setManagerSuspended(profileId: string, suspended: boolean): Promise<{ error: string | null }> {
+  return setUserFlags(profileId, { suspended })
+}
+
+/* ------------------------------------------------------------------ */
+/* Users — every account, searched on the server                       */
+/* ------------------------------------------------------------------ */
+
+export const ADMIN_USERS_PAGE = 50
+
+/**
+ * One page of accounts matching `query` by name or email (admin_list_users).
+ * The search runs in the database — the profile table is not small enough to
+ * ship to a browser and filter there.
+ */
+export function useAdminUsers(query: string, page: number) {
+  const [data, setData] = useState<AdminUser[]>([])
+  const [total, setTotal] = useState(0)
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    const { data: rows, error: err } = await supabase.rpc("admin_list_users", {
+      p_query: query.trim() || undefined,
+      p_limit: ADMIN_USERS_PAGE,
+      p_offset: page * ADMIN_USERS_PAGE,
     })
-    .eq("id", profileId)
-  return { error: error?.message ?? null }
+    if (err) {
+      console.error("[admin] list users failed", err)
+      setError("Couldn't load accounts. Try again.")
+      setData([])
+      setTotal(0)
+    } else {
+      setData(
+        (rows ?? []).map((r) => ({
+          id: r.id,
+          name: r.full_name || r.email || "Unnamed account",
+          email: r.email ?? "",
+          joinedAt: r.created_at,
+          isSuspended: r.is_suspended,
+          isSuperAdmin: r.is_super_admin,
+          isResident: r.is_resident,
+          managedBuildings: r.managed_buildings,
+          ownsBusiness: r.owns_business,
+          clinicStaff: r.clinic_staff,
+        })),
+      )
+      setTotal(rows?.[0]?.total_count ?? 0)
+      setError(null)
+    }
+    setLoading(false)
+  }, [query, page])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, total, isLoading, error, refetch }
+}
+
+/** Platform counts for the Overview tab (admin_platform_stats). */
+export function usePlatformStats() {
+  const [data, setData] = useState<PlatformStats | null>(null)
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    const { data: raw, error: err } = await supabase.rpc("admin_platform_stats")
+    if (err) {
+      console.error("[admin] platform stats failed", err)
+      setError("Couldn't load platform statistics. Try again.")
+    } else {
+      setData(parsePlatformStats(raw))
+      setError(null)
+    }
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
 }
 
 /* ------------------------------------------------------------------ */

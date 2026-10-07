@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { PasswordField } from "@/components/ui/password-field"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { PersonaSwitcher } from "@/components/persona-switcher"
@@ -25,6 +25,10 @@ import {
   useAdminMunicipalReports,
   useMunicipalities,
   setMunicipalReportStatus,
+  setUserFlags,
+  useAdminUsers,
+  usePlatformStats,
+  ADMIN_USERS_PAGE,
   type AdminBuilding,
   type AdminMunicipality,
   type AdminManager,
@@ -52,8 +56,13 @@ import {
   Landmark,
   Archive,
   ArchiveRestore,
+  LayoutDashboard,
+  UserRound,
+  Search,
+  ShieldOff,
 } from "lucide-react"
 import { municipalTypeLabel } from "@/lib/data/municipal"
+import { adminConfirmationMatches, personaLabels, type AdminUser } from "@/lib/data/admin-users"
 
 export default function SuperAdminAccessPage() {
   return (
@@ -146,9 +155,19 @@ function AdminLogin() {
   )
 }
 
+const ADMIN_TABS = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "users", label: "Users", icon: UserRound },
+  { id: "buildings", label: "Buildings", icon: Building2 },
+  { id: "managers", label: "Managers", icon: Users },
+  { id: "businesses", label: "Businesses", icon: Store },
+  { id: "reports", label: "City reports", icon: Landmark },
+] as const
+type AdminTab = (typeof ADMIN_TABS)[number]["id"]
+
 function Portal() {
   const { user, signOut } = useAuth()
-  const [tab, setTab] = useState<"buildings" | "managers" | "businesses" | "reports">("buildings")
+  const [tab, setTab] = useState<AdminTab>("overview")
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
@@ -169,29 +188,27 @@ function Portal() {
       </header>
 
       <div className="mx-auto max-w-3xl px-5 py-6">
-        <div className="mb-6 flex gap-1 rounded-xl bg-muted p-1">
-          {(["buildings", "managers", "businesses", "reports"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-[14px] font-semibold capitalize transition-colors ${
-                tab === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-              }`}
-            >
-              {t === "buildings" ? (
-                <Building2 className="h-4 w-4" />
-              ) : t === "managers" ? (
-                <Users className="h-4 w-4" />
-              ) : t === "businesses" ? (
-                <Store className="h-4 w-4" />
-              ) : (
-                <Landmark className="h-4 w-4" />
-              )}{" "}
-              {t === "reports" ? "City reports" : t}
-            </button>
-          ))}
+        <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-muted p-1">
+          {ADMIN_TABS.map((t) => {
+            const Icon = t.icon
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex flex-1 flex-shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-[14px] font-semibold transition-colors ${
+                  tab === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                <Icon className="h-4 w-4" /> {t.label}
+              </button>
+            )
+          })}
         </div>
-        {tab === "buildings" ? (
+        {tab === "overview" ? (
+          <Overview />
+        ) : tab === "users" ? (
+          <UsersTab />
+        ) : tab === "buildings" ? (
           <Buildings />
         ) : tab === "managers" ? (
           <Managers />
@@ -978,6 +995,231 @@ function MunicipalReports() {
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Overview                                                            */
+/* ------------------------------------------------------------------ */
+
+function Overview() {
+  const { data: stats, isLoading, error, refetch } = usePlatformStats()
+  if (isLoading && !stats)
+    return (
+      <div className="flex justify-center py-10">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  if (error || !stats) return <LoadError message={error ?? "Couldn't load platform statistics."} onRetry={refetch} />
+
+  const tiles: { label: string; value: number; sub?: string }[] = [
+    { label: "Users", value: stats.users },
+    { label: "Pets", value: stats.pets, sub: "active" },
+    { label: "Buildings", value: stats.buildingsActive, sub: `${stats.buildingsArchived} archived` },
+    {
+      label: "Businesses",
+      value: stats.businessesByTier.registered + stats.businessesByTier.listed + stats.businessesByTier.verified,
+      sub: `${stats.businessesByTier.verified} verified · ${stats.businessesByTier.listed} listed · ${stats.businessesByTier.registered} registered`,
+    },
+    { label: "Open violations", value: stats.openViolations },
+    { label: "Incidents", value: stats.incidents30d, sub: "last 30 days" },
+    { label: "Bookings", value: stats.bookings30d, sub: "last 30 days" },
+    { label: "AI conversations", value: stats.aiConversations30d, sub: "started, last 30 days" },
+  ]
+  return (
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      {tiles.map((t) => (
+        <div key={t.label} className="rounded-xl card-raised p-3.5">
+          <p className="text-[12px] font-semibold text-muted-foreground">{t.label}</p>
+          <p className="mt-1 text-[24px] font-bold tabular-nums text-foreground">{t.value.toLocaleString("en-CA")}</p>
+          {t.sub && <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{t.sub}</p>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Users                                                               */
+/* ------------------------------------------------------------------ */
+
+function UsersTab() {
+  const { user: me } = useAuth()
+  const [typed, setTyped] = useState("")
+  const [query, setQuery] = useState("")
+  const [page, setPage] = useState(0)
+  // The search runs in the database; wait for the typing to settle.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQuery(typed)
+      setPage(0)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [typed])
+  const { data: users, total, isLoading, error, refetch } = useAdminUsers(query, page)
+  const pages = Math.max(1, Math.ceil(total / ADMIN_USERS_PAGE))
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 focus-within:border-primary">
+        <Search className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+        <input
+          type="search"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          placeholder="Search by name or email"
+          autoCapitalize="none"
+          aria-label="Search users by name or email"
+          className="w-full min-w-0 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+        />
+      </div>
+
+      {isLoading && users.length === 0 ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : error ? (
+        <LoadError message={error} onRetry={refetch} />
+      ) : users.length === 0 ? (
+        <p className="py-8 text-center text-[14px] text-muted-foreground">
+          {query.trim() ? `No account matches “${query.trim()}”.` : "No accounts yet."}
+        </p>
+      ) : (
+        <>
+          <p className="mb-2 text-[12px] text-muted-foreground">
+            {total.toLocaleString("en-CA")} account{total === 1 ? "" : "s"}
+            {query.trim() ? ` matching “${query.trim()}”` : ""}
+          </p>
+          <div className="flex flex-col gap-2.5">
+            {users.map((u) => (
+              <UserCard key={u.id} user={u} isMe={u.id === me?.id} onChange={refetch} />
+            ))}
+          </div>
+          {pages > 1 && (
+            <div className="mt-4 flex items-center justify-between">
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="text-[12px] text-muted-foreground">
+                Page {page + 1} of {pages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}
+                disabled={page >= pages - 1}
+                className="rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function UserCard({ user, isMe, onChange }: { user: AdminUser; isMe: boolean; onChange: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [typed, setTyped] = useState("")
+  const labels = personaLabels(user)
+
+  async function toggleSuspend() {
+    if (!user.isSuspended && !confirm(`Suspend ${user.name}? They are signed out of every building, business and console.`))
+      return
+    setBusy(true)
+    const { error } = await setUserFlags(user.id, { suspended: !user.isSuspended })
+    setBusy(false)
+    if (error) return toast.error("Couldn't change access", { description: error })
+    toast.success(user.isSuspended ? `${user.name} can sign in again` : `${user.name} is suspended`)
+    onChange()
+  }
+
+  async function toggleAdmin() {
+    setBusy(true)
+    const { error } = await setUserFlags(user.id, { superAdmin: !user.isSuperAdmin })
+    setBusy(false)
+    if (error) return toast.error("Couldn't change admin access", { description: error })
+    toast.success(user.isSuperAdmin ? `${user.name} is no longer an admin` : `${user.name} is now an admin`)
+    setConfirming(false)
+    setTyped("")
+    onChange()
+  }
+
+  return (
+    <div className="rounded-xl card-raised p-3.5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-[14px] font-semibold text-foreground">
+            {user.name} {isMe && <span className="text-[12px] font-normal text-muted-foreground">(you)</span>}
+          </p>
+          <p className="truncate text-[12px] text-muted-foreground">{user.email || "No email"}</p>
+        </div>
+        <span className="text-[11.5px] text-muted-foreground">
+          Joined {new Date(user.joinedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {user.isSuspended && (
+          <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">Suspended</span>
+        )}
+        {labels.length === 0 ? (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">No role yet</span>
+        ) : (
+          labels.map((l) => (
+            <span key={l} className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+              {l}
+            </span>
+          ))
+        )}
+      </div>
+      {/* Your own row has no buttons: the database refuses an admin suspending
+          or demoting themselves, so a button for it could only fail. */}
+      {!isMe && (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          <button
+            onClick={toggleSuspend}
+            disabled={busy}
+            className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
+          >
+            {user.isSuspended ? <RotateCcw className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+            {user.isSuspended ? "Unsuspend" : "Suspend"}
+          </button>
+          <button
+            onClick={() => setConfirming((v) => !v)}
+            disabled={busy}
+            className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
+          >
+            {user.isSuperAdmin ? <ShieldOff className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+            {user.isSuperAdmin ? "Remove admin" : "Make admin"}
+          </button>
+        </div>
+      )}
+      {!isMe && confirming && (
+        <div className="mt-2.5 rounded-lg border border-border p-3">
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
+            {user.isSuperAdmin
+              ? "They lose this console and every admin power at once."
+              : "An admin can read and change every building, business and account on Pet10x."}{" "}
+            Type <strong className="text-foreground">{user.email || "their email"}</strong> to confirm.
+          </p>
+          <div className="mt-2 flex gap-1.5">
+            <AdminInput placeholder={user.email} value={typed} onChange={setTyped} />
+            <button
+              onClick={toggleAdmin}
+              disabled={busy || !adminConfirmationMatches(typed, user.email)}
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Confirm
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
