@@ -1,5 +1,6 @@
 import "server-only"
 import { Resend } from "resend"
+import { targetHref } from "@/lib/navigation"
 
 /**
  * Transactional email via Resend. SERVER ONLY. Auth emails (confirm, magic link,
@@ -23,6 +24,16 @@ const FROM = process.env.EMAIL_FROM ?? "Pet10x <noreply@pet10x.com>"
 const APP_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://www.pet10x.com"
 const EMAIL_ENABLED =
   !!resend && (process.env.NODE_ENV === "production" || process.env.EMAIL_DEV_SEND === "1")
+
+/**
+ * Whether a send would actually go out. The notification dispatcher skips its
+ * email pass when this is false rather than claiming rows it can only
+ * suppress — otherwise a deployment without a key would re-lease the same
+ * backlog every fifteen minutes for a day and log every one.
+ */
+export function isEmailEnabled(): boolean {
+  return EMAIL_ENABLED
+}
 
 /**
  * Escape a value for HTML text or a double-quoted attribute. `emailHtml` takes
@@ -128,11 +139,11 @@ export function sendManagerInviteEmail(opts: { to: string; inviteUrl: string; bu
     subject: "You've been invited to manage on Pet10x",
     html: emailHtml({
       headline: "You're invited to Pet10x",
-      body: `${opts.inviterName ?? "Your building"} invited you to manage ${
-        opts.buildingName ?? "their building"
-      } on Pet10x — the pet governance, risk &amp; community platform. Set your password to get started.`,
-      ctaUrl: opts.inviteUrl,
-      ctaLabel: "Accept invite & set password",
+      body: `${escapeHtml(opts.inviterName ?? "Your building")} invited you to manage ${escapeHtml(
+        opts.buildingName ?? "their building",
+      )} on Pet10x — the pet governance, risk &amp; community platform. Set your password to get started.`,
+      ctaUrl: escapeHtml(opts.inviteUrl),
+      ctaLabel: "Accept invite &amp; set password",
       footnote: "This invite link expires in 24 hours. If you weren't expecting this, you can ignore this email.",
     }),
   })
@@ -192,7 +203,7 @@ export function sendSignupCodeEmail(opts: { to: string; code: string; minutes: n
       body:
         `Enter this code in Pet10x to finish creating your account:` +
         `<div style="margin:20px 0 6px;padding:16px 20px;background:#FFF6EE;border:1px solid #FBDCC2;border-radius:10px;text-align:center">` +
-        `<span style="font-family:'SF Mono',Menlo,Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:#1F1F1F">${spaced}</span>` +
+        `<span style="font-family:'SF Mono',Menlo,Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:#1F1F1F">${escapeHtml(spaced)}</span>` +
         `</div>` +
         `<p style="margin:12px 0 0;color:#555">This code expires in ${opts.minutes} minutes.</p>`,
       footnote:
@@ -230,7 +241,7 @@ export function sendWelcomeEmail(opts: { to: string; name?: string }) {
     to: opts.to,
     subject: "Welcome to Pet10x",
     html: emailHtml({
-      headline: `Welcome${opts.name ? `, ${opts.name}` : ""}!`,
+      headline: `Welcome${opts.name ? `, ${escapeHtml(opts.name)}` : ""}!`,
       body: "Your Pet10x account is ready. Register your pets, stay in good standing with your building, and connect with your community.",
       ctaUrl: `${APP_URL}/app`,
       ctaLabel: "Open Pet10x",
@@ -255,7 +266,7 @@ export function sendRequestInfoEmail(opts: {
   const items =
     opts.missing.length > 0
       ? `<ul style="margin:12px 0 0;padding-left:20px;color:#1F1F1F;">${opts.missing
-          .map((m) => `<li style="margin:4px 0;">${m}</li>`)
+          .map((m) => `<li style="margin:4px 0;">${escapeHtml(m)}</li>`)
           .join("")}</ul>`
       : ""
 
@@ -263,14 +274,106 @@ export function sendRequestInfoEmail(opts: {
     to: opts.to,
     subject: `${opts.buildingName} needs a few details`,
     html: emailHtml({
-      headline: `A few details still needed${opts.name ? `, ${opts.name}` : ""}`,
+      headline: `A few details still needed${opts.name ? `, ${escapeHtml(opts.name)}` : ""}`,
       body:
-        `${opts.buildingName} can't finish registering you until these are on file:` +
+        `${escapeHtml(opts.buildingName)} can't finish registering you until these are on file:` +
         items +
         `<p style="margin:14px 0 0;">Each one takes a moment in the app.</p>`,
       ctaUrl: `${APP_URL}/app`,
       ctaLabel: "Complete my registration",
       footnote: "You're receiving this because you asked to link to this building on Pet10x.",
     }),
+  })
+}
+
+/* ------------------------------------------------------------------ */
+/* Notification emails (/api/notifications/dispatch)                   */
+/* ------------------------------------------------------------------ */
+
+/** What the dispatcher hands over: one row of `notifications`, as claimed. */
+export interface NotificationEmailItem {
+  title: string
+  body: string | null
+  actionLabel: string | null
+  actionTarget: string | null
+}
+
+const NOTIFICATION_FOOTNOTE =
+  "You're getting this because email notifications are on for your Pet10x account. " +
+  "Turn them off in the app under Notifications."
+
+/** The most a digest lists; the rest are counted and left to the app. */
+export const DIGEST_MAX_ITEMS = 10
+
+/** Absolute link for a target — the screen it names, via `?target=`. */
+export function notificationUrl(target: string | null | undefined): string {
+  return `${APP_URL}${targetHref(target)}`
+}
+
+/** A subject line is plain text: no markup, no line breaks, not endless. */
+function subjectLine(text: string): string {
+  const flat = text.replace(/\s+/g, " ").trim()
+  return flat.length > 120 ? `${flat.slice(0, 119)}…` : flat
+}
+
+/**
+ * One notification, one email. Every value is escaped: titles and bodies
+ * carry what people typed (a pet's name, a practice's name, a decline reason,
+ * an incident location), and the label and link are escaped too so the
+ * function holds without trusting its caller.
+ */
+export function notificationEmailHtml(item: NotificationEmailItem): string {
+  return emailHtml({
+    headline: escapeHtml(item.title),
+    body: item.body ? `<p style="margin:0">${escapeHtml(item.body)}</p>` : "",
+    ctaUrl: escapeHtml(notificationUrl(item.actionTarget)),
+    ctaLabel: escapeHtml(item.actionLabel?.trim() || "Open Pet10x"),
+    footnote: escapeHtml(NOTIFICATION_FOOTNOTE),
+  })
+}
+
+/**
+ * Several notifications, one email: each title links to its own screen, the
+ * list stops at DIGEST_MAX_ITEMS, and the button opens the one place that
+ * lists them all.
+ */
+export function notificationDigestHtml(items: NotificationEmailItem[], ctaTarget: string | null): string {
+  const shown = items.slice(0, DIGEST_MAX_ITEMS)
+  const more = items.length - shown.length
+  const list =
+    `<ul style="margin:0;padding-left:20px;color:#1F1F1F">` +
+    shown
+      .map(
+        (n) =>
+          `<li style="margin:0 0 12px">` +
+          `<a href="${escapeHtml(notificationUrl(n.actionTarget))}" style="color:#1F1F1F;font-weight:600;text-decoration:none">${escapeHtml(n.title)}</a>` +
+          (n.body ? `<br/><span style="color:#555">${escapeHtml(n.body)}</span>` : "") +
+          `</li>`,
+      )
+      .join("") +
+    `</ul>` +
+    (more > 0 ? `<p style="margin:4px 0 0;color:#555">…and ${more} more in the app.</p>` : "")
+  return emailHtml({
+    headline: `You have ${items.length} new notifications`,
+    body: list,
+    ctaUrl: escapeHtml(notificationUrl(ctaTarget)),
+    ctaLabel: "Open Pet10x",
+    footnote: escapeHtml(NOTIFICATION_FOOTNOTE),
+  })
+}
+
+export function sendNotificationEmail(opts: { to: string; item: NotificationEmailItem }) {
+  return send({
+    to: opts.to,
+    subject: subjectLine(opts.item.title),
+    html: notificationEmailHtml(opts.item),
+  })
+}
+
+export function sendNotificationDigest(opts: { to: string; items: NotificationEmailItem[]; ctaTarget: string | null }) {
+  return send({
+    to: opts.to,
+    subject: `${opts.items.length} new notifications on Pet10x`,
+    html: notificationDigestHtml(opts.items, opts.ctaTarget),
   })
 }

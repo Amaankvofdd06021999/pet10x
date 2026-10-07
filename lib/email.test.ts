@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { clinicInviteHtml, escapeHtml, sendClinicInviteEmail } from "./email"
+import {
+  DIGEST_MAX_ITEMS,
+  clinicInviteHtml,
+  escapeHtml,
+  notificationDigestHtml,
+  notificationEmailHtml,
+  notificationUrl,
+  sendClinicInviteEmail,
+  sendNotificationDigest,
+  sendNotificationEmail,
+} from "./email"
 
 /* `server-only` throws outside a server bundle and is not installed for
    vitest; `resend` is never reached because email is suppressed under test
@@ -57,6 +67,55 @@ describe("clinicInviteHtml", () => {
     expect(html).toContain("Eve &quot;the&quot; &lt;admin&gt;")
     expect(html).toContain("Vet &amp; &lt;i&gt;")
     expect(html).toContain(`href="https://example.test/x?a=1&amp;b=&quot;2&quot;"`)
+  })
+})
+
+describe("notification emails", () => {
+  const hostile = {
+    title: `<script>alert(1)</script> for "Rex"`,
+    body: `Reason: <img src=x onerror=alert(2)> & more`,
+    actionLabel: `<b>Open</b>`,
+    actionTarget: `my-bookings`,
+  }
+
+  it("escapes the title, body and label of a single notification", () => {
+    const html = notificationEmailHtml(hostile)
+    expect(html).not.toContain("<script>")
+    expect(html).not.toContain("<img")
+    expect(html).not.toContain("<b>Open</b>")
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt; for &quot;Rex&quot;")
+    expect(html).toContain("Reason: &lt;img src=x onerror=alert(2)&gt; &amp; more")
+  })
+
+  it("links the button to the target's screen through ?target=", () => {
+    expect(notificationUrl("my-vets:bills")).toMatch(/\/app\?target=my-vets%3Abills$/)
+    expect(notificationUrl("business:bookings")).toMatch(/\/businessaccess\?target=business%3Abookings$/)
+    expect(notificationUrl(null)).toMatch(/\/app$/)
+    expect(notificationEmailHtml(hostile)).toContain("/app?target=my-bookings")
+  })
+
+  it("falls back to an honest label when the notification has none", () => {
+    expect(notificationEmailHtml({ ...hostile, actionLabel: null })).toContain(">Open Pet10x</a>")
+  })
+
+  it("escapes every item of a digest, and stops listing at the cap", () => {
+    const items = Array.from({ length: DIGEST_MAX_ITEMS + 3 }, (_, i) => ({ ...hostile, title: `<i>${i}</i>` }))
+    const html = notificationDigestHtml(items, "alerts")
+    expect(html).not.toContain("<i>")
+    expect(html).toContain("&lt;i&gt;0&lt;/i&gt;")
+    expect(html).not.toContain(`&lt;i&gt;${DIGEST_MAX_ITEMS}&lt;/i&gt;`)
+    expect(html).toContain("and 3 more in the app")
+    expect(html).toContain(`You have ${DIGEST_MAX_ITEMS + 3} new notifications`)
+    expect(html).toContain("/app?target=alerts")
+  })
+
+  it("is suppressed under test, both shapes", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {})
+    expect(await sendNotificationEmail({ to: "a@b.test", item: hostile })).toEqual({ ok: false, suppressed: true })
+    expect(await sendNotificationDigest({ to: "a@b.test", items: [hostile, hostile], ctaTarget: null })).toEqual({
+      ok: false,
+      suppressed: true,
+    })
   })
 })
 
