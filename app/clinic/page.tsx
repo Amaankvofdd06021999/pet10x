@@ -3,7 +3,7 @@
 import { useState } from "react"
 import {
   CalendarDays, Users, Bell, Stethoscope, ShoppingBag, Receipt,
-  Siren, UsersRound, LayoutDashboard, LogOut, Loader2, Building2, ChevronDown,
+  Siren, UsersRound, LayoutDashboard, LogOut, Loader2, Building2, ChevronDown, BellRing,
 } from "lucide-react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { useActiveClinic, capabilities } from "@/lib/data/clinic/context"
@@ -20,6 +20,7 @@ import { ClinicTeamScreen } from "@/components/screens/clinic/team-screen"
 import { ClinicSignIn, RegisterPractice } from "@/components/screens/clinic/clinic-onboarding"
 import { VerificationBanner } from "@/components/screens/clinic/verification-banner"
 import { HelpLegalLinks } from "@/components/legal/help-legal-section"
+import { NotificationSettingsSheet } from "@/components/notification-settings-sheet"
 
 export type ClinicTab =
   | "today" | "calendar" | "customers" | "reminders"
@@ -58,6 +59,7 @@ function Console() {
   const { clinic, clinics, setActive, isLoading, error, refetch } = useActiveClinic()
   const businessType = useBusinessType(clinic?.kind ?? null)
   const [tab, setTab] = useState<ClinicTab>("today")
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [switcherOpen, setSwitcherOpen] = useState(false)
 
   if (authLoading || (isAuthenticated && isLoading)) {
@@ -137,6 +139,13 @@ function Console() {
           <p className="truncate px-1 text-[12px] text-muted-foreground">{user?.email}</p>
           <button
             type="button"
+            onClick={() => setNotificationsOpen(true)}
+            className="mt-1 flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-[12.5px] text-muted-foreground hover:text-foreground"
+          >
+            <BellRing className="h-3.5 w-3.5" aria-hidden="true" /> Notifications
+          </button>
+          <button
+            type="button"
             onClick={() => void signOut()}
             className="mt-1 flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-[12.5px] text-muted-foreground hover:text-foreground"
           >
@@ -153,6 +162,15 @@ function Console() {
                 {visible.find((t) => t.id === activeTab)?.label ?? "Console"}
               </h1>
               <Pill tone={clinic.tier === "verified" ? "good" : "warn"}>{clinic.tier}</Pill>
+              {/* The sidebar, where the desktop button lives, is desktop-only. */}
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen(true)}
+                aria-label="Notification settings"
+                className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground md:hidden"
+              >
+                <BellRing className="h-4 w-4" aria-hidden="true" />
+              </button>
             </div>
             {clinics.length > 1 && (
               <div className="relative">
@@ -216,6 +234,7 @@ function Console() {
           {activeTab === "emergency" && <ClinicEmergencyScreen clinic={clinic} />}
           {activeTab === "team" && <ClinicTeamScreen clinic={clinic} />}
         </main>
+        {notificationsOpen && <NotificationSettingsSheet onClose={() => setNotificationsOpen(false)} />}
       </div>
     </div>
   )

@@ -5,6 +5,7 @@ import { PasswordField } from "@/components/ui/password-field"
 import { CodeEntry, CODE_TTL_MS, RESEND_COOLDOWN_MS } from "@/components/auth/code-entry"
 import { ConsentLine } from "@/components/legal/consent-line"
 import { HelpLegalLinks } from "@/components/legal/help-legal-section"
+import { NotificationSettingsSheet } from "@/components/notification-settings-sheet"
 import { checkPassword } from "@/lib/auth/password-rules"
 import { BUSINESS_CATEGORIES } from "@/lib/auth/signup-intent"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
@@ -30,6 +31,7 @@ import {
   BadgeCheck,
   ArrowLeft,
   MailCheck,
+  Bell,
 } from "lucide-react"
 
 /** The server validates against the same list (lib/auth/signup-intent.ts). */
@@ -328,6 +330,7 @@ function Portal() {
   const { user, signOut } = useAuth()
   const { data: biz, isLoading, refetch } = useMyBusiness()
   const [tab, setTab] = useState<TabId>("dashboard")
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
 
   /* `?target=business:bookings` — the link a booking notification's email or
      push opens (`targetHref` in lib/navigation.ts). Only a tab this console
@@ -378,12 +381,24 @@ function Portal() {
             <span className="truncate text-[15px] font-semibold text-foreground">{biz.name}</span>
             {biz.isVerified && <BadgeCheck className="h-4 w-4 flex-shrink-0 text-success" />}
           </div>
-          <button
-            onClick={() => signOut()}
-            className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold text-foreground"
-          >
-            <LogOut className="h-3.5 w-3.5" /> Sign out
-          </button>
+          <div className="flex flex-shrink-0 items-center gap-1.5">
+            {/* Booking requests reach the owner by email and push (Part D);
+                this is where they choose which. */}
+            <button
+              onClick={() => setNotificationsOpen(true)}
+              aria-label="Notification settings"
+              className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-[13px] font-semibold text-foreground"
+            >
+              <Bell className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Notifications</span>
+            </button>
+            <button
+              onClick={() => signOut()}
+              className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold text-foreground"
+            >
+              <LogOut className="h-3.5 w-3.5" /> Sign out
+            </button>
+          </div>
         </div>
         <nav className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-3 pb-2">
           {TABS.map((t) => {
@@ -413,6 +428,7 @@ function Portal() {
         {tab === "reviews" && <ReviewsTab business={biz} />}
         <HelpLegalLinks className="mt-10 border-t border-border pt-4" />
       </main>
+      {notificationsOpen && <NotificationSettingsSheet onClose={() => setNotificationsOpen(false)} />}
     </div>
   )
 }

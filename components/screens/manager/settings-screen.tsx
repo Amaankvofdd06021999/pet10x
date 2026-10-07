@@ -47,6 +47,7 @@ import { useManagerBuildingRules } from "@/lib/data/building-rules-live"
 import { ArchivedBuildingBanner } from "@/components/screens/manager/archived-building-banner"
 import { stripFineSchedule } from "@/lib/data/fine-schedule"
 import { HelpLegalSection } from "@/components/legal/help-legal-section"
+import { NotificationSettingsSheet } from "@/components/notification-settings-sheet"
 
 /** Menu items that don't have a real destination yet — kept, but honestly labelled. */
 const UNBUILT: { icon: typeof Bell; label: string; section: string }[] = [
@@ -70,7 +71,7 @@ const RULE_TOGGLES: { key: keyof PetRules; label: string }[] = [
   { key: "require_spay_neuter", label: "Spay/neuter required" },
 ]
 
-type Sheet = "profile" | "bylaws" | "rules" | "qr" | null
+type Sheet = "profile" | "bylaws" | "rules" | "qr" | "notifications" | null
 
 export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const { user, signOut, activeBuildingId, viewAs } = useAuth()
@@ -178,6 +179,11 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
             Terms & Privacy) — they are real links below now, not stubs. */}
         {["Administration", "Account"].map((section) => (
           <MenuSection key={section} title={section}>
+            {/* Part D: the one Account row that is built. Email and push for
+                this account, the same sheet the resident Profile opens. */}
+            {section === "Account" && (
+              <MenuRow icon={Bell} label="Notifications" detail="Email, push" onClick={() => setSheet("notifications")} />
+            )}
             {UNBUILT.filter((i) => i.section === section).map((item, idx, arr) => (
               <MenuRow
                 key={item.label}
@@ -247,6 +253,7 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
         </Sheet>
       )}
       {building && sheet === "qr" && <EmergencyQrSheet buildingId={building.id} onClose={() => setSheet(null)} />}
+      {sheet === "notifications" && <NotificationSettingsSheet onClose={() => setSheet(null)} />}
     </div>
   )
 }

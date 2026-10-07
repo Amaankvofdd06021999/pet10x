@@ -34,6 +34,7 @@ import { Portal } from "@/components/ui/portal"
 import { DonateSpcaCard } from "@/components/donate-spca"
 import { PetPickerSheet } from "@/components/pet-picker-sheet"
 import { pickPet } from "@/lib/data/pet-picker"
+import { NotificationSettingsSheet } from "@/components/notification-settings-sheet"
 
 interface MenuItem {
   icon: typeof Dog
@@ -72,11 +73,14 @@ interface MenuItem {
  *                      replaced a toast with a wrong destination.)
  *   Achievements       Nothing computes an achievement. No table, no column.
  *   Subscription,      No settings store exists — not a table, not a column on
- *   Notification       `profiles`, not localStorage — and none is planned in
- *   Settings,          any of Phases 4-8. "Language: English" and
- *   Privacy & Security,"Appearance: System" additionally displayed a stored
- *   Language,          preference that was never stored anywhere.
- *   Appearance
+ *   Privacy & Security,`profiles`, not localStorage — and none is planned in
+ *   Language,          any of Phases 4-8. "Language: English" and
+ *   Appearance         "Appearance: System" additionally displayed a stored
+ *                      preference that was never stored anywhere.
+ *   Notification       RESTORED, Part D, as "Notifications" under Settings.
+ *   Settings           `profiles.notify_email` / `notify_push` exist now and
+ *                      the dispatcher reads them, so the row opens a sheet
+ *                      with two real switches.
  *   Rate Pet10x        No destination exists — there is no store listing to
  *                      rate.
  *   Help & FAQ,        RESTORED, Part C. `/help`, `/terms` and `/privacy` are
@@ -124,6 +128,10 @@ const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
       { icon: CalendarCheck, label: "My Bookings" },
     ],
   },
+  {
+    title: "Settings",
+    items: [{ icon: Bell, label: "Notifications", detail: "Email, push" }],
+  },
 ]
 
 interface ProfileScreenProps {
@@ -147,6 +155,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const [savingProfile, setSavingProfile] = useState(false)
   /* Which row opened the pet picker — its answer decides the tab. */
   const [picking, setPicking] = useState<"profiles" | "documents" | null>(null)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const avatarInput = useRef<HTMLInputElement>(null)
 
   function openEdit() {
@@ -241,6 +250,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
     else if (label.includes("Accommodation")) onNavigate?.("accommodations")
     else if (label.includes("My vets")) onNavigate?.("my-vets")
     else if (label.includes("My Bookings")) onNavigate?.("my-bookings")
+    else if (label === "Notifications") setNotificationsOpen(true)
   }
 
   return (
@@ -453,6 +463,8 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
         </section>
 
         <HelpLegalSection />
+
+        {notificationsOpen && <NotificationSettingsSheet onClose={() => setNotificationsOpen(false)} />}
 
         {picking && (
           <PetPickerSheet
