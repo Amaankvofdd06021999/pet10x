@@ -7,10 +7,9 @@
  * writer out of the *strata portfolio* data layer would have made portfolio.ts
  * a dependency of a screen that reads none of its data.
  *
- * The bodies below are byte-identical to the ones they replace
- * (`git show 16a9721:lib/data/portfolio.ts`, lines 386-406) — this is a move,
- * not a rewrite. `lib/csv.test.ts` pins the output against the previous
- * implementation so that stays true.
+ * The bodies were moved byte-identical from `lib/data/portfolio.ts`
+ * (`git show 16a9721`, lines 386-406). Part F changed one thing: cells that
+ * would start a spreadsheet formula are prefixed with a quote.
  *
  * No `"use client"` directive: `toCsv` is pure and `downloadCsv` guards on
  * `typeof window`, so the module is importable from a server component too.
@@ -18,7 +17,13 @@
 
 export function toCsv(rows: Record<string, unknown>[], columns: { key: string; label: string }[]): string {
   const escape = (v: unknown): string => {
-    const s = v === null || v === undefined ? "" : String(v)
+    let s = v === null || v === undefined ? "" : String(v)
+    // A cell a spreadsheet would read as a formula — `=HYPERLINK(...)` typed
+    // into a pet's name, say — is defused with a leading quote (OWASP CSV
+    // injection). Tab and carriage return start formulas in some importers.
+    // A plain number ("-5 pts vs median") is left alone: it is not a formula,
+    // and a quote would turn it into text.
+    if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = `'${s}`
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
   const header = columns.map((c) => escape(c.label)).join(",")

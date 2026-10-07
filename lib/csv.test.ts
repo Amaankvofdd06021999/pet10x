@@ -32,6 +32,24 @@ function toCsvBeforeTheMove(
   return `${header}\n${body}`
 }
 
+/**
+ * Part F added one deliberate difference: a cell that would start a
+ * spreadsheet formula gets a leading quote. `defused` applies that rule to the
+ * INPUT, so the comparisons below still measure that escaping is unchanged.
+ */
+const FORMULA = /^[=+\-@\t\r]/
+const NUMBER = /^-?\d+(\.\d+)?$/
+function defused(rows: Record<string, unknown>[], columns: { key: string; label: string }[]) {
+  const d = (v: unknown) => {
+    const s = v === null || v === undefined ? v : String(v)
+    return typeof s === "string" && FORMULA.test(s) && !NUMBER.test(s) ? `'${s}` : v
+  }
+  return {
+    rows: rows.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, d(v)]))),
+    columns: columns.map((c) => ({ ...c, label: d(c.label) as string })),
+  }
+}
+
 /** The exact column set `reports-screen.tsx:69-79` passes. */
 const PORTFOLIO_COLUMNS = [
   { key: "building", label: "Building" },
@@ -127,7 +145,8 @@ describe("toCsv is byte-identical to the pre-move implementation", () => {
           ]),
         ),
       )
-      expect(toCsv(rows, columns)).toBe(toCsvBeforeTheMove(rows, columns))
+      const safe = defused(rows, columns)
+      expect(toCsv(rows, columns)).toBe(toCsvBeforeTheMove(safe.rows, safe.columns))
     }
   })
 })
@@ -143,5 +162,26 @@ describe("toCsv, on its own terms", () => {
 
   it("renders null and undefined as empty, not as the words", () => {
     expect(toCsv([{ a: null, b: undefined }], [{ key: "a", label: "A" }, { key: "b", label: "B" }])).toBe("A,B\n,")
+  })
+})
+
+describe("formula injection", () => {
+  const cols = [{ key: "v", label: "V" }]
+  const cell = (v: unknown) => toCsv([{ v }], cols).split("\n")[1]
+
+  it("defuses a cell a spreadsheet would run as a formula", () => {
+    expect(cell("=HYPERLINK(\"http://x\",\"y\")")).toBe(`"'=HYPERLINK(""http://x"",""y"")"`)
+    expect(cell("+1+1")).toBe("'+1+1")
+    expect(cell("-2+3")).toBe("'-2+3")
+    expect(cell("@SUM(A1)")).toBe("'@SUM(A1)")
+    expect(cell("\tcmd")).toBe("'\tcmd")
+    expect(cell("\rcmd")).toBe("'\rcmd")
+  })
+
+  it("leaves plain numbers, negative ones included, and ordinary text alone", () => {
+    expect(cell(-5)).toBe("-5")
+    expect(cell("-12.5")).toBe("-12.5")
+    expect(cell("Pepper")).toBe("Pepper")
+    expect(cell("a=b")).toBe("a=b")
   })
 })
