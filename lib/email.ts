@@ -24,6 +24,22 @@ const APP_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://www.pet10x.com"
 const EMAIL_ENABLED =
   !!resend && (process.env.NODE_ENV === "production" || process.env.EMAIL_DEV_SEND === "1")
 
+/**
+ * Escape a value for HTML text or a double-quoted attribute. `emailHtml` takes
+ * its `body` as HTML on purpose (callers add <p>, <ul>), so anything a person
+ * typed — a practice name, an inviter's name — must pass through this before
+ * it is interpolated. `&` goes first so an entity already in the text is shown
+ * literally rather than decoded.
+ */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 interface TemplateOpts {
   headline: string
   body: string
@@ -93,6 +109,43 @@ export function sendManagerInviteEmail(opts: { to: string; inviteUrl: string; bu
       ctaLabel: "Accept invite & set password",
       footnote: "This invite link expires in 24 hours. If you weren't expecting this, you can ignore this email.",
     }),
+  })
+}
+
+/**
+ * A practice adds someone to its team (`/api/clinic/invite`). Every value is
+ * escaped: the practice name and the inviter's name are typed by people, and
+ * the role label is escaped too so the function holds without trusting its
+ * caller.
+ */
+export function clinicInviteHtml(opts: {
+  inviteUrl: string
+  businessName: string
+  inviterName: string
+  roleLabel: string
+}): string {
+  return emailHtml({
+    headline: `Join ${escapeHtml(opts.businessName)} on Pet10x`,
+    body:
+      `${escapeHtml(opts.inviterName)} added you to the team at ${escapeHtml(opts.businessName)} ` +
+      `as ${escapeHtml(opts.roleLabel)}. Set your password to open the practice console.`,
+    ctaUrl: escapeHtml(opts.inviteUrl),
+    ctaLabel: "Accept invite &amp; set password",
+    footnote: "This invite link expires in 24 hours. If you weren't expecting this, you can ignore this email.",
+  })
+}
+
+export function sendClinicInviteEmail(opts: {
+  to: string
+  inviteUrl: string
+  businessName: string
+  inviterName: string
+  roleLabel: string
+}) {
+  return send({
+    to: opts.to,
+    subject: `You've been invited to join ${opts.businessName} on Pet10x`,
+    html: clinicInviteHtml(opts),
   })
 }
 
