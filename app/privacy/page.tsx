@@ -171,8 +171,8 @@ export default function PrivacyPage() {
         <LegalList>
           <li>
             <strong>AI assistant photos</strong> are deleted automatically 7 days after they are attached, and at
-            once if you delete the conversation. Deleting a conversation removes it from your list; its text stays
-            with your account until the account is deleted.
+            once if you delete the conversation. Deleting a conversation deletes its messages and its title; we keep
+            only the fact that a conversation was started, and when, for usage counts.
           </li>
           <li>
             <strong>Incident evidence</strong> uploaded for a report that is never submitted is deleted after 24
@@ -196,10 +196,12 @@ export default function PrivacyPage() {
         </p>
         <p>
           <strong>Delete.</strong> Profile &rsaquo; Privacy &amp; data &rsaquo; Delete account removes your account,
-          your pets and their records, any business you own, your building links and your accommodation documents.
-          If your account is tied to records other people rely on — for example a bylaw case, a submitted incident
-          report or a booking — the app may not be able to finish the deletion on its own. It will tell you so, and
-          we will complete it when you contact us, or explain what we must keep and why.
+          your pets and their records, any business you own, your building links, and the files you uploaded: pet
+          photos and documents, your profile photo, accommodation documents, community images and incident
+          evidence. Records other people rely on — a closed bylaw case or fine, an incident report you filed, a
+          booking, a decision you made as a manager — are kept without your name. While a bylaw case about you is
+          still open or a fine is owed, or your business has bookings still to answer, the app will tell you what
+          needs closing first.
         </p>
         <p>
           You can stop sharing a pet&apos;s records with a clinic at any time from My vets &amp; sharing, delete an AI
