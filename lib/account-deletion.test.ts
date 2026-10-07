@@ -71,3 +71,18 @@ describe("isOwnCommunityObject", () => {
     expect(isOwnCommunityObject("me/post-abc.jpg", "me")).toBe(false)
   })
 })
+
+describe("deletionBlocker — businesses others rely on", () => {
+  it("refuses while the business has other active staff or any patient records", () => {
+    for (const dep of [
+      { otherActiveStaff: 1, patients: 0 },
+      { otherActiveStaff: 0, patients: 3 },
+    ]) {
+      expect(deletionBlocker({ ...none, businessDependants: dep })).toMatch(/Transfer ownership first, or contact support/)
+    }
+  })
+
+  it("lets a sole owner with no patients go", () => {
+    expect(deletionBlocker({ ...none, businessDependants: { otherActiveStaff: 0, patients: 0 } })).toBeNull()
+  })
+})

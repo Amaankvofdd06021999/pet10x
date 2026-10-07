@@ -11,7 +11,9 @@ import { deletionBlocker, isOwnCommunityObject, objectPaths } from "@/lib/accoun
  *
  *   1. REFUSE, having touched nothing, if a bylaw case about the caller is
  *      still open, a fine is still owed or disputed, or a business they own
- *      has bookings still to answer (`deletionBlocker`). The person is told
+ *      has bookings still to answer, other active staff, or clinic patient
+ *      records — deleting the owner deletes the business, and its clinic
+ *      records cascade with it (`deletionBlocker`). The person is told
  *      why in one sentence.
  *   2. COLLECT every storage path the account owns while the rows that name
  *      them still exist. Once the profile goes, the rows cascade or lose their
@@ -130,10 +132,23 @@ export async function POST() {
   }
   const businessIds = (bizRes.data ?? []).map((b) => b.id)
   let businessBookings: { status: string }[] = []
+  let businessDependants = { otherActiveStaff: 0, patients: 0 }
   if (businessIds.length > 0) {
-    const { data, error } = await admin.from("service_bookings").select("status").in("business_id", businessIds)
-    if (error) return NextResponse.json({ error: PREPARE_FAILED }, { status: 502 })
-    businessBookings = data ?? []
+    const [bookings, staff, patients] = await Promise.all([
+      admin.from("service_bookings").select("status").in("business_id", businessIds),
+      admin
+        .from("business_staff")
+        .select("id", { count: "exact", head: true })
+        .in("business_id", businessIds)
+        .eq("is_active", true)
+        .neq("profile_id", uid),
+      admin.from("clinic_patients").select("id", { count: "exact", head: true }).in("business_id", businessIds),
+    ])
+    if (bookings.error || staff.error || patients.error) {
+      return NextResponse.json({ error: PREPARE_FAILED }, { status: 502 })
+    }
+    businessBookings = bookings.data ?? []
+    businessDependants = { otherActiveStaff: staff.count ?? 0, patients: patients.count ?? 0 }
   }
   type Named = { building: { name: string } | { name: string }[] | null }
   const buildingName = (r: Named) => (Array.isArray(r.building) ? r.building[0]?.name : r.building?.name) ?? null
@@ -147,6 +162,7 @@ export async function POST() {
       buildingName: buildingName(r),
     })),
     businessBookings,
+    businessDependants,
   })
   if (blocker) return NextResponse.json({ error: blocker }, { status: 409 })
 

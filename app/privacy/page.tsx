@@ -200,8 +200,8 @@ export default function PrivacyPage() {
           photos and documents, your profile photo, accommodation documents, community images and incident
           evidence. Records other people rely on — a closed bylaw case or fine, an incident report you filed, a
           booking, a decision you made as a manager — are kept without your name. While a bylaw case about you is
-          still open or a fine is owed, or your business has bookings still to answer, the app will tell you what
-          needs closing first.
+          still open or a fine is owed, or your business has bookings still to answer, other staff or clinic
+          patient records, the app will tell you what needs closing or transferring first.
         </p>
         <p>
           You can stop sharing a pet&apos;s records with a clinic at any time from My vets &amp; sharing, delete an AI

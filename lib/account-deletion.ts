@@ -20,6 +20,11 @@ export interface DeletionFacts {
   fines: { status: string; buildingName: string | null }[]
   /** Bookings at businesses the caller owns. */
   businessBookings: { status: string }[]
+  /**
+   * At businesses the caller owns: active staff OTHER than the caller, and
+   * clinic patient records. Optional so a caller with no business can omit it.
+   */
+  businessDependants?: { otherActiveStaff: number; patients: number }
 }
 
 /**
@@ -28,8 +33,9 @@ export interface DeletionFacts {
  *
  * An open case or an owed fine keeps its subject: once the account is gone
  * the record says nobody, and a case that is still being decided must not
- * lose the person it is about. A business with bookings still to answer
- * would leave customers waiting on someone who no longer exists.
+ * lose the person it is about. A business with staff or patient records
+ * would take colleagues' and pet owners' records with it, and one with
+ * bookings still to answer would leave customers waiting on nobody.
  */
 export function deletionBlocker(facts: DeletionFacts): string | null {
   const openCase = facts.cases.find((c) => !CLOSED_STAGES.has(c.stage))
@@ -38,6 +44,13 @@ export function deletionBlocker(facts: DeletionFacts): string | null {
   if (blocking) {
     const where = blocking.buildingName ? `with ${blocking.buildingName}` : "with your building"
     return `You have an open bylaw case ${where}. It needs to be closed before the account can be deleted — contact your building manager.`
+  }
+  // Deleting an owner deletes the business, and with it every clinic
+  // customer, patient and record (business_id cascades). Colleagues and pet
+  // owners rely on those; ownership has to move first.
+  const dep = facts.businessDependants
+  if (dep && (dep.otherActiveStaff > 0 || dep.patients > 0)) {
+    return "Your business has staff or patient records that others rely on. Transfer ownership first, or contact support and we'll help close it properly."
   }
   if (facts.businessBookings.some((b) => OPEN_BOOKING.has(b.status))) {
     return "Your business has bookings that are still open. Decline, cancel or complete them in your business console before deleting the account."
