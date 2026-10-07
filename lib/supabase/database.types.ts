@@ -894,6 +894,7 @@ export type Database = {
           id: string
           latitude: number | null
           longitude: number | null
+          municipality_id: string | null
           name: string
           pet_rules: Json
           postal_code: string | null
@@ -914,6 +915,7 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          municipality_id?: string | null
           name: string
           pet_rules?: Json
           postal_code?: string | null
@@ -934,6 +936,7 @@ export type Database = {
           id?: string
           latitude?: number | null
           longitude?: number | null
+          municipality_id?: string | null
           name?: string
           pet_rules?: Json
           postal_code?: string | null
@@ -6571,11 +6574,8 @@ export type Database = {
         Args: never
         Returns: {
           building_id: string
-          business_listings: number
-          fines: number
-          notifications: number
-          payouts: number
-          violations: number
+          counts: Json
+          total: number
         }[]
       }
       ai_expired_chat_media: {
@@ -6740,12 +6740,9 @@ export type Database = {
       manager_municipal_reports: {
         Args: { p_building: string }
         Returns: {
-          created_at: string
-          description: string
-          evidence_count: number
           id: string
-          location_text: string
-          reference_code: string
+          municipality: string
+          reported_on: string
           status: string
           type: string
         }[]

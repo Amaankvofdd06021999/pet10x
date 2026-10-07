@@ -2,12 +2,9 @@ import { describe, it, expect } from "vitest"
 import { buildingHasHistory, buildingDeleteError, HAS_HISTORY_MESSAGE } from "./building-archive"
 
 describe("buildingHasHistory", () => {
-  it("is false only when every blocking table is empty", () => {
-    const empty = { fines: 0, notifications: 0, payouts: 0, business_listings: 0, violations: 0 }
-    expect(buildingHasHistory(empty)).toBe(false)
-    for (const k of Object.keys(empty) as (keyof typeof empty)[]) {
-      expect(buildingHasHistory({ ...empty, [k]: 1 }), k).toBe(true)
-    }
+  it("is false only when nothing at all references the building", () => {
+    expect(buildingHasHistory(0)).toBe(false)
+    expect(buildingHasHistory(1)).toBe(true)
   })
 
   it("assumes history when the counts are unknown — Delete is the dangerous default", () => {

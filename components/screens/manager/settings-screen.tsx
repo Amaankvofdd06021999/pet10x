@@ -45,6 +45,7 @@ import Image from "next/image"
 import { FineScheduleEditor } from "./fine-schedule-editor"
 import { BuildingRulesEditor } from "./building-rules-editor"
 import { useManagerBuildingRules } from "@/lib/data/building-rules-live"
+import { ArchivedBuildingBanner } from "@/components/screens/manager/archived-building-banner"
 import { stripFineSchedule } from "@/lib/data/fine-schedule"
 
 /** Menu items that don't have a real destination yet — kept, but honestly labelled. */
@@ -139,6 +140,10 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
           <p className="rounded-2xl card-raised px-4 py-6 text-center text-[13px] text-muted-foreground">
             You aren&apos;t assigned to a building yet. Ask a Pet10x admin to add you.
           </p>
+        ) : building.archivedAt ? (
+          // Archived: the configuration sheets are withdrawn, not left to edit
+          // a building nobody can join or report to.
+          <ArchivedBuildingBanner name={building.name} />
         ) : (
           <MenuSection title="Building Configuration">
             <MenuRow icon={Building2} label="Building Profile" detail={building.name} onClick={() => setSheet("profile")} />

@@ -44,10 +44,13 @@ export interface AdminBuilding {
   createdAt: string
   /** Set when an admin took the building off Pet10x; null when live. */
   archivedAt: string | null
+  /** The city its managers' municipal-report summary covers. Admin-set only. */
+  municipalityId: string | null
   /**
-   * Whether anything would block a delete (fines, notifications, payouts,
-   * listings) or is enforcement history (violations). True when unknown, so
-   * Delete is never offered on a guess.
+   * Whether anything at all references the building — blocking tables (fines,
+   * notifications, payouts, listings) and cascading ones (units, residents,
+   * pets, reports…) alike. True when unknown, so Delete is never offered on a
+   * guess.
    */
   hasHistory: boolean
 }
@@ -72,6 +75,7 @@ function mapBuilding(r: BuildingRow, hasHistory: boolean): AdminBuilding {
     rules: (r.pet_rules as PetRules) ?? {},
     createdAt: r.created_at,
     archivedAt: r.archived_at,
+    municipalityId: r.municipality_id,
     hasHistory,
   }
 }
@@ -95,7 +99,7 @@ export function useAdminBuildings() {
       setData([])
     } else {
       const counts = new Map((history ?? []).map((h) => [h.building_id, h]))
-      setData((rows ?? []).map((r) => mapBuilding(r, buildingHasHistory(counts.get(r.id)))))
+      setData((rows ?? []).map((r) => mapBuilding(r, buildingHasHistory(counts.get(r.id)?.total))))
       setError(null)
     }
     setLoading(false)
@@ -143,10 +147,15 @@ export async function updateBuildingRules(id: string, rules: PetRules): Promise<
   return { error: error?.message ?? null }
 }
 
-/** Edit a building's identity/location fields (name, code, address, city, region). */
+/**
+ * Edit a building's identity/location fields (name, code, address, city,
+ * region) and the municipality its managers' city-report summary covers.
+ * `municipality_id` is admin-only (buildings_archive_guard, 20261008000005):
+ * a manager who could set it could read any city's reports.
+ */
 export async function updateBuildingDetails(
   id: string,
-  input: { name: string; code: string; address?: string; city?: string; region?: string },
+  input: { name: string; code: string; address?: string; city?: string; region?: string; municipalityId?: string | null },
 ): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
@@ -158,9 +167,31 @@ export async function updateBuildingDetails(
       address: input.address || null,
       city: input.city || null,
       region: input.region || null,
+      ...(input.municipalityId !== undefined ? { municipality_id: input.municipalityId } : {}),
     })
     .eq("id", id)
   return { error: error?.message ?? null }
+}
+
+export interface AdminMunicipality {
+  id: string
+  name: string
+  region: string | null
+}
+
+/** Every municipality Pet10x knows, for the building's city picker. */
+export function useMunicipalities() {
+  const [data, setData] = useState<AdminMunicipality[]>([])
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) return
+    void supabase
+      .from("municipalities")
+      .select("id, name, region")
+      .order("name")
+      .then(({ data: rows }) => setData((rows ?? []).map((m) => ({ id: m.id, name: m.name, region: m.region }))))
+  }, [])
+  return data
 }
 
 /**
@@ -170,12 +201,14 @@ export async function updateBuildingDetails(
  * notifications, payouts) and `violation_events` is RESTRICT behind
  * `violations`, so a building with any history cannot be deleted, and that is
  * deliberate: those rows are other people's records. The console offers Delete
- * only where `admin_building_history` counts nothing, and Archive otherwise.
+ * only where `admin_building_history` counts nothing in ANY table, and Archive
+ * otherwise.
  * A delete that still hits a 23503 (something arrived since the list loaded)
  * reads as the same advice — never the raw constraint text.
  *
- * A building with no history has only cascading children (units, links,
- * manager assignments), which go with it.
+ * "No history" means nothing references it at all — no units, residents,
+ * managers, pets or reports either, since those cascade — so a delete takes
+ * nothing with it but the row.
  */
 export async function deleteBuilding(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()

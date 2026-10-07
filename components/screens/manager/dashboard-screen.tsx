@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useBuildingResidents, useBuildingPets, useUnreadNotificationCount, useViolations } from "@/lib/data"
 import { useComplianceInputs } from "@/lib/data/portfolio"
+import { ArchivedBuildingBanner } from "@/components/screens/manager/archived-building-banner"
 import { useManagerBuilding } from "@/lib/data/manager"
 import type { ViolationStage } from "@/lib/data/types"
 import {
@@ -139,6 +140,12 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
             <p className="mt-1 text-[14px] text-muted-foreground">{building?.name ?? user?.building}</p>
           )}
         </section>
+
+        {building?.archivedAt && (
+          <section className="mb-5">
+            <ArchivedBuildingBanner name={building.name} />
+          </section>
+        )}
 
         {/* Headline pair — the building at a glance */}
         <section className="mb-6 grid grid-cols-2 gap-3">

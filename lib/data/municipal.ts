@@ -212,20 +212,18 @@ export async function myBuildingCode(): Promise<{ code: string; name: string } |
 /* ------------------------------------------------------------------ */
 
 /**
- * A city report as a building manager may see it: what, where, when — never
- * who. `manager_municipal_reports` returns no reporter id, anonymity flag,
- * ip hash, coordinates or evidence paths, only a count of evidence files.
+ * A city report as a building manager may see it: its type, status, the day
+ * and the city — nothing a reporter could be recognised by. The description,
+ * location, evidence and reference code stay with the reporter and admins
+ * (20261008000005): in a small building those identify who wrote it.
  */
 export interface ManagerMunicipalReport {
   id: string
   type: string
-  typeLabel: string
-  description: string
-  location: string | null
-  reference: string | null
   status: string
-  createdAt: string
-  evidenceCount: number
+  /** A bare YYYY-MM-DD day. */
+  reportedOn: string
+  municipality: string
 }
 
 export function municipalTypeLabel(type: string): string {
@@ -233,10 +231,10 @@ export function municipalTypeLabel(type: string): string {
 }
 
 /**
- * Reports filed with Pet10x about the city this building is in — matched on
- * the building's postal code, the same way a reporter's form resolves its
- * city. A building without a postal code, or in a city Pet10x has no record
- * of, gets an empty list. Read-only: managers have no write path.
+ * Reports filed with Pet10x about the city this building is in — the city an
+ * admin set on the building (`buildings.municipality_id`), never one the
+ * manager can change. A building with no city set gets an empty list.
+ * Read-only: managers have no write path.
  */
 export function useManagerMunicipalReports(
   buildingId: string | null | undefined,
@@ -251,13 +249,9 @@ export function useManagerMunicipalReports(
       return (data ?? []).map((r) => ({
         id: r.id,
         type: r.type,
-        typeLabel: municipalTypeLabel(r.type),
-        description: r.description,
-        location: r.location_text,
-        reference: r.reference_code,
         status: r.status,
-        createdAt: r.created_at,
-        evidenceCount: r.evidence_count ?? 0,
+        reportedOn: r.reported_on,
+        municipality: r.municipality,
       }))
     },
     [buildingId],

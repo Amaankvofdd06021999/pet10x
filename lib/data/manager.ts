@@ -24,6 +24,8 @@ export interface ManagerBuilding {
   totalUnits: number | null
   postalCode: string | null
   rules: PetRules
+  /** Set when an admin archived the building; the manager sees it read-only. */
+  archivedAt: string | null
 }
 
 export interface BuildingStats {
@@ -85,7 +87,7 @@ export function useManagerBuilding(preferredId?: string | null) {
 
     const { data: b, error: err } = await supabase
       .from("buildings")
-      .select("id, name, building_code, address, city, region, postal_code, total_units, pet_rules")
+      .select("id, name, building_code, address, city, region, postal_code, total_units, pet_rules, archived_at")
       .eq("id", link.building_id)
       .maybeSingle()
 
@@ -103,6 +105,7 @@ export function useManagerBuilding(preferredId?: string | null) {
         totalUnits: b.total_units,
         postalCode: b.postal_code,
         rules: (b.pet_rules as PetRules) ?? {},
+        archivedAt: b.archived_at,
       })
       setError(null)
     }

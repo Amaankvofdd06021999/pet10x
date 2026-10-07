@@ -22,8 +22,10 @@ import {
   setManagerSuspended,
   revokeManagerFromBuilding,
   useAdminMunicipalReports,
+  useMunicipalities,
   setMunicipalReportStatus,
   type AdminBuilding,
+  type AdminMunicipality,
   type AdminManager,
   type PetRules,
 } from "@/lib/data/admin"
@@ -213,6 +215,7 @@ const EMPTY_FORM = { name: "", code: "", address: "", city: "", region: "" }
 
 function Buildings() {
   const { data: buildings, isLoading, error, refetch } = useAdminBuildings()
+  const municipalities = useMunicipalities()
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [rules, setRules] = useState<PetRules>({ requires_registry: true })
@@ -281,7 +284,7 @@ function Buildings() {
       ) : (
         <div className="flex flex-col gap-2.5">
           {buildings.map((b) => (
-            <BuildingCard key={b.id} building={b} onChange={refetch} />
+            <BuildingCard key={b.id} building={b} municipalities={municipalities} onChange={refetch} />
           ))}
         </div>
       )}
@@ -289,7 +292,15 @@ function Buildings() {
   )
 }
 
-function BuildingCard({ building, onChange }: { building: AdminBuilding; onChange: () => void }) {
+function BuildingCard({
+  building,
+  municipalities,
+  onChange,
+}: {
+  building: AdminBuilding
+  municipalities: AdminMunicipality[]
+  onChange: () => void
+}) {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
@@ -301,7 +312,9 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
     address: building.address ?? "",
     city: building.city ?? "",
     region: building.region ?? "",
+    municipalityId: building.municipalityId ?? "",
   })
+  const municipalityName = municipalities.find((m) => m.id === building.municipalityId)?.name
   const [busy, setBusy] = useState(false)
 
   async function invite() {
@@ -350,7 +363,10 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
       return
     }
     setBusy(true)
-    const { error } = await updateBuildingDetails(building.id, details)
+    const { error } = await updateBuildingDetails(building.id, {
+      ...details,
+      municipalityId: details.municipalityId || null,
+    })
     setBusy(false)
     if (error) return toast.error("Couldn't save", { description: error })
     toast.success("Building updated")
@@ -359,7 +375,7 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
   }
 
   async function remove() {
-    if (!confirm(`Delete ${building.name}? It has no history, so this removes it with its units, resident links and manager assignments.`)) return
+    if (!confirm(`Delete ${building.name}? Nothing references it — no units, residents, managers, pets or records — so only the building itself is removed. This cannot be undone.`)) return
     setBusy(true)
     const { error } = await deleteBuilding(building.id)
     setBusy(false)
@@ -370,7 +386,7 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
 
   async function archive(archived: boolean) {
     const question = archived
-      ? `Archive ${building.name}? Residents will no longer be able to join it or file reports with its code, and it disappears from search and from managers' portfolios. Its residents, pets, cases and fines are kept, and you can restore it.`
+      ? `Archive ${building.name}? Residents will no longer be able to join it or file reports with its code, and it disappears from search and from the strata portfolio. Its managers see it marked archived and can no longer change its settings. Its residents, pets, cases and fines are kept, and you can restore it.`
       : `Restore ${building.name}? Its code works again for joining and reporting.`
     if (!confirm(question)) return
     setBusy(true)
@@ -425,6 +441,24 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
                 <AdminInput placeholder="City" value={details.city} onChange={(v) => setDetails((p) => ({ ...p, city: v }))} />
                 <AdminInput placeholder="Region" value={details.region} onChange={(v) => setDetails((p) => ({ ...p, region: v }))} />
               </div>
+              {/* Decides which city's report summary its managers see. Only an
+                  admin can set it — a manager who could would read any city's. */}
+              <label className="flex flex-col gap-1 text-[12px] font-semibold text-muted-foreground">
+                Municipality (for city reports)
+                <select
+                  value={details.municipalityId}
+                  onChange={(e) => setDetails((p) => ({ ...p, municipalityId: e.target.value }))}
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] font-normal text-foreground focus:border-primary focus:outline-none"
+                >
+                  <option value="">Not set — managers see no city reports</option>
+                  {municipalities.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                      {m.region ? `, ${m.region}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 onClick={saveDetails}
                 disabled={busy}
@@ -438,6 +472,7 @@ function BuildingCard({ building, onChange }: { building: AdminBuilding; onChang
               {building.address || "No address"}
               {building.city ? ` · ${building.city}` : ""}
               {building.region ? `, ${building.region}` : ""}
+              {` · City reports: ${municipalityName ?? "no municipality set"}`}
             </p>
           )}
 
