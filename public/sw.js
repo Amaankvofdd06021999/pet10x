@@ -41,8 +41,16 @@ self.addEventListener("push", (event) => {
 
 /** Only a path on this origin is ever opened — never another site. */
 function safeUrl(raw) {
-  if (typeof raw !== "string" || !raw.startsWith("/") || raw.startsWith("//")) return "/app"
-  return new URL(raw, self.location.origin).href
+  // `/\host` and `/\t/host` resolve to another origin, so the RESOLVED origin
+  // is what is checked (the same rule as lib/safe-next.ts).
+  const fallback = new URL("/app", self.location.origin).href
+  if (typeof raw !== "string" || !raw.startsWith("/")) return fallback
+  try {
+    const url = new URL(raw, self.location.origin)
+    return url.origin === self.location.origin ? url.href : fallback
+  } catch {
+    return fallback
+  }
 }
 
 self.addEventListener("notificationclick", (event) => {

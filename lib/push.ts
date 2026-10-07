@@ -119,7 +119,7 @@ export async function enablePush(): Promise<{ error: string | null }> {
 /**
  * Turn push off for this device: delete the server's row (RLS: own rows only)
  * and unsubscribe the browser. The row goes first, while the session that owns
- * it is still signed in.
+ * it is still signed in; the browser is unsubscribed even if that fails.
  */
 export async function disablePush(): Promise<{ error: string | null }> {
   if (!isPushSupported()) return { error: null }
@@ -127,11 +127,14 @@ export async function disablePush(): Promise<{ error: string | null }> {
   const sub = await reg?.pushManager.getSubscription().catch(() => null)
   if (!sub) return { error: null }
   const db = getSupabaseBrowserClient()
-  if (db) {
-    const { error } = await db.from("web_push_subscriptions").delete().eq("endpoint", sub.endpoint)
-    if (error) return { error: "Couldn't turn off push for this device. Check your connection and try again." }
-  }
+  const { error } = db
+    ? await db.from("web_push_subscriptions").delete().eq("endpoint", sub.endpoint)
+    : { error: null }
+  /* Unsubscribed whether or not the row went: a row left behind points at an
+     endpoint that now answers 410, and the dispatcher deletes it on its next
+     send. A browser left subscribed after "off" would keep showing pushes. */
   await sub.unsubscribe().catch(() => {})
+  if (error) return { error: "Push is off on this device, but Pet10x couldn't confirm it. It will tidy up on its own." }
   return { error: null }
 }
 

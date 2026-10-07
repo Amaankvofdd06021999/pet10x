@@ -74,7 +74,9 @@ export function NotificationSettingsSheet({ onClose }: { onClose: () => void }) 
     } else {
       const res = await disablePush()
       if (res.error) {
+        // The browser is unsubscribed even then; show the device as it is.
         setError(res.error)
+        setPushState(await getPushState())
         setBusy(null)
         return
       }
