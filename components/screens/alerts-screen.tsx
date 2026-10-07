@@ -3,7 +3,14 @@
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
-import { useNotifications, type NotificationIconKey, type NotificationCategory } from "@/lib/data"
+import { toast } from "sonner"
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+  useNotifications,
+  type NotificationIconKey,
+  type NotificationCategory,
+} from "@/lib/data"
 import { useAuth } from "@/lib/auth-context"
 import { resolveActionTarget } from "@/lib/navigation"
 import {
@@ -15,6 +22,7 @@ import {
   Shield,
   Syringe,
   BellOff,
+  CheckCheck,
   Sparkles,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -103,18 +111,42 @@ export function AlertsScreen({
   // building. The CTA is for residents and, for anyone else, a dead end.
   const canReportIncident = activePersona !== "building-manager" && activePersona !== "strata-manager"
 
+  /* Opening a notification is reading it. The dot clears at once; the store
+     writes `read_at` behind it and puts the dot back if the write is refused,
+     so the toast is the only trace of a failure, never a silent lie. */
+  const open = (id: string) => {
+    void markNotificationRead(id).then(({ error }) => {
+      if (error) toast.error(`Couldn't mark that as read — ${error}`)
+    })
+  }
+
+  const markAll = () => {
+    void markAllNotificationsRead().then(({ error }) => {
+      if (error) toast.error(`Couldn't mark everything as read — ${error}`)
+    })
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Alerts"
         largeTitle={false}
         leftAction={<NavBackButton onClick={() => (onBack ? onBack() : onNavigate?.("home"))} />}
-        /* No right action. Two have stood here and neither did anything: a "+"
+        /* Two right actions stood here before and neither did anything: a "+"
            that duplicated the "Report an Incident" card below, and a "Filter"
            button that toasted "coming soon". The tab row underneath already
-           filters this list, and it is built from the categories the viewer
-           actually receives, so there is nothing left for a filter sheet to
-           offer that is not one tap away. */
+           filters. What is here now writes, and only exists while there is
+           something unread for it to write. */
+        rightAction={
+          unreadCount > 0 ? (
+            <button
+              onClick={markAll}
+              className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12.5px] font-semibold text-primary"
+            >
+              <CheckCheck className="h-3.5 w-3.5" /> Mark all read
+            </button>
+          ) : undefined
+        }
       />
 
       {/* Tabs */}
@@ -186,7 +218,16 @@ export function AlertsScreen({
             return (
               <div
                 key={alert.id}
-                className="rounded-2xl card-raised p-3.5 transition-transform active:scale-[0.99]"
+                role="button"
+                tabIndex={0}
+                onClick={() => open(alert.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    open(alert.id)
+                  }
+                }}
+                className="cursor-pointer rounded-2xl card-raised p-3.5 transition-transform active:scale-[0.99]"
               >
                 <div className="flex gap-3">
                   <div className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${style.bg}`}>
@@ -207,7 +248,12 @@ export function AlertsScreen({
                     </p>
                     {route && (
                       <button
-                        onClick={() => onNavigate?.(route.screen, route.id)}
+                        onClick={(e) => {
+                          // The row's own handler would mark it too; once is enough.
+                          e.stopPropagation()
+                          open(alert.id)
+                          onNavigate?.(route.screen, route.id)
+                        }}
                         className="mt-1.5 text-[12px] font-semibold text-primary"
                       >
                         {/* A target with no label is a real case, not an

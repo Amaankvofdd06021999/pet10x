@@ -8,6 +8,7 @@ import {
   MOCK_USERS,
   VALID_BUILDING_CODES,
   resolveBuildingCode,
+  clearNotificationsCache,
   clearPetsCache,
   clearSelectedPet,
   type AppUser,
@@ -655,6 +656,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabaseBrowserClient()
     if (supabase) await supabase.auth.signOut().catch(() => {})
     clearPetsCache()
+    clearNotificationsCache()
     // The pets are gone, so the id remembered against them names nothing. The
     // storage key already carries the profile id, so this is not about bleed
     // between accounts — it is about not leaving the previous person's pet

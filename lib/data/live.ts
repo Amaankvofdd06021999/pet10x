@@ -11,7 +11,7 @@
  * navigation, so cross-screen freshness comes "for free" — no global cache.
  */
 
-import { useCallback, useEffect, useReducer, useState } from "react"
+import { useCallback, useEffect, useReducer, useState, useSyncExternalStore } from "react"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client"
 import { petFileSignedUrls, signedUrlsIn, isStoragePath, uploadPetFile, deletePetFile } from "@/lib/supabase/storage"
 import type { Database } from "@/lib/supabase/database.types"
@@ -22,6 +22,7 @@ import { describeWhyNot } from "./disputes"
 import { toViolationStage } from "./violations"
 import { formatReward } from "./community"
 import { uploadCommunityImage } from "./community-media"
+import { createNotificationStore } from "./notification-store"
 import type {
   AppNotification,
   BuildingLink,
@@ -1215,68 +1216,44 @@ function mapNotification(row: {
   }
 }
 
-export function useNotifications(): LiveResult<AppNotification[]> {
-  const [data, setData] = useState<AppNotification[]>([])
-  const [isLoading, setLoading] = useState(ENABLED)
-  const [error, setError] = useState<string | null>(null)
-  const refetch = useCallback(async () => {
-    if (!ENABLED) {
-      setLoading(false)
-      return
-    }
-    const supabase = getSupabaseBrowserClient()
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
+/**
+ * Loaded once per signed-in session and shared — see `./notification-store`.
+ * Each caller of `useNotifications` used to run its own query, so marking one
+ * read in Alerts could never clear the bell on Home, the profile or the
+ * sidebar badge.
+ */
+async function loadNotifications(): Promise<{ data: AppNotification[]; error: string | null }> {
+  if (!ENABLED) return { data: [], error: null }
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { data: [], error: null }
 
-    /* Scope to the signed-in account explicitly.
-     *
-     * This used to select with no filter and let RLS do the narrowing, which
-     * is correct for an ordinary user and wrong for a privileged one: the
-     * notifications policy is `profile_id = auth.uid() OR is_admin()`, so an
-     * account holding is_super_admin got EVERY user's notifications — which is
-     * how building alerts addressed to managers appeared in a pet owner's
-     * feed.
-     *
-     * RLS is a floor, not a WHERE clause. A query must ask for the rows it
-     * actually wants; RLS then guarantees it cannot get more. */
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      setData([])
-      setLoading(false)
-      return
-    }
+  /* Scope to the signed-in account explicitly.
+   *
+   * This used to select with no filter and let RLS do the narrowing, which
+   * is correct for an ordinary user and wrong for a privileged one: the
+   * notifications policy is `profile_id = auth.uid() OR is_admin()`, so an
+   * account holding is_super_admin got EVERY user's notifications — which is
+   * how building alerts addressed to managers appeared in a pet owner's
+   * feed.
+   *
+   * RLS is a floor, not a WHERE clause. A query must ask for the rows it
+   * actually wants; RLS then guarantees it cannot get more. */
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { data: [], error: null }
 
-    const { data: rows, error: err } = await supabase
-      .from("notifications")
-      .select("id, kind, severity, title, body, action_label, action_target, read_at, created_at")
-      .eq("profile_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(100)
-    if (err) {
-      setError(err.message)
-      setData([])
-    } else {
-      setData((rows ?? []).map(mapNotification))
-      setError(null)
-    }
-    setLoading(false)
-  }, [])
-  useEffect(() => {
-    void refetch()
-  }, [refetch])
-  return { data, isLoading, error, refetch }
+  const { data: rows, error } = await supabase
+    .from("notifications")
+    .select("id, kind, severity, title, body, action_label, action_target, read_at, created_at")
+    .eq("profile_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(100)
+  if (error) return { data: [], error: error.message }
+  return { data: (rows ?? []).map(mapNotification), error: null }
 }
 
-export function useUnreadNotificationCount(): number {
-  const { data } = useNotifications()
-  return data.filter((n) => !n.read).length
-}
-
-export async function markNotificationRead(id: string): Promise<{ error: string | null }> {
+async function persistNotificationRead(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase
@@ -1285,6 +1262,65 @@ export async function markNotificationRead(id: string): Promise<{ error: string 
     .eq("id", id)
     .is("read_at", null)
   return { error: error?.message ?? null }
+}
+
+/* Same explicit scoping as the read: `notifs_update` would also let an admin
+   touch other people's rows, and "mark all read" means MY rows. */
+async function persistAllNotificationsRead(): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "You're signed out." }
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("profile_id", user.id)
+    .is("read_at", null)
+  return { error: error?.message ?? null }
+}
+
+const notificationStore = createNotificationStore<AppNotification>({
+  load: loadNotifications,
+  persistRead: persistNotificationRead,
+  persistAllRead: persistAllNotificationsRead,
+})
+
+/** Clear on sign-out, beside `clearPetsCache()`, so the next account starts empty. */
+export function clearNotificationsCache() {
+  notificationStore.clear()
+}
+
+const nullSnapshot = () => null
+
+export function useNotifications(): LiveResult<AppNotification[]> {
+  const data = useSyncExternalStore(notificationStore.subscribe, notificationStore.get, nullSnapshot)
+  useEffect(() => {
+    notificationStore.ensure()
+  }, [])
+
+  return {
+    data: data ?? [],
+    isLoading: ENABLED && data === null,
+    error: notificationStore.error(),
+    refetch: notificationStore.refresh,
+  }
+}
+
+export function useUnreadNotificationCount(): number {
+  const { data } = useNotifications()
+  return data.filter((n) => !n.read).length
+}
+
+/** Optimistic; reverts the row and returns the error if the write is refused. */
+export function markNotificationRead(id: string): Promise<{ error: string | null }> {
+  return notificationStore.markRead(id)
+}
+
+/** Every unread row of the signed-in account. Optimistic, reverted on failure. */
+export function markAllNotificationsRead(): Promise<{ error: string | null }> {
+  return notificationStore.markAllRead()
 }
 
 /* ----------------------------- community feed ------------------------------ */
