@@ -31,6 +31,13 @@ describe("canAccessRoute", () => {
     expect(findRouteRule("/app/anything")?.prefix).toBe("/app")
     expect(findRouteRule("/nowhere")).toBeNull()
   })
+
+  it("leaves the legal and help pages public — they are linked from sign-up", () => {
+    for (const path of ["/terms", "/privacy", "/help"]) {
+      expect(findRouteRule(path)).toBeNull()
+      expect(canAccessRoute(path, { role: null, isSuperAdmin: false })).toBe(true)
+    }
+  })
 })
 
 describe("personasFor", () => {

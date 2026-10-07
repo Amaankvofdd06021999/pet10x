@@ -10,6 +10,7 @@ import { PersonaSwitcher } from "@/components/persona-switcher"
 import { PERSONA_LABEL } from "@/lib/rbac"
 import { AddressCard } from "@/components/screens/profile/address-card"
 import { NavBackButton } from "@/components/nav-back-button"
+import { HelpLegalSection } from "@/components/legal/help-legal-section"
 import {
   Accessibility,
   ChevronRight,
@@ -76,15 +77,13 @@ interface MenuItem {
  *   Privacy & Security,"Appearance: System" additionally displayed a stored
  *   Language,          preference that was never stored anywhere.
  *   Appearance
- *   Help & FAQ,        No destination exists. `public/` holds no such document,
- *   Rate Pet10x,       the project has no `/help`, `/terms` or `/privacy`
- *   Terms & Privacy    route (`app/**` has ten pages; none of them is one), and
- *                      there is no support URL in any config. Inventing
- *                      `pet10x.com/terms` would have been a worse lie than the
- *                      toast. Recorded as an UNOWNED product gap in
- *                      docs/superpowers/2026-08-21-deferred-controls.md — an
- *                      app holding pet health records and home addresses needs
- *                      a real privacy policy, and no phase currently plans one.
+ *   Rate Pet10x        No destination exists — there is no store listing to
+ *                      rate.
+ *   Help & FAQ,        RESTORED, Part C. `/help`, `/terms` and `/privacy` are
+ *   Terms & Privacy    real public pages now, so these are links again — in
+ *                      the "Help & legal" section below Privacy & data
+ *                      (components/legal/help-legal-section.tsx), with the
+ *                      support address from lib/site.ts.
  *
  * The `unbuilt` rows are kept BECAUSE a named phase builds them, and those
  * plans instruct their implementer to re-enable the row they expect to find
@@ -452,6 +451,8 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             </button>
           </div>
         </section>
+
+        <HelpLegalSection />
 
         {picking && (
           <PetPickerSheet

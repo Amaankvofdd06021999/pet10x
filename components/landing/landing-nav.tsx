@@ -4,10 +4,12 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { PawPrint, Menu, X, AlertTriangle } from "lucide-react"
 
+// Rooted at "/" so they still land on the right section from /terms, /privacy
+// and /help, which reuse this nav.
 const LINKS = [
-  { href: "#product", label: "Product" },
-  { href: "#buildings", label: "For Buildings" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "/#product", label: "Product" },
+  { href: "/#buildings", label: "For Buildings" },
+  { href: "/#pricing", label: "Pricing" },
 ]
 
 export function LandingNav() {

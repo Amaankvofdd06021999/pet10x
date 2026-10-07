@@ -28,7 +28,6 @@ import {
   Lock,
   Globe,
   Moon,
-  HelpCircle,
   LogOut,
   ChevronRight,
   QrCode,
@@ -47,6 +46,7 @@ import { BuildingRulesEditor } from "./building-rules-editor"
 import { useManagerBuildingRules } from "@/lib/data/building-rules-live"
 import { ArchivedBuildingBanner } from "@/components/screens/manager/archived-building-banner"
 import { stripFineSchedule } from "@/lib/data/fine-schedule"
+import { HelpLegalSection } from "@/components/legal/help-legal-section"
 
 /** Menu items that don't have a real destination yet — kept, but honestly labelled. */
 const UNBUILT: { icon: typeof Bell; label: string; section: string }[] = [
@@ -59,8 +59,6 @@ const UNBUILT: { icon: typeof Bell; label: string; section: string }[] = [
   { icon: Lock, label: "Security & Access", section: "Account" },
   { icon: Globe, label: "Language", section: "Account" },
   { icon: Moon, label: "Appearance", section: "Account" },
-  { icon: HelpCircle, label: "Help & FAQ", section: "Support" },
-  { icon: FileText, label: "Terms & Privacy Policy", section: "Support" },
 ]
 
 const RULE_TOGGLES: { key: keyof PetRules; label: string }[] = [
@@ -176,8 +174,9 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
             "This isn't built yet" is a worse way to learn that than seeing it
             before you press. None of the eleven has an owning phase — the spec
             lists the settings-menu stubs as explicitly out of scope for every
-            one of Phases 4-8. */}
-        {["Administration", "Account", "Support"].map((section) => (
+            one of Phases 4-8. Part C built the two Support rows (Help & FAQ,
+            Terms & Privacy) — they are real links below now, not stubs. */}
+        {["Administration", "Account"].map((section) => (
           <MenuSection key={section} title={section}>
             {UNBUILT.filter((i) => i.section === section).map((item, idx, arr) => (
               <MenuRow
@@ -191,6 +190,8 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
             ))}
           </MenuSection>
         ))}
+
+        <HelpLegalSection title="Support" />
 
         <section className="mb-5">
           <button
