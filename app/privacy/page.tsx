@@ -183,8 +183,8 @@ export default function PrivacyPage() {
             hours. Once a request is decided or withdrawn, the document file is deleted 400 days later; the record
             that a document was provided and checked is kept.
           </li>
-          <li><strong>Unverified sign-ups</strong> are deleted when the 15-minute code expires.</li>
-          <li>Everything else is kept while your account is open, and removed when you delete it, except as described below.</li>
+          <li><strong>Unverified sign-ups</strong> stop working when the 15-minute code expires, and are deleted by a daily sweep.</li>
+          <li>Everything else is kept while your account is open, and removed when you delete it.</li>
         </LegalList>
       </LegalSection>
 
