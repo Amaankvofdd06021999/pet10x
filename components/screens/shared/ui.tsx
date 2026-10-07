@@ -334,6 +334,13 @@ export function Modal({
   const titleId = useId()
   const descId = useId()
 
+  // The latest onClose, kept current after each render so the keydown
+  // listener below never needs re-binding.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
   const trap = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") {
       e.stopPropagation()
@@ -355,9 +362,6 @@ export function Modal({
       first.focus()
     }
   }, [])
-
-  const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
 
   useEffect(() => {
     if (!open) return

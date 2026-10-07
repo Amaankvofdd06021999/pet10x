@@ -20,22 +20,20 @@ export function PetContextSwitcher({ pets, selectedPetId, onSelect }: PetContext
   if (pets.length < 2) return null
 
   const selected = pets.find((p) => p.id === selectedPetId) ?? null
-  const Icon = selected ? speciesIcon(selected) : PawPrint
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-full card-raised px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-muted/60">
-        <Icon className="h-4 w-4 text-primary" />
+        <SpeciesIcon pet={selected} className="h-4 w-4 text-primary" />
         <span className="max-w-[9rem] truncate">{selected ? `About ${selected.name}` : "General question"}</span>
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="w-56">
         {pets.map((pet) => {
-          const PetIcon = speciesIcon(pet)
           return (
             <DropdownMenuItem key={pet.id} onSelect={() => onSelect(pet.id)} className="gap-2">
-              <PetIcon className="h-4 w-4 text-muted-foreground" />
+              <SpeciesIcon pet={pet} className="h-4 w-4 text-muted-foreground" />
               <span className="flex-1 truncate">{pet.name}</span>
               {pet.id === selectedPetId && <Check className="h-4 w-4 text-primary" />}
             </DropdownMenuItem>
@@ -51,8 +49,8 @@ export function PetContextSwitcher({ pets, selectedPetId, onSelect }: PetContext
   )
 }
 
-function speciesIcon(pet: Pet) {
-  if (pet.species === "dog") return Dog
-  if (pet.species === "cat") return Cat
-  return PawPrint
+function SpeciesIcon({ pet, className }: { pet: Pet | null; className: string }) {
+  if (pet?.species === "dog") return <Dog className={className} />
+  if (pet?.species === "cat") return <Cat className={className} />
+  return <PawPrint className={className} />
 }
