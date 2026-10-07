@@ -389,3 +389,91 @@ export async function setManagerSuspended(profileId: string, suspended: boolean)
     .eq("id", profileId)
   return { error: error?.message ?? null }
 }
+
+/* ------------------------------------------------------------------ */
+/* City reports — the admin triages their status                       */
+/* ------------------------------------------------------------------ */
+
+export interface AdminMunicipalReport {
+  id: string
+  type: string
+  description: string
+  location: string | null
+  reference: string | null
+  status: "submitted" | "acknowledged" | "closed"
+  municipality: string | null
+  createdAt: string
+}
+
+/**
+ * Every municipal report, newest first. `municipal_reports_select` admits
+ * admins; the reporter's identity and ip hash are deliberately not selected —
+ * triaging a status needs neither.
+ */
+export function useAdminMunicipalReports() {
+  const [data, setData] = useState<AdminMunicipalReport[]>([])
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    const { data: rows, error: err } = await supabase
+      .from("municipal_reports")
+      .select("id, type, description, location_text, reference_code, status, created_at, municipality:municipalities ( name )")
+      .order("created_at", { ascending: false })
+      .limit(200)
+    if (err) {
+      setError(err.message)
+      setData([])
+    } else {
+      type Row = {
+        id: string
+        type: string
+        description: string
+        location_text: string | null
+        reference_code: string | null
+        status: string
+        created_at: string
+        municipality: { name: string } | { name: string }[] | null
+      }
+      setData(
+        ((rows ?? []) as unknown as Row[]).map((r) => {
+          const m = Array.isArray(r.municipality) ? r.municipality[0] : r.municipality
+          return {
+            id: r.id,
+            type: r.type,
+            description: r.description,
+            location: r.location_text,
+            reference: r.reference_code,
+            status: r.status as AdminMunicipalReport["status"],
+            municipality: m?.name ?? null,
+            createdAt: r.created_at,
+          }
+        }),
+      )
+      setError(null)
+    }
+    setLoading(false)
+  }, [])
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+/** Acknowledge or close a city report. RLS `municipal_reports_admin_write`; managers have no write path. */
+export async function setMunicipalReportStatus(
+  id: string,
+  status: "acknowledged" | "closed",
+): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { data, error } = await supabase.from("municipal_reports").update({ status }).eq("id", id).select("id")
+  if (error) return { error: error.message }
+  // RLS filters a refused UPDATE to zero rows rather than raising.
+  if (!data || data.length === 0) return { error: "Only an admin can change a city report's status." }
+  return { error: null }
+}

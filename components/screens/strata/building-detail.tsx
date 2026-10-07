@@ -43,7 +43,9 @@ import {
   Copy,
   Ban,
   Plus,
+  Landmark,
 } from "lucide-react"
+import { MunicipalReportsList } from "@/components/screens/manager/municipal-reports-list"
 
 const DETAIL_TABS = [
   { id: "work", label: "Work", icon: Inbox },
@@ -51,6 +53,7 @@ const DETAIL_TABS = [
   { id: "violations", label: "Violations", icon: Gavel },
   { id: "bylaws", label: "Bylaws", icon: Scale },
   { id: "emergency", label: "Emergency", icon: QrCode },
+  { id: "municipal", label: "Municipal", icon: Landmark },
 ] as const
 
 export function BuildingDetail({ buildingId, onBack }: { buildingId: string; onBack: () => void }) {
@@ -121,6 +124,7 @@ export function BuildingDetail({ buildingId, onBack }: { buildingId: string; onB
       {tab === "violations" && <ViolationsPanel buildingId={buildingId} />}
       {tab === "bylaws" && <BylawsPanel buildingId={buildingId} />}
       {tab === "emergency" && <EmergencyPanel buildingId={buildingId} />}
+      {tab === "municipal" && <MunicipalReportsList buildingId={buildingId} />}
     </div>
   )
 }

@@ -6,6 +6,9 @@ import { NavBackButton } from "@/components/nav-back-button"
 import { AlertTriangle, Inbox, Loader2, Search } from "lucide-react"
 import { useIncidents, isOpenIncident, INCIDENT_TYPE_LABEL, type IncidentStatus } from "@/lib/data/incidents"
 import { IncidentCard } from "@/components/screens/manager/incident-card"
+import { MunicipalReportsList } from "@/components/screens/manager/municipal-reports-list"
+import { useAuth } from "@/lib/auth-context"
+import { useManagerBuilding } from "@/lib/data/manager"
 
 /**
  * Incident reports, in full.
@@ -18,6 +21,12 @@ import { IncidentCard } from "@/components/screens/manager/incident-card"
  * unreachable and unsearchable.
  *
  * The Approvals tab stays as the "needs attention" view; this is the record.
+ *
+ * MUNICIPAL is a second source, not a filter. Reports made to a city through
+ * Pet10x have no building and no triage; a manager may read the ones about
+ * their building's city (`manager_municipal_reports`) and do nothing else with
+ * them, so they get their own tab rather than a status chip they would share
+ * no statuses with.
  */
 
 type Filter = "open" | "all" | IncidentStatus
@@ -32,6 +41,9 @@ const FILTERS: { id: Filter; label: string }[] = [
 
 export function ManagerIncidentsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const { data: incidents, isLoading, refetch } = useIncidents()
+  const { activeBuildingId } = useAuth()
+  const { data: building } = useManagerBuilding(activeBuildingId)
+  const [source, setSource] = useState<"building" | "municipal">("building")
   const [filter, setFilter] = useState<Filter>("open")
   const [q, setQ] = useState("")
 
@@ -75,34 +87,60 @@ export function ManagerIncidentsScreen({ onNavigate }: { onNavigate?: (screen: s
       />
 
       <div className="sticky top-16 z-30 bg-background px-4 pb-3">
-        <div className="relative mb-2.5">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by reference, pet, unit or text"
-            aria-label="Search incident reports"
-            className="w-full rounded-xl border border-input bg-card py-2.5 pl-9 pr-3 text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {FILTERS.map((f) => (
+        <div className="mb-2.5 flex gap-1 rounded-xl bg-muted p-1" role="tablist" aria-label="Report source">
+          {(
+            [
+              { id: "building", label: "Building reports" },
+              { id: "municipal", label: "Municipal" },
+            ] as const
+          ).map((t) => (
             <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
-                filter === f.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              key={t.id}
+              role="tab"
+              aria-selected={source === t.id}
+              onClick={() => setSource(t.id)}
+              className={`flex-1 rounded-lg py-1.5 text-[13px] font-semibold transition-colors ${
+                source === t.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
-              {f.label}
-              <span className="ml-1 opacity-70">({counts[f.id] ?? 0})</span>
+              {t.label}
             </button>
           ))}
         </div>
+        {source === "building" && (
+          <>
+            <div className="relative mb-2.5">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search by reference, pet, unit or text"
+                aria-label="Search incident reports"
+                className="w-full rounded-xl border border-input bg-card py-2.5 pl-9 pr-3 text-[14px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setFilter(f.id)}
+                  className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
+                    filter === f.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {f.label}
+                  <span className="ml-1 opacity-70">({counts[f.id] ?? 0})</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <main className="ios-scroll flex-1 px-4 pb-24">
-        {isLoading ? (
+        {source === "municipal" ? (
+          <MunicipalReportsList buildingId={building?.id} />
+        ) : isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>

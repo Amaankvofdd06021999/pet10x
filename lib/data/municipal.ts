@@ -1,6 +1,7 @@
 "use client"
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { useLive, type LiveResult } from "./clinic/use-live"
 
 /**
  * Reporting an animal to a city rather than to a building.
@@ -204,4 +205,62 @@ export async function myBuildingCode(): Promise<{ code: string; name: string } |
     .eq("id", link.building_id)
     .maybeSingle()
   return b ? { code: b.building_code, name: b.name } : null
+}
+
+/* ------------------------------------------------------------------ */
+/* What a building manager sees of it                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A city report as a building manager may see it: what, where, when — never
+ * who. `manager_municipal_reports` returns no reporter id, anonymity flag,
+ * ip hash, coordinates or evidence paths, only a count of evidence files.
+ */
+export interface ManagerMunicipalReport {
+  id: string
+  type: string
+  typeLabel: string
+  description: string
+  location: string | null
+  reference: string | null
+  status: string
+  createdAt: string
+  evidenceCount: number
+}
+
+export function municipalTypeLabel(type: string): string {
+  return MUNICIPAL_TYPES.find((t) => t.id === type)?.label ?? type.replace(/_/g, " ")
+}
+
+/**
+ * Reports filed with Pet10x about the city this building is in — matched on
+ * the building's postal code, the same way a reporter's form resolves its
+ * city. A building without a postal code, or in a city Pet10x has no record
+ * of, gets an empty list. Read-only: managers have no write path.
+ */
+export function useManagerMunicipalReports(
+  buildingId: string | null | undefined,
+): LiveResult<ManagerMunicipalReport[]> {
+  return useLive<ManagerMunicipalReport[]>(
+    [],
+    async (db) => {
+      const { data, error } = await db.rpc("manager_municipal_reports", { p_building: buildingId as string })
+      if (error) {
+        throw new Error(error.code === "42501" ? "You don't manage this building." : error.message)
+      }
+      return (data ?? []).map((r) => ({
+        id: r.id,
+        type: r.type,
+        typeLabel: municipalTypeLabel(r.type),
+        description: r.description,
+        location: r.location_text,
+        reference: r.reference_code,
+        status: r.status,
+        createdAt: r.created_at,
+        evidenceCount: r.evidence_count ?? 0,
+      }))
+    },
+    [buildingId],
+    Boolean(buildingId),
+  )
 }

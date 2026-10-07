@@ -20,6 +20,8 @@ import {
   useAdminManagers,
   setManagerSuspended,
   revokeManagerFromBuilding,
+  useAdminMunicipalReports,
+  setMunicipalReportStatus,
   type AdminBuilding,
   type AdminManager,
   type PetRules,
@@ -41,7 +43,9 @@ import {
   MapPin,
   Trash2,
   AlertTriangle,
+  Landmark,
 } from "lucide-react"
+import { municipalTypeLabel } from "@/lib/data/municipal"
 
 export default function SuperAdminAccessPage() {
   return (
@@ -136,7 +140,7 @@ function AdminLogin() {
 
 function Portal() {
   const { user, signOut } = useAuth()
-  const [tab, setTab] = useState<"buildings" | "managers" | "businesses">("buildings")
+  const [tab, setTab] = useState<"buildings" | "managers" | "businesses" | "reports">("buildings")
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
@@ -158,7 +162,7 @@ function Portal() {
 
       <div className="mx-auto max-w-3xl px-5 py-6">
         <div className="mb-6 flex gap-1 rounded-xl bg-muted p-1">
-          {(["buildings", "managers", "businesses"] as const).map((t) => (
+          {(["buildings", "managers", "businesses", "reports"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -166,11 +170,28 @@ function Portal() {
                 tab === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
-              {t === "buildings" ? <Building2 className="h-4 w-4" /> : t === "managers" ? <Users className="h-4 w-4" /> : <Store className="h-4 w-4" />} {t}
+              {t === "buildings" ? (
+                <Building2 className="h-4 w-4" />
+              ) : t === "managers" ? (
+                <Users className="h-4 w-4" />
+              ) : t === "businesses" ? (
+                <Store className="h-4 w-4" />
+              ) : (
+                <Landmark className="h-4 w-4" />
+              )}{" "}
+              {t === "reports" ? "City reports" : t}
             </button>
           ))}
         </div>
-        {tab === "buildings" ? <Buildings /> : tab === "managers" ? <Managers /> : <Businesses />}
+        {tab === "buildings" ? (
+          <Buildings />
+        ) : tab === "managers" ? (
+          <Managers />
+        ) : tab === "businesses" ? (
+          <Businesses />
+        ) : (
+          <MunicipalReports />
+        )}
       </div>
     </div>
   )
@@ -655,6 +676,77 @@ function Businesses() {
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * City reports. Pet10x files nothing with any city; this is where an admin
+ * records that a report has been looked at (acknowledged) or is finished with
+ * (closed). Forward only — a closed report is not reopened from here. Building
+ * managers see these read-only, without the reporter; so does this list.
+ */
+function MunicipalReports() {
+  const { data: reports, isLoading, error, refetch } = useAdminMunicipalReports()
+  const [busy, setBusy] = useState<string | null>(null)
+
+  async function move(id: string, status: "acknowledged" | "closed") {
+    setBusy(id)
+    const { error: err } = await setMunicipalReportStatus(id, status)
+    setBusy(null)
+    if (err) return toast.error("Couldn't update the report", { description: err })
+    toast.success(status === "acknowledged" ? "Report acknowledged" : "Report closed")
+    refetch()
+  }
+
+  if (isLoading)
+    return (
+      <div className="flex justify-center py-10">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  if (error) return <LoadError message={error} onRetry={refetch} />
+  if (reports.length === 0) return <p className="py-8 text-center text-[14px] text-muted-foreground">No city reports yet.</p>
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      {reports.map((r) => (
+        <div key={r.id} className="rounded-xl card-raised p-3.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[14px] font-semibold">{municipalTypeLabel(r.type)}</span>
+            <span className="text-[12px] text-muted-foreground">
+              {new Date(r.createdAt).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}
+              {r.municipality ? ` · ${r.municipality}` : " · No city matched"}
+              {r.reference ? ` · ${r.reference}` : ""}
+            </span>
+            <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold capitalize text-muted-foreground">
+              {r.status}
+            </span>
+          </div>
+          <p className="mt-1.5 line-clamp-3 text-[13px] text-foreground">{r.description}</p>
+          {r.location && <p className="mt-1 text-[12px] text-muted-foreground">{r.location}</p>}
+          {r.status !== "closed" && (
+            <div className="mt-2.5 flex gap-1.5">
+              {r.status === "submitted" && (
+                <button
+                  onClick={() => move(r.id, "acknowledged")}
+                  disabled={busy === r.id}
+                  className="rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
+                >
+                  Acknowledge
+                </button>
+              )}
+              <button
+                onClick={() => move(r.id, "closed")}
+                disabled={busy === r.id}
+                className="rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
+              >
+                Close
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>
