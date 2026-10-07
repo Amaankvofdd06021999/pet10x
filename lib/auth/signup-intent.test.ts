@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { BUSINESS_CATEGORIES, parseSignupIntent, pendingBusiness } from "./signup-intent"
+import { BUSINESS_CATEGORIES, codeHashInput, decideStart, parseSignupIntent, pendingBusiness } from "./signup-intent"
 
 describe("parseSignupIntent", () => {
   it("is a resident signup when no intent is given — the resident flow posts none", () => {
@@ -80,5 +80,100 @@ describe("pendingBusiness", () => {
     expect(pendingBusiness([])).toBeNull()
     expect(pendingBusiness({ businessName: "", category: "Other" })).toBeNull()
     expect(pendingBusiness({ businessName: "Paws" })).toBeNull()
+  })
+})
+
+describe("decideStart", () => {
+  const now = Date.parse("2026-10-07T12:00:00Z")
+  const base = { nowMs: now, cooldownSeconds: 60, maxSends: 5 }
+  const sentAgo = (s: number) => new Date(now - s * 1000).toISOString()
+  const paws = { businessName: "Paws", category: "Grooming" }
+
+  it("sends when nothing is pending", () => {
+    expect(decideStart({ ...base, existing: null, intent: "resident", business: null })).toEqual({ kind: "send" })
+  })
+
+  it("leaves a matching code alone inside the cooldown", () => {
+    expect(
+      decideStart({
+        ...base,
+        existing: { send_count: 1, last_sent_at: sentAgo(20), intent: "resident", business: null },
+        intent: "resident",
+        business: null,
+      }),
+    ).toEqual({ kind: "cooldown", retryAfterSeconds: 40 })
+    expect(
+      decideStart({
+        ...base,
+        existing: { send_count: 1, last_sent_at: sentAgo(20), intent: "business", business: paws },
+        intent: "business",
+        business: { ...paws },
+      }),
+    ).toEqual({ kind: "cooldown", retryAfterSeconds: 40 })
+  })
+
+  it("refuses to flip a live code's account type inside the cooldown, either way", () => {
+    expect(
+      decideStart({
+        ...base,
+        existing: { send_count: 1, last_sent_at: sentAgo(10), intent: "resident", business: null },
+        intent: "business",
+        business: paws,
+      }),
+    ).toEqual({ kind: "conflict", retryAfterSeconds: 50 })
+    expect(
+      decideStart({
+        ...base,
+        existing: { send_count: 1, last_sent_at: sentAgo(10), intent: "business", business: paws },
+        intent: "resident",
+        business: null,
+      }),
+    ).toMatchObject({ kind: "conflict" })
+  })
+
+  it("refuses to rename a pending business inside the cooldown", () => {
+    expect(
+      decideStart({
+        ...base,
+        existing: { send_count: 1, last_sent_at: sentAgo(10), intent: "business", business: paws },
+        intent: "business",
+        business: { businessName: "Attacker Co", category: "Grooming" },
+      }),
+    ).toMatchObject({ kind: "conflict" })
+  })
+
+  it("sends a fresh code after the cooldown, whatever the intent", () => {
+    expect(
+      decideStart({
+        ...base,
+        existing: { send_count: 2, last_sent_at: sentAgo(61), intent: "resident", business: null },
+        intent: "business",
+        business: paws,
+      }),
+    ).toEqual({ kind: "send" })
+  })
+
+  it("stops at the send cap", () => {
+    expect(
+      decideStart({
+        ...base,
+        existing: { send_count: 5, last_sent_at: sentAgo(120), intent: "resident", business: null },
+        intent: "resident",
+        business: null,
+      }),
+    ).toEqual({ kind: "cap" })
+  })
+})
+
+describe("codeHashInput", () => {
+  it("keeps the resident input as it was before intents", () => {
+    expect(codeHashInput("a@b.co", "123456", "resident", "pep")).toBe("a@b.co:123456:pep")
+  })
+
+  it("binds a business intent, so the same code hashes differently", () => {
+    expect(codeHashInput("a@b.co", "123456", "business", "pep")).toBe("a@b.co:business:123456:pep")
+    expect(codeHashInput("a@b.co", "123456", "business", "pep")).not.toBe(
+      codeHashInput("a@b.co", "123456", "resident", "pep"),
+    )
   })
 })

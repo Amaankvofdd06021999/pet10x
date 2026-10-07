@@ -10,6 +10,7 @@ import {
   normaliseEmail,
 } from "@/lib/auth/signup-otp"
 import { pendingBusiness } from "@/lib/auth/signup-intent"
+import { SUPPORT_EMAIL } from "@/lib/site"
 
 /**
  * Step 2 of signup: check the code, then create the account.
@@ -98,7 +99,9 @@ export async function POST(request: Request) {
     )
   }
 
-  if (!codeMatches(code, email, pending.code_hash)) {
+  // The hash binds the intent: a code sent for one account type does not
+  // match a row whose intent has since changed.
+  if (!codeMatches(code, email, pending.intent, pending.code_hash)) {
     const attempts = pending.attempts + 1
     await admin.from("pending_signups").update({ attempts }).eq("email", email)
     const left = MAX_ATTEMPTS - attempts
@@ -174,9 +177,24 @@ export async function POST(request: Request) {
       console.error("[signup/verify] business setup failed; removing the new user", bizError)
       // Roll back the orphaned auth user so the email can be reused. The
       // pending row stays, so the same code works on a retry.
-      await admin.auth.admin.deleteUser(uid).catch((e) =>
-        console.error("[signup/verify] rollback deleteUser failed", e),
-      )
+      const { error: rollbackError } = await admin.auth.admin
+        .deleteUser(uid)
+        .catch((e: unknown) => ({ error: e }))
+      if (rollbackError) {
+        // A confirmed account with no business, which a retry cannot fix (the
+        // address is now registered). Say so, loudly, rather than leave a
+        // silent half account. The pending row stays as evidence.
+        console.error(
+          `[signup/verify] HALF ACCOUNT: user ${uid} (${email}) exists without a business; rollback failed`,
+          rollbackError,
+        )
+        return NextResponse.json(
+          {
+            error: `Your account was created but your business wasn't. Email ${SUPPORT_EMAIL} and we'll finish setting it up.`,
+          },
+          { status: 500 },
+        )
+      }
       return NextResponse.json({ error: "We couldn't create your business account. Try again." }, { status: 500 })
     }
   }

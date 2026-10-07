@@ -11,7 +11,7 @@ import {
   isValidEmail,
   normaliseEmail,
 } from "@/lib/auth/signup-otp"
-import { parseSignupIntent } from "@/lib/auth/signup-intent"
+import { decideStart, parseSignupIntent } from "@/lib/auth/signup-intent"
 
 /**
  * Step 1 of signup: park the attempt and email a 6-digit code.
@@ -85,38 +85,41 @@ export async function POST(request: Request) {
 
   const { data: existing } = await admin
     .from("pending_signups")
-    .select("send_count, last_sent_at, intent")
+    .select("send_count, last_sent_at, intent, business, full_name")
     .eq("email", email)
     .maybeSingle()
 
-  if (existing) {
-    const since = (Date.now() - new Date(existing.last_sent_at).getTime()) / 1000
-    if (since < RESEND_COOLDOWN_SECONDS) {
-      // Not an error — the previous code is still valid and still in their
-      // inbox. Tell the UI how long until a resend is allowed.
-      //
-      // The code stays, but what it creates follows the latest form: someone
-      // who started as a resident and switched to the business form within the
-      // minute must not verify into the account they backed out of.
-      // A resident resending within the minute is untouched, as before.
-      if (existing.intent !== intent || intent === "business") {
-        const { error: intentError } = await admin
-          .from("pending_signups")
-          .update({ intent, business, full_name: fullName })
-          .eq("email", email)
-        if (intentError) {
-          console.error("[signup/start] could not update pending intent", intentError)
-          return NextResponse.json({ error: "Something went wrong. Try again." }, { status: 500 })
-        }
-      }
-      return OK({ resent: false, retryAfterSeconds: Math.ceil(RESEND_COOLDOWN_SECONDS - since) })
-    }
-    if (existing.send_count >= MAX_SENDS) {
-      return NextResponse.json(
-        { error: "Too many codes requested. Wait for the current code to expire, then try again." },
-        { status: 429 },
-      )
-    }
+  // An existing row's intent, business and name change ONLY together with a
+  // fresh code sent to the inbox (lib/auth/signup-intent.ts decideStart). A
+  // request that would change them inside the cooldown is refused, so nobody
+  // who merely knows the address can flip what a stranger's live code creates.
+  const decision = decideStart({
+    existing,
+    intent,
+    business,
+    nowMs: Date.now(),
+    cooldownSeconds: RESEND_COOLDOWN_SECONDS,
+    maxSends: MAX_SENDS,
+  })
+  if (decision.kind === "cooldown") {
+    // Not an error — the previous code is still valid and still in their
+    // inbox. Tell the UI how long until a resend is allowed.
+    return OK({ resent: false, retryAfterSeconds: decision.retryAfterSeconds })
+  }
+  if (decision.kind === "conflict") {
+    return NextResponse.json(
+      {
+        error: `A code was just sent to this address. Wait ${decision.retryAfterSeconds} seconds, then try again.`,
+        retryAfterSeconds: decision.retryAfterSeconds,
+      },
+      { status: 429 },
+    )
+  }
+  if (decision.kind === "cap") {
+    return NextResponse.json(
+      { error: "Too many codes requested. Wait for the current code to expire, then try again." },
+      { status: 429 },
+    )
   }
 
   const code = generateCode()
@@ -127,8 +130,9 @@ export async function POST(request: Request) {
   const { error: writeError } = await admin.from("pending_signups").upsert(
     {
       email,
-      code_hash: hashCode(code, email),
-      full_name: fullName,
+      code_hash: hashCode(code, email, intent),
+      // A resend that leaves the name out keeps the one already given.
+      full_name: fullName ?? existing?.full_name ?? null,
       intent,
       business,
       expires_at: expiresAt,

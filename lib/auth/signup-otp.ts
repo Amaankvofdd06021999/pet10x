@@ -1,5 +1,6 @@
 import "server-only"
 import { createHash, randomInt, timingSafeEqual } from "node:crypto"
+import { codeHashInput } from "./signup-intent"
 
 /**
  * Shared rules for the signup email-verification code.
@@ -46,16 +47,18 @@ export { MIN_PASSWORD_LENGTH } from "./password-rules"
  * a leaked dump of the table cannot be brute-forced offline against a
  * six-digit space (which takes milliseconds without a pepper). Bound to the
  * email too, so a hash lifted from one row cannot be replayed against another.
+ * And bound to the intent (resident / business), so a code issued for one
+ * account type cannot verify a row that has since come to say another.
  */
-export function hashCode(code: string, email: string): string {
+export function hashCode(code: string, email: string, intent: string): string {
   const pepper = process.env.OTP_PEPPER ?? process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!pepper) throw new Error("OTP hashing is not configured (missing OTP_PEPPER / SUPABASE_SERVICE_ROLE_KEY).")
-  return createHash("sha256").update(`${normaliseEmail(email)}:${code}:${pepper}`).digest("hex")
+  return createHash("sha256").update(codeHashInput(normaliseEmail(email), code, intent, pepper)).digest("hex")
 }
 
 /** Compare without leaking, through timing, how much of the hash matched. */
-export function codeMatches(code: string, email: string, storedHash: string): boolean {
-  const candidate = Buffer.from(hashCode(code, email))
+export function codeMatches(code: string, email: string, intent: string, storedHash: string): boolean {
+  const candidate = Buffer.from(hashCode(code, email, intent))
   const stored = Buffer.from(storedHash)
   if (candidate.length !== stored.length) return false
   return timingSafeEqual(candidate, stored)
