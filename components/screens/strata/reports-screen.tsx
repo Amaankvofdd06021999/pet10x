@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { useBuildingPets, useViolations, useResolvedViolations } from "@/lib/data"
 import { useOutstandingFines } from "@/lib/data/portfolio"
 import { toCsv, downloadCsv } from "@/lib/csv"
+import { complianceCensusCsv } from "@/lib/data/compliance-report"
 import { useStrata } from "./portal-context"
 import { SectionCard, Spinner, StatTile } from "./strata-ui"
 import { Download, FileSpreadsheet } from "lucide-react"
@@ -83,22 +84,8 @@ export function ReportsScreen() {
   }
 
   function exportBoardPack(m: Metric) {
-    const census = pets
-      .filter((p) => p.buildingId === m.id)
-      .map((p) => ({
-        pet: p.name,
-        species: p.species,
-        breed: p.breed || "—",
-        compliance_pct: p.compliancePct,
-        missing: p.missing.join("; ") || "—",
-      }))
-    const csv = toCsv(census, [
-      { key: "pet", label: "Pet" },
-      { key: "species", label: "Species" },
-      { key: "breed", label: "Breed" },
-      { key: "compliance_pct", label: "Compliance %" },
-      { key: "missing", label: "Missing requirements" },
-    ])
+    // The same census the building Compliance Report exports (lib/data/compliance-report.ts).
+    const csv = complianceCensusCsv(pets.filter((p) => p.buildingId === m.id))
     const header = `Board pack — ${m.name} (${m.code})\nCompliance,${m.compliance}% (portfolio median ${median}%)\nPets,${m.pets}\nOpen violations,${m.openViolations}\nFines outstanding,$${m.finesOutstanding.toFixed(2)}\n\n`
     downloadCsv(`board-pack-${m.code}.csv`, header + csv)
     toast.success(`Board pack for ${m.name} exported`)

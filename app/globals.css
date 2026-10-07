@@ -286,3 +286,41 @@ button:disabled,
 [aria-disabled="true"] {
   cursor: not-allowed;
 }
+
+/* Print: a screen that marks its content `.print-root` prints that and only
+   that — the manager's Compliance Report, saved as PDF from the browser's
+   print dialog. Navigation, tab bars and buttons (`.no-print`) drop out, and
+   the report prints black on white whatever the theme. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-root,
+  .print-root * {
+    visibility: visible;
+  }
+  .print-root {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 0;
+    color: #000;
+    background: #fff;
+  }
+  .print-root * {
+    color: #000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .print-root .print-card {
+    border: 1px solid #ccc !important;
+    break-inside: avoid;
+  }
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    margin: 16mm;
+  }
+}
