@@ -176,7 +176,7 @@ export function useOwnerBookings(businessId?: string): LiveResult<OwnerBooking[]
       .from("service_bookings")
       .select(
         `id, status, scheduled_for, created_at, responded_at, amount_cents, commission_cents, currency,
-         customer_note, declined_reason,
+         customer_note, declined_reason, customer_id,
          customer:profiles!service_bookings_customer_id_fkey ( full_name ),
          pet:pets!service_bookings_pet_id_fkey ( name, species, breed ),
          service:business_services!service_bookings_service_id_fkey ( name, duration_min )`,
@@ -202,6 +202,7 @@ export function useOwnerBookings(businessId?: string): LiveResult<OwnerBooking[]
       currency: string
       customer_note: string | null
       declined_reason: string | null
+      customer_id: string | null
       customer: { full_name: string | null } | { full_name: string | null }[] | null
       pet: { name: string; species: string; breed: string | null } | { name: string }[] | null
       service: { name: string; duration_min: number | null } | { name: string }[] | null
@@ -223,7 +224,8 @@ export function useOwnerBookings(businessId?: string): LiveResult<OwnerBooking[]
           commission,
           net: amount - commission,
           currency: r.currency,
-          customerName: first(r.customer)?.full_name ?? "Customer",
+          // A null customer_id is a customer who deleted their account.
+          customerName: r.customer_id ? (first(r.customer)?.full_name ?? "Customer") : "Former customer",
           petName: pet?.name ?? null,
           petSpecies: pet?.species ?? null,
           petBreed: pet?.breed ?? null,
@@ -282,7 +284,9 @@ export interface CustomerBooking {
   createdAt: string
   amount: number
   currency: string
-  businessId: string
+  /** Null when the business has since left Pet10x (its owner deleted their
+      account) — the booking stays in your history, de-identified. */
+  businessId: string | null
   businessName: string
   businessCategory: string
   serviceName: string | null
@@ -335,7 +339,7 @@ export function useMyBookings(): LiveResult<CustomerBooking[]> {
       created_at: string
       amount_cents: number
       currency: string
-      business_id: string
+      business_id: string | null
       declined_reason: string | null
       business: { name: string; category: string } | { name: string }[] | null
       service: { name: string } | { name: string }[] | null
@@ -355,7 +359,7 @@ export function useMyBookings(): LiveResult<CustomerBooking[]> {
           amount: (r.amount_cents ?? 0) / 100,
           currency: r.currency,
           businessId: r.business_id,
-          businessName: biz?.name ?? "Business",
+          businessName: r.business_id ? (biz?.name ?? "Business") : "A business no longer on Pet10x",
           businessCategory: biz?.category ?? "",
           serviceName: first(r.service)?.name ?? null,
           petName: first(r.pet)?.name ?? null,
@@ -407,11 +411,19 @@ export async function createBooking(input: {
   return { error: error?.message ?? null }
 }
 
+/**
+ * Cancel your own requested or confirmed booking — the only change a customer
+ * can make to one (customer_cancel_booking, 20261012000004). The RPC also
+ * tells the business.
+ */
 export async function cancelBooking(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
-  const { error } = await supabase.from("service_bookings").update({ status: "cancelled" }).eq("id", id)
-  return { error: error?.message ?? null }
+  const { error } = await supabase.rpc("customer_cancel_booking", { p_booking: id })
+  if (!error) return { error: null }
+  if (error.code === "22023") return { error: "This booking can't be cancelled any more — contact the business." }
+  if (error.code === "42501") return { error: "That booking isn't yours to cancel." }
+  return { error: "Couldn't cancel the booking. Try again." }
 }
 
 /* ------------------------------------------------------------------ */

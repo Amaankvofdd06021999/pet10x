@@ -123,6 +123,7 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
                     </button>
                   )}
                   {(b.status === "completed" || b.status === "paid") &&
+                    b.businessId &&
                     (b.reviewId ? (
                       <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground">
                         <Star className="h-3.5 w-3.5 fill-warning text-warning" /> You rated {b.reviewRating}/5
@@ -142,9 +143,9 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
         )}
       </main>
 
-      {reviewing && (
+      {reviewing?.businessId && (
         <ReviewSheet
-          booking={reviewing}
+          booking={{ ...reviewing, businessId: reviewing.businessId }}
           onClose={() => setReviewing(null)}
           onDone={() => {
             setReviewing(null)
@@ -161,7 +162,7 @@ function ReviewSheet({
   onClose,
   onDone,
 }: {
-  booking: CustomerBooking
+  booking: CustomerBooking & { businessId: string }
   onClose: () => void
   onDone: () => void
 }) {

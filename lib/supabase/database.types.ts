@@ -5412,11 +5412,11 @@ export type Database = {
       service_bookings: {
         Row: {
           amount_cents: number
-          business_id: string
+          business_id: string | null
           commission_cents: number
           created_at: string
           currency: string
-          customer_id: string
+          customer_id: string | null
           customer_note: string | null
           declined_reason: string | null
           id: string
@@ -5430,11 +5430,11 @@ export type Database = {
         }
         Insert: {
           amount_cents?: number
-          business_id: string
+          business_id?: string | null
           commission_cents?: number
           created_at?: string
           currency?: string
-          customer_id: string
+          customer_id?: string | null
           customer_note?: string | null
           declined_reason?: string | null
           id?: string
@@ -5448,11 +5448,11 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
-          business_id?: string
+          business_id?: string | null
           commission_cents?: number
           created_at?: string
           currency?: string
-          customer_id?: string
+          customer_id?: string | null
           customer_note?: string | null
           declined_reason?: string | null
           id?: string
@@ -5876,7 +5876,7 @@ export type Database = {
           decided_by: string | null
           decided_note: string | null
           filed_at: string
-          filed_by: string
+          filed_by: string | null
           id: string
           outcome: Database["public"]["Enums"]["dispute_outcome"] | null
           reason: string
@@ -5888,7 +5888,7 @@ export type Database = {
           decided_by?: string | null
           decided_note?: string | null
           filed_at?: string
-          filed_by: string
+          filed_by?: string | null
           id?: string
           outcome?: Database["public"]["Enums"]["dispute_outcome"] | null
           reason: string
@@ -5900,7 +5900,7 @@ export type Database = {
           decided_by?: string | null
           decided_note?: string | null
           filed_at?: string
-          filed_by?: string
+          filed_by?: string | null
           id?: string
           outcome?: Database["public"]["Enums"]["dispute_outcome"] | null
           reason?: string
@@ -6643,6 +6643,23 @@ export type Database = {
           total: number
         }[]
       }
+      admin_list_users: {
+        Args: { p_limit?: number; p_offset?: number; p_query?: string }
+        Returns: {
+          clinic_staff: boolean
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          is_resident: boolean
+          is_super_admin: boolean
+          is_suspended: boolean
+          managed_buildings: number
+          owns_business: boolean
+          total_count: number
+        }[]
+      }
+      admin_platform_stats: { Args: never; Returns: Json }
       admin_review_business_verification: {
         Args: { p_approve: boolean; p_note?: string; p_request: string }
         Returns: undefined
@@ -6653,6 +6670,10 @@ export type Database = {
           p_note?: string
           p_tier: Database["public"]["Enums"]["business_tier"]
         }
+        Returns: undefined
+      }
+      admin_set_user_flags: {
+        Args: { p_profile: string; p_super_admin?: boolean; p_suspended?: boolean }
         Returns: undefined
       }
       ai_expired_chat_media: {
@@ -6794,6 +6815,7 @@ export type Database = {
           id: string
         }[]
       }
+      customer_cancel_booking: { Args: { p_booking: string }; Returns: undefined }
       dispute_violation: {
         Args: { p_reason: string; p_violation: string }
         Returns: Json
@@ -6964,6 +6986,10 @@ export type Database = {
       }
       owner_revoke_record_share: { Args: { p_share: string }; Returns: Json }
       owner_unlink_patient: { Args: { p_patient: string }; Returns: Json }
+      person_ref_released: {
+        Args: { p_new: string; p_old: string }
+        Returns: boolean
+      }
       publish_building_event: {
         Args: { p_event: string; p_note?: string }
         Returns: Json
