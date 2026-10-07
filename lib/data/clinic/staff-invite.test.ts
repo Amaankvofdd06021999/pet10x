@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { INVITABLE_ROLES, STAFF_ROLE_LABEL, parseClinicInvite, canDeactivate } from "./staff-invite"
+import { INVITABLE_ROLES, STAFF_ROLE_LABEL, parseClinicInvite, canEditMember, staffErrorSentence } from "./staff-invite"
 
 const BIZ = "0b5b7a3e-6c1f-4c55-9d3e-1f2a3b4c5d6e"
 
@@ -53,9 +53,28 @@ describe("labels and deactivation", () => {
     expect(STAFF_ROLE_LABEL.owner).toBe("Owner")
   })
 
-  it("never offers to deactivate the business owner's row, or your own", () => {
-    expect(canDeactivate({ profileId: "owner" }, { ownerId: "owner", viewerId: "mgr" })).toBe(false)
-    expect(canDeactivate({ profileId: "mgr" }, { ownerId: "owner", viewerId: "mgr" })).toBe(false)
-    expect(canDeactivate({ profileId: "nurse" }, { ownerId: "owner", viewerId: "mgr" })).toBe(true)
+  it("never offers to edit the business owner's row, or your own", () => {
+    expect(canEditMember({ profileId: "owner" }, { ownerId: "owner", viewerId: "mgr" })).toBe(false)
+    expect(canEditMember({ profileId: "mgr" }, { ownerId: "owner", viewerId: "mgr" })).toBe(false)
+    expect(canEditMember({ profileId: "nurse" }, { ownerId: "owner", viewerId: "mgr" })).toBe(true)
+  })
+})
+
+describe("staffErrorSentence", () => {
+  it("turns business_staff_guard's refusals into sentences", () => {
+    expect(staffErrorSentence("You cannot change your own role or access")).toBe(
+      "You cannot change your own role or access.",
+    )
+    expect(staffErrorSentence("Nobody can be given the owner role")).toBe("Nobody can be given the owner role.")
+    expect(staffErrorSentence("Nobody can be added to a practice as owner")).toBe("Nobody can be given the owner role.")
+    expect(staffErrorSentence("Only the practice owner can change their own role or access")).toBe(
+      "Only the practice owner can change their own row.",
+    )
+  })
+
+  it("never passes a raw database message through", () => {
+    expect(staffErrorSentence('new row violates row-level security policy for table "business_staff"')).toBe(
+      "Try again, or ask the practice owner.",
+    )
   })
 })

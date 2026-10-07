@@ -2,7 +2,9 @@
 --
 -- Covers 20261010000001 (owners never read drafts; owner_approve_estimate
 -- takes an estimate only and notifies the practice; clinic_set_invoice_status
--- notifies the owner on draft -> sent).
+-- notifies the owner on draft -> sent) and 20261010000002 (business_staff_guard:
+-- a manager cannot promote themselves, touch the owner's row, or hand out
+-- `owner`).
 --
 -- Not yet run: written before 20261010000001 was applied (no database was
 -- reachable from the session that wrote it). Run it after it is, as the
@@ -87,6 +89,7 @@ begin
   perform set_config('part_e.est', v_est::text, true);
   perform set_config('part_e.inv', v_inv::text, true);
   perform set_config('part_e.est_draft', v_est_draft::text, true);
+  perform set_config('part_e.biz', v_biz::text, true);
   raise notice 'fixtures: owner % clinic owner % manager % other % biz %',
     v_owner, v_clinic_owner, v_manager, v_other, v_biz;
 end $$;
@@ -240,5 +243,133 @@ begin
   end if;
   raise notice 'ok: owner notified once, on draft -> sent, pointing at my-vets:bills';
 end $$;
+
+-- ===========================================================================
+-- 4. business_staff_guard (20261010000002)
+-- ===========================================================================
+-- A nurse row for the unrelated person, so the manager has an OTHER row to edit.
+do $$
+begin
+  insert into public.business_staff (business_id, profile_id, role, is_active)
+  values (current_setting('part_e.biz')::uuid, current_setting('part_e.other')::uuid, 'nurse', true);
+end $$;
+
+-- 4a. As the manager.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_e.manager'), 'role', 'authenticated')::text, true);
+do $$
+declare
+  v_biz uuid := current_setting('part_e.biz')::uuid;
+  v_me uuid := current_setting('part_e.manager')::uuid;
+  v_owner uuid := current_setting('part_e.clinic_owner')::uuid;
+  v_other uuid := current_setting('part_e.other')::uuid;
+  refused boolean;
+begin
+  if public.is_admin() then raise exception 'FIXTURE: manager is an admin'; end if;
+  if not public.can_admin_business(v_biz) then raise exception 'FIXTURE: manager cannot administer the practice'; end if;
+
+  refused := false;
+  begin
+    update public.business_staff set role = 'veterinarian' where business_id = v_biz and profile_id = v_me;
+  exception when insufficient_privilege then refused := true;
+  end;
+  if not refused then raise exception 'FAIL: manager changed their own role'; end if;
+  raise notice 'ok: manager cannot change their own role (42501)';
+
+  refused := false;
+  begin
+    update public.business_staff set role = 'owner' where business_id = v_biz and profile_id = v_me;
+  exception when insufficient_privilege then refused := true;
+  end;
+  if not refused then raise exception 'FAIL: manager made themselves owner'; end if;
+  raise notice 'ok: manager cannot make themselves owner (42501)';
+
+  refused := false;
+  begin
+    update public.business_staff set is_active = false where business_id = v_biz and profile_id = v_me;
+  exception when insufficient_privilege then refused := true;
+  end;
+  if not refused then raise exception 'FAIL: manager deactivated their own row'; end if;
+  raise notice 'ok: manager cannot change their own is_active (42501)';
+
+  refused := false;
+  begin
+    update public.business_staff set role = 'nurse' where business_id = v_biz and profile_id = v_owner;
+  exception when insufficient_privilege then refused := true;
+  end;
+  if not refused then raise exception 'FAIL: manager changed the owner''s role'; end if;
+  refused := false;
+  begin
+    update public.business_staff set is_active = false where business_id = v_biz and profile_id = v_owner;
+  exception when insufficient_privilege then refused := true;
+  end;
+  if not refused then raise exception 'FAIL: manager deactivated the owner''s row'; end if;
+  raise notice 'ok: manager cannot change the owner''s role or is_active (42501)';
+
+  refused := false;
+  begin
+    update public.business_staff set role = 'owner' where business_id = v_biz and profile_id = v_other;
+  exception when insufficient_privilege then refused := true;
+  end;
+  if not refused then raise exception 'FAIL: manager made another member owner'; end if;
+  raise notice 'ok: manager cannot hand out owner (42501)';
+
+  refused := false;
+  begin
+    update public.business_staff set profile_id = current_setting('part_e.owner')::uuid
+     where business_id = v_biz and profile_id = v_other;
+  exception when insufficient_privilege then refused := true;
+  end;
+  if not refused then raise exception 'FAIL: manager moved a staff row to another person'; end if;
+  raise notice 'ok: a staff row cannot be moved to another person (42501)';
+
+  refused := false;
+  begin
+    insert into public.business_staff (business_id, profile_id, role)
+    values (v_biz, current_setting('part_e.owner')::uuid, 'owner');
+  exception when insufficient_privilege then refused := true;
+  end;
+  if not refused then raise exception 'FAIL: manager added someone as owner'; end if;
+  raise notice 'ok: nobody is added as owner (42501)';
+
+  -- What a manager may still do: change another member's role and access.
+  update public.business_staff set role = 'veterinarian' where business_id = v_biz and profile_id = v_other;
+  if not found then raise exception 'FAIL: manager could not change another member''s role'; end if;
+  update public.business_staff set is_active = false where business_id = v_biz and profile_id = v_other;
+  if not found then raise exception 'FAIL: manager could not deactivate another member'; end if;
+  update public.business_staff set title = 'Practice lead' where business_id = v_biz and profile_id = v_me;
+  if not found then raise exception 'FAIL: manager could not edit their own title'; end if;
+  raise notice 'ok: manager edits other members, and their own non-access columns';
+end $$;
+reset role;
+
+-- 4b. As the business owner.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_e.clinic_owner'), 'role', 'authenticated')::text, true);
+do $$
+declare
+  v_biz uuid := current_setting('part_e.biz')::uuid;
+  v_me uuid := current_setting('part_e.clinic_owner')::uuid;
+  refused boolean;
+begin
+  update public.business_staff set role = 'reception'
+   where business_id = v_biz and profile_id = current_setting('part_e.manager')::uuid;
+  if not found then raise exception 'FAIL: owner could not change the manager''s role'; end if;
+  update public.business_staff set role = 'nurse' where business_id = v_biz and profile_id = v_me;
+  if not found then raise exception 'FAIL: owner could not change their own role'; end if;
+  raise notice 'ok: the owner changes the manager''s role and their own';
+
+  refused := false;
+  begin
+    update public.business_staff set role = 'owner'
+     where business_id = v_biz and profile_id = current_setting('part_e.other')::uuid;
+  exception when insufficient_privilege then refused := true;
+  end;
+  if not refused then raise exception 'FAIL: the owner handed out the owner role'; end if;
+  raise notice 'ok: not even the owner hands out the owner role (42501)';
+end $$;
+reset role;
 
 rollback;

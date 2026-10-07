@@ -51,14 +51,26 @@ export function parseClinicInvite(
 }
 
 /**
- * Deactivate / Reactivate is never offered on the business owner's row —
- * ownership keeps them staff whatever the row says (`staff_of_business`), so
- * the button would claim an effect it cannot have — nor on the viewer's own
- * row, which would lock them out of the screen they are using.
+ * Role and Deactivate / Reactivate are never offered on the business owner's
+ * row, nor on the viewer's own — business_staff_guard (20261010000002)
+ * refuses both for anyone but the owner, and a manager promoting or
+ * deactivating themselves is exactly what it exists to stop. (The owner may
+ * change their own row in the database; the screen keeps one rule for all.)
  */
-export function canDeactivate(
+export function canEditMember(
   member: { profileId: string },
   ctx: { ownerId: string | null; viewerId: string | null },
 ): boolean {
   return member.profileId !== ctx.ownerId && member.profileId !== ctx.viewerId
+}
+
+/**
+ * A refused staff write, in words. business_staff_guard raises 42501 with a
+ * sentence already; RLS refusals and anything else get a generic one.
+ */
+export function staffErrorSentence(message: string): string {
+  if (/practice owner can change/i.test(message)) return "Only the practice owner can change their own row."
+  if (/own role or access/i.test(message)) return "You cannot change your own role or access."
+  if (/owner role|as owner/i.test(message)) return "Nobody can be given the owner role."
+  return "Try again, or ask the practice owner."
 }

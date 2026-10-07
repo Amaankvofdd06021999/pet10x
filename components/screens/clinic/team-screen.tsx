@@ -7,7 +7,7 @@ import {
   useClinicStaff, useClinicLocations, updateStaff, inviteStaff, capabilities,
 } from "@/lib/data/clinic/context"
 import {
-  STAFF_ROLE_LABEL as ROLE_LABEL, INVITABLE_ROLES, canDeactivate, type InvitableRole,
+  STAFF_ROLE_LABEL as ROLE_LABEL, INVITABLE_ROLES, canEditMember, staffErrorSentence, type InvitableRole,
 } from "@/lib/data/clinic/staff-invite"
 import { formatDateShort } from "@/lib/data/clinic/time"
 import {
@@ -43,6 +43,7 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
         ) : (
           <ul className="flex flex-col gap-2">
             {staff.data.map((s) => {
+              const editable = canEditMember(s, { ownerId: clinic.ownerId, viewerId: clinic.profileId })
               const lapsed =
                 s.licenceExpiresOn !== null && new Date(s.licenceExpiresOn) < new Date()
               return (
@@ -61,28 +62,42 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label htmlFor={`role-${s.id}`} className="sr-only">
-                      Role for {s.name}
-                    </label>
-                    <Select
-                      id={`role-${s.id}`}
-                      value={s.role}
-                      disabled={busy === s.id}
-                      onChange={async (e) => {
-                        setBusy(s.id)
-                        const res = await updateStaff(s.id, { role: e.target.value as ClinicRole })
-                        setBusy(null)
-                        if (res.error) window.alert(res.error)
-                        else staff.refetch()
-                      }}
-                      className="w-auto"
-                    >
-                      {(Object.keys(ROLE_LABEL) as ClinicRole[]).map((r) => (
-                        <option key={r} value={r}>
-                          {ROLE_LABEL[r]}
-                        </option>
-                      ))}
-                    </Select>
+                    {/* Your own row and the owner's are not yours to change —
+                        business_staff_guard (20261010000002) refuses it — so
+                        they show the role, not a picker. Owner is never offered. */}
+                    {caps.manageTeam && editable ? (
+                      <>
+                        <label htmlFor={`role-${s.id}`} className="sr-only">
+                          Role for {s.name}
+                        </label>
+                        <Select
+                          id={`role-${s.id}`}
+                          value={s.role}
+                          disabled={busy === s.id}
+                          onChange={async (e) => {
+                            setBusy(s.id)
+                            const res = await updateStaff(s.id, { role: e.target.value as ClinicRole })
+                            setBusy(null)
+                            if (res.error) window.alert(`Couldn't change ${s.name}'s role. ${staffErrorSentence(res.error)}`)
+                            else staff.refetch()
+                          }}
+                          className="w-auto"
+                        >
+                          {s.role === "owner" && (
+                            <option value="owner" disabled>
+                              {ROLE_LABEL.owner}
+                            </option>
+                          )}
+                          {INVITABLE_ROLES.map((r) => (
+                            <option key={r} value={r}>
+                              {ROLE_LABEL[r]}
+                            </option>
+                          ))}
+                        </Select>
+                      </>
+                    ) : (
+                      <Pill tone="neutral">{ROLE_LABEL[s.role]}</Pill>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
@@ -96,8 +111,7 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                     >
                       {s.isBookable ? "Remove from calendar" : "Add to calendar"}
                     </Button>
-                    {caps.manageTeam &&
-                      canDeactivate(s, { ownerId: clinic.ownerId, viewerId: clinic.profileId }) && (
+                    {caps.manageTeam && editable && (
                         <Button
                           size="sm"
                           variant="secondary"
@@ -114,7 +128,7 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                             setBusy(`active-${s.id}`)
                             const res = await updateStaff(s.id, { is_active: !s.isActive })
                             setBusy(null)
-                            if (res.error) window.alert(`Couldn't update ${s.name}. Try again.`)
+                            if (res.error) window.alert(`Couldn't update ${s.name}. ${staffErrorSentence(res.error)}`)
                             else staff.refetch()
                           }}
                         >
