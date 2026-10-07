@@ -6,6 +6,7 @@ import { CodeEntry, CODE_TTL_MS, RESEND_COOLDOWN_MS } from "@/components/auth/co
 import { ConsentLine } from "@/components/legal/consent-line"
 import { HelpLegalLinks } from "@/components/legal/help-legal-section"
 import { NotificationSettingsSheet } from "@/components/notification-settings-sheet"
+import { ConsoleInbox } from "@/components/notifications/console-inbox"
 import { checkPassword } from "@/lib/auth/password-rules"
 import { BUSINESS_CATEGORIES } from "@/lib/auth/signup-intent"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
@@ -31,7 +32,6 @@ import {
   BadgeCheck,
   ArrowLeft,
   MailCheck,
-  Bell,
 } from "lucide-react"
 
 /** The server validates against the same list (lib/auth/signup-intent.ts). */
@@ -382,16 +382,17 @@ function Portal() {
             {biz.isVerified && <BadgeCheck className="h-4 w-4 flex-shrink-0 text-success" />}
           </div>
           <div className="flex flex-shrink-0 items-center gap-1.5">
-            {/* Booking requests reach the owner by email and push (Part D);
-                this is where they choose which. */}
-            <button
-              onClick={() => setNotificationsOpen(true)}
-              aria-label="Notification settings"
-              className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-[13px] font-semibold text-foreground"
-            >
-              <Bell className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Notifications</span>
-            </button>
+            {/* The inbox: booking requests and cancellations land here as
+                well as by email and push (Part D); its gear opens the Email &
+                push sheet. */}
+            <ConsoleInbox
+              console="business"
+              onOpenTab={(t) => {
+                const match = TABS.find((x) => x.id === t)
+                if (match) setTab(match.id)
+              }}
+              onOpenSettings={() => setNotificationsOpen(true)}
+            />
             <button
               onClick={() => signOut()}
               className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold text-foreground"

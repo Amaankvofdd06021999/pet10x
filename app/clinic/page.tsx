@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   CalendarDays, Users, Bell, Stethoscope, ShoppingBag, Receipt,
   Siren, UsersRound, LayoutDashboard, LogOut, Loader2, Building2, ChevronDown, BellRing,
@@ -21,6 +21,8 @@ import { ClinicSignIn, RegisterPractice } from "@/components/screens/clinic/clin
 import { VerificationBanner } from "@/components/screens/clinic/verification-banner"
 import { HelpLegalLinks } from "@/components/legal/help-legal-section"
 import { NotificationSettingsSheet } from "@/components/notification-settings-sheet"
+import { ConsoleInbox } from "@/components/notifications/console-inbox"
+import { CLINIC_TABS, readTargetParam, resolveConsoleTarget } from "@/lib/navigation"
 
 export type ClinicTab =
   | "today" | "calendar" | "customers" | "reminders"
@@ -61,6 +63,24 @@ function Console() {
   const [tab, setTab] = useState<ClinicTab>("today")
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [switcherOpen, setSwitcherOpen] = useState(false)
+
+  /* `?target=clinic:billing` — the link a notification's email or push opens
+     (`targetHref` in lib/navigation.ts). Removed from the address bar once
+     read; a tab this practice does not show falls back to Today below. */
+  useEffect(() => {
+    const target = readTargetParam(window.location.search)
+    if (!target) return
+    const url = new URL(window.location.href)
+    url.searchParams.delete("target")
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash)
+    const route = resolveConsoleTarget(target)
+    if (route?.console === "clinic" && route.tab) openTab(route.tab)
+  }, [])
+
+  function openTab(t: string) {
+    const match = CLINIC_TABS.find((x) => x === t)
+    if (match) setTab(match)
+  }
 
   if (authLoading || (isAuthenticated && isLoading)) {
     return (
@@ -142,7 +162,7 @@ function Console() {
             onClick={() => setNotificationsOpen(true)}
             className="mt-1 flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-[12.5px] text-muted-foreground hover:text-foreground"
           >
-            <BellRing className="h-3.5 w-3.5" aria-hidden="true" /> Notifications
+            <BellRing className="h-3.5 w-3.5" aria-hidden="true" /> Email &amp; push
           </button>
           <button
             type="button"
@@ -162,16 +182,14 @@ function Console() {
                 {visible.find((t) => t.id === activeTab)?.label ?? "Console"}
               </h1>
               <Pill tone={clinic.tier === "verified" ? "good" : "warn"}>{clinic.tier}</Pill>
-              {/* The sidebar, where the desktop button lives, is desktop-only. */}
-              <button
-                type="button"
-                onClick={() => setNotificationsOpen(true)}
-                aria-label="Notification settings"
-                className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground md:hidden"
-              >
-                <BellRing className="h-4 w-4" aria-hidden="true" />
-              </button>
             </div>
+            {/* The inbox, on every screen size; its gear opens Email & push. */}
+            <ConsoleInbox
+              console="clinic"
+              className="order-last ml-auto sm:order-none"
+              onOpenTab={openTab}
+              onOpenSettings={() => setNotificationsOpen(true)}
+            />
             {clinics.length > 1 && (
               <div className="relative">
                 <Button variant="secondary" size="sm" onClick={() => setSwitcherOpen((v) => !v)}>
