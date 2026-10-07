@@ -14,6 +14,7 @@ import { ACCOMMODATION_TYPE_LABEL } from "./accommodations"
 import { useIncidents, isOpenIncident, INCIDENT_TYPE_LABEL } from "./incidents"
 import { useBuildingResidents } from "./live"
 import { useOutstandingFines } from "./portfolio"
+import type { DocumentReviewItem } from "./types"
 
 export type QueueKind = "registration" | "link" | "incident" | "accommodation" | "document" | "fine"
 export type Urgency = "high" | "medium" | "low"
@@ -30,6 +31,8 @@ export interface QueueItem {
   sortTs: number // ms; smaller (older / more overdue) sorts first within an urgency band
   ageLabel: string
   safeToBulk: boolean
+  /** Set on `document` items: what the review controls need to act. */
+  doc?: Pick<DocumentReviewItem, "id" | "pet" | "type" | "storagePath" | "docStatus">
 }
 
 const DAY = 86_400_000
@@ -179,22 +182,24 @@ export function useWorkQueue(): UseWorkQueueResult {
       })
     }
 
-    // Expiring / expired documents — informational (managers can't write pet_documents)
+    // Documents awaiting a verdict. Since 20261008000003 a manager can approve
+    // or reject one (manager_review_pet_document), so these carry actions.
     for (const d of docs.data) {
-      const days = d.expiresOn ? daysSince(d.expiresOn) : 0 // >0 means already past expiry
+      const days = d.expiresOn ? daysSince(d.expiresOn) : -Infinity // >0 means already past expiry
       const urgency: Urgency = days > 0 ? "high" : days > -14 ? "medium" : "low"
       out.push({
         key: `document:${d.id}`,
         refId: d.id,
         kind: "document",
         buildingId: d.buildingId,
-        title: `${d.type} ${days > 0 ? "expired" : "expiring"}`,
-        subtitle: `${d.pet} · ${days > 0 ? "past due" : `expires ${d.expiring}`}`,
+        title: `${d.type} ${days > 0 ? "expired" : days > -30 ? "expiring" : "to review"}`,
+        subtitle: `${d.pet} · ${days > 0 ? "past due" : d.expiresOn ? `expires ${d.expiring}` : "no expiry date"}`,
         meta: `Unit ${d.unit} · ${d.resident}`,
         urgency,
         sortTs: d.expiresOn ? ts(d.expiresOn) : Date.now(),
         ageLabel: d.expiring,
         safeToBulk: false,
+        doc: d,
       })
     }
 

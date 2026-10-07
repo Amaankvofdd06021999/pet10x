@@ -25,6 +25,7 @@ import { AccommodationDocumentViewer } from "@/components/screens/manager/accomm
 import { shortDate } from "@/lib/dates"
 import { useIncidents, isOpenIncident } from "@/lib/data/incidents"
 import { IncidentCard } from "@/components/screens/manager/incident-card"
+import { PetDocumentReviewControls } from "@/components/screens/manager/pet-document-review"
 import { toast } from "sonner"
 import {
   Dog,
@@ -64,7 +65,7 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
   const [expandedAcc, setExpandedAcc] = useState<string | null>(null)
   const { data: registrations, refetch: refetchRegs } = useRegistrationsLive()
   const { data: accommodations, refetch: refetchAcc } = useAccommodationsLive()
-  const { data: documentsReview } = useDocumentsReview()
+  const { data: documentsReview, refetch: refetchDocs } = useDocumentsReview()
   const { data: incidents, isLoading: incidentsLoading, refetch: refetchIncidents } = useIncidents()
 
   const openIncidents = incidents.filter((i) => isOpenIncident(i.status))
@@ -251,39 +252,44 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
           <div className="flex flex-col gap-2.5">
             {/* Expiring Soon Header */}
             <div className="mb-1">
-              <p className="text-[12px] font-semibold text-muted-foreground">Document renewals and expirations</p>
+              <p className="text-[12px] font-semibold text-muted-foreground">
+                Documents awaiting your verdict — approved or rejected ones leave this list
+              </p>
             </div>
             {documentsReview.length === 0 && (
               <ApprovalsEmptyState
                 title="Nothing pending"
-                subtext="No documents need review and nothing is expiring soon. Renewals and flagged records will show up here."
+                subtext="Every document has been approved or sent back. New uploads and expiring records will show up here."
               />
             )}
             {documentsReview.map((doc) => (
-              <div key={doc.id} className="flex items-center gap-3 rounded-xl card-raised p-3">
-                <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
-                  doc.status === "expiring" ? "bg-warning/10" : "bg-success/10"
-                }`}>
-                  {doc.status === "expiring" ? (
-                    <Clock className="h-4 w-4 text-warning-strong" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-[13px] font-semibold text-foreground">{doc.type}</p>
-                  <p className="text-[11px] text-muted-foreground">{doc.pet} &middot; Unit {doc.unit}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <Badge className={`border-0 text-[9px] ${
-                    doc.status === "expiring"
-                      ? "bg-warning/10 text-warning-strong"
-                      : "bg-success/10 text-success"
+              <div key={doc.id} className="flex flex-col gap-2.5 rounded-xl card-raised p-3">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
+                    doc.status === "expiring" ? "bg-warning/10" : "bg-info/10"
                   }`}>
-                    {doc.status === "expiring" ? "Expiring" : "Current"}
-                  </Badge>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">{doc.expiring}</p>
+                    {doc.status === "expiring" ? (
+                      <Clock className="h-4 w-4 text-warning-strong" />
+                    ) : (
+                      <Shield className="h-4 w-4 text-info" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-[13px] font-semibold text-foreground">{doc.type}</p>
+                    <p className="text-[11px] text-muted-foreground">{doc.pet} &middot; Unit {doc.unit}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <Badge className={`border-0 text-[9px] ${
+                      doc.status === "expiring"
+                        ? "bg-warning/10 text-warning-strong"
+                        : "bg-info/10 text-info"
+                    }`}>
+                      {doc.status === "expiring" ? "Expiring" : "To review"}
+                    </Badge>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">{doc.expiring}</p>
+                  </div>
                 </div>
+                <PetDocumentReviewControls doc={doc} onDone={refetchDocs} />
               </div>
             ))}
           </div>

@@ -7,6 +7,7 @@ import { decideRegistration } from "@/lib/data/manager-queues"
 import { setIncidentStatus, escalateIncident } from "@/lib/data/incidents"
 import { setFineStatus } from "@/lib/data/portfolio"
 import { useWorkQueue, type QueueItem, type Urgency } from "@/lib/data/work-queue"
+import { PetDocumentReviewControls } from "@/components/screens/manager/pet-document-review"
 import { useStrata } from "./portal-context"
 import { LoadError, Spinner, EmptyState, BuildingTag } from "./strata-ui"
 import {
@@ -104,7 +105,9 @@ function actionsFor(item: QueueItem): RowAction[] {
         },
       ]
     case "document":
-      return [] // managers can't write pet_documents — informational only
+      // Rendered by PetDocumentReviewControls below instead: Reject needs a
+      // note field, which a one-tap row action has nowhere to put.
+      return []
   }
 }
 
@@ -201,7 +204,11 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
                   <p className="mt-0.5 line-clamp-2 text-[12.5px] text-muted-foreground">{item.subtitle}</p>
                   <p className="mt-0.5 text-[11.5px] text-muted-foreground">{item.meta}</p>
                 </div>
-                {actions.length > 0 ? (
+                {item.kind === "document" && item.doc ? (
+                  <div className="flex-shrink-0">
+                    <PetDocumentReviewControls doc={item.doc} onDone={refetchAll} />
+                  </div>
+                ) : actions.length > 0 ? (
                   <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
                     {actions.map((a) => (
                       <button

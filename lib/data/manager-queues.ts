@@ -39,6 +39,7 @@ import {
   type FineStage,
   type FineStatus,
 } from "./violations"
+import { petDocumentReviewError } from "./pet-document-review"
 
 interface Result<T> {
   data: T
@@ -213,10 +214,14 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
     const { data: rows, error: err } = await supabase
       .from("pet_documents")
       .select(
-        `id, kind, name, status, expires_on,
-         pet:pets!inner ( name, building_id, unit:units ( unit_number ), owner:profiles!pets_owner_id_fkey ( full_name ) )`,
+        `id, kind, name, status, expires_on, storage_path,
+         pet:pets!inner ( id, name, building_id, unit:units ( unit_number ), owner:profiles!pets_owner_id_fkey ( full_name ) )`,
       )
-      .in("status", ["expiring", "expired", "missing", "rejected"])
+      /* Everything still awaiting a verdict. Since 20261008000003 a manager
+         can approve or reject, so a document leaves this list when it is
+         ruled on — approved, or rejected back to its owner — rather than
+         when it stops expiring. */
+      .not("status", "in", "(approved,rejected)")
       /* A removed pet's documents are nobody's to review. `!inner` makes the
          embed filter drop the document row, not just blank its pet. */
       .is("pet.deleted_at", null)
@@ -235,8 +240,10 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
       name: string | null
       status: string
       expires_on: string | null
+      storage_path: string | null
       pet:
         | {
+            id: string
             name: string
             building_id: string | null
             unit: { unit_number: string } | { unit_number: string }[] | null
@@ -258,7 +265,12 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
           type: r.name ?? r.kind.replace(/_/g, " "),
           expiring: r.expires_on ? shortDay(r.expires_on) : "—",
           expiresOn: r.expires_on,
-          status: (r.status === "expired" ? "expiring" : "expiring") as "expiring" | "current",
+          status: (["expiring", "expired", "missing"].includes(r.status) ? "expiring" : "current") as
+            | "expiring"
+            | "current",
+          docStatus: r.status,
+          storagePath: r.storage_path,
+          petId: r.pet!.id,
         })),
     )
     setError(null)
@@ -269,6 +281,32 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
     void refetch()
   }, [refetch])
   return { data, isLoading, error, refetch }
+}
+
+/**
+ * Approve or reject a pet's document (`manager_review_pet_document`).
+ *
+ * The only manager write to `pet_documents` — `pet_documents_rw` keeps
+ * managers read-only, so a definer function writes just the verdict columns.
+ * A rejection needs a note, and the owner is notified with it; an approval
+ * needs a stored file.
+ */
+export async function reviewPetDocument(
+  id: string,
+  verdict: "approve" | "reject",
+  note?: string,
+): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { data, error } = await supabase.rpc("manager_review_pet_document", {
+    p_doc: id,
+    p_verdict: verdict,
+    p_note: note?.trim() ? note.trim() : undefined,
+  })
+  if (error) return { error: transportError(error) }
+  const r = data as unknown as { ok: boolean; error?: string; status?: string; length?: number; max?: number }
+  if (!r.ok) return { error: petDocumentReviewError(r) }
+  return { error: null }
 }
 
 /* ------------------------------------------------------------------ */

@@ -544,6 +544,11 @@ export interface DocumentReviewItem {
   /** Raw ISO expires_on — used for queue urgency/aging. */
   expiresOn: string | null
   status: "expiring" | "current"
+  /** `pet_documents.status` as stored — decides which verdicts are offered. */
+  docStatus: string
+  /** The file in `pet-media`, or null when nothing was uploaded. */
+  storagePath: string | null
+  petId: string
 }
 
 export interface ViolationHistoryStep {
