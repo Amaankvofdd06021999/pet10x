@@ -134,6 +134,10 @@ function AppContent() {
    * screen opened next — the exact hazard `lib/navigation.ts`'s ID_BEARING
    * note records against `add-pet`. */
   const [selectedCaseId, setSelectedCaseId] = useState<string | undefined>(undefined)
+  /* Which tab a tabbed screen opens on — `pet-detail` arriving from Documents
+     & Records lands on Documents. Set on EVERY navigation, so a tab asked for
+     once never sticks to the next visit. */
+  const [screenTab, setScreenTab] = useState<string | undefined>(undefined)
 
   // Reset tabs when user/role changes (e.g. after sign-in)
   useEffect(() => {
@@ -195,8 +199,12 @@ function AppContent() {
    * onto `id`, because for the tracker `id` is already spoken for — it is the
    * care kind a Today's Care tile lands on. A schedule row needs to carry both
    * ("open Lola, on no particular tab"), and every existing call site still
-   * compiles because the parameter is optional. */
-  const handleNavigate = (screen: string, id?: string, petId?: string) => {
+   * compiles because the parameter is optional.
+   *
+   * `tab` is a fourth for the same reason: for `pet-detail` the id is the pet,
+   * so the tab to open it on cannot ride there too. */
+  const handleNavigate = (screen: string, id?: string, petId?: string, tab?: string) => {
+    setScreenTab(tab)
     if (screen === "business-detail") setSelectedBusinessId(id)
     // For the tracker the id is a care kind, not a pet — a Today's Care tile
     // says which tab to land on.
@@ -246,7 +254,12 @@ function AppContent() {
           className={`mx-auto w-full min-w-0 overflow-x-clip ${contentMax} animate-in fade-in duration-200`}
         >
           {currentScreen === "pet-detail" ? (
-            <PetDetailScreen onBack={handleBack} petId={selectedPetId} onNavigate={handleNavigate} />
+            <PetDetailScreen
+              onBack={handleBack}
+              petId={selectedPetId}
+              initialTab={screenTab}
+              onNavigate={handleNavigate}
+            />
           ) : currentScreen === "add-pet" ? (
             <AddPetScreen onBack={handleBack} onNavigate={handleNavigate} />
           ) : currentScreen === "pet-care" ? (

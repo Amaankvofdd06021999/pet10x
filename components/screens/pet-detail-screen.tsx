@@ -84,11 +84,18 @@ function statusBadge(status: string): string {
 interface PetDetailScreenProps {
   onBack: () => void
   petId?: string
+  /** A `DetailTab`; anything else opens Overview. Profile's Documents &
+      Records row lands on "documents". */
+  initialTab?: string
   onNavigate?: (screen: string, id?: string) => void
 }
 
-export function PetDetailScreen({ onBack, petId, onNavigate }: PetDetailScreenProps) {
-  const [activeTab, setActiveTab] = useState<DetailTab>("overview")
+const DETAIL_TABS: DetailTab[] = ["overview", "care", "vaccinations", "documents", "contacts"]
+
+export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDetailScreenProps) {
+  const [activeTab, setActiveTab] = useState<DetailTab>(
+    DETAIL_TABS.includes(initialTab as DetailTab) ? (initialTab as DetailTab) : "overview",
+  )
   const { data: pet, isLoading, refetch } = usePet(petId)
   const photoInput = useRef<HTMLInputElement>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
@@ -206,7 +213,7 @@ export function PetDetailScreen({ onBack, petId, onNavigate }: PetDetailScreenPr
         {/* Tabs */}
         <div className="sticky top-[44px] z-30 bg-background px-4 pb-3 pt-3">
           <div className="flex gap-1 rounded-2xl border border-border bg-muted/60 p-1">
-            {(["overview", "care", "vaccinations", "documents", "contacts"] as DetailTab[]).map((tab) => (
+            {DETAIL_TABS.map((tab) => (
               <button
                 key={tab}
                 onClick={() => {

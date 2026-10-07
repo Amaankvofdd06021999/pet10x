@@ -19,7 +19,7 @@ import {
   LogOut,
   Bell,
   Building2,
-  Heart,
+  CalendarCheck,
   Download,
   Trash2,
   Loader2,
@@ -31,6 +31,8 @@ import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 import { Portal } from "@/components/ui/portal"
 import { DonateSpcaCard } from "@/components/donate-spca"
+import { PetPickerSheet } from "@/components/pet-picker-sheet"
+import { pickPet } from "@/lib/data/pet-picker"
 
 interface MenuItem {
   icon: typeof Dog
@@ -100,6 +102,10 @@ interface MenuItem {
  *                             or service-animal request and attaches the
  *                             supporting letter. SAME NOTE AS ABOVE: it is
  *                             deliberately no longer disabled.
+ *
+ * "Favorite Services" is now "My Bookings". There is no favourites store —
+ * the row opened the services directory, which is not a list of anything the
+ * resident chose. Their bookings are.
  */
 const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
   {
@@ -116,13 +122,15 @@ const MENU_SECTIONS: { title: string; items: MenuItem[] }[] = [
       { icon: Building2, label: "Building Rules" },
       { icon: Scale, label: "Violations & Fines" },
       { icon: Accessibility, label: "Accommodation Requests" },
-      { icon: Heart, label: "Favorite Services" },
+      { icon: CalendarCheck, label: "My Bookings" },
     ],
   },
 ]
 
 interface ProfileScreenProps {
-  onNavigate?: (screen: string) => void
+  /* Same shape as `handleNavigate` in app/app/page.tsx; `tab` opens
+     `pet-detail` on a tab other than Overview. */
+  onNavigate?: (screen: string, id?: string, petId?: string, tab?: string) => void
 }
 
 export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
@@ -137,6 +145,8 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null)
   const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null)
   const [savingProfile, setSavingProfile] = useState(false)
+  /* Which row opened the pet picker — its answer decides the tab. */
+  const [picking, setPicking] = useState<"profiles" | "documents" | null>(null)
   const avatarInput = useRef<HTMLInputElement>(null)
 
   function openEdit() {
@@ -210,14 +220,27 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
   // pending request cannot yet carry a bylaw case or an accommodation.
   const linkedToBuilding = buildingLink?.status === "approved"
 
+  /* `pet-detail` is never opened from here without an id. Without one,
+     `usePet(undefined)` falls back to the oldest pet, so in a multi-pet home
+     "Documents & Records" always meant one particular animal's. */
+  const openPet = (petId: string, which: "profiles" | "documents") =>
+    onNavigate?.("pet-detail", petId, undefined, which === "documents" ? "documents" : undefined)
+
+  const choosePet = (which: "profiles" | "documents") => {
+    const pick = pickPet(pets)
+    if (pick.kind === "add") onNavigate?.("add-pet")
+    else if (pick.kind === "open") openPet(pick.petId, which)
+    else setPicking(which)
+  }
+
   const handleItem = (label: string) => {
-    if (label.includes("Pet Profiles")) onNavigate?.("home")
-    else if (label.includes("Documents")) onNavigate?.("pet-detail")
+    if (label.includes("Pet Profiles")) choosePet("profiles")
+    else if (label.includes("Documents")) choosePet("documents")
     else if (label.includes("Building Rules")) onNavigate?.("building-rules")
     else if (label.includes("Violations")) onNavigate?.("my-cases")
     else if (label.includes("Accommodation")) onNavigate?.("accommodations")
     else if (label.includes("My vets")) onNavigate?.("my-vets")
-    else if (label.includes("Favorite Services")) onNavigate?.("services")
+    else if (label.includes("My Bookings")) onNavigate?.("my-bookings")
   }
 
   return (
@@ -403,6 +426,18 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             </button>
           </div>
         </section>
+
+        {picking && (
+          <PetPickerSheet
+            title={picking === "documents" ? "Whose documents?" : "Which pet?"}
+            pets={pets}
+            onClose={() => setPicking(null)}
+            onPick={(petId) => {
+              setPicking(null)
+              openPet(petId, picking)
+            }}
+          />
+        )}
 
         {editing && (
           <Portal>
