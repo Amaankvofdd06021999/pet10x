@@ -1,6 +1,6 @@
 -- Part B — manager tools, impersonated, in ONE rolled-back transaction.
 --
--- Not yet run: written before 20261008000001…000004 were applied (no database
+-- Not yet run: written before 20261008000001…000007 were applied (no database
 -- was reachable from the session that wrote it). Run it after they are, as the
 -- project's own connection role (the Supabase SQL editor or MCP `execute_sql`):
 --
@@ -8,7 +8,8 @@
 --
 -- Every assertion RAISES on failure, so a clean run that ends in ROLLBACK and
 -- prints only `ok:` notices is a pass. Nothing is written: the fixtures it
--- plants (two fines, a pet document) and the archive all roll back.
+-- plants (two fines, pet documents, an empty building) and the archive all
+-- roll back.
 --
 -- Actors come from live data: Maple Court Residences (MCR2026), a non-admin
 -- manager of it, a current pet in it with its owner, and a non-admin owner
@@ -23,7 +24,7 @@ begin;
 do $$
 declare
   v_building uuid; v_pet uuid; v_owner uuid; v_manager uuid; v_other uuid;
-  v_vio uuid; v_fine uuid; v_fine2 uuid; v_doc uuid; v_doc2 uuid;
+  v_vio uuid; v_fine uuid; v_fine2 uuid; v_doc uuid; v_doc2 uuid; v_doc3 uuid; v_admin uuid; v_empty uuid;
 begin
   select b.id into v_building from public.buildings b where upper(b.building_code) = 'MCR2026';
   if v_building is null then raise exception 'FIXTURE: building MCR2026 not found'; end if;
@@ -70,6 +71,20 @@ begin
   insert into public.pet_documents (pet_id, kind, name, status, storage_path)
   values (v_pet, 'liability_insurance', 'Part B insurance (no file)', 'current', null)
   returning id into v_doc2;
+  -- Lapsed yesterday, with a file: approve must be refused.
+  insert into public.pet_documents (pet_id, kind, name, status, storage_path, expires_on)
+  values (v_pet, 'vaccination', 'Part B lapsed', 'expired', v_owner || '/' || v_pet || '/lapsed.pdf', current_date - 1)
+  returning id into v_doc3;
+
+  -- An admin, for admin_building_history (it returns nothing to anyone else).
+  select pr.id into v_admin from public.profiles pr
+   where pr.is_super_admin and not pr.is_suspended limit 1;
+  if v_admin is null then raise exception 'FIXTURE: no active super admin'; end if;
+
+  -- A building nobody has used: the only kind Delete is offered for.
+  insert into public.buildings (name, building_code)
+  values ('Part B empty building', 'PB' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)))
+  returning id into v_empty;
 
   perform set_config('part_b.building', v_building::text, true);
   perform set_config('part_b.pet', v_pet::text, true);
@@ -81,6 +96,9 @@ begin
   perform set_config('part_b.fine2', v_fine2::text, true);
   perform set_config('part_b.doc', v_doc::text, true);
   perform set_config('part_b.doc2', v_doc2::text, true);
+  perform set_config('part_b.doc3', v_doc3::text, true);
+  perform set_config('part_b.admin', v_admin::text, true);
+  perform set_config('part_b.empty', v_empty::text, true);
   raise notice 'fixtures: building % manager % owner % other % case %', v_building, v_manager, v_owner, v_other, v_vio;
 end $$;
 
@@ -190,10 +208,12 @@ end $$;
 do $$
 declare v_result text := pg_get_function_result('public.manager_municipal_reports(uuid)'::regprocedure);
 begin
-  if v_result ~* '(reporter|anonymous|ip_hash|latitude|longitude|postal|evidence_paths)' then
+  -- 20261008000005: an area summary. Nothing a reporter could be recognised
+  -- by — no description, location, reference, evidence, nor reporter fields.
+  if v_result ~* '(reporter|anonymous|ip_hash|latitude|longitude|postal|evidence|description|location|reference)' then
     raise exception 'FAIL: manager_municipal_reports exposes %', v_result;
   end if;
-  raise notice 'ok: manager_municipal_reports returns no reporter fields (%)', v_result;
+  raise notice 'ok: manager_municipal_reports returns only %', v_result;
 end $$;
 
 set local role authenticated;
@@ -223,6 +243,29 @@ begin
     raise exception 'FAIL: a manager can read municipal_reports rows directly';
   end if;
   raise notice 'ok: municipal_reports itself is still unreadable to the manager';
+
+  -- The area is admin-set. Changing the postal code (which a manager may) does
+  -- not move it; changing municipality_id is refused.
+  perform set_config('part_b.muni_before', n::text, true);
+  update public.buildings set postal_code = 'V5H 0A1' where id = current_setting('part_b.building')::uuid;
+  select count(*) into n from public.manager_municipal_reports(current_setting('part_b.building')::uuid);
+  if n <> current_setting('part_b.muni_before')::int then
+    raise exception 'FAIL: editing the postal code changed which reports the manager sees (% -> %)',
+      current_setting('part_b.muni_before'), n;
+  end if;
+  raise notice 'ok: postal code edit does not move the manager''s area';
+
+  begin
+    update public.buildings set municipality_id = (select m.id from public.municipalities m
+                                                     where m.id is distinct from
+                                                       (select b.municipality_id from public.buildings b
+                                                         where b.id = current_setting('part_b.building')::uuid)
+                                                     limit 1)
+     where id = current_setting('part_b.building')::uuid;
+    raise exception 'FAIL: a manager changed their building''s municipality';
+  exception when insufficient_privilege then
+    raise notice 'ok: manager cannot change municipality_id (42501)';
+  end;
 end $$;
 reset role;
 
@@ -307,6 +350,84 @@ begin
   raise notice 'ok: both verdicts audited';
 end $$;
 
+-- 3b. Approving a lapsed document is refused.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_b.manager'), 'role', 'authenticated')::text, true);
+do $$
+declare r jsonb;
+begin
+  r := public.manager_review_pet_document(current_setting('part_b.doc3')::uuid, 'approve');
+  if r->>'error' is distinct from 'expired' then raise exception 'FAIL: approving a lapsed document returned %', r; end if;
+  raise notice 'ok: lapsed document cannot be approved (expired)';
+end $$;
+reset role;
+
+-- 3c. The owner cannot forge a verdict, and a new file voids the real one.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_b.owner'), 'role', 'authenticated')::text, true);
+do $$
+declare v_new uuid;
+begin
+  if public.is_admin() then raise exception 'FIXTURE: owner is an admin'; end if;
+
+  -- The ordinary upload path (lib/data/live.ts addPetDocument) still works.
+  insert into public.pet_documents (pet_id, kind, name, status, storage_path, expires_on)
+  values (current_setting('part_b.pet')::uuid, 'other', 'Part B owner upload', 'current', null, null)
+  returning id into v_new;
+  raise notice 'ok: owner upload with no verdict columns accepted';
+
+  begin
+    insert into public.pet_documents (pet_id, kind, name, status)
+    values (current_setting('part_b.pet')::uuid, 'other', 'Forged', 'approved');
+    raise exception 'FAIL: owner inserted an approved document';
+  exception when insufficient_privilege then
+    raise notice 'ok: owner cannot insert an approved document (42501)';
+  end;
+
+  begin
+    insert into public.pet_documents (pet_id, kind, name, status, provenance)
+    values (current_setting('part_b.pet')::uuid, 'other', 'Forged', 'current', 'clinic_confirmed');
+    raise exception 'FAIL: owner inserted a clinic_confirmed document';
+  exception when insufficient_privilege then
+    raise notice 'ok: owner cannot insert a clinic_confirmed document (42501)';
+  end;
+
+  begin
+    update public.pet_documents set status = 'approved' where id = v_new;
+    raise exception 'FAIL: owner approved their own document';
+  exception when insufficient_privilege then
+    raise notice 'ok: owner cannot set status approved (42501)';
+  end;
+
+  begin
+    update public.pet_documents set provenance = 'manager_verified' where id = v_new;
+    raise exception 'FAIL: owner set provenance manager_verified';
+  exception when insufficient_privilege then
+    raise notice 'ok: owner cannot set provenance (42501)';
+  end;
+
+  begin
+    update public.pet_documents set verified_at = now(), verified_by = auth.uid() where id = v_new;
+    raise exception 'FAIL: owner stamped verified_at/verified_by';
+  exception when insufficient_privilege then
+    raise notice 'ok: owner cannot stamp verified_* (42501)';
+  end;
+
+  -- The manager approved part_b.doc in section 3. A new file voids that.
+  update public.pet_documents set storage_path = storage_path || '.v2'
+   where id = current_setting('part_b.doc')::uuid;
+  if not exists (select 1 from public.pet_documents
+                  where id = current_setting('part_b.doc')::uuid
+                    and status = 'current' and provenance = 'self_reported'
+                    and verified_by is null and verified_at is null) then
+    raise exception 'FAIL: replacing the file kept the manager''s approval';
+  end if;
+  raise notice 'ok: a replaced file resets status, provenance and verified_*';
+end $$;
+reset role;
+
 -- ===========================================================================
 -- 4. Archiving a building
 -- ===========================================================================
@@ -362,6 +483,69 @@ begin
     raise exception 'FAIL: an archived building accepted a join request';
   end if;
   raise notice 'ok: archived building refuses join requests (invalid_code)';
+end $$;
+reset role;
+
+-- 4c. The guest pet picker no longer resolves it, and a direct pending
+--     resident_links insert into it is refused.
+select set_config('request.jwt.claims', '', true);
+do $$
+begin
+  if (public.building_pets_for_report('MCR2026')->>'valid')::boolean is distinct from false then
+    raise exception 'FAIL: building_pets_for_report still lists an archived building''s pets';
+  end if;
+  raise notice 'ok: building_pets_for_report refuses an archived building';
+end $$;
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_b.other'), 'role', 'authenticated')::text, true);
+do $$
+begin
+  begin
+    insert into public.resident_links (profile_id, building_id, status)
+    values (auth.uid(), current_setting('part_b.building')::uuid, 'pending');
+    raise exception 'FAIL: a direct resident_links insert into an archived building was accepted';
+  exception when insufficient_privilege then
+    raise notice 'ok: links_insert_self refuses an archived building (42501)';
+  end;
+end $$;
+reset role;
+
+-- 4d. admin_building_history counts cascading tables too: MCR2026 (pets,
+--     residents, units…) has history; a building nobody used has none; and a
+--     non-admin gets nothing.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_b.admin'), 'role', 'authenticated')::text, true);
+do $$
+declare v_used record; v_empty record;
+begin
+  if not public.is_admin() then raise exception 'FIXTURE: admin is not is_admin()'; end if;
+  select * into v_used from public.admin_building_history() h
+   where h.building_id = current_setting('part_b.building')::uuid;
+  if v_used.total is null or v_used.total = 0 or (v_used.counts->>'pets')::int = 0 then
+    raise exception 'FAIL: MCR2026 history %', v_used;
+  end if;
+  raise notice 'ok: MCR2026 has history (total %, pets %)', v_used.total, v_used.counts->>'pets';
+  select * into v_empty from public.admin_building_history() h
+   where h.building_id = current_setting('part_b.empty')::uuid;
+  if v_empty.total is distinct from 0 then
+    raise exception 'FAIL: an unused building reports history %', v_empty;
+  end if;
+  raise notice 'ok: an unused building has none (only it may be deleted)';
+end $$;
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_b.manager'), 'role', 'authenticated')::text, true);
+do $$
+begin
+  if exists (select 1 from public.admin_building_history()) then
+    raise exception 'FAIL: a manager read admin_building_history';
+  end if;
+  raise notice 'ok: admin_building_history returns nothing to a non-admin';
 end $$;
 reset role;
 
