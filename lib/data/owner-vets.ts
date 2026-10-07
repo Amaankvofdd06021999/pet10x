@@ -3,6 +3,7 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./clinic/use-live"
+import type { OwnerBill } from "./owner-bills"
 
 /**
  * The owner's side of the veterinary module.
@@ -441,6 +442,92 @@ export async function notifyArrival(
     p_eta_minutes: etaMinutes ?? undefined,
   })
   if (error) return { error: error.message }
+  const out = readOutcome(data)
+  return { error: out.ok ? null : sentenceFor(out.error) }
+}
+
+/* -------------------------------- bills --------------------------------- */
+
+/**
+ * Estimates and invoices practices have sent about the viewer's pets, newest
+ * first, with their lines. Filtered to the viewer's own pets explicitly —
+ * `invoices_staff` would hand a practice owner their whole ledger otherwise.
+ * `.neq("status", "draft")` restates what `invoices_owner_read` already
+ * enforces (20261010000001), so a staff member who is also an owner never
+ * sees their own practice's drafts in the owner view either.
+ *
+ * NOT filtered on `pets.deleted_at`, unlike the reads above: a bill for a pet
+ * the owner has since removed (in memory, after a last visit) is still money
+ * the practice is asking for, and clinic_set_invoice_status notifies about it.
+ *
+ * The practice's name comes through `businesses_select`, which admits listed
+ * and verified businesses only; a registered practice reads as "Your vet".
+ */
+export function useMyInvoices(): LiveResult<OwnerBill[]> {
+  return useLive<OwnerBill[]>(
+    [],
+    async (db) => {
+      const { data: auth } = await db.auth.getUser()
+      const uid = auth.user?.id
+      if (!uid) return []
+      const rows = must(
+        await db
+          .from("invoices")
+          .select(
+            "id, kind, status, number, total_cents, paid_cents, currency, issued_on, created_at, owner_approved_at, " +
+              "businesses(name), clinic_patients!inner(pets!inner(name, owner_id)), " +
+              "invoice_lines(id, description, quantity, unit_price_cents)",
+          )
+          .eq("clinic_patients.pets.owner_id", uid)
+          .neq("status", "draft")
+          .order("created_at", { ascending: false })
+          .limit(100),
+      ) as unknown as Array<{
+        id: string
+        kind: string
+        status: string
+        number: string | null
+        total_cents: number
+        paid_cents: number
+        currency: string
+        issued_on: string | null
+        created_at: string
+        owner_approved_at: string | null
+        businesses: { name: string } | null
+        clinic_patients: { pets: { name: string } | null } | null
+        invoice_lines: Array<{ id: string; description: string; quantity: number; unit_price_cents: number }> | null
+      }>
+      return rows.map((r) => ({
+        id: r.id,
+        kind: r.kind === "estimate" ? "estimate" : "invoice",
+        status: r.status,
+        number: r.number,
+        totalCents: r.total_cents,
+        paidCents: r.paid_cents,
+        currency: r.currency,
+        issuedOn: r.issued_on,
+        createdAt: r.created_at,
+        ownerApprovedAt: r.owner_approved_at,
+        businessName: r.businesses?.name ?? "Your vet",
+        petName: r.clinic_patients?.pets?.name ?? "Your pet",
+        lines: (r.invoice_lines ?? []).map((l) => ({
+          id: l.id,
+          description: l.description,
+          quantity: Number(l.quantity),
+          unitPriceCents: l.unit_price_cents,
+        })),
+      }))
+    },
+    [],
+  )
+}
+
+/** Approve a sent estimate. owner_approve_estimate tells the practice. */
+export async function approveEstimate(invoiceId: string): Promise<{ error: string | null }> {
+  const db = getSupabaseBrowserClient()
+  if (!db) return { error: "Not configured." }
+  const { data, error } = await db.rpc("owner_approve_estimate", { p_invoice: invoiceId })
+  if (error) return { error: "Could not approve the estimate. Try again." }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
 }

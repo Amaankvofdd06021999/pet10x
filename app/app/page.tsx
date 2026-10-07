@@ -294,7 +294,7 @@ function AppContent() {
             /* Above the persona split: a manager who also owns a pet reaches
                the same screen, and every writer of this target addresses the
                pet's owner. */
-            <MyVetsScreen onBack={handleBack} />
+            <MyVetsScreen onBack={handleBack} initialTab={screenTab} />
           ) : currentScreen === "building-rules" ? (
             /* Above the persona split, beside `report` and `shop`: a manager
                opens the same screen their residents do, and sees the same

@@ -1,38 +1,49 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import {
   ArrowLeft, ShieldCheck, ShieldOff, KeyRound, Stethoscope, Check, X,
-  CalendarPlus, Copy,
+  CalendarPlus, Copy, Receipt, ChevronDown,
 } from "lucide-react"
 import { usePets } from "@/lib/data"
 import {
   useMyVetShares, useVetDirectory, usePendingLinkRequests, usePendingShareRequests,
-  useClinicRecords, useMyVetAppointments, grantShare, revokeShare, createDeskCode,
-  decideLinkRequest, decideShareRequest, bookVetAppointment,
+  useClinicRecords, useMyVetAppointments, useMyInvoices, grantShare, revokeShare, createDeskCode,
+  decideLinkRequest, decideShareRequest, bookVetAppointment, approveEstimate,
   SCOPE_LABELS, DEFAULT_SCOPES,
 } from "@/lib/data/owner-vets"
+import {
+  groupBills, billLabel, billStatusLabel, billStatusTone, isUnpaid, lineTotalCents,
+  type OwnerBill,
+} from "@/lib/data/owner-bills"
+import { MY_VETS_TABS, type MyVetsTab } from "@/lib/navigation"
 import { useAppointmentTypes, useAvailableSlots } from "@/lib/data/clinic/schedule"
-import { formatDateShort, formatTime, todayISO, addDaysISO } from "@/lib/data/clinic/time"
+import { formatDateShort, formatTime, formatMoney, todayISO, addDaysISO } from "@/lib/data/clinic/time"
 import {
   SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal,
   Field, Select, TextInput, SegmentedTabs, Toolbar,
 } from "@/components/screens/shared/ui"
 
-type View = "sharing" | "records" | "visits"
+type View = MyVetsTab
 
 /**
  * "Who can see my dog's records?" answered in three seconds, and undone in one
  * tap. Everything a practice can see is a row with a scope list and an expiry.
+ *
+ * `initialTab` is how a `my-vets:bills` notification lands on Bills
+ * (`lib/navigation.ts`); anything else opens on Sharing.
  */
-export function MyVetsScreen({ onBack }: { onBack?: () => void }) {
-  const [view, setView] = useState<View>("sharing")
+export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; initialTab?: string }) {
+  const [view, setView] = useState<View>(
+    MY_VETS_TABS.includes(initialTab as View) ? (initialTab as View) : "sharing",
+  )
   const pets = usePets()
   const shares = useMyVetShares()
   const links = usePendingLinkRequests()
   const shareReqs = usePendingShareRequests()
   const records = useClinicRecords()
   const appts = useMyVetAppointments()
+  const bills = useMyInvoices()
   const [shareOpen, setShareOpen] = useState(false)
   const [codeFor, setCodeFor] = useState<string | null>(null)
   const [code, setCode] = useState<string | null>(null)
@@ -157,6 +168,7 @@ export function MyVetsScreen({ onBack }: { onBack?: () => void }) {
             { id: "sharing", label: "Sharing", count: shares.data.length },
             { id: "records", label: "Records", count: records.data.length },
             { id: "visits", label: "Appointments", count: appts.data.length },
+            { id: "bills", label: "Bills", count: bills.data.length },
           ]}
         />
         <div className="ml-auto flex gap-2">
@@ -332,6 +344,8 @@ export function MyVetsScreen({ onBack }: { onBack?: () => void }) {
           </ul>
         ))}
 
+      {view === "bills" && <BillsView bills={bills} />}
+
       <ShareModal
         open={shareOpen}
         onClose={() => setShareOpen(false)}
@@ -353,6 +367,145 @@ export function MyVetsScreen({ onBack }: { onBack?: () => void }) {
         }}
       />
     </div>
+  )
+}
+
+/**
+ * Estimates waiting on the owner first, then every other bill. Pet10x takes no
+ * payment, so there is no pay button: an unpaid invoice says where to pay.
+ */
+function BillsView({ bills }: { bills: ReturnType<typeof useMyInvoices> }) {
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  if (bills.isLoading) return <Spinner label="Loading bills" />
+  if (bills.error) return <LoadError message={bills.error} onRetry={bills.refetch} />
+  if (bills.data.length === 0) {
+    return (
+      <EmptyState
+        title="No bills from a practice"
+        detail="Estimates and invoices your vet sends through Pet10x appear here."
+        icon={<Receipt className="h-5 w-5" aria-hidden="true" />}
+      />
+    )
+  }
+
+  const { awaiting, others } = groupBills(bills.data)
+
+  async function approve(b: OwnerBill) {
+    const ok = window.confirm(
+      `Approve ${billLabel(b).toLowerCase()} from ${b.businessName} for ${b.petName} — ` +
+        `${formatMoney(b.totalCents, b.currency)}?\n\nThe practice is told you agreed to this cost.`,
+    )
+    if (!ok) return
+    setError(null)
+    setBusy(b.id)
+    const res = await approveEstimate(b.id)
+    setBusy(null)
+    if (res.error) setError(res.error)
+    bills.refetch()
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {error && (
+        <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2 text-[12.5px] text-destructive">
+          {error}
+        </p>
+      )}
+      {awaiting.length > 0 && (
+        <SectionCard title="Estimates to approve" subtitle="Your practice is waiting for your go-ahead">
+          <ul className="flex flex-col gap-2">
+            {awaiting.map((b) => (
+              <BillRow
+                key={b.id}
+                bill={b}
+                action={
+                  <Button size="sm" busy={busy === b.id} onClick={() => void approve(b)}>
+                    <Check className="h-3.5 w-3.5" aria-hidden="true" /> Approve estimate
+                  </Button>
+                }
+              />
+            ))}
+          </ul>
+        </SectionCard>
+      )}
+      {others.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {others.map((b) => (
+            <BillRow key={b.id} bill={b} />
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function BillRow({ bill: b, action }: { bill: OwnerBill; action?: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const linesId = `bill-lines-${b.id}`
+  return (
+    <li className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-foreground">
+            {billLabel(b)}
+            <Pill tone={billStatusTone(b.status)}>{billStatusLabel(b.status)}</Pill>
+            <Pill tone="accent">{b.petName}</Pill>
+          </p>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            {b.businessName} · {formatDateShort(b.issuedOn ?? b.createdAt)}
+            {b.ownerApprovedAt ? ` · you approved ${formatDateShort(b.ownerApprovedAt)}` : ""}
+          </p>
+          {isUnpaid(b) && (
+            <p className="mt-1 text-[12px] font-medium text-foreground">Pay the clinic directly.</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[15px] font-semibold tabular-nums text-foreground">
+            {formatMoney(b.totalCents, b.currency)}
+          </span>
+          {action}
+        </div>
+      </div>
+      {b.lines.length > 0 && (
+        <>
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={linesId}
+            onClick={() => setOpen((v) => !v)}
+            className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-primary"
+          >
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+            {open ? "Hide" : "Show"} {b.lines.length} item{b.lines.length === 1 ? "" : "s"}
+          </button>
+          {open && (
+            <ul id={linesId} className="mt-2 flex flex-col divide-y divide-border rounded-xl border border-border">
+              {b.lines.map((l) => (
+                <li key={l.id} className="flex items-center justify-between gap-3 px-3 py-2 text-[12.5px]">
+                  <span className="min-w-0 text-foreground">
+                    {l.description}
+                    {l.quantity !== 1 && (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        × {l.quantity} at {formatMoney(l.unitPriceCents, b.currency)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="tabular-nums text-foreground">
+                    {formatMoney(lineTotalCents(l), b.currency)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </li>
   )
 }
 

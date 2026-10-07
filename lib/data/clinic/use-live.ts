@@ -127,6 +127,10 @@ export function sentenceFor(code: string | undefined): string {
       return "A reason is required before emergency access."
     case "rate_limited":
       return "Too many emergency lookups today. Contact support."
+    case "not_an_estimate":
+      return "Only an estimate can be approved."
+    case "not_awaiting_approval":
+      return "This estimate is no longer waiting for approval — the practice may have changed it."
     case "type_unavailable":
       return "That appointment type is not bookable online."
     case undefined:
