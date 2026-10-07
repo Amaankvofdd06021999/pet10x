@@ -1,167 +1,152 @@
 # Resume here
 
-Paused 2026-08-21. Read this first; it is the whole handover.
+Updated 2026-10-07, after Part F. Read this first; it is the whole handover.
+The previous version (paused 2026-08-21, Phases 0–8) is in git history.
 
 ## Where things stand
 
-**Phase 0 is done, merged to `main`, and pushed** (`f0118b9`). The database
-migrations from it are live on `Pet10x` and have been since before the push.
+Branch **`pet10x-gaps`** carries the six gap-closing parts, A–F, on top of
+the Phase 0–8 work. Nothing on it is pushed. Each part had a spec in
+`docs/superpowers/specs/2026-10-07-part-*-design.md`, the research it was
+written from in `docs/superpowers/research/`, and the rules every builder
+followed in `docs/superpowers/research/builder-rules.md`.
 
-**Phase 1 is complete on branch `pet10x-completion`** — all six tasks, reviewed
-clean, whole-branch review returned no blocking code findings. Nothing from
-Phase 1 is merged or pushed; the branch awaits a merge decision.
+Green on the branch: `pnpm test` (vitest), `npx tsc --noEmit -p .`,
+`pnpm build`, and — new in Part F — `pnpm lint` (0 errors; warnings listed
+under "Lint" below).
 
-## The plan
+## What shipped, by part
 
-Nine phases remain from [the roadmap](./plans/2026-08-21-pet10x-completion-roadmap.md).
-The human partner asked for all of them, naming two specifically: the manager's
-violation actions, and the controls that show "coming soon". Those were pulled
-forward, so the order is:
-
-| # | Phase | Plan | State |
-| --- | --- | --- | --- |
-| 1 | Evidence, in one composer | [`phase-1-evidence`](./plans/2026-08-21-phase-1-evidence.md) | **complete — 6 of 6, reviewed clean** |
-| 2 | Enforcement ladder (violations) | [`phase-2-enforcement`](./plans/2026-08-21-phase-2-enforcement.md) | planned, not started |
-| 3 | Honest cleanup ("coming soon") | [`phase-3-honest-cleanup`](./plans/2026-08-21-phase-3-honest-cleanup.md) | planned, not started |
-| 4 | Multi-pet care | roadmap only | not planned |
-| 5 | Resident violations + dispute | roadmap only | not planned |
-| 6 | Building rules | roadmap only | not planned |
-| 7 | Accommodations intake | roadmap only | not planned |
-| 8 | Community | roadmap only | not planned |
-
-Phases 1 and 2 of the original roadmap were merged into one — building evidence
-into both report screens and then collapsing them into a shared composer would
-implement the same feature twice, and that duplication is what caused the bug.
-
-## Phase 1, task by task
-
-| Task | State | Commit |
+| Part | What | Spec |
 | --- | --- | --- |
-| 1. `p_evidence_paths` on the intake RPC | complete, 1 fix round | `5775b80`, `e6ab9a4` |
-| 2. Sign + pets server routes | complete, 1 fix round | `1e8f305`, `d742157` |
-| 3. The `IncidentComposer` | complete, 1 fix round | `c89fbc9`, `40ea1e6` |
-| 4. Both screens become shells | complete, 1 fix round | `f1643ae`, `1a89859` |
-| 5. Manager sees the evidence | complete, clean first pass | `f7e7ec5` |
-| 6. Purge unclaimed drafts | complete, 2 fix rounds | `b2dea99`, `4d5f7fe`, `1a57f31` |
-| Final review fix wave | complete | `8fbb4ea` |
+| A | Quick fixes; pets are archived (`owner_archive_pet`), never deleted, with a reason; every current-pets read filters `deleted_at` | `part-a-quick-fixes` |
+| B | Manager tools: fines settle in the case view through `manager_set_fine_status` (forward only); city reports as an area summary; pet-document review; building archive instead of delete; municipality picker | `part-b-manager-tools` |
+| C | Trust & legal: `/terms`, `/privacy`, `/help`; admin business tiers and verification requests; business signup through the OTP gate | `part-c-trust-legal` |
+| D | Notifications that reach people: incident and booking notifications, email (Resend) and web push, a dispatcher cron every 5 minutes, the Email & push sheet | `part-d-notifications` |
+| E | Vet completion: owner bills and estimate approval, clinic staff invites, the staff guard | `part-e-vet-completion` |
+| F | Admin Overview and Users; manager Audit Log, Staff & Access, Compliance Report; account deletion for everyone; ESLint; the extras below | `part-f-admin-settings` |
 
-Tests went 15 → 39. `pnpm build` exits 0.
+Part F's extras, decided by the lead: deleting an AI conversation deletes its
+messages and title; customers cancel bookings only through
+`customer_cancel_booking` (the business is notified) and can no longer rewrite
+a booking; the business and clinic consoles have a notifications inbox; the
+strata portal's Team tab opens the Email & push sheet.
 
-## What to do next
+## Migrations — written, NOT applied
 
-**Decide whether to merge Phase 1.** The whole-branch review said merge, with
-one non-code gate: six test incidents sit in Maple Court's live triage queue
-(`IR-C4DF60`, `IR-E04C1E`, `IR-CC086C`, `IR-6549F4`, `IR-3A10BE`, `IR-816E7B`),
-clearly labelled, four carrying real photos. They are *claimed*, so the purge
-route will never remove them — they are permanent unless deleted deliberately.
+No session in Parts A–F could reach a database (no Supabase CLI, no Docker,
+no psql). **Every migration from `20261007000001` onward is on disk and
+presumed unapplied.** Check against `supabase_migrations.schema_migrations`
+before applying, and apply in filename order:
 
-Then **Phase 2** — the manager's violation actions, planned and not started.
+```
+20261007000001_owner_archive_pet.sql            Part A
+20261007000002_pet_archive_guard_and_publish.sql
+20261008000001_manager_set_fine_status.sql      Part B
+20261008000002_manager_municipal_reports.sql
+20261008000003_manager_review_pet_document.sql
+20261008000004_building_archive.sql
+20261008000005_municipal_area_summary.sql
+20261008000006_pet_documents_verdict_guard.sql
+20261008000007_building_archive_followups.sql
+20261009000001_pending_signup_intent.sql        Part C
+20261009000002_admin_business_tier.sql
+20261009000003_part_c_review_fixes.sql
+20261010000001_owner_bills.sql                  Part E
+20261010000002_business_staff_guard.sql
+20261011000001_notify_incidents_and_bookings.sql Part D
+20261011000002_notification_delivery.sql
+20261011000003_reminder_rules_no_sms.sql
+20261012000001_account_deletion_set_null.sql    Part F
+20261012000002_admin_users_and_stats.sql
+20261012000003_ai_conversation_delete_purges.sql
+20261012000004_customer_cancel_booking.sql
+20261012000005_estimate_approved_target.sql
+```
 
-### Two things that cost real time, kept because they will recur
+The app code on this branch calls RPCs and columns these create
+(`admin_list_users`, `customer_cancel_booking`, `notify_email`, …). **Deploy
+the code only after the migrations are applied**, or those screens fail.
 
-**Pass `contentType` on every storage upload.** `uploadToSignedUrl` defaults the
-PUT to `text/plain;charset=UTF-8`, and a signed upload token binds path, upsert,
-scope and expiry — never Content-Type. `guest-evidence` enforces an image
-allow-list, so an uploader omitting `{ contentType: file.type }` is rejected at
-storage with the cause three layers from the symptom. Measured: the default
-returns `415 invalid_mime_type`.
+`20261012000003` deletes the messages of every AI conversation already marked
+deleted — irreversible, and intended.
 
-**The vitest `@` alias is proven and fine.** Phase 0 deferred a worry that it
-resolved to a doubled separator. Phase 1's first runtime `@/` import exercised
-it and it resolves. No action needed.
+## Running the SQL checks
+
+One file per part in `supabase/tests/` (`part-a-archive.sql`, `part-b.sql` …
+`part-f.sql`). Each is ONE transaction that ends in `ROLLBACK`, impersonates
+real roles with `set local role authenticated` + `request.jwt.claims`, picks
+its actors from live data, and RAISES on the first failed assertion. Run each
+after its part's migrations are applied, as the project's connection role:
+
+```
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/part-f.sql
+```
+
+(or paste into the Supabase SQL editor / MCP `execute_sql`). A pass prints
+only `ok:` notices and ends in ROLLBACK; nothing is written. None of them has
+been run yet.
+
+## Environment variables
+
+| Variable | Needed for |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | everything |
+| `SUPABASE_SERVICE_ROLE_KEY` | server routes: account deletion, invites, crons, purges |
+| `NEXT_PUBLIC_BASE_URL` | links in emails and invites |
+| `CRON_SECRET` | every cron route in `vercel.json` (Bearer token) |
+| `RESEND_API_KEY`, `EMAIL_FROM` | email; sent only in production or with `EMAIL_DEV_SEND=1` |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | web push (Part D); without them the Push row is hidden |
+| `OTP_PEPPER` | optional; signup-code hashing falls back to the service-role key |
+| `GROQ_API_KEY` (+ optional `GROQ_BASE_URL`, `AI_MODEL_*`, `AI_TIMEOUT_MS`, `AI_GROUNDING_DOMAINS`) | the AI assistant |
+| `AI_MEDIA_RETENTION_DAYS` | optional, default 7 |
+| `NEXT_PUBLIC_SUPPORT_EMAIL` | optional, the support address on legal pages |
+
+`.env.example` lists all of them except the optional `OTP_PEPPER`,
+`EMAIL_DEV_SEND` and `GROQ_BASE_URL`. Crons (`vercel.json`): AI media purge, care
+reminders (15 min), evidence purge, accommodation-doc purge, signup purge,
+notification dispatch (5 min).
+
+## Lint
+
+`pnpm lint` runs ESLint 9 with `eslint-config-next` 16 (core-web-vitals +
+typescript), flat config in `eslint.config.mjs`. Two React-compiler rules are
+downgraded to warnings, each with its reason in the config:
+`react-hooks/set-state-in-effect` (every data hook clears its error and raises
+`isLoading` at the top of the fetch effect) and `react-hooks/purity` (screens
+read the clock while rendering, on purpose). The remaining warnings are mostly
+unused variables in older screens — real but harmless, left for a cleanup pass.
 
 ## Standing environment facts
 
-- **pnpm is not on the default PATH.** Prefix every pnpm command with
-  `PATH="$HOME/.corepack-bin:$PATH"`. Active version is 9.15.9 — do not upgrade
-  it; pnpm 11 generates a `pnpm-workspace.yaml` that pnpm 9 cannot even start
-  with, and Vercel infers pnpm 9 from the lockfile.
-- **No Supabase CLI, no Docker.** Migrations go through the Supabase MCP
-  (`apply_migration`), assertions through `execute_sql`. `supabase db reset` has
-  never been run and remains this work's largest untested claim.
-- **`pnpm lint` cannot pass** — `eslint` is in the script but is not a
-  dependency and has no config, on `main` too. Pre-existing.
-- **Supabase project:** `Pet10x`, ref `ekgejmxgnlmdomkpblki`. The human partner
-  has authorised applying migrations directly to it.
-- **`MCR2026`** is Maple Court Residences — 10 pets, exactly one with a photo.
-  The single most useful test fixture in the project.
+- **pnpm is not on the default PATH.** Prefix with
+  `PATH="$HOME/.corepack-bin:$PATH"`. Version 9.15.9 — do not upgrade; pnpm 11
+  writes a `pnpm-workspace.yaml` pnpm 9 cannot read, and Vercel infers pnpm 9
+  from the lockfile.
+- **Supabase project:** `Pet10x`, ref `ekgejmxgnlmdomkpblki`.
+- **`supabase db reset` has never been run** and 30 of the Phase-era local
+  migration files differ from what ran (`2026-08-23-migration-drift.md`).
+  Still the largest untested claim.
+- **`MCR2026`** is Maple Court Residences — the most useful fixture.
+- **Pass `contentType` on every signed storage upload**, or the bucket answers
+  `415 invalid_mime_type` three layers from the cause.
 
-## Process that earned its keep
+## Open items, owned by nobody
 
-Work is executed with `superpowers:subagent-driven-development`: one implementer
-per task, a fresh reviewer against its diff, fix rounds until clean. Two rules
-learned the hard way and worth keeping:
-
-- **Never run two implementers at once.** Reviewers are read-only and may
-  overlap anything; implementers may not overlap each other. A near-miss had one
-  agent's `git add -A` staging another's in-flight file.
-- **Copy agent ids from the ledger, never from memory.** A fix message was sent
-  to the wrong agent — it refused, correctly, and cost only time.
-
-The per-phase ledger lives at `.superpowers/sdd/<plan-name>/progress.md`. It is
-**gitignored**, so it does not survive a fresh clone. Everything durable from
-Phase 0 was promoted into
-[the findings doc](./2026-08-21-phase-0-findings.md) before its workspace was
-deleted; do the same at the end of each phase.
-
-## Open decisions waiting on the human partner
-
-None block the work, but all three shape later phases.
-
-1. **`posts_insert` requires a premium subscription** and has no
-   `manages_building` disjunct, so a manager cannot post to their own
-   building's feed and non-premium residents cannot post at all. This decides
-   how much of Phase 8 is worth building.
-2. **`emergency_directory` contradicts its own documentation** — the header says
-   medical history is withheld, the body returns `p.conditions`. Amend the
-   comment or strip the field.
-3. **The `revoke … from anon` no-ops** — seven of them, leaving `is_premium` and
-   `resolve_entitlement` callable by anyone. Small, self-contained fix. See the
-   findings doc.
+- Co-resident profiles are invisible outside `community_identities()`; a
+  manager of more than one building cannot use the community screen.
+- `exportMyData` omits accommodation data, deliberately (`legal_note`).
+- A case opened against a unit with no resident and a case whose resident
+  deleted their account both read "Unassigned" — the record cannot tell them
+  apart, by design (it no longer names the person).
+- Approvals → Request Info on a pet registration stays removed; see
+  `2026-08-21-deferred-controls.md` for the twenty lines that would restore it.
 
 ## The single most important thing learned
 
-From Phase 1's path-traversal guard, where three parties looked at the same bug
-and two of us proposed a fix carrying the same defect:
-
 > Enumerating the payload is not the same as characterising the class.
 
-Validate by stating a **positive grammar for what is allowed**, never a denylist
-of what is not. When probing a guard, test the *shape* of the attack rather than
-the one instance that was reported — and treat any confident "this is
-sufficient", including your own, as the sentence most worth probing.
-
-## 2026-08-23 — machine slept again, four agents lost
-
-Second occurrence. The first is recorded in commit 55e886d. Lost mid-flight:
-the Task 5 review, the Phase 4 planner (and a helper it had spawned), and the
-Phase 5 planner. None had produced output. All relaunched from the same briefs.
-
-Two operational lessons, both cheap to apply:
-  - A planner or reviewer that spawns its own helper doubles the blast radius
-    of a sleep -- both die together and neither reports. Every planning and
-    review brief now says "do all of this yourself".
-  - Nothing was lost that had been committed. Task 5 was committed (4b58dd9)
-    before the sleep, so the phase lost only review time, not work.
-
-State at the time of the sleep, all committed and safe:
-  Phase 0  merged to main, pushed
-  Phase 1  complete on this branch
-  Phase 2  CODE-COMPLETE at 4b58dd9, under review
-  Phase 3  planned (docs/superpowers/plans/2026-08-21-phase-3-honest-cleanup.md)
-  Phase 4-8  being planned now
-
-## Migration number allocation (set 2026-08-23 after a real collision)
-
-Phases 4-8 were planned in parallel and two plans claimed the same number.
-Phase 6 originally took 20260823000006, which the Task 5 fix round had already
-created on disk as `reminder_throttle_and_opening_event`. Renumbered.
-
-  20260821000* - 20260823000006   on disk, Phases 0-2
-  20260824000*                    Phase 5, disputes
-  20260825000*                    Phase 6, building rules
-  20260826000*                    Phase 8, community
-  20260827000*                    Phase 7, accommodations
-
-`ls supabase/migrations/` is the ground truth. Do not assume a number is free
-because the design doc used it -- the doc predates every phase.
+Validate with a **positive grammar for what is allowed**, never a denylist.
+Part F applied it once more: the referential SET NULL that account deletion
+needs is admitted by `person_ref_released()` — a person column going to NULL,
+the profile gone, the write not made by a client role — and by nothing else.
