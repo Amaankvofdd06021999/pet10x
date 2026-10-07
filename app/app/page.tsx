@@ -215,7 +215,7 @@ function AppContent() {
     // A violation id, not a pet id.
     else if (screen === "my-cases") setSelectedCaseId(id)
     else if (id !== undefined) setSelectedPetId(id)
-    // Entering the assistant from the FAB or the sidebar carries no pet, and a
+    // Entering the assistant from the tab bar or the sidebar carries no pet, and a
     // pet left over from an earlier screen would silently scope the answer.
     else if (screen === "ai-chat") setSelectedPetId(undefined)
     setCurrentScreen(screen)
@@ -311,7 +311,7 @@ function AppContent() {
           ) : (
             <>
               {currentScreen === "home" && <HomeScreen onNavigate={handleNavigate} />}
-              {currentScreen === "community" && <CommunityScreen onNavigate={handleNavigate} />}
+              {currentScreen === "community" && <CommunityScreen onNavigate={handleNavigate} initialTab={screenTab} />}
               {currentScreen === "services" && <ServicesScreen onNavigate={handleNavigate} />}
               {currentScreen === "alerts" && <AlertsScreen onNavigate={handleNavigate} onBack={handleBack} />}
               {currentScreen === "profile" && <ProfileScreen onNavigate={handleNavigate} />}

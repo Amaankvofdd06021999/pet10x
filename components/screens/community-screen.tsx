@@ -190,7 +190,15 @@ function Sheet({
 const FIELD =
   "mt-1 w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
 
-export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
+export function CommunityScreen({
+  onNavigate,
+  initialTab,
+}: {
+  onNavigate?: (screen: string) => void
+  /** A `FeedTab`; anything else opens the feed. Home's Pet Events tile asks
+      for "events" — it used to land on the feed and leave you to find them. */
+  initialTab?: string
+}) {
   const { user } = useAuth()
   const { data: scope } = useCommunityScope()
   /* Whether the viewer manages THIS FEED's building — not whether their account
@@ -209,7 +217,9 @@ export function CommunityScreen({ onNavigate }: { onNavigate?: (screen: string) 
   const { data: lostFound, refetch: refetchLostFound } = useLostFound()
   const { data: events, refetch: refetchEvents } = useEvents()
 
-  const [activeTab, setActiveTab] = useState<FeedTab>("feed")
+  const [activeTab, setActiveTab] = useState<FeedTab>(
+    initialTab === "lost" || initialTab === "events" ? initialTab : "feed",
+  )
   const [query, setQuery] = useState("")
   const [busyId, setBusyId] = useState<string | null>(null)
 

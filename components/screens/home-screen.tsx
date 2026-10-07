@@ -83,7 +83,7 @@ const ALERT_DOT = {
 interface HomeScreenProps {
   /* Third argument is the pet to open the tracker ON. `id` is already the care
      kind for `pet-care`, so a schedule row needs its own slot to say "Lola". */
-  onNavigate?: (screen: string, id?: string, petId?: string) => void
+  onNavigate?: (screen: string, id?: string, petId?: string, tab?: string) => void
 }
 
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
@@ -142,7 +142,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     if (label.includes("Rules")) onNavigate?.("building-rules")
     else if (label.includes("Report")) onNavigate?.("report")
     else if (label.includes("Shop")) onNavigate?.("shop")
-    else if (label.includes("Events")) onNavigate?.("community")
+    else if (label.includes("Events")) onNavigate?.("community", undefined, undefined, "events")
   }
 
   return (

@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useBuildingResidents, useBuildingPets, useUnreadNotificationCount, useViolations } from "@/lib/data"
 import { useComplianceInputs } from "@/lib/data/portfolio"
@@ -99,10 +98,10 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
   const avgCompliance = pets.length ? Math.round(pets.reduce((s, p) => s + p.compliancePct, 0) / pets.length) : 100
   const loading = rLoading || pLoading || bLoading
 
-  const handleQuickAction = (screen: string) => {
-    if (!screen) toast.success("Emergency QR generated", { description: "Valid for 4 hours." })
-    else onNavigate?.(screen)
-  }
+  /* Every quick action names a screen. There used to be a branch here for one
+     that did not — it toasted "Emergency QR generated" and generated nothing —
+     and no action had reached it since the tile was removed. */
+  const handleQuickAction = (screen: string) => onNavigate?.(screen)
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">

@@ -12,6 +12,7 @@ import {
   User,
   LayoutDashboard,
   Gavel,
+  Megaphone,
   UserCheck,
   Settings,
   PawPrint,
@@ -37,6 +38,9 @@ const managerTabs = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "residents", label: "Residents", icon: Users },
   { id: "violations", label: "Violations", icon: Gavel },
+  /* Desktop only. The mobile bar has five slots and they are taken; on a phone
+     Incidents is the dashboard's "Incident Reports" quick action. */
+  { id: "incidents", label: "Incidents", icon: Megaphone },
   { id: "approvals", label: "Approvals", icon: UserCheck },
   { id: "settings", label: "Settings", icon: Settings },
 ]
@@ -68,7 +72,7 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 py-3" aria-label="Primary">
-        {/* Desktop entry point to the assistant — the mobile equivalent is the FAB. */}
+        {/* Desktop entry point to the assistant — on mobile it is the tab bar's AI slot. */}
         {!isManager && (
           <button
             onClick={() => onTabChange("ai-chat")}
