@@ -18,6 +18,8 @@ import { ClinicBillingScreen } from "@/components/screens/clinic/billing-screen"
 import { ClinicEmergencyScreen } from "@/components/screens/clinic/emergency-screen"
 import { ClinicTeamScreen } from "@/components/screens/clinic/team-screen"
 import { ClinicSignIn, RegisterPractice } from "@/components/screens/clinic/clinic-onboarding"
+import { VerificationBanner } from "@/components/screens/clinic/verification-banner"
+import { HelpLegalLinks } from "@/components/legal/help-legal-section"
 
 export type ClinicTab =
   | "today" | "calendar" | "customers" | "reminders"
@@ -128,14 +130,10 @@ function Console() {
           })}
         </nav>
         <div className="border-t border-border p-3">
-          {clinic.tier !== "verified" && (
-            <div className="mb-2 rounded-xl bg-warning/10 p-2.5">
-              <p className="text-[11.5px] font-semibold text-warning-strong">Not yet verified</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                Verify to receive shared records and take Pet10x bookings.
-              </p>
-            </div>
-          )}
+          <div className="mb-2 empty:hidden">
+            <VerificationBanner clinic={clinic} canRequest={caps.manageTeam} />
+          </div>
+          <HelpLegalLinks className="mb-1.5 px-1" />
           <p className="truncate px-1 text-[12px] text-muted-foreground">{user?.email}</p>
           <button
             type="button"
@@ -203,6 +201,12 @@ function Console() {
         </header>
 
         <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip p-4">
+          {/* The sidebar, where the banner lives, is desktop-only. */}
+          {activeTab === "today" && (
+            <div className="mb-3 empty:hidden md:hidden">
+              <VerificationBanner clinic={clinic} canRequest={caps.manageTeam} />
+            </div>
+          )}
           {activeTab === "today" && <ClinicTodayScreen clinic={clinic} onGo={setTab} />}
           {activeTab === "calendar" && <ClinicCalendarScreen clinic={clinic} />}
           {activeTab === "customers" && <ClinicCustomersScreen clinic={clinic} />}

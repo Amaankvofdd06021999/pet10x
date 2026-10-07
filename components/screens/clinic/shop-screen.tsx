@@ -65,8 +65,10 @@ export function ClinicShopScreen({ clinic }: { clinic: ClinicMembership }) {
           {clinic.tier !== "verified" && (
             <SectionCard title="Get listed">
               <p className="text-[13px] text-muted-foreground">
-                Your storefront is private until the practice is verified. Verifying puts you in Pet10x
-                search, lets owners book online, and allows you to receive and hand back records.
+                {clinic.tier === "registered"
+                  ? "Your storefront is private until Pet10x lists the practice. Listed practices appear in owner search and take online bookings; verified practices can also receive and hand back records."
+                  : "You're listed in owner search. Verification also lets you receive and hand back records."}{" "}
+                Request verification from the banner on Today.
               </p>
             </SectionCard>
           )}

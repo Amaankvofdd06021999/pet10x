@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { buildingDeleteError, buildingHasHistory } from "./building-archive"
+import { businessTierError, isOpenRequest, type BusinessTier } from "./business-tier"
 
 type BuildingRow = Database["public"]["Tables"]["buildings"]["Row"]
 type BusinessRow = Database["public"]["Tables"]["businesses"]["Row"]
@@ -60,7 +61,18 @@ export interface AdminBusiness {
   name: string
   category: string
   isVerified: boolean
+  tier: BusinessTier
   ownerId: string
+  createdAt: string
+  /** The business's open verification request, if it has one. */
+  openRequest: AdminVerificationRequest | null
+}
+
+export interface AdminVerificationRequest {
+  id: string
+  kind: string
+  licenceNumber: string | null
+  issuingBody: string | null
   createdAt: string
 }
 
@@ -292,22 +304,41 @@ export function useAdminBusinesses() {
       setLoading(false)
       return
     }
-    const { data: rows, error: err } = await supabase
-      .from("businesses")
-      .select("*")
-      .order("created_at", { ascending: false })
-    if (err) {
-      setError(err.message)
+    // Admin reads every business and every request (businesses_admin_all,
+    // bver_admin); the open-status filter is what makes this the queue.
+    const [{ data: rows, error: err }, { data: reqs, error: reqErr }] = await Promise.all([
+      supabase.from("businesses").select("*").order("created_at", { ascending: false }),
+      supabase
+        .from("business_verifications")
+        .select("id, business_id, kind, status, licence_number, issuing_body, created_at")
+        .in("status", ["submitted", "in_review", "needs_info"])
+        .order("created_at", { ascending: true }),
+    ])
+    if (err || reqErr) {
+      setError((err ?? reqErr)!.message)
       setData([])
     } else {
+      const open = new Map<string, AdminVerificationRequest>()
+      for (const q of reqs ?? []) {
+        if (!isOpenRequest(q.status) || open.has(q.business_id)) continue
+        open.set(q.business_id, {
+          id: q.id,
+          kind: q.kind,
+          licenceNumber: q.licence_number,
+          issuingBody: q.issuing_body,
+          createdAt: q.created_at,
+        })
+      }
       setData(
         (rows ?? []).map((r: BusinessRow) => ({
           id: r.id,
           name: r.name,
           category: r.category,
           isVerified: r.is_verified,
+          tier: r.tier,
           ownerId: r.owner_id,
           createdAt: r.created_at,
+          openRequest: open.get(r.id) ?? null,
         })),
       )
       setError(null)
@@ -320,11 +351,40 @@ export function useAdminBusinesses() {
   return { data, isLoading, error, refetch }
 }
 
-export async function verifyBusiness(id: string, verified: boolean): Promise<{ error: string | null }> {
+/**
+ * Set a business's tier through admin_set_business_tier, the one door
+ * (20261009000002): it keeps is_verified in step, audits, and tells the owner.
+ * A direct update of `is_verified` alone would now break businesses_verified_tier_ck.
+ */
+export async function setBusinessTier(
+  id: string,
+  tier: BusinessTier,
+  note?: string,
+): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
-  const { error } = await supabase.from("businesses").update({ is_verified: verified }).eq("id", id)
-  return { error: error?.message ?? null }
+  const { error } = await supabase.rpc("admin_set_business_tier", {
+    p_business: id,
+    p_tier: tier,
+    p_note: note?.trim() || undefined,
+  })
+  return { error: error ? businessTierError(error) : null }
+}
+
+/** Approve (tier → verified) or reject (note required) an open verification request. */
+export async function reviewBusinessVerification(
+  requestId: string,
+  approve: boolean,
+  note?: string,
+): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { error } = await supabase.rpc("admin_review_business_verification", {
+    p_request: requestId,
+    p_approve: approve,
+    p_note: note?.trim() || undefined,
+  })
+  return { error: error ? businessTierError(error) : null }
 }
 
 /* ------------------------------------------------------------------ */

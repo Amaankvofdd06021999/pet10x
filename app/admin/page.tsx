@@ -16,7 +16,8 @@ import {
   setBuildingArchived,
   inviteManager,
   useAdminBusinesses,
-  verifyBusiness,
+  setBusinessTier,
+  reviewBusinessVerification,
   deleteBusiness,
   useAdminManagers,
   setManagerSuspended,
@@ -27,8 +28,10 @@ import {
   type AdminBuilding,
   type AdminMunicipality,
   type AdminManager,
+  type AdminBusiness,
   type PetRules,
 } from "@/lib/data/admin"
+import { BUSINESS_TIERS, awaitingReview, tierDescription, tierLabel, type BusinessTier } from "@/lib/data/business-tier"
 import {
   ShieldCheck,
   Building2,
@@ -684,17 +687,40 @@ function Managers() {
   )
 }
 
+/**
+ * Businesses and clinics, by tier. The select sets the tier through
+ * admin_set_business_tier; an open verification request (a clinic's "Request
+ * verification") is approved — tier verified — or rejected with a note the
+ * clinic sees on its banner. "Awaiting review" is the queue: open requests and
+ * businesses nobody has listed yet.
+ */
 function Businesses() {
   const { data: businesses, isLoading, error, refetch } = useAdminBusinesses()
   const [busy, setBusy] = useState<string | null>(null)
+  const [filter, setFilter] = useState<"review" | "all">("review")
 
-  async function toggle(id: string, verified: boolean) {
-    setBusy(id)
-    const { error: err } = await verifyBusiness(id, verified)
+  async function changeTier(b: AdminBusiness, tier: BusinessTier) {
+    if (tier === b.tier) return
+    setBusy(b.id)
+    const { error: err } = await setBusinessTier(b.id, tier)
     setBusy(null)
-    if (err) return toast.error("Action failed", { description: err })
-    toast.success(verified ? "Business verified" : "Verification removed")
+    if (err) return toast.error("Couldn't change the tier", { description: err })
+    toast.success(`${b.name} is now ${tierLabel(tier)}`)
     refetch()
+  }
+
+  async function review(b: AdminBusiness, approve: boolean, note?: string) {
+    if (!b.openRequest) return false
+    setBusy(b.id)
+    const { error: err } = await reviewBusinessVerification(b.openRequest.id, approve, note)
+    setBusy(null)
+    if (err) {
+      toast.error("Couldn't record the decision", { description: err })
+      return false
+    }
+    toast.success(approve ? `${b.name} is verified` : "Request rejected")
+    refetch()
+    return true
   }
 
   async function remove(id: string, name: string) {
@@ -716,46 +742,168 @@ function Businesses() {
   if (error) return <LoadError message={error} onRetry={refetch} />
   if (businesses.length === 0) return <p className="py-8 text-center text-[14px] text-muted-foreground">No businesses yet.</p>
 
+  const waiting = businesses.filter((b) => awaitingReview({ tier: b.tier, openRequest: b.openRequest !== null }))
+  const shown = filter === "review" ? waiting : businesses
+
   return (
     <div className="flex flex-col gap-2.5">
-      {businesses.map((b) => (
-        <div key={b.id} className="flex items-center gap-3 rounded-xl card-raised p-3.5">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent/15">
-            <Store className="h-5 w-5 text-accent" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold">{b.name}</p>
-            <p className="text-[12px] text-muted-foreground">{b.category}</p>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-1.5">
-            {b.isVerified ? (
+      <div className="mb-1 flex gap-1.5">
+        {(
+          [
+            ["review", `Awaiting review (${waiting.length})`],
+            ["all", `All (${businesses.length})`],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setFilter(id)}
+            className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+              filter === id ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {shown.length === 0 && (
+        <p className="py-8 text-center text-[14px] text-muted-foreground">Nothing is waiting for review.</p>
+      )}
+      {shown.map((b) => (
+        <BusinessCard
+          key={b.id}
+          business={b}
+          busy={busy === b.id}
+          onTier={(t) => changeTier(b, t)}
+          onReview={(approve, note) => review(b, approve, note)}
+          onRemove={() => remove(b.id, b.name)}
+        />
+      ))}
+    </div>
+  )
+}
+
+function BusinessCard({
+  business: b,
+  busy,
+  onTier,
+  onReview,
+  onRemove,
+}: {
+  business: AdminBusiness
+  busy: boolean
+  onTier: (tier: BusinessTier) => void
+  onReview: (approve: boolean, note?: string) => Promise<boolean>
+  onRemove: () => void
+}) {
+  const [rejecting, setRejecting] = useState(false)
+  const [note, setNote] = useState("")
+
+  return (
+    <div className="rounded-xl card-raised p-3.5">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent/15">
+          <Store className="h-5 w-5 text-accent" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 truncate text-[15px] font-semibold">
+            {b.name}
+            {b.isVerified && <BadgeCheck className="h-4 w-4 flex-shrink-0 text-success" aria-label="Verified" />}
+          </p>
+          <p className="text-[12px] text-muted-foreground">{b.category}</p>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1.5">
+          {busy && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          <label className="sr-only" htmlFor={`tier-${b.id}`}>
+            Tier for {b.name}
+          </label>
+          <select
+            id={`tier-${b.id}`}
+            value={b.tier}
+            disabled={busy}
+            onChange={(e) => onTier(e.target.value as BusinessTier)}
+            className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
+          >
+            {BUSINESS_TIERS.map((t) => (
+              <option key={t} value={t}>
+                {tierLabel(t)}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={onRemove}
+            disabled={busy}
+            title="Delete business"
+            className="flex items-center rounded-lg bg-muted p-1.5 text-muted-foreground disabled:opacity-60"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+      <p className="mt-2 text-[12px] text-muted-foreground">{tierDescription(b.tier)}</p>
+
+      {b.openRequest && (
+        <div className="mt-2.5 rounded-lg bg-warning/10 p-2.5">
+          <p className="text-[12.5px] font-semibold text-foreground">
+            Verification requested{" "}
+            {new Date(b.openRequest.createdAt).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}
+          </p>
+          {(b.openRequest.licenceNumber || b.openRequest.issuingBody) && (
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              {[b.openRequest.issuingBody, b.openRequest.licenceNumber].filter(Boolean).join(" · ")}
+            </p>
+          )}
+          {rejecting ? (
+            <div className="mt-2 flex flex-col gap-1.5">
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={2}
+                maxLength={2000}
+                placeholder="Why not? The business sees this."
+                className="w-full rounded-lg border border-border bg-background px-2.5 py-2 text-[13px] text-foreground focus:border-primary focus:outline-none"
+              />
+              <div className="flex gap-1.5">
+                <button
+                  onClick={async () => {
+                    if (await onReview(false, note)) {
+                      setRejecting(false)
+                      setNote("")
+                    }
+                  }}
+                  disabled={busy || !note.trim()}
+                  className="rounded-lg bg-destructive px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
+                >
+                  Reject request
+                </button>
+                <button
+                  onClick={() => setRejecting(false)}
+                  disabled={busy}
+                  className="rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 flex gap-1.5">
               <button
-                onClick={() => toggle(b.id, false)}
-                disabled={busy === b.id}
+                onClick={() => onReview(true)}
+                disabled={busy}
                 className="flex items-center gap-1.5 rounded-lg bg-success/15 px-3 py-1.5 text-[12px] font-semibold text-success disabled:opacity-60"
               >
-                {busy === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeCheck className="h-3.5 w-3.5" />} Verified
+                <BadgeCheck className="h-3.5 w-3.5" /> Approve — verify
               </button>
-            ) : (
               <button
-                onClick={() => toggle(b.id, true)}
-                disabled={busy === b.id}
-                className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
+                onClick={() => setRejecting(true)}
+                disabled={busy}
+                className="rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
               >
-                {busy === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeCheck className="h-3.5 w-3.5" />} Verify
+                Reject
               </button>
-            )}
-            <button
-              onClick={() => remove(b.id, b.name)}
-              disabled={busy === b.id}
-              title="Delete business"
-              className="flex items-center rounded-lg bg-muted p-1.5 text-muted-foreground disabled:opacity-60"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
+            </div>
+          )}
         </div>
-      ))}
+      )}
     </div>
   )
 }

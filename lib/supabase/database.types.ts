@@ -3625,31 +3625,37 @@ export type Database = {
       pending_signups: {
         Row: {
           attempts: number
+          business: Json | null
           code_hash: string
           created_at: string
           email: string
           expires_at: string
           full_name: string | null
+          intent: string
           last_sent_at: string
           send_count: number
         }
         Insert: {
           attempts?: number
+          business?: Json | null
           code_hash: string
           created_at?: string
           email: string
           expires_at: string
           full_name?: string | null
+          intent?: string
           last_sent_at?: string
           send_count?: number
         }
         Update: {
           attempts?: number
+          business?: Json | null
           code_hash?: string
           created_at?: string
           email?: string
           expires_at?: string
           full_name?: string | null
+          intent?: string
           last_sent_at?: string
           send_count?: number
         }
@@ -6577,6 +6583,18 @@ export type Database = {
           counts: Json
           total: number
         }[]
+      }
+      admin_review_business_verification: {
+        Args: { p_approve: boolean; p_note?: string; p_request: string }
+        Returns: undefined
+      }
+      admin_set_business_tier: {
+        Args: {
+          p_business: string
+          p_note?: string
+          p_tier: Database["public"]["Enums"]["business_tier"]
+        }
+        Returns: undefined
       }
       ai_expired_chat_media: {
         Args: { p_days?: number; p_limit?: number }

@@ -37,22 +37,22 @@ update public.profiles set role='business'
 
 -- 2. Verified businesses (hours drive the "Open now" badge) -------------------
 insert into public.businesses (id, owner_id, name, category, description, logo_url, latitude, longitude,
-  service_radius_m, price_range, hours, is_verified, is_open, listing_tier, tags) values
+  service_radius_m, price_range, hours, is_verified, tier, is_open, listing_tier, tags) values
   ('f5000000-0000-4000-8000-000000000001','e5000000-0000-4000-8000-000000000001','Happy Paws Grooming','Grooming',
    'Full-service grooming for dogs and cats — gentle handling, low-stress environment, and a free nail trim with every full groom. Mobile van available for seniors and anxious pets.',
    null, 49.2634, -123.1398, 15000, '$$',
    '{"mon":{"open":"09:00","close":"17:00"},"tue":{"open":"09:00","close":"17:00"},"wed":{"open":"09:00","close":"17:00"},"thu":{"open":"09:00","close":"19:00"},"fri":{"open":"09:00","close":"19:00"},"sat":{"open":"10:00","close":"16:00"},"sun":null}'::jsonb,
-   true, true, 'featured', array['Cat-friendly','Mobile','Senior pets']),
+   true, 'verified', true, 'featured', array['Cat-friendly','Mobile','Senior pets']),
   ('f5000000-0000-4000-8000-000000000002','e5000000-0000-4000-8000-000000000002','Westside Veterinary Clinic','Veterinary',
    'Neighbourhood vet clinic offering wellness exams, vaccinations, dental care and same-day sick visits. Fear-Free certified team.',
    null, 49.2650, -123.1500, 20000, '$$$',
    '{"mon":{"open":"08:00","close":"18:00"},"tue":{"open":"08:00","close":"18:00"},"wed":{"open":"08:00","close":"18:00"},"thu":{"open":"08:00","close":"18:00"},"fri":{"open":"08:00","close":"17:00"},"sat":{"open":"09:00","close":"13:00"},"sun":null}'::jsonb,
-   true, true, 'premium', array['Emergency','Fear-Free','Dentistry']),
+   true, 'verified', true, 'premium', array['Emergency','Fear-Free','Dentistry']),
   ('f5000000-0000-4000-8000-000000000003','e5000000-0000-4000-8000-000000000003','City Paws Dog Walking','Dog walking',
    'Small-group and solo walks across downtown and the West End. GPS-tracked routes, photo updates after every walk.',
    null, 49.2760, -123.1300, 6000, '$',
    '{"mon":{"open":"07:00","close":"19:00"},"tue":{"open":"07:00","close":"19:00"},"wed":{"open":"07:00","close":"19:00"},"thu":{"open":"07:00","close":"19:00"},"fri":{"open":"07:00","close":"19:00"},"sat":{"open":"08:00","close":"16:00"},"sun":{"open":"08:00","close":"16:00"}}'::jsonb,
-   true, true, 'basic', array['GPS-tracked','Small groups','Puppy-friendly'])
+   true, 'verified', true, 'basic', array['GPS-tracked','Small groups','Puppy-friendly'])
 on conflict (id) do nothing;
 
 -- Street addresses (drive the storefront location card + directions link).
@@ -159,27 +159,27 @@ update public.profiles set role='business' where id::text like 'e5000000-0000-40
 
 insert into public.businesses (id, owner_id, name, category, description, latitude, longitude,
   address, city, region, postal_code, country, service_radius_m, price_range, hours,
-  is_verified, is_open, listing_tier, tags) values
+  is_verified, tier, is_open, listing_tier, tags) values
  ('f5000000-0000-4000-8000-000000000011','e5000000-0000-4000-8000-000000000011','Pawsome Grooming Studio','Grooming',
   'Air-conditioned grooming studio in Madhapur. Breed-specific cuts, tick treatment and de-shedding for Indian summers. Doorstep pickup across Hitech City.',
   17.4485, 78.3908, 'Plot 42, Ayyappa Society, Madhapur','Hyderabad','TS','500081','IN', 10000, '₹₹',
   '{"mon":{"open":"10:00","close":"20:00"},"tue":{"open":"10:00","close":"20:00"},"wed":{"open":"10:00","close":"20:00"},"thu":{"open":"10:00","close":"20:00"},"fri":{"open":"10:00","close":"20:00"},"sat":{"open":"09:00","close":"21:00"},"sun":{"open":"10:00","close":"18:00"}}'::jsonb,
-  true, true, 'featured', array['Doorstep pickup','Tick treatment','Cat-friendly']),
+  true, 'verified', true, 'featured', array['Doorstep pickup','Tick treatment','Cat-friendly']),
  ('f5000000-0000-4000-8000-000000000012','e5000000-0000-4000-8000-000000000012','VetCare Animal Hospital','Veterinary',
   'Multi-speciality pet hospital in Gachibowli with 24x7 emergency, digital X-ray and in-house lab. Walk-ins welcome.',
   17.4401, 78.3489, 'Road No 2, Gachibowli','Hyderabad','TS','500032','IN', 12000, '₹₹₹',
   '{"mon":{"open":"09:00","close":"21:00"},"tue":{"open":"09:00","close":"21:00"},"wed":{"open":"09:00","close":"21:00"},"thu":{"open":"09:00","close":"21:00"},"fri":{"open":"09:00","close":"21:00"},"sat":{"open":"09:00","close":"21:00"},"sun":{"open":"10:00","close":"14:00"}}'::jsonb,
-  true, true, 'premium', array['24x7 emergency','Digital X-ray','Surgery']),
+  true, 'verified', true, 'premium', array['24x7 emergency','Digital X-ray','Surgery']),
  ('f5000000-0000-4000-8000-000000000013','e5000000-0000-4000-8000-000000000013','Happy Tails Pet Clinic','Veterinary',
   'Neighbourhood clinic in West Marredpally for vaccinations, deworming and routine check-ups. Home visits across Secunderabad.',
   17.4478, 78.5030, 'SD Road, West Marredpally','Secunderabad','TS','500026','IN', 8000, '₹₹',
   '{"mon":{"open":"09:30","close":"19:30"},"tue":{"open":"09:30","close":"19:30"},"wed":{"open":"09:30","close":"19:30"},"thu":{"open":"09:30","close":"19:30"},"fri":{"open":"09:30","close":"19:30"},"sat":{"open":"09:30","close":"17:00"},"sun":null}'::jsonb,
-  true, true, 'basic', array['Home visits','Vaccination','Puppy care']),
+  true, 'verified', true, 'basic', array['Home visits','Vaccination','Puppy care']),
  ('f5000000-0000-4000-8000-000000000014','e5000000-0000-4000-8000-000000000014','Walk N Wag Pet Services','Dog walking',
   'Daily walks, pet sitting and boarding around Begumpet and Secunderabad. GPS-tracked walks with photo updates after every session.',
   17.4437, 78.4678, 'Prakash Nagar, Begumpet','Secunderabad','TS','500016','IN', 6000, '₹',
   '{"mon":{"open":"06:00","close":"20:00"},"tue":{"open":"06:00","close":"20:00"},"wed":{"open":"06:00","close":"20:00"},"thu":{"open":"06:00","close":"20:00"},"fri":{"open":"06:00","close":"20:00"},"sat":{"open":"06:00","close":"20:00"},"sun":{"open":"07:00","close":"18:00"}}'::jsonb,
-  true, true, 'basic', array['GPS-tracked','Pet sitting','Boarding'])
+  true, 'verified', true, 'basic', array['GPS-tracked','Pet sitting','Boarding'])
 on conflict (id) do nothing;
 
 insert into public.business_services (id, business_id, name, description, price_cents, currency, duration_min, sort_order) values
@@ -220,12 +220,12 @@ update public.profiles set role='business' where id='e5000000-0000-4000-8000-000
 
 insert into public.businesses (id, owner_id, name, category, description, latitude, longitude,
   address, city, region, postal_code, country, service_radius_m, price_range, hours,
-  is_verified, is_open, listing_tier, tags) values
+  is_verified, tier, is_open, listing_tier, tags) values
  ('f5000000-0000-4000-8000-000000000004','e5000000-0000-4000-8000-000000000004','Eastside Pet Boarding & Daycare','Boarding',
   'Cage-free boarding and daycare on Commercial Drive. Webcam access, a large outdoor yard, and separate small-dog rooms. Overnight staff on site.',
   49.2700, -123.0700, '1855 Commercial Dr','Vancouver','BC','V5N 4A6','CA', 10000, '$$',
   '{"mon":{"open":"07:00","close":"19:00"},"tue":{"open":"07:00","close":"19:00"},"wed":{"open":"07:00","close":"19:00"},"thu":{"open":"07:00","close":"19:00"},"fri":{"open":"07:00","close":"19:00"},"sat":{"open":"08:00","close":"18:00"},"sun":{"open":"08:00","close":"18:00"}}'::jsonb,
-  true, true, 'featured', array['Cage-free','Webcam access','Overnight staff'])
+  true, 'verified', true, 'featured', array['Cage-free','Webcam access','Overnight staff'])
 on conflict (id) do nothing;
 
 insert into public.business_services (id, business_id, name, description, price_cents, currency, duration_min, sort_order) values
