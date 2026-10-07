@@ -58,11 +58,12 @@ export function useBuildingAuditLog(buildingId: string | undefined, area: AuditA
       return
     }
 
-    // Names only for actors who may be named; an anonymous reporter's id is
-    // never sent anywhere, not even to ask for a name we would not show.
-    const named = [
-      ...new Set((rows ?? []).filter((r) => r.actor_id && !isAnonymousEntry(r)).map((r) => r.actor_id as string)),
-    ]
+    // An anonymous report's actor is dropped the moment the row arrives. Since
+    // 20261012000007 the database writes it as null; rows from before that
+    // migration ran, or a writer that forgets, are covered here too, and the
+    // id is never sent anywhere — not even to ask for a name we would not show.
+    const safe = (rows ?? []).map((r) => (isAnonymousEntry(r) ? { ...r, actor_id: null } : r))
+    const named = [...new Set(safe.filter((r) => r.actor_id).map((r) => r.actor_id as string))]
     const names = new Map<string, string>()
     if (named.length > 0) {
       // Readable where profiles RLS allows (co-managers, residents of the
@@ -72,7 +73,7 @@ export function useBuildingAuditLog(buildingId: string | undefined, area: AuditA
     }
 
     setData(
-      (rows ?? []).map((r) => ({
+      safe.map((r) => ({
         id: r.id,
         at: r.created_at,
         actor: auditActorLabel({
