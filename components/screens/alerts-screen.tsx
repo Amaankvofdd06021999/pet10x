@@ -9,43 +9,14 @@ import {
   markNotificationRead,
   refreshNotifications,
   useNotifications,
-  type NotificationIconKey,
   type NotificationCategory,
 } from "@/lib/data"
 import { useAuth } from "@/lib/auth-context"
 import { resolveActionTarget } from "@/lib/navigation"
-import {
-  AlertTriangle,
-  Calendar,
-  CheckCircle2,
-  ChevronRight,
-  FileText,
-  Shield,
-  Syringe,
-  BellOff,
-  CheckCheck,
-  Sparkles,
-} from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { AlertTriangle, ChevronRight, BellOff, CheckCheck } from "lucide-react"
+import { NotificationRow } from "@/components/notifications/notification-row"
 
 type AlertTab = "all" | "care" | "compliance" | "incidents" | "building" | "assistant"
-
-const NOTIFICATION_ICONS: Record<NotificationIconKey, typeof Syringe> = {
-  syringe: Syringe,
-  alert: AlertTriangle,
-  file: FileText,
-  check: CheckCircle2,
-  calendar: Calendar,
-  shield: Shield,
-  sparkles: Sparkles,
-}
-
-const SEVERITY_STYLES = {
-  warning: { bg: "bg-[#FFF6E0]", iconColor: "text-warning-strong" },
-  error: { bg: "bg-destructive/10", iconColor: "text-destructive" },
-  info: { bg: "bg-info/10", iconColor: "text-info" },
-  success: { bg: "bg-success/10", iconColor: "text-success" },
-}
 
 /**
  * Every tab this screen knows about, in display order.
@@ -224,67 +195,24 @@ export function AlertsScreen({
             </div>
           )}
           {filteredAlerts.map((alert) => {
-            const style = SEVERITY_STYLES[alert.severity]
-            const Icon = NOTIFICATION_ICONS[alert.iconKey]
-            /* The label is not what decides whether there is a button — the
-               TARGET is. `action_label` and `action_target` are two nullable
-               columns written independently, and this screen used to render a
-               button for any label and then toast it. Phase 6 relies on that
-               being fixed: its rule-publish notification deliberately writes a
-               target and NO label, precisely so it would not ship a tenth dead
-               button here. */
+            /* Phase 6 relies on the target, not the label, deciding whether
+               there is a button: its rule-publish notification deliberately
+               writes a target and NO label. See NotificationRow. */
             const route = resolveActionTarget(alert.actionTarget, surface)
             return (
-              <div
+              <NotificationRow
                 key={alert.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => open(alert.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault()
-                    open(alert.id)
-                  }
-                }}
-                className="cursor-pointer rounded-2xl card-raised p-3.5 transition-transform active:scale-[0.99]"
-              >
-                <div className="flex gap-3">
-                  <div className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${style.bg}`}>
-                    <Icon className={`h-4 w-4 ${style.iconColor}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className={`text-[14px] font-semibold text-foreground ${alert.read ? "opacity-70" : ""}`}>
-                        {alert.title}
-                      </h3>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {!alert.read && <span className="h-2 w-2 rounded-full bg-primary" />}
-                        <span className="text-[10px] text-muted-foreground">{alert.time}</span>
-                      </div>
-                    </div>
-                    <p className={`mt-0.5 text-[12px] leading-relaxed ${!alert.read ? "text-secondary-foreground" : "text-muted-foreground"}`}>
-                      {alert.body}
-                    </p>
-                    {route && (
-                      <button
-                        onClick={(e) => {
-                          // The row's own handler would mark it too; once is enough.
-                          e.stopPropagation()
-                          open(alert.id)
-                          onNavigate?.(route.screen, route.id, undefined, route.tab)
-                        }}
-                        className="mt-1.5 text-[12px] font-semibold text-primary"
-                      >
-                        {/* A target with no label is a real case, not an
-                            oversight — Phase 6 writes one on purpose. "Open"
-                            is the honest generic: the button opens the screen
-                            the notification is about. */}
-                        {alert.actionLabel ?? "Open"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+                notification={alert}
+                onOpen={() => open(alert.id)}
+                onAction={
+                  route
+                    ? () => {
+                        open(alert.id)
+                        onNavigate?.(route.screen, route.id, undefined, route.tab)
+                      }
+                    : undefined
+                }
+              />
             )
           })}
         </div>

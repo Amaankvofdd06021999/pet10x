@@ -286,8 +286,18 @@ export function resolveActionTarget(
 export const BUSINESS_TABS = ["dashboard", "bookings", "storefront", "promotions", "earnings", "reviews"] as const
 export type BusinessTab = (typeof BUSINESS_TABS)[number]
 
+/**
+ * The clinic console's tabs (`app/clinic/page.tsx`, `ClinicTab`). Which of them
+ * a practice actually shows depends on its type's modules and the reader's
+ * role; the console falls back to Today for one it does not render, exactly
+ * as it does for a tab the person clicks away from.
+ */
+export const CLINIC_TABS = ["today", "calendar", "customers", "reminders", "shop", "billing", "emergency", "team"] as const
+export type ClinicConsoleTab = (typeof CLINIC_TABS)[number]
+
 const CONSOLES = {
   business: { path: "/businessaccess", tabs: BUSINESS_TABS as readonly string[] },
+  clinic: { path: "/clinic", tabs: CLINIC_TABS as readonly string[] },
 } as const
 
 export interface ConsoleRoute {

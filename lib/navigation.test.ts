@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 import {
   BUSINESS_TABS,
+  CLINIC_TABS,
   MY_VETS_TABS,
   SCREEN_SURFACES,
   isScreenKey,
@@ -241,6 +242,12 @@ describe("resolveConsoleTarget", () => {
     expect(resolveConsoleTarget("constructor:bookings")).toBeNull()
   })
 
+  it("opens the clinic console on a tab it lists, and drops one it does not", () => {
+    expect(resolveConsoleTarget("clinic:billing")).toEqual({ console: "clinic", path: "/clinic", tab: "billing" })
+    expect(resolveConsoleTarget("clinic:bookings")).toEqual({ console: "clinic", path: "/clinic" })
+    expect(CLINIC_TABS).toEqual(["today", "calendar", "customers", "reminders", "shop", "billing", "emergency", "team"])
+  })
+
   it("lists the tabs the business console renders", () => {
     expect(BUSINESS_TABS).toEqual(["dashboard", "bookings", "storefront", "promotions", "earnings", "reviews"])
   })
@@ -256,6 +263,7 @@ describe("targetHref and readTargetParam", () => {
 
   it("sends a console target to its console", () => {
     expect(targetHref("business:bookings")).toBe("/businessaccess?target=business%3Abookings")
+    expect(targetHref("clinic:billing")).toBe("/clinic?target=clinic%3Abilling")
   })
 
   it("opens /app with nothing for no target, or one too long to be real", () => {
@@ -319,5 +327,15 @@ describe("the registry matches the router", () => {
     for (const [screen, surfaces] of Object.entries(SCREEN_SURFACES)) {
       expect(surfaces.length, screen).toBeGreaterThan(0)
     }
+  })
+})
+
+describe("CLINIC_TABS matches the clinic console", () => {
+  const source = readFileSync(fileURLToPath(new URL("../app/clinic/page.tsx", import.meta.url)), "utf8")
+  const tabs = Array.from(source.matchAll(/\{ id: "([a-z]+)", label:/g), (m) => m[1])
+
+  it("lists exactly the tabs MODULE_TABS can render, in order", () => {
+    expect(tabs.length).toBeGreaterThan(5)
+    expect([...CLINIC_TABS]).toEqual(tabs)
   })
 })
