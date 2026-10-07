@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import type { User } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client"
+import { unsubscribePushOnSignOut } from "@/lib/push"
 import { resolveBuildingCodeLive } from "@/lib/data/incidents"
 import {
   MOCK_USERS,
@@ -751,6 +752,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     const supabase = getSupabaseBrowserClient()
+    /* Push first, while the session that owns the subscription row can still
+       delete it — otherwise this browser keeps receiving the last account's
+       notifications. Bounded inside, so sign-out never waits on a push
+       service. */
+    if (supabase) await unsubscribePushOnSignOut()
     if (supabase) await supabase.auth.signOut().catch(() => {})
     clearPetsCache()
     clearNotificationsCache()
