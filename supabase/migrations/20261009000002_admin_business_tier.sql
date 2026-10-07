@@ -19,9 +19,8 @@
 --      is_verified, tier <> verified  -> tier verified    (admin verified it)
 --      not is_verified, tier verified -> tier registered  (self-set, or unverified)
 --
---    Rows already at `listed` are left alone: no client path set it except
---    the unguarded owner write this closes, so an operator should look at
---    `select id, name from businesses where tier = 'listed'` after applying.
+--    Rows already at `listed` are demoted by 20261009000003: no client path
+--    set it except the unguarded owner write this closes.
 --
 -- 2. THE GUARD now covers `tier` as well as `is_verified`, on INSERT as well
 --    as UPDATE, on the `current_user` test of pets_archive_guard
@@ -50,7 +49,9 @@
 -- 6. bver_insert (20260901000000) let a business administrator insert a row
 --    with reviewed_by / reviewed_at / note already filled — a request that
 --    reads as reviewed. A request is now born unreviewed, and one business
---    has at most one open request per kind.
+--    has at most one open request per kind. Any duplicates already open are
+--    settled first — the newest stays open, the rest become `rejected` with
+--    note 'superseded' — or the unique index would fail to build.
 
 -- ---------------------------------------------------------------------------
 -- 1. Reconcile, then pin
@@ -265,6 +266,17 @@ create policy bver_insert on public.business_verifications for insert
   with check (public.can_admin_business(business_id)
               and status = 'submitted'
               and reviewed_by is null and reviewed_at is null and note is null);
+
+with ranked as (
+  select id, row_number() over (partition by business_id, kind
+                                order by created_at desc, id desc) as rn
+    from public.business_verifications
+   where status in ('submitted', 'in_review', 'needs_info')
+)
+update public.business_verifications v
+   set status = 'rejected', note = 'superseded', reviewed_at = now()
+  from ranked r
+ where r.id = v.id and r.rn > 1;
 
 create unique index if not exists business_verifications_one_open
   on public.business_verifications (business_id, kind)

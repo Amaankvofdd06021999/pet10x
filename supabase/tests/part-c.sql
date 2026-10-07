@@ -1,7 +1,7 @@
 -- Part C — business tiers and sign-up intent, impersonated, in ONE rolled-back
 -- transaction.
 --
--- Not yet run: written before 20261009000001…000002 were applied (no database
+-- Not yet run: written before 20261009000001…000003 were applied (no database
 -- was reachable from the session that wrote it). Run it after they are, as the
 -- project's own connection role (the Supabase SQL editor or MCP `execute_sql`):
 --
@@ -206,6 +206,11 @@ begin
                   where profile_id = current_setting('part_c.other')::uuid and kind = 'system'
                     and title = 'Part C Groomer is listed' and body like '%Looks good%') then
     raise exception 'FAIL: the groomer''s owner was not notified';
+  end if;
+  if not exists (select 1 from public.audit_log
+                  where action = 'business.verification_approved' and entity_id = v_biz
+                    and metadata->>'request_id' = current_setting('part_c.req')) then
+    raise exception 'FAIL: the request approval was not audited';
   end if;
   raise notice 'ok: audited and notified';
 
