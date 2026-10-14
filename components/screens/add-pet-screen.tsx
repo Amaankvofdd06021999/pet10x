@@ -1,12 +1,14 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { OTHER_SPECIES, OTHER_BREED, breedsFor, addPet, setPetPhoto } from "@/lib/data"
 import type { Species } from "@/lib/data"
 import { toast } from "sonner"
 import { isDirty } from "@/lib/unsaved"
 import { useUnsavedGuard } from "@/components/use-unsaved-guard"
+import { WeightInput } from "@/components/screens/pet/weight-input"
+import { defaultWeightUnit, parseWeightKg, type WeightUnit } from "@/lib/units"
 import {
   SIZE_BANDS,
   MAX_HEIGHT_INCHES,
@@ -57,6 +59,10 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
   const [dob, setDob] = useState("")
   const [gender, setGender] = useState<"Male" | "Female" | "">("")
   const [weight, setWeight] = useState("")
+  // Not in the dirty baseline: choosing a unit alone is not an edit. Starts
+  // as kg so server and first client render agree, then follows the locale.
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg")
+  useEffect(() => setWeightUnit(defaultWeightUnit(navigator.language)), [])
   const [color, setColor] = useState("")
   const [microchip, setMicrochip] = useState("")
   const [neutered, setNeutered] = useState(false)
@@ -76,12 +82,13 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
   useUnsavedGuard(dirty)
 
   const breedOptions = breedsFor(species)
-  const canSubmit = name.trim().length > 0 && species !== null
+  const parsedWeight = parseWeightKg(weight, weightUnit)
+  const canSubmit = name.trim().length > 0 && species !== null && parsedWeight.ok
 
   const handleSubmit = async () => {
     if (!canSubmit || saving || !species) return
     setSaving(true)
-    const weightKg = weight ? parseFloat(weight.replace(/[^\d.]/g, "")) : undefined
+    const weightKg = parsedWeight.ok ? parsedWeight.kg : null
     const { error, pet } = await addPet({
       name: name.trim(),
       species,
@@ -89,7 +96,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
         (breedOptions.length === 0 || breed === OTHER_BREED ? customBreed.trim() : breed.trim()) || undefined,
       dob: dob || undefined,
       sex: gender === "Male" ? "male" : gender === "Female" ? "female" : undefined,
-      weightKg: weightKg && !Number.isNaN(weightKg) ? weightKg : undefined,
+      weightKg: weightKg ?? undefined,
       color: color.trim() || undefined,
       microchip: microchip.trim() || undefined,
       neutered,
@@ -283,7 +290,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
             />
           </Field>
           <Field label="Weight">
-            <Input value={weight} onChange={setWeight} placeholder="e.g. 32 kg" />
+            <WeightInput value={weight} unit={weightUnit} onChange={setWeight} onUnitChange={setWeightUnit} />
           </Field>
         </div>
 

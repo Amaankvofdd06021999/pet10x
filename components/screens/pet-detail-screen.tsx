@@ -7,6 +7,8 @@ import { CareTracker } from "@/components/screens/care/care-tracker"
 import { PetPhotoGallery } from "@/components/screens/pet/photo-gallery"
 import { VetRecords } from "@/components/screens/pet/vet-records"
 import { RemovePetSheet } from "@/components/screens/pet/remove-pet-sheet"
+import { WeightInput } from "@/components/screens/pet/weight-input"
+import { defaultWeightUnit, formatWeight, parseWeightKg, type WeightUnit } from "@/lib/units"
 import {
   ArrowLeft,
   Camera,
@@ -368,12 +370,15 @@ function EditForm({
   onRemoved: () => void
 }) {
   const m = pet.medical
+  // The edit form only mounts after a tap, so reading the locale here is client-only.
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(() => defaultWeightUnit(navigator.language))
   const [f, setF] = useState({
     name: pet.name,
     breed: pet.breed,
     dob: pet.dob ?? "",
     gender: pet.gender ?? "Unknown",
-    weight: pet.weight ? pet.weight.replace(/[^\d.]/g, "") : "",
+    // pet.weight is the stored kg as text ("31.8 kg"); show it in the chosen unit.
+    weight: pet.weight ? formatWeight(parseFloat(pet.weight), weightUnit) : "",
     color: pet.color ?? "",
     microchip: pet.microchip ?? "",
     neutered: pet.neutered ?? false,
@@ -389,19 +394,30 @@ function EditForm({
   const [removing, setRemoving] = useState(false)
   const set = (k: keyof typeof f, v: string | boolean) => setF((p) => ({ ...p, [k]: v }))
 
+  const parsedWeight = parseWeightKg(f.weight, weightUnit)
+
+  /* Switching unit converts what is typed, so the number keeps meaning the
+     same weight. Text that does not parse is left for the user to fix. */
+  function changeUnit(u: WeightUnit) {
+    const p = parseWeightKg(f.weight, weightUnit)
+    if (p.ok && p.kg !== null) set("weight", formatWeight(p.kg, u))
+    setWeightUnit(u)
+  }
+
   async function save() {
     if (!f.name.trim()) {
       toast.error("Name is required.")
       return
     }
+    if (!parsedWeight.ok) return
     setSaving(true)
-    const weightKg = f.weight ? parseFloat(f.weight) : null
+    const weightKg = parsedWeight.kg
     const { error } = await updatePet(pet.id, {
       name: f.name.trim(),
       breed: f.breed.trim() || null,
       dob: f.dob || null,
       sex: f.gender === "Male" ? "male" : f.gender === "Female" ? "female" : "unknown",
-      weightKg: weightKg && !Number.isNaN(weightKg) ? weightKg : null,
+      weightKg,
       color: f.color.trim() || null,
       microchip: f.microchip.trim() || null,
       neutered: f.neutered,
@@ -429,7 +445,10 @@ function EditForm({
       <TextField label="Breed" value={f.breed} onChange={(v) => set("breed", v)} />
       <div className="grid grid-cols-2 gap-3">
         <DateField label="Date of birth" value={f.dob} onChange={(v) => set("dob", v)} />
-        <TextField label="Weight (kg)" value={f.weight} onChange={(v) => set("weight", v)} type="number" />
+        <div>
+          <Label>Weight</Label>
+          <WeightInput value={f.weight} unit={weightUnit} onChange={(v) => set("weight", v)} onUnitChange={changeUnit} compact />
+        </div>
       </div>
       <div>
         <Label>Gender</Label>
@@ -483,7 +502,7 @@ function EditForm({
         </button>
         <button
           onClick={save}
-          disabled={saving}
+          disabled={saving || !parsedWeight.ok}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save
