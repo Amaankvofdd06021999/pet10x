@@ -53,6 +53,15 @@ export function OnboardingFlow() {
   const petNameId = useId()
   const firstName = (user?.name || "there").split(" ")[0]
 
+  /* Every step change goes through here. `error` and `loading` are shared by
+     all steps, so a message left by one ("Couldn't link to that building")
+     would otherwise surface as an alert on the next. */
+  function goTo(next: Step) {
+    setError(null)
+    setLoading(false)
+    setStep(next)
+  }
+
   async function linkBuilding() {
     setError(null)
     if (!code.trim()) {
@@ -67,7 +76,7 @@ export function OnboardingFlow() {
       return
     }
     setLinkedBuilding(res.buildingName ?? "your building")
-    setStep("unit")
+    goTo("unit")
   }
 
   async function saveUnitAndContinue() {
@@ -83,31 +92,52 @@ export function OnboardingFlow() {
       setError(e)
       return
     }
-    setStep("linked")
+    goTo("linked")
+  }
+
+  /** Flip `onboarded`, keeping the screen usable if that fails. True on success. */
+  async function completeOnboarding(): Promise<boolean> {
+    setError(null)
+    setLoading(true)
+    try {
+      await markOnboarded()
+      return true
+    } catch {
+      setError("Couldn't finish setting up. Try again.")
+      return false
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function finish() {
-    setLoading(true)
-    await markOnboarded()
     // shell re-renders into the app once onboarded flips
+    await completeOnboarding()
   }
 
   /**
    * Finish onboarding on the screen that resolves `target`.
    *
    * The shell's cold-load path already opens whatever route the URL names, and
-   * it waits for onboarding to finish before reading it. So the route goes into
-   * the address bar first, then onboarding flips: the shell reads it exactly as
-   * it would a link, and writes the tab root beneath so Back stays in the app.
+   * it waits for onboarding to finish before reading it: the shell reads the
+   * route exactly as it would a link, and writes the tab root beneath so Back
+   * stays in the app.
+   *
+   * The URL is written only once `markOnboarded` has succeeded, so a failure
+   * leaves the address bar as it was. That is still before the shell reads it:
+   * markOnboarded's state update renders on a scheduler task, and this
+   * continuation runs as a microtask ahead of it.
+   *
    * Our own history keys are dropped so a stale entry cannot outrank the URL;
    * Next's are kept but `__NA`, as in the shell's `writeHistory`.
    */
   async function finishAt(target: Gap["target"]) {
-    setLoading(true)
+    if (!(await completeOnboarding())) return
     const data: Record<string, unknown> = { ...(window.history.state ?? {}) }
     for (const k of ["__NA", "pet10x", "route", "activeTab", "depth"]) delete data[k]
+    // Replaces the whole query, a pending `target=` link included: tapping
+    // "Do it now" is an explicit choice, and it wins.
     window.history.replaceState(data, "", "/app" + routeToSearch(target))
-    await markOnboarded()
   }
 
   async function savePet() {
@@ -128,7 +158,7 @@ export function OnboardingFlow() {
     }
     setLoading(false)
     setAddedPet({ name, species, photo: photoFile ? photoPreview : null })
-    setStep("done")
+    goTo("done")
   }
 
   async function shareApp() {
@@ -187,7 +217,7 @@ export function OnboardingFlow() {
 
           <div className="mt-8 flex flex-col gap-3">
             <button
-              onClick={() => setStep("code")}
+              onClick={() => goTo("code")}
               className="flex items-center gap-3 rounded-2xl card-interactive p-4 text-left transition-transform active:scale-[0.98]"
             >
               <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
@@ -199,7 +229,7 @@ export function OnboardingFlow() {
               </div>
             </button>
             <button
-              onClick={() => setStep("standalone")}
+              onClick={() => goTo("standalone")}
               className="flex items-center gap-3 rounded-2xl card-interactive p-4 text-left transition-transform active:scale-[0.98]"
             >
               <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
@@ -217,7 +247,7 @@ export function OnboardingFlow() {
       {/* Building code */}
       {step === "code" && (
         <div className="flex flex-1 flex-col">
-          <button onClick={() => setStep("intro")} className="-ml-1 flex w-fit items-center gap-1 text-primary" aria-label="Back">
+          <button onClick={() => goTo("intro")} className="-ml-1 flex w-fit items-center gap-1 text-primary" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
             <span className="text-[15px]">Back</span>
           </button>
@@ -259,7 +289,7 @@ export function OnboardingFlow() {
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Request to join
           </button>
-          <button onClick={() => setStep("standalone")} className="mt-3 text-center text-[13px] font-medium text-muted-foreground">
+          <button onClick={() => goTo("standalone")} className="mt-3 text-center text-[13px] font-medium text-muted-foreground">
             I don&apos;t have a code
           </button>
         </div>
@@ -269,10 +299,7 @@ export function OnboardingFlow() {
       {step === "unit" && (
         <div className="flex flex-1 flex-col">
           <button
-            onClick={() => {
-              setError(null)
-              setStep("code")
-            }}
+            onClick={() => goTo("code")}
             className="-ml-1 flex w-fit items-center gap-1 text-primary"
             aria-label="Back"
           >
@@ -313,7 +340,7 @@ export function OnboardingFlow() {
             Continue
           </button>
           <button
-            onClick={() => setStep("linked")}
+            onClick={() => goTo("linked")}
             className="mt-3 text-center text-[13px] font-medium text-muted-foreground"
           >
             I don&apos;t know it yet
@@ -333,7 +360,7 @@ export function OnboardingFlow() {
             to add you. You&apos;ll be notified once approved. Next, tell us about your pet.
           </p>
           <button
-            onClick={() => setStep("pet")}
+            onClick={() => goTo("pet")}
             className="mt-8 flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
           >
             Continue
@@ -344,7 +371,7 @@ export function OnboardingFlow() {
       {/* Standalone */}
       {step === "standalone" && (
         <div className="flex flex-1 flex-col">
-          <button onClick={() => setStep("intro")} className="-ml-1 flex w-fit items-center gap-1 text-primary" aria-label="Back">
+          <button onClick={() => goTo("intro")} className="-ml-1 flex w-fit items-center gap-1 text-primary" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
             <span className="text-[15px]">Back</span>
           </button>
@@ -376,7 +403,7 @@ export function OnboardingFlow() {
 
           <div className="mt-auto pt-8">
             <button
-              onClick={() => setStep("pet")}
+              onClick={() => goTo("pet")}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
             >
               Continue
@@ -478,7 +505,7 @@ export function OnboardingFlow() {
       )}
 
       {step === "done" && addedPet && (
-        <PetAdded pet={addedPet} busy={loading} onDoItNow={finishAt} onLater={finish} />
+        <PetAdded pet={addedPet} busy={loading} error={error} onDoItNow={finishAt} onLater={finish} />
       )}
     </div>
   )
@@ -503,11 +530,14 @@ function speciesLabel(species: Species): string {
 function PetAdded({
   pet,
   busy,
+  error,
   onDoItNow,
   onLater,
 }: {
   pet: AddedPet
   busy: boolean
+  /** Finishing failed; shown above the buttons so they can be tried again. */
+  error: string | null
   onDoItNow: (target: Gap["target"]) => void
   onLater: () => void
 }) {
@@ -538,10 +568,26 @@ function PetAdded({
       </div>
 
       <div className="mt-auto pt-8">
+        {error && (
+          <p role="alert" className="mb-3 text-[13px] text-destructive">
+            {error}
+          </p>
+        )}
         {isLoading ? (
-          <div className="flex justify-center py-3.5" aria-label="Loading">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
+          <>
+            <div className="flex justify-center py-3.5" aria-label="Loading">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+            {/* Never trapped behind the spinner: a refetch that stalls or fails
+                must not be the only thing between the owner and Home. */}
+            <button
+              onClick={onLater}
+              disabled={busy}
+              className="mt-3 w-full text-center text-[13px] font-medium text-muted-foreground"
+            >
+              Later
+            </button>
+          </>
         ) : next ? (
           <>
             <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">Next step</p>
