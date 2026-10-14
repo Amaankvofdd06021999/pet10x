@@ -29,6 +29,7 @@ import { SpeciesIcon, Spinner, LoadError, EmptyState } from "@/components/screen
 import { approvalsState, defaultApprovalsTab, refreshFailed, type ApprovalsTabId } from "@/lib/data/approvals-view"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useBuildingScope } from "@/lib/data/use-building-scope"
+import { ScopeNotice } from "@/components/screens/manager/scope-notice"
 import { toast } from "sonner"
 import {
   CheckCircle2,
@@ -105,16 +106,14 @@ export function ManagerApprovalsScreen({
   const [expandedAcc, setExpandedAcc] = useState<string | null>(null)
   // Every list is the active building's, scoped BEFORE anything is counted,
   // so a tab's count and the list under it are always the same rows.
-  const { activeBuildingId, scope, showBuilding, activeName, buildingName } = useBuildingScope()
-  const labelFor = (id: string | null) => (showBuilding ? buildingName(id) : null)
-  const regsRaw = useRegistrationsLive()
-  const accRaw = useAccommodationsLive()
-  const docsRaw = useDocumentsReview()
-  const incRaw = useIncidents()
-  const regsQ = { ...regsRaw, data: scope(regsRaw.data) }
-  const accQ = { ...accRaw, data: scope(accRaw.data) }
-  const docsQ = { ...docsRaw, data: scope(docsRaw.data) }
-  const incQ = { ...incRaw, data: scope(incRaw.data) }
+  // Each also reads as loading until the buildings are known, so the tabs
+  // show their spinner rather than every building's rows with live buttons.
+  const { activeBuildingId, scopeQuery, showBuilding, activeName, notice, buildingName } = useBuildingScope()
+  const labelFor = (id: string | null, joined?: string | null) => (showBuilding ? buildingName(id, joined) : null)
+  const regsQ = scopeQuery(useRegistrationsLive())
+  const accQ = scopeQuery(useAccommodationsLive())
+  const docsQ = scopeQuery(useDocumentsReview())
+  const incQ = scopeQuery(useIncidents())
   const { data: registrations, refetch: refetchRegs } = regsQ
   const { data: accommodations, refetch: refetchAcc } = accQ
   const { data: documentsReview, refetch: refetchDocs } = docsQ
@@ -124,6 +123,16 @@ export function ManagerApprovalsScreen({
   const [regBusy, setRegBusy] = useState<string | null>(null)
   // The registration the deny dialog is open for.
   const [denying, setDenying] = useState<{ id: string; name: string } | null>(null)
+  // Switching building swaps every list, so a dialog or an expanded card for a
+  // row that just left the screen is closed with it. The tab the manager
+  // picked is kept.
+  const [scopedFor, setScopedFor] = useState(activeBuildingId)
+  if (scopedFor !== activeBuildingId) {
+    setScopedFor(activeBuildingId)
+    setDenying(null)
+    setExpandedReg(null)
+    setExpandedAcc(null)
+  }
 
   async function approveRegistration(id: string, name: string) {
     setRegBusy(id)
@@ -208,6 +217,7 @@ export function ManagerApprovalsScreen({
       </div>
 
       <main className="ios-scroll flex-1 px-4 pb-24">
+        <ScopeNotice notice={notice} className="mb-3" />
         {/* Incidents — where guest and resident reports land for triage. */}
         {activeTab === "incidents" && (
           <TabBody
@@ -237,7 +247,7 @@ export function ManagerApprovalsScreen({
                     key={incident.id}
                     incident={incident}
                     onChange={refetchIncidents}
-                    showBuilding={showBuilding}
+                    buildingName={labelFor(incident.buildingId, incident.buildingName)}
                   />
                 ))}
               </div>
@@ -383,7 +393,11 @@ export function ManagerApprovalsScreen({
 
         {/* Accommodations Tab — every control reaches the database, and every
             state shown is derived from a row that exists. See AccommodationsTab. */}
-        {activeTab === "accommodations" && <AccommodationsTab q={accQ} refetch={refetchAcc} labelFor={labelFor} />}
+        {/* Keyed on the building: the open card (and any decision sheet in it)
+            lives inside the tab, so a building switch remounts it closed. */}
+        {activeTab === "accommodations" && (
+          <AccommodationsTab key={activeBuildingId ?? "all"} q={accQ} refetch={refetchAcc} labelFor={labelFor} />
+        )}
 
         {/* Documents Tab */}
         {activeTab === "documents" && (

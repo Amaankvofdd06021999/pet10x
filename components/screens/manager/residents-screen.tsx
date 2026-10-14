@@ -13,6 +13,7 @@ import {
 import { useComplianceInputs } from "@/lib/data/portfolio"
 import { useManagerBuilding } from "@/lib/data/manager"
 import { useBuildingScope } from "@/lib/data/use-building-scope"
+import { ScopeNotice } from "@/components/screens/manager/scope-notice"
 import { useAuth } from "@/lib/auth-context"
 import { RequestInfoButton } from "@/components/screens/manager/request-info-button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -23,21 +24,31 @@ import { Search, Check, X, Clock, UserMinus, Loader2, Users, Dog, Cat, ChevronDo
 
 export function ManagerResidentsScreen() {
   const [search, setSearch] = useState("")
-  const { data: allResidents, isLoading, refetch } = useBuildingResidents()
+  const { data: allResidents, isLoading: residentsLoading, refetch } = useBuildingResidents()
   const { data: allPets } = useBuildingPets()
   const { data: allInputs } = useComplianceInputs()
   const { activeBuildingId } = useAuth()
   // Only the active building's people, and only their pets in it: someone who
   // lives in two of this manager's buildings is two rows, one per building.
-  const { scope, showBuilding, activeName, buildingName } = useBuildingScope()
+  // Until the buildings are known the list waits (spinner) rather than
+  // offering Approve and Remove on every building's residents.
+  const { scope, loading: scopeLoading, showBuilding, activeName, notice, buildingName } = useBuildingScope()
   const residents = scope(allResidents)
   const buildingPets = scope(allPets)
   const complianceInputs = scope(allInputs)
+  const isLoading = residentsLoading || scopeLoading
   const { data: building } = useManagerBuilding(activeBuildingId)
   const [busy, setBusy] = useState<string | null>(null)
   // Deny and remove each tell a person no, so each asks first (with room for
   // the reason they will read) instead of firing on the tap.
   const [confirming, setConfirming] = useState<{ kind: "deny" | "remove"; resident: ResidentLinkRow } | null>(null)
+  // A dialog opened for one building's resident must not survive a switch to
+  // another building, where that row is no longer on screen.
+  const [scopedFor, setScopedFor] = useState(activeBuildingId)
+  if (scopedFor !== activeBuildingId) {
+    setScopedFor(activeBuildingId)
+    setConfirming(null)
+  }
 
   /**
    * What each resident still owes, from the same function their own card
@@ -119,6 +130,7 @@ export function ManagerResidentsScreen() {
       </div>
 
       <main className="ios-scroll flex-1 px-4 pb-24 pt-2">
+        <ScopeNotice notice={notice} className="mb-3" />
         {isLoading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

@@ -1108,6 +1108,9 @@ export async function openViolation(input: NewViolationInput): Promise<{ error: 
  */
 export interface LedgerRow extends Record<string, unknown> {
   case_id: string
+  /** For scoping to the active building on the client; never exported as a column. */
+  buildingId: string | null
+  building: string
   unit: string
   resident: string
   pet: string
@@ -1140,7 +1143,8 @@ export async function fetchCaseLedger(): Promise<{ error: string | null; rows: L
   const { data: rows, error: err } = await supabase
     .from("violations")
     .select(
-      `id, type, stage, created_at, resolved_at, resolution_outcome,
+      `id, building_id, type, stage, created_at, resolved_at, resolution_outcome,
+       building:buildings!violations_building_id_fkey ( name ),
        resident:profiles!violations_resident_id_fkey ( full_name ),
        unit:units ( unit_number ),
        pet:pets ( name ),
@@ -1159,6 +1163,8 @@ export async function fetchCaseLedger(): Promise<{ error: string | null; rows: L
     created_at: string
     resolved_at: string | null
     resolution_outcome: string | null
+    building_id: string | null
+    building: { name: string } | { name: string }[] | null
     resident: { full_name: string | null } | { full_name: string | null }[] | null
     unit: { unit_number: string } | { unit_number: string }[] | null
     pet: { name: string } | { name: string }[] | null
@@ -1194,6 +1200,8 @@ export async function fetchCaseLedger(): Promise<{ error: string | null; rows: L
     const stage = toViolationStage(r.stage)
     const base = {
       case_id: r.id,
+      buildingId: r.building_id,
+      building: first(r.building)?.name ?? "—",
       unit: first(r.unit)?.unit_number ?? "—",
       resident: first(r.resident)?.full_name ?? "Unassigned",
       pet: first(r.pet)?.name ?? "—",

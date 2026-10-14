@@ -49,3 +49,62 @@ export function scopeToResolvedBuilding<T extends { buildingId: string | null }>
   if (resolvedBuildingId === null && resolving) return []
   return scopeToBuilding(rows, resolvedBuildingId)
 }
+
+/**
+ * Whether the account's buildings are known yet.
+ *
+ * `loading` until `my_personas()` has answered for THIS account (an answer for
+ * the previous one on a shared device does not count); `error` when it failed.
+ * Mock mode and signed-out sessions have nothing to wait for.
+ */
+export type PersonasStatus = "loading" | "ready" | "error"
+
+export function personasStatus(input: {
+  enabled: boolean
+  userId: string | null
+  result: { userId: string; ok: boolean } | null
+}): PersonasStatus {
+  if (!input.enabled || input.userId === null) return "ready"
+  if (input.result === null || input.result.userId !== input.userId) return "loading"
+  return input.result.ok ? "ready" : "error"
+}
+
+/**
+ * The rows a manager list may show, given how far the buildings have loaded.
+ *
+ * - `loading`: nothing — the Dashboard's resolve-wait rule. Before this, a
+ *   manager of several buildings saw every building's rows, unlabelled, with
+ *   live Approve and Remove buttons, until the switcher's choice arrived.
+ * - `ready`: `scopeToBuilding`, unchanged (zero or one building as before).
+ * - `error`: every row, as before this task, but labelled and explained
+ *   (`showBuildingFor`, `scopeNotice`) rather than passed off as one building.
+ */
+export function scopeForStatus<T extends { buildingId: string | null }>(
+  rows: T[],
+  status: PersonasStatus,
+  activeBuildingId: string | null,
+): T[] {
+  if (status === "loading") return scopeToResolvedBuilding(rows, null, true)
+  if (status === "error") return rows
+  return scopeToBuilding(rows, activeBuildingId)
+}
+
+/** Building labels: always after a failed load, since the rows may be mixed; else only for more than one building. */
+export function showBuildingFor(status: PersonasStatus, managedCount: number): boolean {
+  if (status === "error") return true
+  if (status === "loading") return false
+  return showBuildingColumn(managedCount)
+}
+
+/** The inline notice a scoped screen shows, or null. */
+export function scopeNotice(status: PersonasStatus): string | null {
+  return status === "error" ? "Couldn't load your buildings. Showing all of them." : null
+}
+
+/**
+ * The case-ledger CSV's columns. `buildingId` is only there to scope by and is
+ * never exported; `building` is a column only when it can differ between rows.
+ */
+export function ledgerColumnKeys(keys: string[], showBuilding: boolean): string[] {
+  return keys.filter((k) => k !== "buildingId" && (showBuilding || k !== "building"))
+}

@@ -28,6 +28,7 @@ import {
   type PersonaGrants,
 } from "@/lib/rbac"
 import { parseDbDate } from "@/lib/dates"
+import { personasStatus as derivePersonasStatus, type PersonasStatus } from "@/lib/data/building-scope"
 
 export type AuthMode = "full" | "guest"
 
@@ -317,6 +318,11 @@ interface AuthContextValue {
   managedBuildings: ManagedBuilding[]
   activeBuildingId: string | null
   setActiveBuilding: (id: string) => void
+  /**
+   * Whether `managedBuildings` / `activeBuildingId` are known yet. Manager
+   * lists wait on "loading" rather than showing every building's rows.
+   */
+  personasStatus: PersonasStatus
   /** Mock demo sign-in — only used when Supabase isn't configured. */
   signIn: (role: DemoRole) => void
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>
@@ -364,6 +370,7 @@ const AuthContext = createContext<AuthContextValue>({
   managedBuildings: [],
   activeBuildingId: null,
   setActiveBuilding: () => {},
+  personasStatus: "ready",
   signIn: () => {},
   signInWithPassword: async () => ({ error: "Auth not configured." }),
   startSignup: async () => ({ error: "Auth not configured." }),
@@ -390,6 +397,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [grants, setGrants] = useState<PersonaGrants | null>(null)
   const [activePersona, setActivePersonaState] = useState<Persona | null>(null)
   const [activeBuildingId, setActiveBuildingState] = useState<string | null>(null)
+  // Which account my_personas() last answered for, and whether it succeeded.
+  // Keyed on the user so the window between sign-in and the answer reads as
+  // loading, not as "ready with no buildings".
+  const [personasResult, setPersonasResult] = useState<{ userId: string; ok: boolean } | null>(null)
+  const personasStatus = derivePersonasStatus({
+    enabled: SUPABASE_ENABLED,
+    userId: authUser?.id ?? null,
+    result: personasResult,
+  })
 
   const personas = grants ? personasFor(grants) : []
   const managedBuildings = grants?.managedBuildings ?? []
@@ -412,10 +428,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     let active = true
     const supabase = getSupabaseBrowserClient()
-    if (!supabase) return
+    if (!supabase) {
+      setPersonasResult({ userId: authUser.id, ok: false })
+      return
+    }
 
     void supabase.rpc("my_personas").then(({ data, error }) => {
-      if (!active || error || !data) return
+      if (!active) return
+      // Was swallowed silently, which left every manager list waiting on
+      // grants that were never coming. Now it is a state the screens show.
+      if (error || !data) {
+        // Nothing from a previous account may stand in for this one's grants.
+        setGrants(null)
+        setActiveBuildingState(null)
+        setPersonasResult({ userId: authUser.id, ok: false })
+        return
+      }
       // jsonb comes back as the generated `Json` union; the shape is fixed by
       // my_personas() itself, which is the contract this mirrors.
       const raw = data as unknown as {
@@ -449,6 +477,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setActiveBuildingState(
         rememberedBuilding && ids.includes(rememberedBuilding) ? rememberedBuilding : (ids[0] ?? null),
       )
+      setPersonasResult({ userId: authUser.id, ok: true })
     })
     return () => {
       active = false
@@ -793,6 +822,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         managedBuildings,
         activeBuildingId,
         setActiveBuilding,
+        personasStatus,
         signIn,
         signInWithPassword,
         startSignup,

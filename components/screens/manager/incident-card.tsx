@@ -70,12 +70,16 @@ const INCIDENT_STATUS_STYLE: Record<IncidentStatus, string> = {
 export function IncidentCard({
   incident,
   onChange,
-  showBuilding = false,
+  buildingName = null,
 }: {
   incident: ManagerIncident
   onChange: () => void
-  /** Names the report's building — for a manager of more than one, where "Unit 402" alone is ambiguous. */
-  showBuilding?: boolean
+  /**
+   * The report's building, from `useBuildingScope().buildingName` — set only
+   * where "Unit 402" alone is ambiguous (more than one building, or a failed
+   * load). The parent decides; the card just says it.
+   */
+  buildingName?: string | null
 }) {
   const [busy, setBusy] = useState(false)
   const open = isOpenIncident(incident.status)
@@ -117,9 +121,7 @@ export function IncidentCard({
               </span>
             )}
           </div>
-          {showBuilding && incident.buildingName && (
-            <p className="mt-1 text-[11px] font-semibold text-muted-foreground">{incident.buildingName}</p>
-          )}
+          {buildingName && <p className="mt-1 text-[11px] font-semibold text-muted-foreground">{buildingName}</p>}
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{incident.description}</p>
 
           {/* What the reporter photographed. Most reports carry nothing, so this

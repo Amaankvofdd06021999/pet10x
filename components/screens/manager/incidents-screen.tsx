@@ -9,6 +9,7 @@ import { MunicipalReportsList } from "@/components/screens/manager/municipal-rep
 import { useAuth } from "@/lib/auth-context"
 import { useManagerBuilding } from "@/lib/data/manager"
 import { useBuildingScope } from "@/lib/data/use-building-scope"
+import { ScopeNotice } from "@/components/screens/manager/scope-notice"
 
 /**
  * Incident reports, in full.
@@ -40,11 +41,14 @@ const FILTERS: { id: Filter; label: string }[] = [
 ]
 
 export function ManagerIncidentsScreen() {
-  const { data: allIncidents, isLoading, refetch } = useIncidents()
+  const { data: allIncidents, isLoading: incidentsLoading, refetch } = useIncidents()
   const { activeBuildingId } = useAuth()
   // The active building's reports only; the counts below are of these rows.
-  const { scope, showBuilding, activeName } = useBuildingScope()
+  // Until the buildings are known the list waits (spinner), rather than
+  // showing every building's reports with live buttons.
+  const { scope, loading: scopeLoading, showBuilding, activeName, notice, buildingName } = useBuildingScope()
   const incidents = useMemo(() => scope(allIncidents), [scope, allIncidents])
+  const isLoading = incidentsLoading || scopeLoading
   const { data: building } = useManagerBuilding(activeBuildingId)
   const [source, setSource] = useState<"building" | "municipal">("building")
   const [filter, setFilter] = useState<Filter>("open")
@@ -141,6 +145,7 @@ export function ManagerIncidentsScreen() {
       </div>
 
       <main className="ios-scroll flex-1 px-4 pb-24">
+        <ScopeNotice notice={notice} className="mb-3" />
         {source === "municipal" ? (
           <MunicipalReportsList buildingId={building?.id} />
         ) : isLoading ? (
@@ -168,7 +173,12 @@ export function ManagerIncidentsScreen() {
         ) : (
           <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
             {visible.map((incident) => (
-              <IncidentCard key={incident.id} incident={incident} onChange={refetch} showBuilding={showBuilding} />
+              <IncidentCard
+                key={incident.id}
+                incident={incident}
+                onChange={refetch}
+                buildingName={showBuilding ? buildingName(incident.buildingId, incident.buildingName) : null}
+              />
             ))}
           </div>
         )}

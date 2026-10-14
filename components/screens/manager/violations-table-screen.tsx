@@ -24,6 +24,8 @@ import type { CaseFine, Violation } from "@/lib/data/types"
 import { toCsv, downloadCsv } from "@/lib/csv"
 import { DataTable, type Column } from "@/components/screens/shared/data-table"
 import { useBuildingScope } from "@/lib/data/use-building-scope"
+import { ledgerColumnKeys } from "@/lib/data/building-scope"
+import { ScopeNotice } from "@/components/screens/manager/scope-notice"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal, Field,
@@ -63,15 +65,13 @@ function fromCents(cents: number): string {
  * just "Unit 402". Secondary: on a phone the line above the tabs names the
  * building instead, and the table keeps its width for the case itself.
  */
-function buildingColumn<T extends { buildingId: string | null }>(
-  buildingName: (id: string | null) => string | null,
-): Column<T> {
+function buildingColumn<T>(nameOf: (row: T) => string | null): Column<T> {
   return {
     key: "building",
     header: "Building",
     secondary: true,
-    sortValue: (r) => buildingName(r.buildingId) ?? "",
-    render: (r) => <span className="text-muted-foreground">{buildingName(r.buildingId) ?? "—"}</span>,
+    sortValue: (r) => nameOf(r) ?? "",
+    render: (r) => <span className="text-muted-foreground">{nameOf(r) ?? "—"}</span>,
   }
 }
 
@@ -88,7 +88,9 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   const [stageFilter, setStageFilter] = useState<string>("all")
   // The active building's cases, closed cases and reports. Scoped here, once,
   // so every count, tile and table below is of the same rows.
-  const { scope, showBuilding, activeName, buildingName } = useBuildingScope()
+  // Until the buildings are known each list reads as loading, so no table
+  // offers Escalate or Dismiss on another building's rows in the meantime.
+  const { scope, loading: scopeLoading, showBuilding, activeName, notice, buildingName } = useBuildingScope()
   const activeRaw = useViolationsLive()
   const resolvedRaw = useResolvedViolationsLive()
   const incidentsRaw = useIncidents()
@@ -96,9 +98,9 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   const activeRows = useMemo(() => scope(activeRaw.data), [scope, activeRaw.data])
   const resolvedRows = useMemo(() => scope(resolvedRaw.data), [scope, resolvedRaw.data])
   const incidentRows = useMemo(() => scope(incidentsRaw.data), [scope, incidentsRaw.data])
-  const active = { ...activeRaw, data: activeRows }
-  const resolved = { ...resolvedRaw, data: resolvedRows }
-  const incidents = { ...incidentsRaw, data: incidentRows }
+  const active = { ...activeRaw, data: activeRows, isLoading: activeRaw.isLoading || scopeLoading }
+  const resolved = { ...resolvedRaw, data: resolvedRows, isLoading: resolvedRaw.isLoading || scopeLoading }
+  const incidents = { ...incidentsRaw, data: incidentRows, isLoading: incidentsRaw.isLoading || scopeLoading }
   const [logOpen, setLogOpen] = useState(false)
   const [selected, setSelected] = useState<Violation | null>(null)
 
@@ -183,7 +185,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
       width: "w-28",
       render: (v) => <span className="text-muted-foreground">{v.date}</span>,
     },
-    ...(showBuilding ? [buildingColumn<Violation>(buildingName)] : []),
+    ...(showBuilding ? [buildingColumn<Violation>((v) => buildingName(v.buildingId))] : []),
   ]
 
   const counts = {
@@ -194,8 +196,10 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
 
   return (
     <div className="flex min-w-0 flex-col gap-4 px-4 pb-8 pt-4">
+      <ScopeNotice notice={notice} />
+      {/* Phone only: on desktop the tables carry a Building column. */}
       {showBuilding && activeName && (
-        <p className="text-[13px] font-semibold text-muted-foreground">{activeName}</p>
+        <p className="text-[13px] font-semibold text-muted-foreground md:hidden">{activeName}</p>
       )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Open cases" value={active.data.length} />
@@ -228,8 +232,13 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
             onClick={async () => {
               const res = await fetchCaseLedger()
               if (res.error) return toast.error("Couldn't export", { description: res.error })
-              const rows = (res.rows ?? []) as unknown as Record<string, unknown>[]
-              const cols = Object.keys(rows[0] ?? {}).map((k) => ({ key: k, label: k }))
+              // The export is the screen's building too: scoped the same way,
+              // with a building column only when it can differ between rows.
+              const rows = scope(res.rows ?? []).map((r) => ({
+                ...r,
+                building: buildingName(r.buildingId, r.building) ?? "—",
+              })) as unknown as Record<string, unknown>[]
+              const cols = ledgerColumnKeys(Object.keys(rows[0] ?? {}), showBuilding).map((k) => ({ key: k, label: k }))
               if (cols.length === 0) return toast("Nothing to export yet.")
               downloadCsv("bylaw-cases.csv", toCsv(rows, cols))
             }}>
@@ -271,10 +280,10 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
         <IncidentsTable
           incidents={incidents}
           onEscalated={() => { incidents.refetch(); active.refetch() }}
-          buildingName={showBuilding ? buildingName : null}
+          nameOf={showBuilding ? (i) => buildingName(i.buildingId, i.buildingName) : null}
         />
       ) : tab === "resolved" ? (
-        <ClosedTable resolved={resolved} buildingName={showBuilding ? buildingName : null} />
+        <ClosedTable resolved={resolved} nameOf={showBuilding ? (r) => buildingName(r.buildingId) : null} />
       ) : source.isLoading ? (
         <Spinner label="Loading cases" />
       ) : source.error ? (
@@ -304,6 +313,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
 
       <LogViolationModal
         scope={scope}
+        scopeLoading={scopeLoading}
         open={logOpen}
         onClose={() => setLogOpen(false)}
         onLogged={(id) => {
@@ -333,12 +343,12 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
 function IncidentsTable({
   incidents,
   onEscalated,
-  buildingName,
+  nameOf,
 }: {
   incidents: ReturnType<typeof useIncidents>
   onEscalated: () => void
-  /** Set only for a manager of more than one building. */
-  buildingName: ((id: string | null) => string | null) | null
+  /** A row's building name; set only when the Building column should show. */
+  nameOf: ((row: ReturnType<typeof useIncidents>["data"][number]) => string | null) | null
 }) {
   const [busy, setBusy] = useState<string | null>(null)
   type Row = (typeof incidents.data)[number]
@@ -376,7 +386,7 @@ function IncidentsTable({
       sortValue: (i) => i.evidenceCount ?? 0,
       render: (i) => <span className="text-muted-foreground tabular-nums">{i.evidenceCount ?? 0}</span>,
     },
-    ...(buildingName ? [buildingColumn<Row>(buildingName)] : []),
+    ...(nameOf ? [buildingColumn<Row>(nameOf)] : []),
     {
       key: "act",
       header: "",
@@ -452,17 +462,19 @@ function IncidentsTable({
  * may legitimately sit open while it is looked into.
  */
 function LogViolationModal({
-  scope, open, onClose, onLogged,
+  scope, scopeLoading, open, onClose, onLogged,
 }: {
   /** The active building's scope: a case is logged against someone in the building being worked. */
   scope: <T extends { buildingId: string | null }>(rows: T[]) => T[]
+  /** True until the buildings are known; the picker waits rather than offering every building. */
+  scopeLoading: boolean
   open: boolean
   onClose: () => void
   onLogged: (id: string) => void
 }) {
   const subjectsRaw = useViolationSubjects()
   const subjectRows = useMemo(() => scope(subjectsRaw.data), [scope, subjectsRaw.data])
-  const subjects = { ...subjectsRaw, data: subjectRows }
+  const subjects = { ...subjectsRaw, data: subjectRows, isLoading: subjectsRaw.isLoading || scopeLoading }
   const [step, setStep] = useState<1 | 2>(1)
   const [createdId, setCreatedId] = useState<string | null>(null)
   const [search, setSearch] = useState("")
@@ -1202,11 +1214,11 @@ function NoticeForm({
 
 function ClosedTable({
   resolved,
-  buildingName,
+  nameOf,
 }: {
   resolved: ReturnType<typeof useResolvedViolationsLive>
-  /** Set only for a manager of more than one building. */
-  buildingName: ((id: string | null) => string | null) | null
+  /** A row's building name; set only when the Building column should show. */
+  nameOf: ((row: ReturnType<typeof useResolvedViolationsLive>["data"][number]) => string | null) | null
 }) {
   type Row = (typeof resolved.data)[number]
   const columns: Column<Row>[] = [
@@ -1230,7 +1242,7 @@ function ClosedTable({
       },
     },
     { key: "resolved", header: "Closed", sortValue: (r) => r.resolved, secondary: true, render: (r) => <span className="text-muted-foreground">{r.resolved}</span> },
-    ...(buildingName ? [buildingColumn<Row>(buildingName)] : []),
+    ...(nameOf ? [buildingColumn<Row>(nameOf)] : []),
   ]
   if (resolved.isLoading) return <Spinner label="Loading closed cases" />
   if (resolved.error) return <LoadError message={resolved.error} onRetry={resolved.refetch} />
