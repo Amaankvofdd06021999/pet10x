@@ -138,6 +138,20 @@ export function computeComplianceGaps(input: CompletenessInput): ComplianceGap[]
   return gaps
 }
 
+/**
+ * Which computeGaps kind answers each `buildings.pet_rules` flag, as a positive
+ * grammar. One table, read by the Building rules screen's per-pet status and
+ * checked against computeGaps in its test, so a flag cannot be added in one
+ * place and forgotten in the other.
+ */
+export const REQUIREMENT_FLAG_TO_GAP_KIND: Readonly<Record<string, string>> = {
+  require_rabies: "rabies",
+  require_core_vaccines: "core_vaccines",
+  require_license: "municipal_license",
+  require_insurance: "liability_insurance",
+  require_spay_neuter: "spay_neuter",
+}
+
 /** One thing the resident can fix, and the exact place to fix it. */
 export interface Gap {
   key: string
@@ -334,16 +348,8 @@ export function useMyCompleteness(): CompletenessResult {
     }
 
     // Rule flags the building enforces, as the names computeGaps reads.
-    const requirements = (
-      [
-        ["require_rabies", "rabies"],
-        ["require_core_vaccines", "core_vaccines"],
-        ["require_license", "municipal_license"],
-        ["require_insurance", "liability_insurance"],
-        ["require_spay_neuter", "spay_neuter"],
-      ] as const
-    )
-      .filter(([flag]) => rules[flag])
+    const requirements = Object.entries(REQUIREMENT_FLAG_TO_GAP_KIND)
+      .filter(([flag]) => rules[flag as keyof BuildingPetRules])
       .map(([, name]) => name)
 
     setResult(

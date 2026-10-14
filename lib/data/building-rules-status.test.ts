@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { computeGaps } from "./completeness"
+import { computeGaps, REQUIREMENT_FLAG_TO_GAP_KIND } from "./completeness"
 import { requirementStatus } from "./building-rules-status"
 import { readRequirements } from "./building-rules"
 
@@ -14,14 +14,10 @@ const pet = (id: string, over: Partial<Parameters<typeof computeGaps>[0]["pets"]
 })
 
 describe("requirementStatus", () => {
-  const requirements = ["rabies", "core_vaccines", "municipal_license", "liability_insurance", "spay_neuter"]
-  const petRules = {
-    require_rabies: true,
-    require_core_vaccines: true,
-    require_license: true,
-    require_insurance: true,
-    require_spay_neuter: true,
-  }
+  // Driven by the shared table: a flag added there but not understood by
+  // computeGaps (or readRequirements) fails below.
+  const requirements = Object.values(REQUIREMENT_FLAG_TO_GAP_KIND)
+  const petRules = Object.fromEntries(Object.keys(REQUIREMENT_FLAG_TO_GAP_KIND).map((k) => [k, true]))
 
   it("is unmet for every requirement a bare pet fails, carrying the gap to fix", () => {
     const { gaps } = computeGaps({ linked: true, hasUnit: true, hasAddress: true, pets: [pet("a")], requirements })

@@ -220,8 +220,8 @@ export function BuildingRulesScreen({
                                             status.gap.target.tab,
                                           )
                                         }
-                                        aria-label={status.gap.label}
-                                        className="flex flex-shrink-0 items-center gap-1 font-semibold text-warning-strong"
+                                        aria-label={`Add — ${r.label} for ${pet.name}`}
+                                        className="-my-2 flex min-h-[44px] flex-shrink-0 items-center gap-1 px-1 font-semibold text-warning-strong"
                                       >
                                         <PlusCircle className="h-4 w-4" aria-hidden />
                                         Add

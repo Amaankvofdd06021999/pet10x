@@ -108,7 +108,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
     void refreshNotifications()
   }, [])
   const alerts = notifications.slice(0, 3)
-  const { data: buildingLink } = useMyBuildingLink()
+  const { data: buildingLink, isLoading: linkLoading } = useMyBuildingLink()
   // Alerts is no longer a tab (the assistant took the slot), so the unread
   // count has to surface here or it is invisible until you open the screen.
   const unreadCount = notifications.filter((n) => !n.read).length
@@ -121,11 +121,13 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const singlePet = pets.length === 1
   const linked = buildingLink?.status === "approved"
   const noPets = !petsLoading && pets.length === 0
-  /* A first-time owner gets one thing to do. Until pets have loaded (never
-   * "Add your first pet" for someone who has pets) and for an unlinked owner
-   * with none, Home is the greeting, the pet card and the link row — Today's
-   * Care, suggestions and activity have nothing to say yet. */
-  const calm = petsLoading || (noPets && !linked)
+  /* A zero-pet Home shows one thing to do. Calm is: pets or the link still
+   * loading (never "Add your first pet" for someone who has pets, never a
+   * "Link your building" flash for someone linked), or no pets at all. It keeps
+   * the greeting, the pet card, any open case (a bylaw notice must be seen),
+   * the building's asks when linked, and the link row when not. */
+  const loadingBasics = petsLoading || linkLoading
+  const calm = loadingBasics || noPets
 
   // Re-evaluate the rules once the owner's pets are known. The runner is
   // idempotent by dedupe_key, so landing on Home repeatedly costs nothing.
@@ -246,9 +248,11 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             screen made reporting your neighbour the loudest thing in an app
             people open to log a walk. */}
         <div className="mb-6">
-          {!calm && <CaseCard onNavigate={onNavigate} />}
-          {/* With no pet the banner's only row would repeat the card below. */}
-          {!calm && <MissingInfoCard onNavigate={onNavigate} />}
+          <CaseCard onNavigate={onNavigate} />
+          {/* Building asks (unit, address) are real asks for a linked owner
+              with no pet; for an unlinked one the banner would only repeat
+              the Add-pet card below. */}
+          {!loadingBasics && linked && <MissingInfoCard onNavigate={onNavigate} />}
         </div>
 
         {/* My Pets — horizontal rail on compact, grid from md up */}
@@ -370,185 +374,185 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
         {/* Today's Care — header row + the three-up status strip */}
         {pets.length > 0 && (
-        <section className="mb-6">
-          <div className="rounded-2xl card-raised p-5">
-            <button
-              onClick={() => onNavigate?.("pet-care")}
-              className="mb-4 flex w-full items-center justify-between gap-3 text-left transition-transform active:scale-[0.99]"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <Heart className="h-6 w-6" fill="currentColor" />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="truncate text-[16px] font-semibold text-foreground">Today&apos;s Care</h3>
-                    <Utensils className="h-4 w-4 flex-shrink-0 text-primary" />
+          <section className="mb-6">
+            <div className="rounded-2xl card-raised p-5">
+              <button
+                onClick={() => onNavigate?.("pet-care")}
+                className="mb-4 flex w-full items-center justify-between gap-3 text-left transition-transform active:scale-[0.99]"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <Heart className="h-6 w-6" fill="currentColor" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="truncate text-[16px] font-semibold text-foreground">Today&apos;s Care</h3>
+                      <Utensils className="h-4 w-4 flex-shrink-0 text-primary" />
+                    </div>
+                    <p className="truncate text-[12px] text-muted-foreground">
+                      {/* Household-level now, because it sits above a block that
+                          is not about one pet. Built as a single expression and
+                          not as JSX text, because this exact line once read
+                          "Log Mochi'sactivities & meals" on every resident's home
+                          screen — the fifth time in this phase sequence a space
+                          was eaten, and the fifth caught by looking at the page
+                          rather than by any gate.
+
+                          NOT because "SWC trims the whitespace either side of an
+                          expression", which is what this comment used to say and
+                          is false: `Log {name} activities & meals` on one line
+                          keeps its space in every compiler. What ate THIS line
+                          was the `&amp;` in it — SWC drops the leading whitespace
+                          of a JSXText node containing an HTML entity, and tsc
+                          does not, so nothing local could see it. The full rule
+                          and the bisection are in `today-schedule.tsx:34` and
+                          `scripts/jsx-space-drift.mjs`. A template literal has no
+                          JSXText node, so it is immune either way. */}
+                      {singlePet && selectedPet
+                        ? `Log ${selectedPet.name}'s activities & meals`
+                        : pets.length > 1
+                          ? // Short enough to survive `truncate` at 390px, which
+                            // "Everyone's schedule, and one pet's goals" was not
+                            // — it rendered as "…and one pet's g…".
+                            "Everyone's day, one pet's goals"
+                          : "Log your pet's activities & meals"}
+                    </p>
                   </div>
-                  <p className="truncate text-[12px] text-muted-foreground">
-                    {/* Household-level now, because it sits above a block that
-                        is not about one pet. Built as a single expression and
-                        not as JSX text, because this exact line once read
-                        "Log Mochi'sactivities & meals" on every resident's home
-                        screen — the fifth time in this phase sequence a space
-                        was eaten, and the fifth caught by looking at the page
-                        rather than by any gate.
-
-                        NOT because "SWC trims the whitespace either side of an
-                        expression", which is what this comment used to say and
-                        is false: `Log {name} activities & meals` on one line
-                        keeps its space in every compiler. What ate THIS line
-                        was the `&amp;` in it — SWC drops the leading whitespace
-                        of a JSXText node containing an HTML entity, and tsc
-                        does not, so nothing local could see it. The full rule
-                        and the bisection are in `today-schedule.tsx:34` and
-                        `scripts/jsx-space-drift.mjs`. A template literal has no
-                        JSXText node, so it is immune either way. */}
-                    {singlePet && selectedPet
-                      ? `Log ${selectedPet.name}'s activities & meals`
-                      : pets.length > 1
-                        ? // Short enough to survive `truncate` at 390px, which
-                          // "Everyone's schedule, and one pet's goals" was not
-                          // — it rendered as "…and one pet's g…".
-                          "Everyone's day, one pet's goals"
-                        : "Log your pet's activities & meals"}
-                  </p>
                 </div>
-              </div>
-              <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground/50" />
-            </button>
+                <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground/50" />
+              </button>
 
-            {/* Schedule first, then a rule, then goals.
-                Two things live in this card and they aggregate differently. A
-                SCHEDULE aggregates: running a morning means doing everything
-                due at 07:30 for everyone, and that one time-ordered list is
-                where a missed dose hides. A GOAL does not: "2 / 4 cans" across
-                two cats is true when one ate everything and the other ate
-                nothing. The tiles used to sit on top, which left the reader to
-                infer that split; showing it puts the risk first. */}
-            <TodayScheduleStrip
-              pets={pets}
-              onOpenPet={(petId) => onNavigate?.("pet-care", undefined, petId)}
-            />
-
-            {/* Goals belong to a pet you chose. With one pet the heading says
-                whose and there are no chips — a picker with one option is
-                noise, and 8 of 28 households have exactly one pet. */}
-            <div className="mb-3 mt-4 flex items-center justify-between gap-3">
-              <h4 className="flex-shrink-0 text-[13px] font-semibold text-foreground">
-                {singlePet && selectedPet ? `${selectedPet.name}'s goals` : "Goals"}
-              </h4>
-              <PetChips
-                className="min-w-0"
+              {/* Schedule first, then a rule, then goals.
+                  Two things live in this card and they aggregate differently. A
+                  SCHEDULE aggregates: running a morning means doing everything
+                  due at 07:30 for everyone, and that one time-ordered list is
+                  where a missed dose hides. A GOAL does not: "2 / 4 cans" across
+                  two cats is true when one ate everything and the other ate
+                  nothing. The tiles used to sit on top, which left the reader to
+                  infer that split; showing it puts the risk first. */}
+              <TodayScheduleStrip
                 pets={pets}
-                selectedId={selectedPet?.id}
-                onSelect={selectPet}
+                onOpenPet={(petId) => onNavigate?.("pet-care", undefined, petId)}
+              />
+
+              {/* Goals belong to a pet you chose. With one pet the heading says
+                  whose and there are no chips — a picker with one option is
+                  noise, and 8 of 28 households have exactly one pet. */}
+              <div className="mb-3 mt-4 flex items-center justify-between gap-3">
+                <h4 className="flex-shrink-0 text-[13px] font-semibold text-foreground">
+                  {singlePet && selectedPet ? `${selectedPet.name}'s goals` : "Goals"}
+                </h4>
+                <PetChips
+                  className="min-w-0"
+                  pets={pets}
+                  selectedId={selectedPet?.id}
+                  onSelect={selectPet}
+                />
+              </div>
+
+              <TodayCareTiles
+                petId={selectedPet?.id}
+                species={selectedPet?.species}
+                onOpen={(kind) => onNavigate?.("pet-care", kind)}
               />
             </div>
-
-            <TodayCareTiles
-              petId={selectedPet?.id}
-              species={selectedPet?.species}
-              onOpen={(kind) => onNavigate?.("pet-care", kind)}
-            />
-          </div>
-        </section>
+          </section>
         )}
 
         {/* Quick Actions — 2×2 on compact, 4-up from md */}
         {!calm && (
-        <section className="mb-6">
-          {/* No "Customize". It toasted "Coming soon." and there is no
-              preference store anywhere in the app to hold a customised set —
-              not a table, not a column on `profiles`, not localStorage. The
-              four actions below are a constant in this file. */}
-          <div className="mb-3">
-            <h3 className="text-[17px] font-semibold text-foreground">Quick Actions</h3>
-          </div>
+          <section className="mb-6">
+            {/* No "Customize". It toasted "Coming soon." and there is no
+                preference store anywhere in the app to hold a customised set —
+                not a table, not a column on `profiles`, not localStorage. The
+                four actions below are a constant in this file. */}
+            <div className="mb-3">
+              <h3 className="text-[17px] font-semibold text-foreground">Quick Actions</h3>
+            </div>
 
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {QUICK_ACTIONS.filter((a) => !a.needsBuilding || linked).map((action) => {
-              const Icon = action.icon
-              return (
-                <button
-                  key={action.label}
-                  onClick={action.unbuilt ? undefined : () => handleQuickAction(action.label)}
-                  disabled={action.unbuilt}
-                  className={`flex flex-col items-center gap-2 rounded-2xl p-4 ${
-                    action.unbuilt
-                      ? "card-raised opacity-50"
-                      : "card-interactive transition-transform active:scale-[0.97]"
-                  }`}
-                >
-                  <span className={`flex h-10 w-10 items-center justify-center rounded-full ${action.color}`}>
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <span className="text-center text-[12px] font-semibold leading-tight text-foreground">{action.label}</span>
-                  {action.unbuilt && (
-                    <span className="text-center text-[10px] leading-tight text-muted-foreground">Not available yet</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </section>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {QUICK_ACTIONS.filter((a) => !a.needsBuilding || linked).map((action) => {
+                const Icon = action.icon
+                return (
+                  <button
+                    key={action.label}
+                    onClick={action.unbuilt ? undefined : () => handleQuickAction(action.label)}
+                    disabled={action.unbuilt}
+                    className={`flex flex-col items-center gap-2 rounded-2xl p-4 ${
+                      action.unbuilt
+                        ? "card-raised opacity-50"
+                        : "card-interactive transition-transform active:scale-[0.97]"
+                    }`}
+                  >
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-full ${action.color}`}>
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="text-center text-[12px] font-semibold leading-tight text-foreground">{action.label}</span>
+                    {action.unbuilt && (
+                      <span className="text-center text-[10px] leading-tight text-muted-foreground">Not available yet</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
         )}
 
         {/* Building membership — full-width banner. Hidden while pets load so
             "Link your building" never flashes for someone already linked. */}
-        {!petsLoading && (
-        <section className="mb-6">
-          {buildingLink?.status === "approved" ? (
-            <button
-              onClick={() => onNavigate?.("link-building")}
-              className="flex w-full items-center justify-between gap-3 rounded-2xl card-interactive p-4 text-left transition-transform active:scale-[0.98]"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-info/10">
-                  <Building2 className="h-5 w-5 text-info" />
+        {(!calm || (!loadingBasics && !linked)) && (
+          <section className="mb-6">
+            {buildingLink?.status === "approved" ? (
+              <button
+                onClick={() => onNavigate?.("link-building")}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl card-interactive p-4 text-left transition-transform active:scale-[0.98]"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-info/10">
+                    <Building2 className="h-5 w-5 text-info" />
+                  </span>
+                  <div className="min-w-0">
+                    <h4 className="truncate text-[15px] font-semibold text-foreground">{buildingLink.buildingName}</h4>
+                    <p className="truncate text-[12px] text-muted-foreground">
+                      Linked{buildingLink.unit ? ` · Unit ${buildingLink.unit}` : ""}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+              </button>
+            ) : buildingLink?.status === "pending" ? (
+              <div className="flex w-full items-center gap-3 rounded-2xl border border-warning-strong/25 bg-[#FFF6E0] p-4">
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-warning-strong/10">
+                  <Clock className="h-5 w-5 text-warning-strong" />
                 </span>
                 <div className="min-w-0">
-                  <h4 className="truncate text-[15px] font-semibold text-foreground">{buildingLink.buildingName}</h4>
+                  <h4 className="truncate text-[15px] font-semibold text-foreground">Membership pending</h4>
                   <p className="truncate text-[12px] text-muted-foreground">
-                    Linked{buildingLink.unit ? ` · Unit ${buildingLink.unit}` : ""}
+                    {buildingLink.buildingName}{" "}
+                    will review your request
                   </p>
                 </div>
               </div>
-              <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-            </button>
-          ) : buildingLink?.status === "pending" ? (
-            <div className="flex w-full items-center gap-3 rounded-2xl border border-warning-strong/25 bg-[#FFF6E0] p-4">
-              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-warning-strong/10">
-                <Clock className="h-5 w-5 text-warning-strong" />
-              </span>
-              <div className="min-w-0">
-                <h4 className="truncate text-[15px] font-semibold text-foreground">Membership pending</h4>
-                <p className="truncate text-[12px] text-muted-foreground">
-                  {buildingLink.buildingName}{" "}
-                  will review your request
-                </p>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => onNavigate?.("link-building")}
-              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-accent/20 bg-accent/5 p-4 text-left transition-transform active:scale-[0.98]"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent">
-                  <Building2 className="h-5 w-5 text-accent-foreground" />
-                </span>
-                <div className="min-w-0">
-                  <h4 className="truncate text-[15px] font-semibold text-foreground">Link your building</h4>
-                  <p className="truncate text-[12px] text-muted-foreground">
-                    Access pet-friendly amenities &amp; rules
-                  </p>
+            ) : (
+              <button
+                onClick={() => onNavigate?.("link-building")}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-accent/20 bg-accent/5 p-4 text-left transition-transform active:scale-[0.98]"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent">
+                    <Building2 className="h-5 w-5 text-accent-foreground" />
+                  </span>
+                  <div className="min-w-0">
+                    <h4 className="truncate text-[15px] font-semibold text-foreground">Link your building</h4>
+                    <p className="truncate text-[12px] text-muted-foreground">
+                      Access pet-friendly amenities &amp; rules
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <PlusCircle className="h-6 w-6 flex-shrink-0 text-accent" />
-            </button>
-          )}
-        </section>
+                <PlusCircle className="h-6 w-6 flex-shrink-0 text-accent" />
+              </button>
+            )}
+          </section>
         )}
 
         {/* Assistant nudges — deterministic rules, model-written wording */}
