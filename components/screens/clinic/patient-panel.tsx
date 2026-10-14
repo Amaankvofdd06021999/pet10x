@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import { ShieldCheck, ShieldOff, Send, Syringe, Plus, Lock } from "lucide-react"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
 import { capabilities } from "@/lib/data/clinic/context"
@@ -11,28 +12,38 @@ import {
   publishRecord, createVisit, updateVisit, addVisitService,
 } from "@/lib/data/clinic/visits"
 import { usePatientAppointments } from "@/lib/data/clinic/schedule"
+import { invoiceFromVisit } from "@/lib/data/clinic/shop"
+import { validateServiceInput, type ServiceErrors } from "@/lib/data/fees"
 import { formatDateShort, ageFrom, dueLabel, formatMoney } from "@/lib/data/clinic/time"
 import {
   SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Field, Modal,
   TextInput, TextArea, SpeciesIcon, LinkedBadge, SegmentedTabs, Toolbar,
 } from "@/components/screens/shared/ui"
 
-type Tab = "overview" | "visits" | "vaccines" | "shared"
+export type PatientTab = "overview" | "visits" | "vaccines" | "shared"
 
 export function PatientPanel({
   patientId,
   clinic,
   staffId,
+  onOpenInvoice,
+  initialTab = "overview",
+  focusVisitId = null,
 }: {
   patientId: string
   clinic: ClinicMembership
   staffId: string | null
+  /** Called with a bill just created from a visit card; the caller opens it in Billing. */
+  onOpenInvoice?: (invoiceId: string) => void
+  initialTab?: PatientTab
+  /** Today's check-out: the visit to highlight, with its editor open. */
+  focusVisitId?: string | null
 }) {
   const patient = useClinicPatient(patientId)
   const visits = usePatientVisits(patientId)
   const vaccines = usePatientVaccinations(patientId)
   const appts = usePatientAppointments(patientId)
-  const [tab, setTab] = useState<Tab>("overview")
+  const [tab, setTab] = useState<PatientTab>(initialTab)
   const caps = capabilities(clinic.role, clinic.tier, clinic.isOwner)
   const type = useBusinessType(clinic.kind).data ?? FALLBACK_TYPE
   // A groomer has no business holding a vaccination record, and a walker has no
@@ -104,6 +115,8 @@ export function PatientPanel({
           isLinked={p.isLinked}
           visits={visits}
           caps={caps}
+          onOpenInvoice={onOpenInvoice}
+          focusVisitId={focusVisitId}
         />
       )}
 
@@ -206,7 +219,7 @@ function OverviewTab({
 }
 
 function VisitsTab({
-  patientId, clinic, staffId, customerId, isLinked, visits, caps,
+  patientId, clinic, staffId, customerId, isLinked, visits, caps, onOpenInvoice, focusVisitId,
 }: {
   patientId: string
   clinic: ClinicMembership
@@ -215,9 +228,36 @@ function VisitsTab({
   isLinked: boolean
   visits: ReturnType<typeof usePatientVisits>
   caps: ReturnType<typeof capabilities>
+  onOpenInvoice?: (invoiceId: string) => void
+  focusVisitId: string | null
 }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [draft, setDraft] = useState<{ id: string; summary: string; nextDue: string; reason: string } | null>(null)
+  const [focusOpened, setFocusOpened] = useState(false)
+  // Billing is where a bill is sent and paid, so the buttons only show when
+  // this person can get there (takePayment gates the Billing tab).
+  const canBill = caps.takePayment && Boolean(onOpenInvoice)
+
+  // Arriving from Today's check-out: open the visit's editor once it has
+  // loaded, so a service can be added before billing.
+  if (!focusOpened && focusVisitId && caps.recordVisits) {
+    const v = visits.data.find((x) => x.id === focusVisitId)
+    if (v) {
+      setFocusOpened(true)
+      setDraft({ id: v.id, summary: v.summary ?? "", nextDue: v.nextDueOn ?? "", reason: v.nextDueReason ?? "" })
+    }
+  }
+
+  async function bill(visitId: string, kind: "estimate" | "invoice") {
+    setBusy(`${kind}-${visitId}`)
+    const res = await invoiceFromVisit(visitId, kind)
+    setBusy(null)
+    if (!res.invoiceId) return toast.error(res.error ?? "Couldn't create it. Try again.")
+    // The bill exists even if a line failed; Billing shows what it holds.
+    if (res.error) toast.error(res.error)
+    else toast.success(kind === "estimate" ? "Estimate created" : "Invoice created")
+    onOpenInvoice?.(res.invoiceId)
+  }
 
   async function startVisit() {
     setBusy("new")
@@ -229,7 +269,7 @@ function VisitsTab({
       reason: "Consultation",
     })
     setBusy(null)
-    if (res.error) window.alert(res.error)
+    if (res.error) toast.error(res.error)
     else visits.refetch()
   }
 
@@ -246,7 +286,10 @@ function VisitsTab({
       ) : (
         <ul className="flex flex-col gap-2">
           {visits.data.map((v) => (
-            <li key={v.id} className="rounded-xl border border-border p-3">
+            <li
+              key={v.id}
+              className={`rounded-xl border p-3 ${v.id === focusVisitId ? "border-primary ring-2 ring-primary/20" : "border-border"}`}
+            >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-[13.5px] font-semibold text-foreground">
@@ -273,7 +316,7 @@ function VisitsTab({
                           setBusy(v.id)
                           const res = await publishRecord(patientId, "visit_summary", v.id)
                           setBusy(null)
-                          if (res.error) window.alert(res.error)
+                          if (res.error) toast.error(res.error)
                           else visits.refetch()
                         }}
                       >
@@ -311,6 +354,32 @@ function VisitsTab({
                   ))}
                 </ul>
               )}
+              {canBill && v.services.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    busy={busy === `estimate-${v.id}`}
+                    disabled={busy !== null}
+                    onClick={() => void bill(v.id, "estimate")}
+                  >
+                    Create estimate
+                  </Button>
+                  <Button
+                    size="sm"
+                    busy={busy === `invoice-${v.id}`}
+                    disabled={busy !== null}
+                    onClick={() => void bill(v.id, "invoice")}
+                  >
+                    Create invoice
+                  </Button>
+                </div>
+              )}
+              {canBill && v.services.length === 0 && v.id === focusVisitId && (
+                <p className="mt-2 text-[12px] text-muted-foreground">
+                  Add the services you provided, then create the invoice.
+                </p>
+              )}
               {v.nextDueOn && (
                 <p className="mt-2 text-[12px] font-medium text-info">
                   Next due: {v.nextDueReason ?? "follow-up"} — {formatDateShort(v.nextDueOn)}
@@ -339,7 +408,7 @@ function VisitsTab({
                           next_due_on: draft.nextDue || null,
                           next_due_reason: draft.reason || null,
                         })
-                        if (res.error) window.alert(res.error)
+                        if (res.error) toast.error(res.error)
                         else {
                           setDraft(null)
                           visits.refetch()
@@ -349,22 +418,8 @@ function VisitsTab({
                       Save
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={async () => {
-                        const name = window.prompt("Service name")
-                        if (!name) return
-                        const price = window.prompt("Price in dollars", "0")
-                        const cents = Math.round(Number.parseFloat(price ?? "0") * 100)
-                        const res = await addVisitService(v.id, clinic.businessId, name, Number.isFinite(cents) ? cents : 0)
-                        if (res.error) window.alert(res.error)
-                        else visits.refetch()
-                      }}
-                    >
-                      Add service
-                    </Button>
                   </Toolbar>
+                  <AddServiceRow visitId={v.id} businessId={clinic.businessId} onAdded={visits.refetch} />
                 </div>
               )}
             </li>
@@ -372,6 +427,56 @@ function VisitsTab({
         </ul>
       )}
     </SectionCard>
+  )
+}
+
+/**
+ * A service line on a visit: name and price, checked by the same rules as a
+ * business's services (validateServiceInput). A blank price is 0.
+ */
+function AddServiceRow({
+  visitId, businessId, onAdded,
+}: {
+  visitId: string
+  businessId: string
+  onAdded: () => void
+}) {
+  const [name, setName] = useState("")
+  const [price, setPrice] = useState("")
+  const [errors, setErrors] = useState<ServiceErrors>({})
+  const [failed, setFailed] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function add() {
+    const checked = validateServiceInput({ name, price: price.trim() === "" ? "0" : price, duration: "" })
+    if (!checked.ok) return setErrors(checked.errors)
+    setErrors({})
+    setFailed(null)
+    setBusy(true)
+    const res = await addVisitService(visitId, businessId, checked.value.name, checked.value.priceCents)
+    setBusy(false)
+    if (res.error) return setFailed(res.error)
+    setName("")
+    setPrice("")
+    onAdded()
+  }
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-border pt-2">
+      <p className="text-[12px] font-semibold text-foreground">Add a service</p>
+      <div className="grid gap-2 sm:grid-cols-[1fr_140px_auto] sm:items-end">
+        <Field label="Service" error={errors.name}>
+          {(p) => <TextInput {...p} value={name} onChange={(e) => setName(e.target.value)} placeholder="Dental scale and polish" />}
+        </Field>
+        <Field label="Price (dollars)" error={errors.price}>
+          {(p) => <TextInput {...p} inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" />}
+        </Field>
+        <Button size="sm" variant="secondary" busy={busy} onClick={() => void add()}>
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add
+        </Button>
+      </div>
+      {failed && <p role="alert" className="text-[12px] text-destructive">{failed}</p>}
+    </div>
   )
 }
 
@@ -427,7 +532,7 @@ function VaccinesTab({
                   expiresOn: f.expires || null,
                 })
                 setBusy(null)
-                if (res.error) window.alert(res.error)
+                if (res.error) toast.error(res.error)
                 else {
                   setAdding(false)
                   vaccines.refetch()
@@ -470,7 +575,7 @@ function VaccinesTab({
                     setBusy(v.id)
                     const res = await publishRecord(patientId, "vaccination", v.id)
                     setBusy(null)
-                    if (res.error) window.alert(res.error)
+                    if (res.error) toast.error(res.error)
                     else vaccines.refetch()
                   }}
                 >

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import { Search, Plus, KeyRound, ShieldCheck, Phone, Pencil, PawPrint, Archive } from "lucide-react"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
 import { capabilities, useClinicStaff } from "@/lib/data/clinic/context"
@@ -10,12 +11,20 @@ import {
   type ClinicCustomer,
 } from "@/lib/data/clinic/customers"
 import { PatientPanel } from "./patient-panel"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal,
   Field, TextInput, Select, SpeciesIcon, LinkedBadge, Toolbar,
 } from "@/components/screens/shared/ui"
 
-export function ClinicCustomersScreen({ clinic }: { clinic: ClinicMembership }) {
+export function ClinicCustomersScreen({
+  clinic,
+  onOpenInvoice,
+}: {
+  clinic: ClinicMembership
+  /** A visit card created a bill: the shell opens it in Billing. */
+  onOpenInvoice?: (invoiceId: string) => void
+}) {
   const [search, setSearch] = useState("")
   const customers = useClinicCustomers(clinic.businessId, search)
   const staff = useClinicStaff(clinic.businessId)
@@ -24,6 +33,7 @@ export function ClinicCustomersScreen({ clinic }: { clinic: ClinicMembership }) 
   const [patientId, setPatientId] = useState<string | null>(null)
   const [editing, setEditing] = useState<ClinicCustomer | null>(null)
   const [addingTo, setAddingTo] = useState<ClinicCustomer | null>(null)
+  const [archiving, setArchiving] = useState<ClinicCustomer | null>(null)
   const caps = capabilities(clinic.role, clinic.tier, clinic.isOwner)
 
   return (
@@ -110,6 +120,31 @@ export function ClinicCustomersScreen({ clinic }: { clinic: ClinicMembership }) 
           setEditing(null)
           customers.refetch()
         }}
+        onArchive={(c) => {
+          // The edit modal (z-[100]) would cover the confirmation (z-50).
+          setEditing(null)
+          setArchiving(c)
+        }}
+      />
+
+      <ConfirmDialog
+        open={archiving !== null}
+        onOpenChange={(open) => {
+          if (!open) setArchiving(null)
+        }}
+        title={`Archive ${archiving?.fullName ?? "this customer"}?`}
+        description="Their visit history stays. They drop out of search and every reminder queue."
+        confirmLabel="Archive"
+        tone="danger"
+        onConfirm={async () => {
+          const c = archiving
+          if (!c) return { error: null }
+          const res = await archiveCustomer(c.id, true)
+          if (res.error) return { error: res.error }
+          toast.success(`Archived ${c.fullName}`)
+          customers.refetch()
+          return { error: null }
+        }}
       />
 
       <AddAnimalModal
@@ -133,6 +168,7 @@ export function ClinicCustomersScreen({ clinic }: { clinic: ClinicMembership }) 
             patientId={patientId}
             clinic={clinic}
             staffId={staff.data.find((s) => s.profileId)?.id ?? null}
+            onOpenInvoice={onOpenInvoice}
           />
         )}
       </Modal>
@@ -409,11 +445,12 @@ function DeskCodeModal({
 }
 
 function EditCustomerModal({
-  customer, onClose, onSaved,
+  customer, onClose, onSaved, onArchive,
 }: {
   customer: ClinicCustomer | null
   onClose: () => void
   onSaved: () => void
+  onArchive: (customer: ClinicCustomer) => void
 }) {
   const [f, setF] = useState({
     firstName: "", lastName: "", phone: "", email: "", city: "", alertNote: "", reminders: true,
@@ -447,15 +484,8 @@ function EditCustomerModal({
         <>
           <Button
             variant="ghost"
-            onClick={async () => {
-              if (!customer) return
-              const ok = window.confirm(
-                `Archive ${customer.fullName}?\n\nTheir visit history stays. They drop out of search and every reminder queue.`,
-              )
-              if (!ok) return
-              const res = await archiveCustomer(customer.id, true)
-              if (res.error) window.alert(res.error)
-              else onSaved()
+            onClick={() => {
+              if (customer) onArchive(customer)
             }}
           >
             <Archive className="h-4 w-4" aria-hidden="true" /> Archive

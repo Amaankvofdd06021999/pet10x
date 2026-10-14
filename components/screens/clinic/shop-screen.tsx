@@ -1,25 +1,37 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import { Plus, PackageSearch } from "lucide-react"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
-import { useClinicLocations, updateLocation } from "@/lib/data/clinic/context"
-import { useProducts, saveProduct, setStock } from "@/lib/data/clinic/shop"
-import { useAppointmentTypes } from "@/lib/data/clinic/schedule"
+import { useClinicLocations, updateLocation, capabilities } from "@/lib/data/clinic/context"
+import { useProducts, saveProduct, setStock, type Product } from "@/lib/data/clinic/shop"
+import { useAppointmentTypes, saveAppointmentType, type AppointmentType } from "@/lib/data/clinic/schedule"
+import { validateAppointmentType, typePriceLabel } from "@/lib/data/clinic/appointment-type-form"
+import type { ServiceErrors } from "@/lib/data/fees"
 import { formatMoney } from "@/lib/data/clinic/time"
 import {
   SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal,
   Field, TextInput, SegmentedTabs, Toolbar,
 } from "@/components/screens/shared/ui"
 
-type View = "storefront" | "catalogue" | "services"
+export type ShopView = "storefront" | "catalogue" | "services"
 
-export function ClinicShopScreen({ clinic }: { clinic: ClinicMembership }) {
-  const [view, setView] = useState<View>("storefront")
+export function ClinicShopScreen({
+  clinic,
+  initialView = "storefront",
+}: {
+  clinic: ClinicMembership
+  /** Today's set-up checklist opens Services and prices directly. */
+  initialView?: ShopView
+}) {
+  const [view, setView] = useState<ShopView>(initialView)
   const locations = useClinicLocations(clinic.businessId)
   const products = useProducts(clinic.businessId)
   const types = useAppointmentTypes(clinic.businessId)
   const [productOpen, setProductOpen] = useState(false)
+  const [stockFor, setStockFor] = useState<Product | null>(null)
+  const canEditServices = capabilities(clinic.role, clinic.tier, clinic.isOwner).manageSchedule
 
   const primary = locations.data.find((l) => l.isPrimary) ?? locations.data[0]
 
@@ -107,19 +119,7 @@ export function ClinicShopScreen({ clinic }: { clinic: ClinicMembership }) {
                       <span className="text-[13.5px] font-semibold tabular-nums text-foreground">
                         {formatMoney(p.priceCents)}
                       </span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={async () => {
-                          const q = window.prompt(`Stock on hand for ${p.name}`, String(p.quantity))
-                          if (q === null) return
-                          const n = Number.parseFloat(q)
-                          if (!Number.isFinite(n)) return
-                          const res = await setStock(clinic.businessId, p.id, null, n)
-                          if (res.error) window.alert(res.error)
-                          else products.refetch()
-                        }}
-                      >
+                      <Button size="sm" variant="ghost" onClick={() => setStockFor(p)}>
                         Set stock
                       </Button>
                     </div>
@@ -131,36 +131,11 @@ export function ClinicShopScreen({ clinic }: { clinic: ClinicMembership }) {
         ))}
 
       {view === "services" && (
-        <SectionCard title="Services and prices" subtitle="Durations here drive the calendar">
-          {types.isLoading ? (
-            <Spinner />
-          ) : types.data.length === 0 ? (
-            <EmptyState title="No appointment types" />
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {types.data.map((t) => (
-                <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
-                  <div className="flex items-center gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="h-3 w-3 flex-shrink-0 rounded-full"
-                      style={{ backgroundColor: t.colour }}
-                    />
-                    <div>
-                      <p className="text-[13.5px] font-semibold text-foreground">{t.name}</p>
-                      <p className="text-[12px] text-muted-foreground">{t.durationMin} minutes</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {t.isOnlineBookable && <Pill tone="accent">Bookable online</Pill>}
-                    {!t.isActive && <Pill tone="neutral">Off</Pill>}
-                    <span className="text-[13.5px] font-semibold tabular-nums">{formatMoney(t.priceCents)}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SectionCard>
+        <ServicesEditor
+          businessId={clinic.businessId}
+          types={types}
+          canEdit={canEditServices}
+        />
       )}
 
       <Modal open={productOpen} onClose={() => setProductOpen(false)} title="Add a product">
@@ -173,7 +148,252 @@ export function ClinicShopScreen({ clinic }: { clinic: ClinicMembership }) {
           onCancel={() => setProductOpen(false)}
         />
       </Modal>
+
+      {stockFor && (
+        <StockModal
+          key={stockFor.id}
+          product={stockFor}
+          businessId={clinic.businessId}
+          onClose={() => setStockFor(null)}
+          onSaved={() => {
+            setStockFor(null)
+            products.refetch()
+          }}
+        />
+      )}
     </div>
+  )
+}
+
+/** Stock on hand: a count, optionally with up to two decimals (kilos of food). */
+const STOCK = /^\s*(\d{1,6}(?:\.\d{1,2})?)\s*$/
+
+function StockModal({
+  product, businessId, onClose, onSaved,
+}: {
+  product: Product
+  businessId: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [value, setValue] = useState(String(product.quantity))
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function save() {
+    const m = STOCK.exec(value)
+    if (!m) return setError("Enter a number like 12 or 12.5.")
+    setBusy(true)
+    setError(null)
+    const res = await setStock(businessId, product.id, null, Number(m[1]))
+    setBusy(false)
+    if (res.error) return setError(res.error)
+    toast.success(`Stock updated for ${product.name}`)
+    onSaved()
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Stock on hand for ${product.name}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button busy={busy} onClick={() => void save()}>Save</Button>
+        </>
+      }
+    >
+      <Field label="In stock" required error={error}>
+        {(p) => <TextInput {...p} inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />}
+      </Field>
+    </Modal>
+  )
+}
+
+/**
+ * Services and prices — the appointment types the calendar and online booking
+ * use. Edited in place; never deleted (past appointments point at them), only
+ * switched off.
+ */
+function ServicesEditor({
+  businessId, types, canEdit,
+}: {
+  businessId: string
+  types: ReturnType<typeof useAppointmentTypes>
+  canEdit: boolean
+}) {
+  // null = closed; "new" = adding; otherwise the type being edited.
+  const [editing, setEditing] = useState<AppointmentType | "new" | null>(null)
+  return (
+    <SectionCard
+      title="Services and prices"
+      subtitle="Durations here drive the calendar. Online-bookable services show on your booking page."
+      actions={
+        canEdit ? (
+          <Button size="sm" onClick={() => setEditing("new")}>
+            <Plus className="h-4 w-4" aria-hidden="true" /> Add service
+          </Button>
+        ) : undefined
+      }
+    >
+      {types.isLoading ? (
+        <Spinner />
+      ) : types.error ? (
+        <LoadError message={types.error} onRetry={types.refetch} />
+      ) : types.data.length === 0 ? (
+        <EmptyState
+          title="No services yet"
+          detail="Add what you book appointments for, with how long each takes."
+          action={canEdit ? <Button size="sm" onClick={() => setEditing("new")}>Add a service</Button> : undefined}
+        />
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {types.data.map((t) => (
+            <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
+              <div className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="h-3 w-3 flex-shrink-0 rounded-full"
+                  style={{ backgroundColor: t.colour }}
+                />
+                <div>
+                  <p className={`text-[13.5px] font-semibold ${t.isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                    {t.name}
+                  </p>
+                  <p className="text-[12px] text-muted-foreground">{t.durationMin} minutes</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {t.isOnlineBookable && t.isActive && <Pill tone="accent">Bookable online</Pill>}
+                {!t.isActive && <Pill tone="neutral">Switched off</Pill>}
+                <span className="text-[13.5px] font-semibold tabular-nums">{typePriceLabel(t.priceCents)}</span>
+                {canEdit && (
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(t)} aria-label={`Edit ${t.name}`}>
+                    Edit
+                  </Button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {editing !== null && (
+        <AppointmentTypeModal
+          key={editing === "new" ? "new" : editing.id}
+          businessId={businessId}
+          type={editing === "new" ? null : editing}
+          nextSortOrder={types.data.length}
+          onClose={() => setEditing(null)}
+          onSaved={(name, isNew) => {
+            setEditing(null)
+            toast.success(isNew ? `Added ${name}` : `Saved ${name}`)
+            types.refetch()
+          }}
+        />
+      )}
+    </SectionCard>
+  )
+}
+
+function AppointmentTypeModal({
+  businessId, type, nextSortOrder, onClose, onSaved,
+}: {
+  businessId: string
+  type: AppointmentType | null
+  nextSortOrder: number
+  onClose: () => void
+  onSaved: (name: string, isNew: boolean) => void
+}) {
+  const [f, setF] = useState({
+    name: type?.name ?? "",
+    duration: type ? String(type.durationMin) : "30",
+    // 0 is "not set": the field starts empty rather than claiming $0.00.
+    price: type && type.priceCents > 0 ? (type.priceCents / 100).toFixed(2) : "",
+    online: type?.isOnlineBookable ?? false,
+    active: type?.isActive ?? true,
+  })
+  const [errors, setErrors] = useState<ServiceErrors>({})
+  const [failed, setFailed] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function save() {
+    const checked = validateAppointmentType({ name: f.name, duration: f.duration, price: f.price })
+    if (!checked.ok) return setErrors(checked.errors)
+    setErrors({})
+    setFailed(null)
+    setBusy(true)
+    const res = await saveAppointmentType({
+      id: type?.id,
+      businessId,
+      ...checked.value,
+      isOnlineBookable: f.online,
+      isActive: f.active,
+      sortOrder: nextSortOrder,
+    })
+    setBusy(false)
+    if (res.error) return setFailed(res.error)
+    onSaved(checked.value.name, !type)
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={type ? `Edit ${type.name}` : "Add a service"}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button busy={busy} onClick={() => void save()}>{type ? "Save" : "Add service"}</Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <Field label="Name" required error={errors.name}>
+          {(p) => <TextInput {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Duration (minutes)" required error={errors.duration}>
+            {(p) => (
+              <TextInput {...p} inputMode="numeric" value={f.duration} onChange={(e) => setF({ ...f, duration: e.target.value })} />
+            )}
+          </Field>
+          <Field label="Price (dollars)" hint="Leave empty to show Price on request." error={errors.price}>
+            {(p) => (
+              <TextInput {...p} inputMode="decimal" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />
+            )}
+          </Field>
+        </div>
+        <label className="flex items-start gap-2 text-[13px] text-foreground">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 accent-primary"
+            checked={f.online}
+            onChange={(e) => setF({ ...f, online: e.target.checked })}
+          />
+          <span>
+            Owners can book this online
+            <span className="block text-[11.5px] text-muted-foreground">Shown on your booking page once you are listed.</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2 text-[13px] text-foreground">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 accent-primary"
+            checked={f.active}
+            onChange={(e) => setF({ ...f, active: e.target.checked })}
+          />
+          <span>
+            Offered
+            <span className="block text-[11.5px] text-muted-foreground">
+              Switch off a service you no longer offer. Past appointments keep it.
+            </span>
+          </span>
+        </label>
+        {failed && <p role="alert" className="text-[12px] text-destructive">{failed}</p>}
+      </div>
+    </Modal>
   )
 }
 

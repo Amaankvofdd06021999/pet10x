@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   CalendarDays, Users, Bell, Stethoscope, ShoppingBag, Receipt,
   Siren, UsersRound, LayoutDashboard, LogOut, Loader2, Building2, ChevronDown, BellRing,
@@ -9,11 +9,12 @@ import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { useActiveClinic, capabilities } from "@/lib/data/clinic/context"
 import { useBusinessType, FALLBACK_TYPE, type ModuleKey } from "@/lib/data/business-types"
 import { Button, Pill } from "@/components/screens/shared/ui"
+import { Toaster } from "@/components/ui/sonner"
 import { ClinicTodayScreen } from "@/components/screens/clinic/today-screen"
 import { ClinicCalendarScreen } from "@/components/screens/clinic/calendar-screen"
 import { ClinicCustomersScreen } from "@/components/screens/clinic/customers-screen"
 import { ClinicRemindersScreen } from "@/components/screens/clinic/reminders-screen"
-import { ClinicShopScreen } from "@/components/screens/clinic/shop-screen"
+import { ClinicShopScreen, type ShopView } from "@/components/screens/clinic/shop-screen"
 import { ClinicBillingScreen } from "@/components/screens/clinic/billing-screen"
 import { ClinicEmergencyScreen } from "@/components/screens/clinic/emergency-screen"
 import { ClinicTeamScreen } from "@/components/screens/clinic/team-screen"
@@ -63,6 +64,20 @@ function Console() {
   const [tab, setTab] = useState<ClinicTab>("today")
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [switcherOpen, setSwitcherOpen] = useState(false)
+  // Cross-screen hand-offs: a bill to open in Billing, and the Shop section to
+  // land on (Today's set-up checklist opens Services and prices).
+  const [openInvoiceId, setOpenInvoiceId] = useState<string | null>(null)
+  const [shopView, setShopView] = useState<ShopView>("storefront")
+  const openInvoice = useCallback((id: string) => {
+    setOpenInvoiceId(id)
+    setTab("billing")
+  }, [])
+  const clearOpenInvoice = useCallback(() => setOpenInvoiceId(null), [])
+  // Choosing a tab from the navigation starts it at its first section.
+  const pickTab = (t: ClinicTab) => {
+    setShopView("storefront")
+    setTab(t)
+  }
 
   /* `?target=clinic:billing` — the link a notification's email or push opens
      (`targetHref` in lib/navigation.ts). Removed from the address bar once
@@ -137,7 +152,7 @@ function Console() {
               <button
                 key={t.id}
                 type="button"
-                onClick={() => setTab(t.id)}
+                onClick={() => pickTab(t.id)}
                 aria-current={on ? "page" : undefined}
                 className={`mb-0.5 flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-colors ${
                   on
@@ -152,7 +167,7 @@ function Console() {
           })}
         </nav>
         <div className="border-t border-border p-3">
-          <div className="mb-2 empty:hidden">
+          <div data-verification-banner className="mb-2 empty:hidden">
             <VerificationBanner clinic={clinic} canRequest={caps.manageTeam} />
           </div>
           <HelpLegalLinks className="mb-1.5 px-1" />
@@ -222,7 +237,7 @@ function Console() {
               <button
                 key={t.id}
                 type="button"
-                onClick={() => setTab(t.id)}
+                onClick={() => pickTab(t.id)}
                 aria-current={activeTab === t.id ? "page" : undefined}
                 className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-semibold ${
                   activeTab === t.id
@@ -239,21 +254,34 @@ function Console() {
         <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-clip p-4">
           {/* The sidebar, where the banner lives, is desktop-only. */}
           {activeTab === "today" && (
-            <div className="mb-3 empty:hidden md:hidden">
+            <div data-verification-banner className="mb-3 empty:hidden md:hidden">
               <VerificationBanner clinic={clinic} canRequest={caps.manageTeam} />
             </div>
           )}
-          {activeTab === "today" && <ClinicTodayScreen clinic={clinic} onGo={setTab} />}
+          {activeTab === "today" && (
+            <ClinicTodayScreen
+              clinic={clinic}
+              onGo={setTab}
+              onOpenServices={() => {
+                setShopView("services")
+                setTab("shop")
+              }}
+              onOpenInvoice={openInvoice}
+            />
+          )}
           {activeTab === "calendar" && <ClinicCalendarScreen clinic={clinic} />}
-          {activeTab === "customers" && <ClinicCustomersScreen clinic={clinic} />}
+          {activeTab === "customers" && <ClinicCustomersScreen clinic={clinic} onOpenInvoice={openInvoice} />}
           {activeTab === "reminders" && <ClinicRemindersScreen clinic={clinic} />}
-          {activeTab === "shop" && <ClinicShopScreen clinic={clinic} />}
-          {activeTab === "billing" && <ClinicBillingScreen clinic={clinic} />}
+          {activeTab === "shop" && <ClinicShopScreen key={shopView} clinic={clinic} initialView={shopView} />}
+          {activeTab === "billing" && (
+            <ClinicBillingScreen clinic={clinic} openInvoiceId={openInvoiceId} onOpened={clearOpenInvoice} />
+          )}
           {activeTab === "emergency" && <ClinicEmergencyScreen clinic={clinic} />}
           {activeTab === "team" && <ClinicTeamScreen clinic={clinic} />}
         </main>
         {notificationsOpen && <NotificationSettingsSheet onClose={() => setNotificationsOpen(false)} />}
       </div>
+      <Toaster position="top-center" />
     </div>
   )
 }

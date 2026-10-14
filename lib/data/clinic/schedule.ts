@@ -4,6 +4,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./use-live"
 import { dayBounds } from "./time"
+import { validateHours, fromDbTime, collapseHours, type HoursRow } from "./hours"
 
 type ApptRow = Database["public"]["Tables"]["appointments"]["Row"]
 export type AppointmentStatus = Database["public"]["Enums"]["appointment_status"]
@@ -337,4 +338,100 @@ export function useAvailableSlots(
     [businessId, typeId, dateISO],
     Boolean(businessId && typeId),
   )
+}
+
+/* --------------------------- services and hours --------------------------- */
+
+/**
+ * Add or edit an appointment type. Never deletes: a type past appointments
+ * point at is switched off (is_active false), which also takes it off the
+ * public booking page (appt_types_public_read). The values arrive already
+ * checked by validateAppointmentType; appointment_types_staff
+ * (20260901000002) lets any staff member of the practice write here.
+ */
+export async function saveAppointmentType(input: {
+  id?: string
+  businessId: string
+  name: string
+  durationMin: number
+  priceCents: number
+  isOnlineBookable: boolean
+  isActive: boolean
+  sortOrder?: number
+}): Promise<{ error: string | null }> {
+  const db = getSupabaseBrowserClient()
+  if (!db) return { error: "Not configured." }
+  const payload = {
+    business_id: input.businessId,
+    name: input.name,
+    duration_min: input.durationMin,
+    price_cents: input.priceCents,
+    is_online_bookable: input.isOnlineBookable,
+    is_active: input.isActive,
+  }
+  const { error } = input.id
+    ? await db.from("appointment_types").update(payload).eq("id", input.id)
+    : await db.from("appointment_types").insert({ ...payload, sort_order: input.sortOrder ?? 0 })
+  return { error: error?.message ?? null }
+}
+
+/** Every clinician's weekly sessions, keyed by business_staff id. */
+export function useStaffHours(businessId: string | null): LiveResult<Record<string, HoursRow[]>> {
+  return useLive<Record<string, HoursRow[]>>(
+    {},
+    async (db) => {
+      const rows = must(
+        await db
+          .from("staff_availability")
+          .select("staff_id, weekday, start_time, end_time")
+          .eq("business_id", businessId as string),
+      ) as Array<{ staff_id: string; weekday: number; start_time: string; end_time: string }>
+      const by: Record<string, HoursRow[]> = {}
+      for (const r of rows) {
+        ;(by[r.staff_id] ??= []).push({ weekday: r.weekday, start: fromDbTime(r.start_time), end: fromDbTime(r.end_time) })
+      }
+      for (const id of Object.keys(by)) by[id] = collapseHours(by[id])
+      return by
+    },
+    [businessId],
+    Boolean(businessId),
+  )
+}
+
+/**
+ * Replace one clinician's weekly hours: delete their rows, then insert the
+ * new set (location_id null — every location). Two calls, not a transaction,
+ * so the second can fail after the first worked; `cleared` tells the screen
+ * the clinician now has no hours at all, so it can say so and refetch rather
+ * than show hours that are no longer there. Dated rows (valid_from/valid_to)
+ * go too — nothing in the console writes them.
+ */
+export async function replaceStaffHours(
+  businessId: string,
+  staffId: string,
+  rows: HoursRow[],
+): Promise<{ error: string | null; cleared?: boolean }> {
+  const db = getSupabaseBrowserClient()
+  if (!db) return { error: "Not configured." }
+  const checked = validateHours(rows)
+  if (!checked.ok) return { error: checked.error }
+  const { error: delErr } = await db
+    .from("staff_availability")
+    .delete()
+    .eq("business_id", businessId)
+    .eq("staff_id", staffId)
+  if (delErr) return { error: delErr.message }
+  if (rows.length === 0) return { error: null }
+  const { error: insErr } = await db.from("staff_availability").insert(
+    rows.map((r) => ({
+      business_id: businessId,
+      staff_id: staffId,
+      location_id: null,
+      weekday: r.weekday,
+      start_time: r.start,
+      end_time: r.end,
+    })),
+  )
+  if (insErr) return { error: insErr.message, cleared: true }
+  return { error: null }
 }

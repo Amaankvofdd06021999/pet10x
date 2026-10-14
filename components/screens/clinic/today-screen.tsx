@@ -1,13 +1,19 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Phone, Check, ArrowRight, AlertTriangle, Clock } from "lucide-react"
+import { toast } from "sonner"
+import { Phone, Check, AlertTriangle, Clock, CircleCheck, Circle } from "lucide-react"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
-import { useClinicLocations } from "@/lib/data/clinic/context"
+import { useClinicLocations, useClinicStaff, capabilities } from "@/lib/data/clinic/context"
 import {
-  useOpenAppointments, setAppointmentStatus, STATUS_LABEL,
+  useOpenAppointments, setAppointmentStatus, openVisitForAppointment, STATUS_LABEL,
+  useAppointmentTypes, useStaffHours,
   type Appointment, type AppointmentStatus,
 } from "@/lib/data/clinic/schedule"
+import { useLatestVerification } from "@/lib/data/clinic/verification"
+import { verificationBanner } from "@/lib/data/business-tier"
+import { clinicSetupChecklist, type SetupTarget } from "@/lib/data/clinic/setup-checklist"
+import { PatientPanel } from "./patient-panel"
 import { useReminderQueue, useClinicTasks, completeTask, addTask } from "@/lib/data/clinic/reminders"
 import { useEmergencyArrivals } from "@/lib/data/clinic/emergency"
 import { formatTime, todayISO, dueLabel, daysUntil } from "@/lib/data/clinic/time"
@@ -23,9 +29,15 @@ import {
 export function ClinicTodayScreen({
   clinic,
   onGo,
+  onOpenServices,
+  onOpenInvoice,
 }: {
   clinic: ClinicMembership
-  onGo: (tab: "calendar" | "customers" | "reminders" | "emergency") => void
+  onGo: (tab: "calendar" | "customers" | "reminders" | "emergency" | "team") => void
+  /** Shop → Services and prices. */
+  onOpenServices: () => void
+  /** Billing, with this bill open. */
+  onOpenInvoice: (invoiceId: string) => void
 }) {
   const { data: locations } = useClinicLocations(clinic.businessId)
   const tz = locations.find((l) => l.isPrimary)?.timezone ?? "America/Vancouver"
@@ -36,6 +48,9 @@ export function ClinicTodayScreen({
   const [busyId, setBusyId] = useState<string | null>(null)
   const [taskOpen, setTaskOpen] = useState(false)
   const [taskTitle, setTaskTitle] = useState("")
+  const [checkout, setCheckout] = useState<{ appt: Appointment; visitId: string } | null>(null)
+  const [checkoutBusy, setCheckoutBusy] = useState(false)
+  const caps = capabilities(clinic.role, clinic.tier, clinic.isOwner)
 
   const today = todayISO(new Date(), tz)
   const groups = useMemo(() => {
@@ -56,8 +71,39 @@ export function ClinicTodayScreen({
     setBusyId(a.id)
     const res = await setAppointmentStatus(a.id, status)
     setBusyId(null)
-    if (res.error) window.alert(res.error)
+    if (res.error) toast.error(res.error)
     else appts.refetch()
+  }
+
+  /**
+   * "Check out" opens the appointment's visit (creating it if this is the
+   * first time — clinic_open_visit) on the patient's chart, where its services
+   * are added and "Create invoice" bills them. The appointment completes when
+   * the invoice is created, or when reception checks out without one.
+   */
+  async function startCheckout(a: Appointment) {
+    setBusyId(a.id)
+    const res = await openVisitForAppointment(a.id)
+    setBusyId(null)
+    if (res.error || !res.visitId) return toast.error(res.error ?? "Couldn't open the visit. Try again.")
+    setCheckout({ appt: a, visitId: res.visitId })
+  }
+
+  async function finishCheckout(invoiceId: string | null) {
+    const c = checkout
+    if (!c) return
+    setCheckoutBusy(true)
+    const res = await setAppointmentStatus(c.appt.id, "completed")
+    setCheckoutBusy(false)
+    if (res.error) {
+      // The invoice (if any) exists either way; say what didn't happen.
+      toast.error(`${c.appt.patientName} is still on the board: ${res.error}`)
+    } else {
+      toast.success(`${c.appt.patientName} checked out`)
+    }
+    setCheckout(null)
+    appts.refetch()
+    if (invoiceId) onOpenInvoice(invoiceId)
   }
 
   if (appts.isLoading) return <Spinner label="Opening the day" />
@@ -65,6 +111,10 @@ export function ClinicTodayScreen({
 
   return (
     <div className="flex flex-col gap-4">
+      {caps.manageSchedule && (
+        <SetupChecklist clinic={clinic} onGo={onGo} onOpenServices={onOpenServices} />
+      )}
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <StatTile label="Waiting" value={groups.waiting.length} tone={groups.waiting.length ? "warn" : "default"} />
         <StatTile label="In room" value={groups.inRoom.length} tone="info" />
@@ -162,7 +212,7 @@ export function ClinicTodayScreen({
             <ul className="flex flex-col gap-2">
               {groups.ready.map((a) => (
                 <ApptRow key={a.id} a={a} tz={tz} busy={busyId === a.id}
-                  actions={<Button size="sm" onClick={() => void move(a, "completed")}>Check out</Button>} />
+                  actions={<Button size="sm" onClick={() => void startCheckout(a)}>Check out</Button>} />
               ))}
             </ul>
           )}
@@ -247,7 +297,7 @@ export function ClinicTodayScreen({
               onClick={async () => {
                 const res = await addTask(clinic.businessId, taskTitle, todayISO(new Date(), tz))
                 if (res.error) {
-                  window.alert(res.error)
+                  toast.error(res.error)
                   return
                 }
                 setTaskTitle("")
@@ -271,7 +321,110 @@ export function ClinicTodayScreen({
           )}
         </Field>
       </Modal>
+
+      <Modal
+        open={checkout !== null}
+        onClose={() => setCheckout(null)}
+        title={checkout ? `Check out ${checkout.appt.patientName}` : "Check out"}
+        description="Add what you did to the visit, then create the invoice."
+        wide
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setCheckout(null)}>Not yet</Button>
+            <Button variant="ghost" busy={checkoutBusy} onClick={() => void finishCheckout(null)}>
+              Check out without an invoice
+            </Button>
+          </>
+        }
+      >
+        {checkout &&
+          (checkout.appt.patientId ? (
+            <PatientPanel
+              patientId={checkout.appt.patientId}
+              clinic={clinic}
+              staffId={clinic.staffId}
+              initialTab="visits"
+              focusVisitId={checkout.visitId}
+              onOpenInvoice={caps.takePayment ? (id) => void finishCheckout(id) : undefined}
+            />
+          ) : (
+            <p className="text-[13px] text-muted-foreground">
+              This appointment has no patient on it, so there is no chart to bill from.
+            </p>
+          ))}
+      </Modal>
     </div>
+  )
+}
+
+/**
+ * What a new practice still has to do. Shown to administrators until every
+ * row is done; each row opens the screen that fixes it.
+ */
+function SetupChecklist({
+  clinic, onGo, onOpenServices,
+}: {
+  clinic: ClinicMembership
+  onGo: (tab: "team") => void
+  onOpenServices: () => void
+}) {
+  const types = useAppointmentTypes(clinic.businessId)
+  const staff = useClinicStaff(clinic.businessId)
+  const hours = useStaffHours(clinic.businessId)
+  const latest = useLatestVerification(clinic.businessId)
+  if (types.isLoading || staff.isLoading || hours.isLoading || latest.isLoading) return null
+  // A failed read would show a false "to do"; better to show nothing.
+  if (types.error || staff.error || hours.error || latest.error) return null
+
+  const banner = verificationBanner(clinic.tier, latest.data)
+  const list = clinicSetupChecklist({
+    types: types.data,
+    staff: staff.data,
+    staffWithHours: Object.keys(hours.data).filter((id) => (hours.data[id] ?? []).length > 0),
+    verification: banner ? banner.state : "verified",
+  })
+  if (list.complete) return null
+
+  function go(target: SetupTarget) {
+    if (target.tab === "shop") return onOpenServices()
+    if (target.tab === "team") return onGo("team")
+    // Verification lives in its banner: the sidebar on desktop, above Today on
+    // a phone. Bring whichever is showing into view.
+    const el = Array.from(document.querySelectorAll<HTMLElement>("[data-verification-banner]")).find(
+      (n) => n.offsetParent !== null,
+    )
+    el?.scrollIntoView({ behavior: "smooth", block: "center" })
+    el?.querySelector<HTMLButtonElement>("button")?.focus()
+  }
+
+  return (
+    <SectionCard title="Finish setting up" subtitle={`${list.doneCount} of ${list.items.length} done`}>
+      <ul className="flex flex-col gap-2">
+        {list.items.map((item) => (
+          <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
+            <div className="flex min-w-0 items-start gap-2.5">
+              {item.done ? (
+                <CircleCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-success" aria-hidden="true" />
+              ) : (
+                <Circle className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+              )}
+              <div className="min-w-0">
+                <p className="text-[13.5px] font-semibold text-foreground">
+                  {item.label}
+                  <span className="sr-only">{item.done ? " (done)" : " (to do)"}</span>
+                </p>
+                <p className="text-[12px] text-muted-foreground">{item.detail}</p>
+              </div>
+            </div>
+            {!item.done && item.actionLabel && (
+              <Button size="sm" variant="secondary" onClick={() => go(item.target)}>
+                {item.actionLabel}
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </SectionCard>
   )
 }
 

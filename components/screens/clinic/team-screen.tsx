@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { UsersRound, MapPin, UserPlus, Copy } from "lucide-react"
-import type { ClinicMembership, ClinicRole } from "@/lib/data/clinic/context"
+import { toast } from "sonner"
+import { UsersRound, MapPin, UserPlus, Copy, Plus, X } from "lucide-react"
+import type { ClinicMembership, ClinicRole, ClinicStaffMember } from "@/lib/data/clinic/context"
 import {
   useClinicStaff, useClinicLocations, updateStaff, inviteStaff, capabilities,
 } from "@/lib/data/clinic/context"
@@ -10,6 +11,9 @@ import {
   STAFF_ROLE_LABEL as ROLE_LABEL, INVITABLE_ROLES, canEditMember, staffErrorSentence, type InvitableRole,
 } from "@/lib/data/clinic/staff-invite"
 import { formatDateShort } from "@/lib/data/clinic/time"
+import { useStaffHours, replaceStaffHours } from "@/lib/data/clinic/schedule"
+import { validateHours, WEEKDAY_LABEL, WEEKDAY_ORDER, type HoursRow } from "@/lib/data/clinic/hours"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Select, Field, Modal, TextInput,
 } from "@/components/screens/shared/ui"
@@ -19,6 +23,9 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
   const locations = useClinicLocations(clinic.businessId)
   const [busy, setBusy] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [deactivating, setDeactivating] = useState<ClinicStaffMember | null>(null)
+  const [hoursFor, setHoursFor] = useState<ClinicStaffMember | null>(null)
+  const hours = useStaffHours(clinic.businessId)
   const caps = capabilities(clinic.role, clinic.tier, clinic.isOwner)
 
   return (
@@ -60,6 +67,11 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                       {s.licenceNumber ? ` · ${s.licenceNumber}` : ""}
                       {s.licenceExpiresOn ? ` · expires ${formatDateShort(s.licenceExpiresOn)}` : ""}
                     </p>
+                    {s.isBookable && s.isActive && !hours.isLoading && (
+                      <p className="mt-0.5 text-[12px] text-muted-foreground">
+                        {hoursSummary(hours.data[s.id] ?? [])}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {/* Your own row and the owner's are not yours to change —
@@ -78,7 +90,7 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                             setBusy(s.id)
                             const res = await updateStaff(s.id, { role: e.target.value as ClinicRole })
                             setBusy(null)
-                            if (res.error) window.alert(`Couldn't change ${s.name}'s role. ${staffErrorSentence(res.error)}`)
+                            if (res.error) toast.error(`Couldn't change ${s.name}'s role. ${staffErrorSentence(res.error)}`)
                             else staff.refetch()
                           }}
                           className="w-auto"
@@ -98,6 +110,11 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                     ) : (
                       <Pill tone="neutral">{ROLE_LABEL[s.role]}</Pill>
                     )}
+                    {caps.manageSchedule && s.isBookable && s.isActive && (
+                      <Button size="sm" variant="secondary" onClick={() => setHoursFor(s)}>
+                        Weekly hours
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
@@ -105,7 +122,7 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                         setBusy(s.id)
                         const res = await updateStaff(s.id, { is_bookable: !s.isBookable })
                         setBusy(null)
-                        if (res.error) window.alert(res.error)
+                        if (res.error) toast.error(res.error)
                         else staff.refetch()
                       }}
                     >
@@ -117,19 +134,15 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                           variant="secondary"
                           busy={busy === `active-${s.id}`}
                           onClick={async () => {
-                            if (
-                              s.isActive &&
-                              !window.confirm(
-                                `Deactivate ${s.name}? They lose access to ${clinic.name} until reactivated. ` +
-                                  "Their past work stays on record.",
-                              )
-                            )
-                              return
+                            if (s.isActive) return setDeactivating(s)
                             setBusy(`active-${s.id}`)
-                            const res = await updateStaff(s.id, { is_active: !s.isActive })
+                            const res = await updateStaff(s.id, { is_active: true })
                             setBusy(null)
-                            if (res.error) window.alert(`Couldn't update ${s.name}. ${staffErrorSentence(res.error)}`)
-                            else staff.refetch()
+                            if (res.error) toast.error(`Couldn't update ${s.name}. ${staffErrorSentence(res.error)}`)
+                            else {
+                              toast.success(`${s.name} reactivated`)
+                              staff.refetch()
+                            }
                           }}
                         >
                           {s.isActive ? "Deactivate" : "Reactivate"}
@@ -142,6 +155,45 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
           </ul>
         )}
       </SectionCard>
+
+      <ConfirmDialog
+        open={deactivating !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeactivating(null)
+        }}
+        title={`Deactivate ${deactivating?.name ?? "this person"}?`}
+        description={`They lose access to ${clinic.name} until reactivated. Their past work stays on record.`}
+        confirmLabel="Deactivate"
+        tone="danger"
+        onConfirm={async () => {
+          const s = deactivating
+          if (!s) return { error: null }
+          const res = await updateStaff(s.id, { is_active: false })
+          if (res.error) return { error: `Couldn't update ${s.name}. ${staffErrorSentence(res.error)}` }
+          toast.success(`${s.name} deactivated`)
+          staff.refetch()
+          return { error: null }
+        }}
+      />
+
+      {hoursFor && (
+        <HoursModal
+          key={hoursFor.id}
+          businessId={clinic.businessId}
+          member={hoursFor}
+          initial={hours.data[hoursFor.id] ?? []}
+          onClose={() => setHoursFor(null)}
+          onSaved={() => {
+            toast.success(`Saved ${hoursFor.name}'s hours`)
+            setHoursFor(null)
+            hours.refetch()
+          }}
+          onCleared={() => {
+            setHoursFor(null)
+            hours.refetch()
+          }}
+        />
+      )}
 
       {caps.manageTeam && (
         <InviteStaffModal
@@ -295,6 +347,138 @@ function InviteStaffModal({
           </Field>
         </div>
       )}
+    </Modal>
+  )
+}
+
+const SHORT_DAY: Record<number, string> = { 0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat" }
+
+/** "Mon 09:00–17:00 · Tue 09:00–12:00, 13:00–17:00", or why nobody can book them. */
+function hoursSummary(rows: HoursRow[]): string {
+  if (rows.length === 0) return "No weekly hours — owners can't book them online."
+  return WEEKDAY_ORDER.filter((d) => rows.some((r) => r.weekday === d))
+    .map(
+      (d) =>
+        `${SHORT_DAY[d]} ${rows
+          .filter((r) => r.weekday === d)
+          .map((r) => `${r.start}–${r.end}`)
+          .join(", ")}`,
+    )
+    .join(" · ")
+}
+
+/**
+ * One clinician's week. Each day holds zero or more sessions; saving replaces
+ * all of their staff_availability rows. Slots for online booking are cut from
+ * exactly these sessions (clinic_available_slots).
+ */
+function HoursModal({
+  businessId, member, initial, onClose, onSaved, onCleared,
+}: {
+  businessId: string
+  member: ClinicStaffMember
+  initial: HoursRow[]
+  onClose: () => void
+  onSaved: () => void
+  /** The old hours were deleted but the new ones failed to save. */
+  onCleared: () => void
+}) {
+  const [rows, setRows] = useState<HoursRow[]>(initial)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const update = (i: number, patch: Partial<HoursRow>) =>
+    setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+
+  async function save() {
+    const checked = validateHours(rows)
+    if (!checked.ok) return setError(checked.error)
+    setError(null)
+    setBusy(true)
+    const res = await replaceStaffHours(businessId, member.id, rows)
+    setBusy(false)
+    if (res.cleared) {
+      toast.error(
+        `${member.name}'s old hours were removed but the new ones didn't save, so nobody can book them right now. Open Weekly hours and save again. ${res.error ?? ""}`.trim(),
+      )
+      return onCleared()
+    }
+    if (res.error) return setError(res.error)
+    onSaved()
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`${member.name}'s weekly hours`}
+      description="Owners booking online are offered times inside these hours. Use a 24-hour clock."
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button busy={busy} onClick={() => void save()}>Save hours</Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        {WEEKDAY_ORDER.map((day) => {
+          const sessions = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.weekday === day)
+          return (
+            <fieldset key={day} className="rounded-xl border border-border p-2.5">
+              <legend className="px-1 text-[12.5px] font-semibold text-foreground">{WEEKDAY_LABEL[day]}</legend>
+              {sessions.length === 0 && <p className="text-[12px] text-muted-foreground">Not working</p>}
+              <ul className="flex flex-col gap-1.5">
+                {sessions.map(({ r, i }) => (
+                  <li key={i} className="flex flex-wrap items-center gap-2">
+                    <label className="sr-only" htmlFor={`start-${day}-${i}`}>{WEEKDAY_LABEL[day]} start</label>
+                    <TextInput
+                      id={`start-${day}-${i}`}
+                      type="time"
+                      step={300}
+                      value={r.start}
+                      onChange={(e) => update(i, { start: e.target.value })}
+                      className="w-32"
+                    />
+                    <span className="text-[12px] text-muted-foreground">to</span>
+                    <label className="sr-only" htmlFor={`end-${day}-${i}`}>{WEEKDAY_LABEL[day]} end</label>
+                    <TextInput
+                      id={`end-${day}-${i}`}
+                      type="time"
+                      step={300}
+                      value={r.end}
+                      onChange={(e) => update(i, { end: e.target.value })}
+                      className="w-32"
+                    />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`Remove ${WEEKDAY_LABEL[day]} ${r.start}–${r.end}`}
+                      onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-1"
+                onClick={() => {
+                  // A second session starts where the last one ended.
+                  const last = sessions[sessions.length - 1]?.r
+                  const start = last ? last.end : "09:00"
+                  const end = last ? (last.end < "17:00" ? "17:00" : "23:59") : "17:00"
+                  setRows((rs) => [...rs, { weekday: day, start, end }])
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add hours
+              </Button>
+            </fieldset>
+          )
+        })}
+        {error && <p role="alert" className="text-[12px] font-medium text-destructive">{error}</p>}
+      </div>
     </Modal>
   )
 }

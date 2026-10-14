@@ -21,6 +21,8 @@ export interface ClinicMembership {
   ownerId: string
   /** The signed-in person's profile id. */
   profileId: string
+  /** `businesses.timezone` — the practice's clock for "today" (Billing's Taken today). */
+  timezone: string
 }
 
 export interface ClinicLocation {
@@ -49,7 +51,7 @@ export function useMyClinics(): LiveResult<ClinicMembership[]> {
       const rows = must(
         await db
           .from("business_staff")
-          .select("id, role, business_id, businesses(id, name, business_kind, tier, owner_id)")
+          .select("id, role, business_id, businesses(id, name, business_kind, tier, owner_id, timezone)")
           .eq("profile_id", uid)
           .eq("is_active", true),
       ) as Array<{
@@ -62,6 +64,7 @@ export function useMyClinics(): LiveResult<ClinicMembership[]> {
           business_kind: string
           tier: BusinessTier
           owner_id: string
+          timezone: string | null
         } | null
       }>
       return rows
@@ -76,6 +79,7 @@ export function useMyClinics(): LiveResult<ClinicMembership[]> {
           isOwner: r.businesses?.owner_id === uid,
           ownerId: r.businesses?.owner_id ?? "",
           profileId: uid,
+          timezone: r.businesses?.timezone ?? "America/Vancouver",
         }))
     },
     [],
@@ -213,6 +217,8 @@ export function capabilities(
     takePayment: admin || role === "reception" || role === "veterinarian",
     manageShop: admin || clinical,
     manageTeam: admin,
+    /** Services, prices and clinicians' weekly hours: what owners can book. */
+    manageSchedule: admin,
     exportData: admin,
   }
 }

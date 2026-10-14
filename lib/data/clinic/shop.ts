@@ -3,6 +3,7 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./use-live"
+import type { PaymentMethod } from "./billing"
 
 export interface Product {
   id: string
@@ -113,7 +114,10 @@ export interface Invoice {
   currency: string
   issuedOn: string | null
   createdAt: string
+  /** When it last changed — for a paid invoice, when the payment was recorded (see takenTodayCents). */
+  updatedAt: string
   patientId: string | null
+  visitId: string | null
   patientName: string
   customerName: string
   ownerApprovedAt: string | null
@@ -140,7 +144,9 @@ function mapInvoice(r: InvoiceJoined): Invoice {
     currency: r.currency,
     issuedOn: r.issued_on,
     createdAt: r.created_at,
+    updatedAt: r.updated_at,
     patientId: r.patient_id,
+    visitId: r.visit_id,
     patientName: r.clinic_patients?.name ?? "—",
     customerName: r.clinic_customers
       ? [r.clinic_customers.first_name, r.clinic_customers.last_name].filter(Boolean).join(" ")
@@ -174,7 +180,11 @@ export function useInvoices(businessId: string | null): LiveResult<Invoice[]> {
   )
 }
 
-/** Build an invoice from what the visit actually recorded. */
+/**
+ * Build an invoice (or estimate) from what the visit actually recorded. A
+ * visit with no services is refused before anything is written: an empty
+ * draft bills nothing and only clutters Billing.
+ */
 export async function invoiceFromVisit(
   visitId: string,
   kind: "estimate" | "invoice" = "invoice",
@@ -187,6 +197,12 @@ export async function invoiceFromVisit(
     .eq("id", visitId)
     .single()
   if (vErr || !visit) return { error: vErr?.message ?? "Visit not found." }
+  const services = (visit.visit_services ?? []) as Array<{
+    name: string
+    quantity: number
+    unit_price_cents: number
+  }>
+  if (services.length === 0) return { error: "Add a service to this visit first — there's nothing to bill yet." }
 
   const { data: inv, error: iErr } = await db
     .from("invoices")
@@ -202,30 +218,32 @@ export async function invoiceFromVisit(
     .single()
   if (iErr || !inv) return { error: iErr?.message ?? "Could not create the invoice." }
 
-  const services = (visit.visit_services ?? []) as Array<{
-    name: string
-    quantity: number
-    unit_price_cents: number
-  }>
-  if (services.length > 0) {
-    const { error: lErr } = await db.from("invoice_lines").insert(
-      services.map((s) => ({
-        invoice_id: inv.id,
-        business_id: visit.business_id,
-        description: s.name,
-        quantity: s.quantity,
-        unit_price_cents: s.unit_price_cents,
-      })),
-    )
-    if (lErr) return { error: lErr.message, invoiceId: inv.id }
-  }
+  const { error: lErr } = await db.from("invoice_lines").insert(
+    services.map((s) => ({
+      invoice_id: inv.id,
+      business_id: visit.business_id,
+      description: s.name,
+      quantity: s.quantity,
+      unit_price_cents: s.unit_price_cents,
+    })),
+  )
+  if (lErr) return { error: lErr.message, invoiceId: inv.id }
   return { error: null, invoiceId: inv.id }
 }
 
+/**
+ * Move a bill through clinic_set_invoice_status. Recording a payment passes
+ * `paidCents` and the `method`; the RPC has no method parameter, so the
+ * method is appended to invoices.note afterwards (invoices_staff lets staff
+ * write it), keeping whatever is already there — an owner's decline note, a
+ * practice's own words. If only that second write fails the payment still
+ * stands, and the error says so.
+ */
 export async function setInvoiceStatus(
   invoiceId: string,
   status: string,
   paidCents?: number,
+  method?: PaymentMethod,
 ): Promise<{ error: string | null }> {
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
@@ -236,5 +254,69 @@ export async function setInvoiceStatus(
   })
   if (error) return { error: error.message }
   const out = readOutcome(data)
-  return { error: out.ok ? null : sentenceFor(out.error) }
+  if (!out.ok) return { error: sentenceFor(out.error) }
+  if (status === "paid" && method) {
+    const { data: row } = await db.from("invoices").select("note").eq("id", invoiceId).single()
+    const note = [row?.note, `Paid by ${method}.`].filter(Boolean).join("\n")
+    const { error: nErr } = await db.from("invoices").update({ note }).eq("id", invoiceId)
+    if (nErr) return { error: `The payment is recorded, but the method wasn't saved. ${nErr.message}` }
+  }
+  return { error: null }
+}
+
+export interface BillableVisit {
+  id: string
+  visitedOn: string
+  reason: string | null
+  patientName: string
+  customerName: string
+  totalCents: number
+  serviceCount: number
+}
+
+/**
+ * Recent visits that recorded services — what "New invoice" picks from. The
+ * last 60 days, newest first; whether one is already invoiced is decided on
+ * the screen from the invoices it already holds (invoicedVisitIds).
+ */
+export function useBillableVisits(businessId: string | null, enabled = true): LiveResult<BillableVisit[]> {
+  return useLive<BillableVisit[]>(
+    [],
+    async (db) => {
+      const since = new Date(Date.now() - 60 * 86_400_000).toISOString().slice(0, 10)
+      const rows = must(
+        await db
+          .from("visits")
+          .select(
+            "id, visited_on, reason, clinic_patients(name), clinic_customers(first_name, last_name), visit_services(quantity, unit_price_cents)",
+          )
+          .eq("business_id", businessId as string)
+          .gte("visited_on", since)
+          .order("visited_on", { ascending: false })
+          .limit(100),
+      ) as Array<{
+        id: string
+        visited_on: string
+        reason: string | null
+        clinic_patients: { name: string } | null
+        clinic_customers: { first_name: string; last_name: string | null } | null
+        visit_services: Array<{ quantity: number; unit_price_cents: number }>
+      }>
+      return rows
+        .filter((r) => (r.visit_services ?? []).length > 0)
+        .map((r) => ({
+          id: r.id,
+          visitedOn: r.visited_on,
+          reason: r.reason,
+          patientName: r.clinic_patients?.name ?? "—",
+          customerName: r.clinic_customers
+            ? [r.clinic_customers.first_name, r.clinic_customers.last_name].filter(Boolean).join(" ")
+            : "—",
+          totalCents: r.visit_services.reduce((sum, s) => sum + Math.round(Number(s.quantity) * s.unit_price_cents), 0),
+          serviceCount: r.visit_services.length,
+        }))
+    },
+    [businessId, enabled],
+    Boolean(businessId) && enabled,
+  )
 }
