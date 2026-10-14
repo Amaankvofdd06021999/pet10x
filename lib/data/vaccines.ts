@@ -26,16 +26,19 @@ export const VACCINES: Record<VaccineSpecies, { key: string; label: string }[]> 
   other: [{ key: "rabies", label: "Rabies" }],
 }
 
-// Whole-word patterns, tried in order. A name is a vaccine only when a word in
-// it is one of these spellings; "Antirabies-free" and "Heartworm" are not.
+// Positive grammar: a name is a vaccine when it starts a word with one of these
+// spellings and no letter follows. Digits and underscores may follow
+// ("Rabies3yr", "Rabies_2024"), which a plain \b would refuse; letters may not
+// ("rabiesfree"), and nothing may precede ("Antirabies"). Rabies also allows a
+// trailing "vaccine|vax|shot" for compact entries like "RabiesVaccine".
 const MATCHERS: { key: string; re: RegExp }[] = [
-  { key: "rabies", re: /\brabi(es|is|s)?\b/i },
-  { key: "dhpp", re: /\b(dhpp|da2pp|distemper)\b/i },
-  { key: "fvrcp", re: /\bfvrcp\b/i },
-  { key: "bordetella", re: /\b(bordetella|kennel)\b/i },
-  { key: "leptospirosis", re: /\blepto\w*/i },
-  { key: "lyme", re: /\blyme\b/i },
-  { key: "felv", re: /\b(felv|leuk\w*)/i },
+  { key: "rabies", re: /\brabi(es|is|s)?(vaccine|vax|shot)?(?![a-z])/i },
+  { key: "dhpp", re: /\b(dhpp|da2pp|distemper)(?![a-z])/i },
+  { key: "fvrcp", re: /\bfvrcp(?![a-z])/i },
+  { key: "bordetella", re: /\b(bordetella|kennel)(?![a-z])/i },
+  { key: "leptospirosis", re: /\blepto(spirosis)?(?![a-z])/i },
+  { key: "lyme", re: /\blyme(?![a-z])/i },
+  { key: "felv", re: /\b(felv|feline\s+leuk(a)?emia)(?![a-z])/i },
 ]
 
 export function canonicalVaccineKey(name: string): string | null {

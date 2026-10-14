@@ -5,6 +5,9 @@ describe("canonicalVaccineKey", () => {
   it.each([
     ["Rabis", "rabies"],
     ["Rabies 3-year", "rabies"],
+    ["Rabies3yr", "rabies"],
+    ["Rabies_2024", "rabies"],
+    ["RabiesVaccine", "rabies"],
     ["  rabies ", "rabies"],
     ["DA2PP", "dhpp"],
     ["DHPP (distemper combo)", "dhpp"],
@@ -16,7 +19,7 @@ describe("canonicalVaccineKey", () => {
     ["FeLV (feline leukemia)", "felv"],
   ])("%s -> %s", (name, key) => expect(canonicalVaccineKey(name)).toBe(key))
 
-  it.each(["Heartworm", "Antirabies-free", "", "   "])("%j -> null", (name) => expect(canonicalVaccineKey(name)).toBeNull())
+  it.each(["Heartworm", "Antirabies-free", "rabiesfree", "Leukocyte test", "", "   "])("%j -> null", (name) => expect(canonicalVaccineKey(name)).toBeNull())
 
   it("every listed label maps back to its own key", () => {
     for (const list of Object.values(VACCINES)) for (const v of list) expect(canonicalVaccineKey(v.label)).toBe(v.key)
