@@ -57,10 +57,16 @@ export const TAB_ROOTS: ReadonlySet<ScreenKey> = new Set<ScreenKey>([
  * (`DETAIL_TABS` in pet-detail-screen, the `lost | events | feed` check in
  * community-screen), so a URL can round-trip any tab the app pushes.
  */
+const SETTINGS_TABS = ["bylaws", "fines", "rules", "staff"] as const
+
 const SCREEN_TABS: Partial<Record<ScreenKey, readonly string[]>> = {
   ...TAB_BEARING,
   "pet-detail": ["overview", "care", "vaccinations", "documents", "contacts"],
   community: ["feed", "lost", "events"],
+  /* The manager setup checklist's targets (BM-8): each opens the sheet or page
+     in Settings that does the job. `fines` is the bylaws sheet, where the fine
+     schedule lives. */
+  settings: SETTINGS_TABS,
 }
 
 function idMatches(screen: ScreenKey, id: string): boolean {

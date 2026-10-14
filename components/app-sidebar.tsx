@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Gavel,
   Megaphone,
+  MessageSquare,
   UserCheck,
   Settings,
   PawPrint,
@@ -41,6 +42,9 @@ const managerTabs = [
   /* Desktop only. The mobile bar has five slots and they are taken; on a phone
      Incidents is the dashboard's "Incident Reports" quick action. */
   { id: "incidents", label: "Incidents", icon: Megaphone },
+  /* Moderation: the feed, announcements and removals. Desktop only for the same
+     reason as Incidents; on a phone it is a dashboard tile. */
+  { id: "community", label: "Community", icon: MessageSquare },
   { id: "approvals", label: "Approvals", icon: UserCheck },
   { id: "settings", label: "Settings", icon: Settings },
 ]

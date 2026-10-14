@@ -19,6 +19,11 @@ describe("app routes", () => {
     expect(routeToSearch({ screen: "add-pet" })).toBe("?screen=add-pet")
     expect(routeToSearch({ screen: "community", tab: "events" })).toBe("?screen=community&tab=events")
   })
+  it("managers can open Community (moderation) and Settings sheets", () => {
+    expect(searchToRoute("?screen=community", "manager")).toEqual({ screen: "community" })
+    expect(searchToRoute("?screen=settings&tab=staff", "manager")).toEqual({ screen: "settings", tab: "staff" })
+    expect(searchToRoute("?screen=settings&tab=nope", "manager")).toBeNull()
+  })
   it("refuses screens the surface cannot render", () => {
     expect(searchToRoute("?screen=approvals", "resident")).toBeNull()
     expect(searchToRoute("?screen=dashboard", "manager")).toEqual({ screen: "dashboard" })

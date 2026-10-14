@@ -8,6 +8,7 @@ import { useBuildingResidents, useBuildingPets, useUnreadNotificationCount, useV
 import { useComplianceInputs } from "@/lib/data/portfolio"
 import { ArchivedBuildingBanner } from "@/components/screens/manager/archived-building-banner"
 import { useManagerBuilding } from "@/lib/data/manager"
+import { SetupCard } from "@/components/screens/manager/setup-card"
 import type { ViolationStage } from "@/lib/data/types"
 import {
   Shield,
@@ -15,6 +16,7 @@ import {
   UserCheck,
   Gavel,
   Megaphone,
+  MessageSquare,
   Dog,
   Cat,
   PawPrint,
@@ -39,6 +41,15 @@ const QUICK_ACTIONS = [
   { icon: AlertTriangle, label: "Violations", tint: "bg-destructive/10 text-destructive", screen: "violations" },
   { icon: Shield, label: "Approvals", tint: "bg-success/10 text-success", screen: "approvals" },
   { icon: Megaphone, label: "Incident Reports", tint: "bg-warning/10 text-warning-strong", screen: "incidents" },
+  /* Phone only: the desktop sidebar carries Community, and the mobile tab bar
+     has no slot for it. Full width so the grid stays even with five tiles. */
+  {
+    icon: MessageSquare,
+    label: "Community",
+    tint: "bg-accent/10 text-accent",
+    screen: "community",
+    className: "col-span-2 md:hidden",
+  },
 ] as const
 
 /**
@@ -61,11 +72,11 @@ const STAGE_TILE: Record<ViolationStage, { tint: string; icon: typeof Gavel }> =
 const BAD_VAX = ["expired", "rejected"]
 
 interface DashboardScreenProps {
-  onNavigate?: (screen: string, id?: string) => void
+  onNavigate?: (screen: string, id?: string, petId?: string, tab?: string) => void
 }
 
 export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
-  const { user, activeBuildingId } = useAuth()
+  const { user, activeBuildingId, personasStatus } = useAuth()
   const { data: building, isLoading: bLoading } = useManagerBuilding(activeBuildingId)
   const { data: allResidents, isLoading: rLoading } = useBuildingResidents()
   const { data: allPets, isLoading: pLoading } = useBuildingPets()
@@ -149,6 +160,14 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
           </section>
         )}
 
+        {/* BM-8. For the ACTIVE building only, and not before the buildings are
+            known: until then `building` may be the fallback's first building,
+            and a code for the wrong one is worse than none. Keyed by building
+            so a switch starts its checklist afresh. */}
+        {personasStatus !== "loading" && building && !building.archivedAt && (
+          <SetupCard key={building.id} building={building} onNavigate={onNavigate} />
+        )}
+
         {/* Headline pair — the building at a glance */}
         <section className="mb-6 grid grid-cols-2 gap-3">
           <div className="relative overflow-hidden rounded-2xl bg-primary p-4">
@@ -181,7 +200,9 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
                   <button
                     key={action.label}
                     onClick={() => handleQuickAction(action.screen)}
-                    className="flex flex-col items-center justify-center gap-2 rounded-2xl card-interactive px-3 py-5 transition-transform active:scale-[0.97]"
+                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl card-interactive px-3 py-5 transition-transform active:scale-[0.97] ${
+                      "className" in action ? action.className : ""
+                    }`}
                   >
                     <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${action.tint}`}>
                       <Icon className="h-5 w-5" />

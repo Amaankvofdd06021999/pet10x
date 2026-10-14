@@ -60,7 +60,25 @@ type Sheet = "profile" | "bylaws" | "rules" | "qr" | "notifications" | null
 /** Full screens opened from the Administration section. */
 type Page = "audit" | "staff" | "compliance" | null
 
-export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
+/* `?tab=` values the setup checklist sends (`SCREEN_TABS.settings` in
+   lib/app-route.ts), and what each opens. `fines` is the bylaws sheet, which
+   holds the fine schedule. The sheets render only once the building has
+   resolved, so opening on mount waits for it for free. */
+const OPEN_ON_ARRIVAL: Record<string, { sheet?: Sheet; page?: Page }> = {
+  bylaws: { sheet: "bylaws" },
+  fines: { sheet: "bylaws" },
+  rules: { sheet: "rules" },
+  staff: { page: "staff" },
+}
+
+export function ManagerSettingsScreen({
+  onNavigate,
+  initialTab,
+}: {
+  onNavigate?: (screen: string) => void
+  /** The setup checklist's target: open this sheet (or page) on arrival. */
+  initialTab?: string
+}) {
   const { user, signOut, activeBuildingId, viewAs } = useAuth()
   const { data: building, isLoading, refetch } = useManagerBuilding(activeBuildingId)
   const { data: stats, isLoading: statsLoading } = useBuildingStats(building?.id)
@@ -69,8 +87,8 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
      resolves, and the hook queries nothing until it does. */
   const { data: houseRules } = useManagerBuildingRules(building?.id)
   const publishedRules = houseRules.filter((r) => r.isPublished).length
-  const [sheet, setSheet] = useState<Sheet>(null)
-  const [page, setPage] = useState<Page>(null)
+  const [sheet, setSheet] = useState<Sheet>(() => (initialTab ? (OPEN_ON_ARRIVAL[initialTab]?.sheet ?? null) : null))
+  const [page, setPage] = useState<Page>(() => (initialTab ? (OPEN_ON_ARRIVAL[initialTab]?.page ?? null) : null))
 
   if (building && page === "audit") {
     return <AuditLogScreen buildingId={building.id} buildingName={building.name} onBack={() => setPage(null)} />

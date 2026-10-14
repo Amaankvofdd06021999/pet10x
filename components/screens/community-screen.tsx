@@ -1,10 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import {
   useCommunityPosts,
   useCommunityScope,
+  setCommunityManagerBuilding,
   useLostFound,
   useEvents,
   createCommunityPost,
@@ -196,6 +197,25 @@ export function CommunityScreen({
       for "events" — it used to land on the feed and leave you to find them. */
   initialTab?: string
 }) {
+  const { viewAs, activeBuildingId } = useAuth()
+  /* Worn as a manager, the feed is the ACTIVE building's (BM-11), not whatever
+     a resident link or a lone manager row resolves to. The body is rendered
+     only once that choice is registered with the data layer (an effect, since
+     children's effects run first and their first read must already see it),
+     and is keyed by it so its feeds re-read when the manager switches building
+     or persona. Cleared on unmount so a resident's feed never sees it. */
+  const managerBuilding = viewAs === "building-manager" ? activeBuildingId : null
+  const [applied, setApplied] = useState<{ id: string | null } | null>(null)
+  useEffect(() => {
+    setCommunityManagerBuilding(managerBuilding)
+    setApplied({ id: managerBuilding })
+    return () => setCommunityManagerBuilding(null)
+  }, [managerBuilding])
+  if (applied === null || applied.id !== managerBuilding) return null
+  return <CommunityScreenBody key={managerBuilding ?? "own"} initialTab={initialTab} />
+}
+
+function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
   const { user } = useAuth()
   const { data: scope } = useCommunityScope()
   /* Whether the viewer manages THIS FEED's building — not whether their account

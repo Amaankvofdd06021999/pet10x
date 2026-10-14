@@ -1613,6 +1613,19 @@ export interface CommunityScope {
 }
 
 /**
+ * The building a manager has chosen, while they are looking at Community as a
+ * manager; null otherwise. Module state because five readers and writers share
+ * `currentScope`, and the screen that sets it unsets it on unmount, so a
+ * resident's feed never sees it. `useCommunityManagerBuilding` is the only
+ * setter.
+ */
+let preferredManagerBuilding: string | null = null
+
+export function setCommunityManagerBuilding(buildingId: string | null) {
+  preferredManagerBuilding = buildingId
+}
+
+/**
  * The building whose feed the viewer reads and writes.
  *
  * THIS USED TO BE RESIDENT-ONLY. `my_building_link()` reads `resident_links`,
@@ -1650,6 +1663,23 @@ async function currentScope(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return null
+
+  /* A manager wearing the manager persona reads the feed of the building they
+   * have chosen (BM-11). Checked against building_managers, so a stale or
+   * foreign id falls through to the resolution below instead of granting
+   * anything. */
+  if (preferredManagerBuilding) {
+    const { data: mine } = await supabase
+      .from("building_managers")
+      .select("building_id, buildings(name)")
+      .eq("profile_id", user.id)
+      .eq("building_id", preferredManagerBuilding)
+      .maybeSingle()
+    if (mine) {
+      const row = mine as unknown as { building_id: string; buildings: { name: string | null } | null }
+      return { buildingId: row.building_id, buildingName: row.buildings?.name ?? null, via: "manager", manages: true }
+    }
+  }
 
   const { data } = await supabase.rpc("my_building_link")
   const j = data as { building_id?: string; building_name?: string; status?: string } | null

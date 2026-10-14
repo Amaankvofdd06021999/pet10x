@@ -109,7 +109,12 @@ export const SCREEN_SURFACES = {
 
   // Resident block.
   home: RESIDENT,
-  community: RESIDENT,
+  /* BOTH: moderation. A manager removes posts, pins and announces from this
+   * screen, and used to have to wear the resident persona to reach it (which
+   * can trap them in resident onboarding). `scope.manages` — not the persona —
+   * is what gates the manager controls inside it, and the feed it shows is the
+   * manager's active building. */
+  community: BOTH,
   services: RESIDENT,
   profile: RESIDENT,
   /* The resident's own bylaw cases. RESIDENT and not BOTH: a manager reads the

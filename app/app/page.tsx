@@ -515,7 +515,8 @@ function AppContent() {
               {currentScreen === "violations" && <ManagerViolationsScreen onNavigate={handleNavigate} />}
               {currentScreen === "approvals" && <ManagerApprovalsScreen onNavigate={handleNavigate} />}
               {currentScreen === "incidents" && <ManagerIncidentsScreen />}
-              {currentScreen === "settings" && <ManagerSettingsScreen onNavigate={handleNavigate} />}
+              {currentScreen === "community" && <CommunityScreen initialTab={screenTab} />}
+              {currentScreen === "settings" && <ManagerSettingsScreen onNavigate={handleNavigate} initialTab={screenTab} />}
               {/* Managers have no Alerts tab, but the dashboard bell routes
                   here — without this the screen renders blank. */}
               {currentScreen === "alerts" && <AlertsScreen onNavigate={handleNavigate} onBack={handleBack} />}
