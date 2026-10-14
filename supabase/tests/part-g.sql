@@ -31,6 +31,36 @@
 --   (42501); an admin gets MCR2026's live counts (active residents at least
 --   the approved, not-left links).
 --
+-- Covers 20261015000005 (sections 11-14):
+--   * businesses.contact_phone / contact_email — the owner updates them; a
+--     phone or email outside the grammar is refused (23514).
+--   * business_cancel_booking — a non-member (the customer) is refused
+--     (42501); a blank (tab) or 2001-character reason is 22023; a completed
+--     booking is not_cancellable; a confirmed one is cancelled with the
+--     trimmed reason and cancelled_by business, and the customer is told,
+--     the body quoting the reason.
+--   * customer_cancel_booking still works, sets cancelled_by customer, tells
+--     the business and does NOT tell the customer.
+--   * business_booking_contact — the customer's email and phone to the
+--     business owner while confirmed or completed; null fields for a
+--     requested or cancelled booking, and for anyone else.
+--   * Appointments: an inserted request notifies the practice (clinic:today);
+--     owner_cancel_appointment refuses a non-owner (42501), an over-long
+--     reason (22023), a visit 1 hour away (too_late) and a cancelled one
+--     (not_cancellable), and cancels a visit 3 days away, telling the
+--     practice; the practice confirming, declining a request, cancelling and
+--     marking missed each tell the owner (my-vets:visits), and the owner's
+--     own cancel does not.
+--   * owner_decline_estimate — a non-owner is refused (42501), a blank note
+--     is 22023, an approved estimate is not_awaiting_approval; a sent one is
+--     declined, the note appended after the practice's, and the practice told
+--     (clinic:billing).
+--   Fixtures planted in section 11: Part G Salon (the Part G owner's), its
+--   service and three bookings by the outsider; the outsider's pet "Part G
+--   Rex", its chart at Part G Clinic (section 5), four appointments and two
+--   estimates. The owner is the business side throughout, the outsider the
+--   customer and pet owner.
+--
 -- Actors are chosen from live data, not invented: Maple Court Residences
 -- (MCR2026), a non-admin manager of it, and two non-admin profiles that manage
 -- no building and hold no pending or approved link anywhere (an owner and an
@@ -723,6 +753,380 @@ begin
   end if;
   raise notice 'ok: admin sees MCR2026 with % active residents, % open cases, % open reports',
     v_row.active_residents, v_row.open_cases, v_row.open_reports;
+end $$;
+reset role;
+
+-- ===========================================================================
+-- 11. Bookings, visits and estimates (20261015000005): fixtures, as the
+--     connection role with no caller — so the request trigger below speaks to
+--     every recipient, exactly as it does for a request no staff member made
+-- ===========================================================================
+reset role;
+select set_config('request.jwt.claims', '', true);
+do $$
+declare
+  v_owner uuid := current_setting('part_g.owner')::uuid;
+  v_outsider uuid := current_setting('part_g.outsider')::uuid;
+  v_clinic uuid := current_setting('part_g.biz_clinic')::uuid;
+  v_salon uuid; v_svc uuid; v_b_conf uuid; v_b_done uuid; v_b_req uuid;
+  v_pet uuid; v_cust uuid; v_patient uuid;
+  v_a_req uuid; v_a_soon uuid; v_a_dec uuid; v_a_conf uuid;
+  v_e_sent uuid; v_e_appr uuid;
+  v_email text; v_phone text;
+begin
+  if auth.uid() is not null then raise exception 'FIXTURE: a caller is still set (%)', auth.uid(); end if;
+
+  insert into public.businesses (owner_id, name, category)
+  values (v_owner, 'Part G Salon', 'Grooming') returning id into v_salon;
+  insert into public.business_services (business_id, name, price_cents)
+  values (v_salon, 'Part G Trim', 4500) returning id into v_svc;
+  insert into public.service_bookings (business_id, customer_id, service_id, status, scheduled_for, amount_cents)
+  values (v_salon, v_outsider, v_svc, 'confirmed', now() + interval '3 days', 4500) returning id into v_b_conf;
+  insert into public.service_bookings (business_id, customer_id, service_id, status, scheduled_for, amount_cents)
+  values (v_salon, v_outsider, v_svc, 'completed', now() - interval '3 days', 4500) returning id into v_b_done;
+  insert into public.service_bookings (business_id, customer_id, service_id, status, scheduled_for, amount_cents)
+  values (v_salon, v_outsider, v_svc, 'requested', now() + interval '6 days', 4500) returning id into v_b_req;
+
+  -- The outsider's pet, charted at Part G Clinic (owned by the Part G owner).
+  insert into public.pets (owner_id, name, species)
+  values (v_outsider, 'Part G Rex', 'dog') returning id into v_pet;
+  insert into public.clinic_customers (business_id, profile_id, first_name)
+  values (v_clinic, v_outsider, 'Part G') returning id into v_cust;
+  insert into public.clinic_patients (business_id, customer_id, pet_id, name)
+  values (v_clinic, v_cust, v_pet, 'Part G Rex') returning id into v_patient;
+
+  -- Three requests (each notifies the practice on insert) and one booked visit
+  -- an hour away.
+  insert into public.appointments (business_id, customer_id, patient_id, starts_at, ends_at, status, reason, source, booked_by)
+  values (v_clinic, v_cust, v_patient, now() + interval '3 days', now() + interval '3 days 30 minutes',
+          'requested', 'Checkup', 'online', v_outsider) returning id into v_a_req;
+  insert into public.appointments (business_id, customer_id, patient_id, starts_at, ends_at, status, reason, source, booked_by)
+  values (v_clinic, v_cust, v_patient, now() + interval '4 days', now() + interval '4 days 30 minutes',
+          'requested', 'Checkup', 'online', v_outsider) returning id into v_a_dec;
+  insert into public.appointments (business_id, customer_id, patient_id, starts_at, ends_at, status, reason, source, booked_by)
+  values (v_clinic, v_cust, v_patient, now() + interval '5 days', now() + interval '5 days 30 minutes',
+          'requested', 'Checkup', 'online', v_outsider) returning id into v_a_conf;
+  insert into public.appointments (business_id, customer_id, patient_id, starts_at, ends_at, status, reason, source)
+  values (v_clinic, v_cust, v_patient, now() + interval '1 hour', now() + interval '90 minutes',
+          'booked', 'Vaccination', 'staff') returning id into v_a_soon;
+
+  insert into public.invoices (business_id, customer_id, patient_id, kind, number, status, total_cents, note)
+  values (v_clinic, v_cust, v_patient, 'estimate', 'PG-E1', 'sent', 12000, 'Includes bloodwork')
+  returning id into v_e_sent;
+  insert into public.invoices (business_id, customer_id, patient_id, kind, number, status, total_cents)
+  values (v_clinic, v_cust, v_patient, 'estimate', 'PG-E2', 'approved', 8000)
+  returning id into v_e_appr;
+
+  select nullif(trim(coalesce(email, '')), ''), nullif(trim(coalesce(phone, '')), '')
+    into v_email, v_phone from public.profiles where id = v_outsider;
+  if v_email is null and v_phone is null then
+    raise notice 'note: the outsider has no profile email or phone, so the positive contact check only proves null fields match';
+  end if;
+
+  perform set_config('part_g.salon', v_salon::text, true);
+  perform set_config('part_g.b_conf', v_b_conf::text, true);
+  perform set_config('part_g.b_done', v_b_done::text, true);
+  perform set_config('part_g.b_req', v_b_req::text, true);
+  perform set_config('part_g.a_req', v_a_req::text, true);
+  perform set_config('part_g.a_dec', v_a_dec::text, true);
+  perform set_config('part_g.a_conf', v_a_conf::text, true);
+  perform set_config('part_g.a_soon', v_a_soon::text, true);
+  perform set_config('part_g.e_sent', v_e_sent::text, true);
+  perform set_config('part_g.e_appr', v_e_appr::text, true);
+  perform set_config('part_g.cust_email', coalesce(v_email, ''), true);
+  perform set_config('part_g.cust_phone', coalesce(v_phone, ''), true);
+  raise notice 'fixtures: salon % bookings % % % pet % appointments % % % % estimates % %',
+    v_salon, v_b_conf, v_b_done, v_b_req, v_pet, v_a_req, v_a_dec, v_a_conf, v_a_soon, v_e_sent, v_e_appr;
+end $$;
+
+do $$
+declare v_n int;
+begin
+  select count(*) into v_n from public.notifications
+   where profile_id = current_setting('part_g.owner')::uuid and created_at >= now()
+     and kind = 'clinic' and action_target = 'clinic:today'
+     and title = 'Appointment request — Part G Rex' and body like '%asked for Checkup for Part G Rex on %';
+  if v_n <> 3 then raise exception 'FAIL: the practice owner got % request notifications, expected 3', v_n; end if;
+  raise notice 'ok: each inserted appointment request notifies the practice (clinic:today)';
+end $$;
+
+-- ===========================================================================
+-- 12. Business contact details, cancelling a booking, the customer's contact
+-- ===========================================================================
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
+do $$
+declare v jsonb;
+begin
+  if public.is_admin() then raise exception 'FIXTURE: outsider is an admin'; end if;
+  begin
+    perform public.business_cancel_booking(current_setting('part_g.b_conf')::uuid, 'Not my business');
+    raise exception 'FAIL: the customer cancelled through the business door';
+  exception when insufficient_privilege then null;
+  end;
+  v := public.business_booking_contact(current_setting('part_g.b_conf')::uuid);
+  if v is distinct from '{"email": null, "phone": null}'::jsonb then
+    raise exception 'FAIL: a non-member read booking contact details: %', v;
+  end if;
+  raise notice 'ok: a non-member cannot cancel as the business (42501) or read the contact (null fields)';
+end $$;
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.owner'), 'role', 'authenticated')::text, true);
+do $$
+declare
+  v_salon uuid := current_setting('part_g.salon')::uuid;
+  v_conf uuid := current_setting('part_g.b_conf')::uuid;
+  v_done uuid := current_setting('part_g.b_done')::uuid;
+  v_req uuid := current_setting('part_g.b_req')::uuid;
+  v_email text := nullif(current_setting('part_g.cust_email'), '');
+  v_phone text := nullif(current_setting('part_g.cust_phone'), '');
+  v jsonb;
+  v_row public.service_bookings%rowtype;
+begin
+  if public.is_admin() then raise exception 'FIXTURE: owner is an admin'; end if;
+
+  update public.businesses set contact_phone = '+1 (604) 555-0100', contact_email = 'hello@partg.example'
+   where id = v_salon;
+  if not found then raise exception 'FAIL: the owner could not set contact details'; end if;
+  begin
+    update public.businesses set contact_phone = 'call me' where id = v_salon;
+    raise exception 'FAIL: a phone outside the grammar was saved';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.businesses set contact_email = 'hello at partg' where id = v_salon;
+    raise exception 'FAIL: an email outside the grammar was saved';
+  exception when check_violation then null;
+  end;
+  raise notice 'ok: the owner sets contact_phone/contact_email; text outside either grammar is 23514';
+
+  v := public.business_booking_contact(v_req);
+  if v is distinct from '{"email": null, "phone": null}'::jsonb then
+    raise exception 'FAIL: a requested booking gave contact details: %', v;
+  end if;
+  v := public.business_booking_contact(v_conf);
+  if v->>'email' is distinct from v_email or v->>'phone' is distinct from v_phone then
+    raise exception 'FAIL: a confirmed booking gave %, expected the customer''s profile email/phone', v;
+  end if;
+  v := public.business_booking_contact(v_done);
+  if v->>'email' is distinct from v_email or v->>'phone' is distinct from v_phone then
+    raise exception 'FAIL: a completed booking gave %, expected the customer''s profile email/phone', v;
+  end if;
+  raise notice 'ok: the owner reads the customer''s contact on confirmed and completed bookings, not on a request';
+
+  begin
+    perform public.business_cancel_booking(v_conf, E'  \t\n ');
+    raise exception 'FAIL: a whitespace-only reason was accepted';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.business_cancel_booking(v_conf, repeat('x', 2001));
+    raise exception 'FAIL: a 2001-character reason was accepted';
+  exception when invalid_parameter_value then null;
+  end;
+  v := public.business_cancel_booking(v_done, 'Closed today');
+  if v->>'error' is distinct from 'not_cancellable' then
+    raise exception 'FAIL: cancelling a completed booking gave %', v;
+  end if;
+  if (select status from public.service_bookings where id = v_done) <> 'completed' then
+    raise exception 'FAIL: the refused cancel still moved the completed booking';
+  end if;
+
+  v := public.business_cancel_booking(v_conf, '  Groomer is ill  ');
+  if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: the business cancel gave %', v; end if;
+  select * into v_row from public.service_bookings where id = v_conf;
+  if v_row.status <> 'cancelled' or v_row.cancelled_by is distinct from 'business'
+     or v_row.cancelled_reason is distinct from 'Groomer is ill' then
+    raise exception 'FAIL: the cancelled booking is %', row_to_json(v_row);
+  end if;
+  v := public.business_booking_contact(v_conf);
+  if v is distinct from '{"email": null, "phone": null}'::jsonb then
+    raise exception 'FAIL: a cancelled booking still gave contact details: %', v;
+  end if;
+  raise notice 'ok: blank/over-long reason 22023; completed is not_cancellable; confirmed cancels with the trimmed reason, cancelled_by business';
+end $$;
+
+-- The customer cancels their own request, as before.
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
+do $$
+declare v_row public.service_bookings%rowtype;
+begin
+  perform public.customer_cancel_booking(current_setting('part_g.b_req')::uuid);
+  select * into v_row from public.service_bookings where id = current_setting('part_g.b_req')::uuid;
+  if v_row.status <> 'cancelled' or v_row.cancelled_by is distinct from 'customer' or v_row.cancelled_reason is not null then
+    raise exception 'FAIL: the customer''s cancel left %', row_to_json(v_row);
+  end if;
+  raise notice 'ok: customer_cancel_booking still cancels, with cancelled_by customer';
+end $$;
+
+reset role;
+do $$
+declare
+  v_owner uuid := current_setting('part_g.owner')::uuid;
+  v_outsider uuid := current_setting('part_g.outsider')::uuid;
+  v_n int;
+begin
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-bookings'
+     and kind = 'appointment' and severity = 'warning'
+     and title = 'Booking cancelled — Part G Salon'
+     and body like 'Part G Salon cancelled your booking for Part G Trim on %. Reason: Groomer is ill';
+  if v_n <> 1 then raise exception 'FAIL: the customer got % business-cancel notifications quoting the reason, expected 1', v_n; end if;
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-bookings'
+     and title like 'Booking cancelled%';
+  if v_n <> 1 then raise exception 'FAIL: the customer got % cancellation notices, expected 1 (their own cancel is silent to them)', v_n; end if;
+  select count(*) into v_n from public.notifications
+   where profile_id = v_owner and created_at >= now() and action_target = 'business:bookings'
+     and title = 'Booking cancelled: Part G Trim' and body like '% cancelled their booking request for Part G Trim%';
+  if v_n <> 1 then raise exception 'FAIL: the business got % customer-cancel notifications, expected 1', v_n; end if;
+  raise notice 'ok: the business cancel tells the customer with the reason; the customer''s cancel tells only the business';
+end $$;
+
+-- ===========================================================================
+-- 13. Vet visits and estimates: the practice acts, the owner acts
+-- ===========================================================================
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.owner'), 'role', 'authenticated')::text, true);
+do $$
+declare v jsonb;
+begin
+  -- The practice owner is not the pet's owner.
+  begin
+    perform public.owner_cancel_appointment(current_setting('part_g.a_req')::uuid, 'Not mine');
+    raise exception 'FAIL: the practice cancelled through the pet owner''s door';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.owner_decline_estimate(current_setting('part_g.e_sent')::uuid, 'Not mine');
+    raise exception 'FAIL: the practice declined its own estimate as the owner';
+  exception when insufficient_privilege then null;
+  end;
+  raise notice 'ok: someone other than the pet''s owner is refused cancel and decline (42501)';
+
+  v := public.clinic_set_appointment_status(current_setting('part_g.a_conf')::uuid, 'booked'::public.appointment_status);
+  if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: confirming the request gave %', v; end if;
+  v := public.clinic_set_appointment_status(current_setting('part_g.a_dec')::uuid, 'cancelled'::public.appointment_status,
+                                            'Fully booked that week');
+  if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: declining the request gave %', v; end if;
+end $$;
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
+do $$
+declare v jsonb;
+begin
+  -- The rows are read back as the connection role in section 14, where RLS
+  -- cannot hide a missing row behind a null comparison.
+  v := public.owner_cancel_appointment(current_setting('part_g.a_soon')::uuid, 'Running late');
+  if v->>'error' is distinct from 'too_late' then raise exception 'FAIL: cancelling 1 hour ahead gave %', v; end if;
+  v := public.owner_cancel_appointment(current_setting('part_g.a_dec')::uuid);
+  if v->>'error' is distinct from 'not_cancellable' then raise exception 'FAIL: cancelling a cancelled visit gave %', v; end if;
+  begin
+    perform public.owner_cancel_appointment(current_setting('part_g.a_req')::uuid, repeat('x', 2001));
+    raise exception 'FAIL: a 2001-character reason was accepted';
+  exception when invalid_parameter_value then null;
+  end;
+  v := public.owner_cancel_appointment(current_setting('part_g.a_req')::uuid, '  Feeling better  ');
+  if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: the owner''s cancel gave %', v; end if;
+  raise notice 'ok: too_late inside 2 hours; not_cancellable once cancelled; over-long reason 22023; a visit 3 days out answers ok';
+
+  begin
+    perform public.owner_decline_estimate(current_setting('part_g.e_sent')::uuid, E' \n ');
+    raise exception 'FAIL: a whitespace-only decline note was accepted';
+  exception when invalid_parameter_value then null;
+  end;
+  v := public.owner_decline_estimate(current_setting('part_g.e_appr')::uuid, 'Too much');
+  if v->>'error' is distinct from 'not_awaiting_approval' then raise exception 'FAIL: declining an approved estimate gave %', v; end if;
+  v := public.owner_decline_estimate(current_setting('part_g.e_sent')::uuid, '  Too expensive right now ');
+  if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: the decline gave %', v; end if;
+  raise notice 'ok: blank note 22023; approved is not_awaiting_approval; a sent estimate answers ok';
+end $$;
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.owner'), 'role', 'authenticated')::text, true);
+do $$
+declare v jsonb;
+begin
+  v := public.clinic_set_appointment_status(current_setting('part_g.a_soon')::uuid, 'no_show'::public.appointment_status);
+  if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: marking missed gave %', v; end if;
+  v := public.clinic_set_appointment_status(current_setting('part_g.a_conf')::uuid, 'cancelled'::public.appointment_status,
+                                            'Vet is away');
+  if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: cancelling the booked visit gave %', v; end if;
+end $$;
+
+-- ===========================================================================
+-- 14. Who heard what
+-- ===========================================================================
+reset role;
+do $$
+declare
+  v_owner uuid := current_setting('part_g.owner')::uuid;
+  v_outsider uuid := current_setting('part_g.outsider')::uuid;
+  v_n int;
+  v_appt public.appointments%rowtype;
+  v_inv public.invoices%rowtype;
+begin
+  -- The rows the owner's calls moved.
+  select * into v_appt from public.appointments where id = current_setting('part_g.a_req')::uuid;
+  if not found or v_appt.status <> 'cancelled' or v_appt.cancelled_at is null
+     or v_appt.cancel_reason is distinct from 'Feeling better' then
+    raise exception 'FAIL: the owner-cancelled visit is %', row_to_json(v_appt);
+  end if;
+  -- a_soon was refused (too_late) while booked, then marked missed by the practice.
+  if (select status from public.appointments where id = current_setting('part_g.a_soon')::uuid) is distinct from 'no_show' then
+    raise exception 'FAIL: the visit an hour away is not booked-then-missed';
+  end if;
+  select * into v_inv from public.invoices where id = current_setting('part_g.e_sent')::uuid;
+  if not found or v_inv.status is distinct from 'declined'
+     or v_inv.note is distinct from E'Includes bloodwork\n\nOwner declined: Too expensive right now' then
+    raise exception 'FAIL: the declined estimate is %', row_to_json(v_inv);
+  end if;
+  if (select status from public.invoices where id = current_setting('part_g.e_appr')::uuid) is distinct from 'approved' then
+    raise exception 'FAIL: the refused decline still moved the approved estimate';
+  end if;
+  raise notice 'ok: the owner''s cancel stamped the visit; the declined estimate keeps the practice''s note first';
+
+  -- The pet's owner: four notices, one per practice action; none for their own cancel.
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits'
+     and kind = 'appointment' and severity = 'success'
+     and title = 'Appointment confirmed' and body like 'Part G Clinic confirmed Part G Rex''s appointment on %.';
+  if v_n <> 1 then raise exception 'FAIL: % confirmation notices, expected 1', v_n; end if;
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits'
+     and severity = 'warning' and title = 'Appointment request declined'
+     and body = 'Part G Clinic couldn''t take your request for Part G Rex. Reason: Fully booked that week';
+  if v_n <> 1 then raise exception 'FAIL: % declined-request notices quoting the reason, expected 1', v_n; end if;
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits'
+     and title = 'Appointment cancelled' and body like 'Part G Clinic cancelled Part G Rex''s appointment on %. Reason: Vet is away';
+  if v_n <> 1 then raise exception 'FAIL: % cancellation notices quoting the reason, expected 1', v_n; end if;
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits'
+     and title = 'Marked as missed';
+  if v_n <> 1 then raise exception 'FAIL: % missed notices, expected 1', v_n; end if;
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits';
+  if v_n <> 4 then raise exception 'FAIL: the pet owner got % visit notices, expected 4 (their own cancel is silent)', v_n; end if;
+  raise notice 'ok: confirmed, declined request, cancelled and missed each tell the owner; their own cancel does not';
+
+  -- The practice.
+  select count(*) into v_n from public.notifications
+   where profile_id = v_owner and created_at >= now() and kind = 'clinic' and severity = 'warning'
+     and action_target = 'clinic:today' and title = 'Appointment cancelled — Part G Rex'
+     and body like '% cancelled Part G Rex''s appointment request on %. Reason: Feeling better';
+  if v_n <> 1 then raise exception 'FAIL: the practice got % owner-cancel notices quoting the reason, expected 1', v_n; end if;
+  select count(*) into v_n from public.notifications
+   where profile_id = v_owner and created_at >= now() and kind = 'clinic' and severity = 'warning'
+     and action_target = 'clinic:billing' and title = 'Estimate declined for Part G Rex'
+     and body = 'The owner declined the estimate PG-E1 for Part G Rex (120.00 CAD). Reason: Too expensive right now';
+  if v_n <> 1 then raise exception 'FAIL: the practice got % estimate-declined notices, expected 1', v_n; end if;
+  raise notice 'ok: the practice hears of the owner''s cancel (clinic:today) and decline (clinic:billing)';
 end $$;
 reset role;
 

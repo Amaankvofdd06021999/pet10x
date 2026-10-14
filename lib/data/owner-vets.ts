@@ -4,6 +4,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./clinic/use-live"
 import type { OwnerBill } from "./owner-bills"
+import { appointmentCancelError, estimateDeclineError, type CancelAnswer } from "./cancel-errors"
 
 /**
  * The owner's side of the veterinary module.
@@ -426,6 +427,20 @@ export async function bookVetAppointment(input: {
   return { error: null, status: out.status as string }
 }
 
+/**
+ * Cancel a requested or booked visit more than 2 hours before it starts
+ * (owner_cancel_appointment, 20261015000005). The practice is told.
+ */
+export async function ownerCancelAppointment(id: string, reason?: string | null): Promise<{ error: string | null }> {
+  const db = getSupabaseBrowserClient()
+  if (!db) return { error: "Not configured." }
+  const { data, error } = await db.rpc("owner_cancel_appointment", {
+    p_appointment: id,
+    p_reason: reason ?? undefined,
+  })
+  return { error: appointmentCancelError(error, (data ?? null) as CancelAnswer) }
+}
+
 /** "Tell them I am coming" — one tap from the emergency card. */
 export async function notifyArrival(
   businessId: string,
@@ -530,6 +545,17 @@ export async function approveEstimate(invoiceId: string): Promise<{ error: strin
   if (error) return { error: "Could not approve the estimate. Try again." }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
+}
+
+/**
+ * Decline a sent estimate, with the note the practice will read
+ * (owner_decline_estimate, 20261015000005). The practice is told.
+ */
+export async function ownerDeclineEstimate(invoiceId: string, note: string): Promise<{ error: string | null }> {
+  const db = getSupabaseBrowserClient()
+  if (!db) return { error: "Not configured." }
+  const { data, error } = await db.rpc("owner_decline_estimate", { p_invoice: invoiceId, p_note: note })
+  return { error: estimateDeclineError(error, (data ?? null) as CancelAnswer) }
 }
 
 export async function unlinkPatient(patientId: string): Promise<{ error: string | null }> {

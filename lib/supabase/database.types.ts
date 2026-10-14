@@ -1424,6 +1424,8 @@ export type Database = {
           business_kind: string
           category: string
           city: string | null
+          contact_email: string | null
+          contact_phone: string | null
           country: string | null
           created_at: string
           description: string | null
@@ -1454,6 +1456,8 @@ export type Database = {
           business_kind?: string
           category: string
           city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           country?: string | null
           created_at?: string
           description?: string | null
@@ -1484,6 +1488,8 @@ export type Database = {
           business_kind?: string
           category?: string
           city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           country?: string | null
           created_at?: string
           description?: string | null
@@ -5416,6 +5422,8 @@ export type Database = {
         Row: {
           amount_cents: number
           business_id: string | null
+          cancelled_by: string | null
+          cancelled_reason: string | null
           commission_cents: number
           created_at: string
           currency: string
@@ -5434,6 +5442,8 @@ export type Database = {
         Insert: {
           amount_cents?: number
           business_id?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
           commission_cents?: number
           created_at?: string
           currency?: string
@@ -5452,6 +5462,8 @@ export type Database = {
         Update: {
           amount_cents?: number
           business_id?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
           commission_cents?: number
           created_at?: string
           currency?: string
@@ -6729,6 +6741,11 @@ export type Database = {
         }
         Returns: Json
       }
+      business_booking_contact: { Args: { p_booking: string }; Returns: Json }
+      business_cancel_booking: {
+        Args: { p_booking: string; p_reason: string }
+        Returns: Json
+      }
       business_mark_booking_paid: {
         Args: { p_booking: string }
         Returns: string
@@ -6988,6 +7005,10 @@ export type Database = {
         Args: { p_pet_id: string; p_reason: string }
         Returns: undefined
       }
+      owner_cancel_appointment: {
+        Args: { p_appointment: string; p_reason?: string }
+        Returns: Json
+      }
       owner_create_desk_code: {
         Args: { p_pet: string; p_scopes?: string[] }
         Returns: Json
@@ -6998,6 +7019,10 @@ export type Database = {
       }
       owner_decide_share_request: {
         Args: { p_approve: boolean; p_request: string }
+        Returns: Json
+      }
+      owner_decline_estimate: {
+        Args: { p_invoice: string; p_note: string }
         Returns: Json
       }
       owner_grant_record_share: {

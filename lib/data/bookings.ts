@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import type { LiveResult } from "./live"
+import { bookingCancelError, parseBookingContact, type BookingContact, type CancelAnswer } from "./cancel-errors"
 
 /** Platform take rate applied when a booking is created. */
 export const COMMISSION_RATE = 0.15
@@ -271,6 +272,31 @@ export async function markBookingPaid(id: string): Promise<{ error: string | nul
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.rpc("business_mark_booking_paid", { p_booking: id })
   return { error: error?.message ?? null }
+}
+
+/**
+ * The business cancels a requested or confirmed booking, with the reason the
+ * customer will read (business_cancel_booking, 20261015000005). The status
+ * trigger tells the customer, quoting it.
+ */
+export async function businessCancelBooking(id: string, reason: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const { data, error } = await supabase.rpc("business_cancel_booking", { p_booking: id, p_reason: reason })
+  return { error: bookingCancelError(error, (data ?? null) as CancelAnswer) }
+}
+
+/**
+ * The customer's email and phone for a confirmed, in-progress, completed or
+ * paid booking of the caller's business (business_booking_contact,
+ * 20261015000005). Null fields otherwise — not an error.
+ */
+export async function fetchBookingContact(id: string): Promise<BookingContact & { error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { email: null, phone: null, error: "Not configured." }
+  const { data, error } = await supabase.rpc("business_booking_contact", { p_booking: id })
+  if (error) return { email: null, phone: null, error: "Couldn't load the customer's contact details. Try again." }
+  return { ...parseBookingContact(data), error: null }
 }
 
 /* ------------------------------------------------------------------ */
