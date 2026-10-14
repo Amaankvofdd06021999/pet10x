@@ -6646,6 +6646,11 @@ export type Database = {
           total: number
         }[]
       }
+      admin_business_footprint: { Args: { p_business: string }; Returns: Json }
+      admin_delete_business: {
+        Args: { p_business: string; p_confirm_name: string }
+        Returns: Json
+      }
       admin_list_users: {
         Args: { p_limit?: number; p_offset?: number; p_query?: string }
         Returns: {

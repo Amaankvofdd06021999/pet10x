@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { PasswordField } from "@/components/ui/password-field"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { PersonaSwitcher } from "@/components/persona-switcher"
@@ -18,7 +18,8 @@ import {
   useAdminBusinesses,
   setBusinessTier,
   reviewBusinessVerification,
-  deleteBusiness,
+  getBusinessFootprint,
+  deleteBusinessGuarded,
   useAdminManagers,
   setManagerSuspended,
   revokeManagerFromBuilding,
@@ -36,6 +37,15 @@ import {
   type PetRules,
 } from "@/lib/data/admin"
 import { BUSINESS_TIERS, awaitingReview, tierDescription, tierLabel, type BusinessTier } from "@/lib/data/business-tier"
+import {
+  canDeleteBusiness,
+  footprintLines,
+  nameMatches,
+  HAS_RECORDS_MESSAGE,
+  NAME_MISMATCH_MESSAGE,
+  type BusinessFootprint,
+} from "@/lib/data/business-delete"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   ShieldCheck,
   Building2,
@@ -743,13 +753,51 @@ function Businesses() {
     return true
   }
 
-  async function remove(id: string, name: string) {
-    if (!confirm(`Delete ${name}? This removes their listings and cannot be undone.`)) return
-    setBusy(id)
-    const { error: err } = await deleteBusiness(id)
+  // Delete asks admin_business_footprint what the business holds before
+  // offering anything, and admin_delete_business decides (20261015000002):
+  // the name typed, no clinic records, no open bookings. No counts, no Delete.
+  const [deleting, setDeleting] = useState<AdminBusiness | null>(null)
+  const [footprint, setFootprint] = useState<
+    { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: BusinessFootprint }
+  >({ state: "loading" })
+
+  // Only the latest request may answer: closing one dialog and opening another
+  // must not show the first business's counts under the second's name.
+  const footprintRequest = useRef(0)
+  async function loadFootprint(id: string) {
+    const ticket = ++footprintRequest.current
+    setFootprint({ state: "loading" })
+    const { data, error: err } = await getBusinessFootprint(id)
+    if (ticket !== footprintRequest.current) return
+    setFootprint(data ? { state: "ready", data } : { state: "error", message: err ?? "Couldn't load what this business holds." })
+  }
+
+  function startDelete(b: AdminBusiness) {
+    setDeleting(b)
+    void loadFootprint(b.id)
+  }
+
+  async function confirmDelete(b: AdminBusiness, typed: string | null): Promise<{ error: string | null }> {
+    // The database checks the name too; this saves a round trip for a typo.
+    if (!nameMatches(typed ?? "", b.name)) return { error: NAME_MISMATCH_MESSAGE }
+    const { error: err, footprint: latest } = await deleteBusinessGuarded(b.id, typed ?? "")
+    if (err) {
+      // has_records carries the counts as they are now — show those.
+      if (latest) setFootprint({ state: "ready", data: latest })
+      return { error: err }
+    }
+    toast.success(`${b.name} deleted`)
+    refetch()
+    return { error: null }
+  }
+
+  async function registerInstead(b: AdminBusiness) {
+    setDeleting(null)
+    setBusy(b.id)
+    const { error: err } = await setBusinessTier(b.id, "registered", "Set to Registered instead of deleting")
     setBusy(null)
-    if (err) return toast.error("Couldn't delete", { description: err })
-    toast.success("Business deleted")
+    if (err) return toast.error("Couldn't change the tier", { description: err })
+    toast.success(`${b.name} is now Registered`)
     refetch()
   }
 
@@ -795,10 +843,77 @@ function Businesses() {
           busy={busy === b.id}
           onTier={(t) => changeTier(b, t)}
           onReview={(approve, note) => review(b, approve, note)}
-          onRemove={() => remove(b.id, b.name)}
+          onRemove={() => startDelete(b)}
         />
       ))}
+      {deleting && (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setDeleting(null)
+          }}
+          title={`Delete ${deleting.name}?`}
+          description={<DeleteFootprint footprint={footprint} onRetry={() => loadFootprint(deleting.id)} />}
+          confirmLabel="Delete business"
+          tone="danger"
+          confirmDisabled={footprint.state !== "ready" || !canDeleteBusiness(footprint.data)}
+          reason={{
+            label: `Type ${deleting.name} to confirm`,
+            required: true,
+            placeholder: deleting.name,
+            requiredMessage: "Type the business's name to confirm.",
+          }}
+          secondaryAction={
+            deleting.tier === "registered"
+              ? undefined
+              : { label: "Set tier to Registered instead", onClick: () => void registerInstead(deleting) }
+          }
+          onConfirm={(typed) => confirmDelete(deleting, typed)}
+        />
+      )}
     </div>
+  )
+}
+
+/**
+ * What the business holds, inside the delete confirmation. Loading and failure
+ * are said plainly — Delete stays disabled until the counts are in.
+ */
+function DeleteFootprint({
+  footprint,
+  onRetry,
+}: {
+  footprint: { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: BusinessFootprint }
+  onRetry: () => void
+}) {
+  if (footprint.state === "loading") {
+    return (
+      <span className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" /> Checking what this business holds…
+      </span>
+    )
+  }
+  if (footprint.state === "error") {
+    return (
+      <span className="flex flex-col items-start gap-1.5">
+        <span>{footprint.message}</span>
+        <button type="button" onClick={onRetry} className="font-semibold text-primary underline">
+          Try again
+        </button>
+      </span>
+    )
+  }
+  const fp = footprint.data
+  return (
+    <span className="flex flex-col gap-2">
+      <span>Deleting removes the business and everything it holds. This can&apos;t be undone. It holds:</span>
+      <span className="flex flex-col">
+        {footprintLines(fp).map((line) => (
+          <span key={line}>· {line}</span>
+        ))}
+      </span>
+      {!canDeleteBusiness(fp) && <span className="font-semibold text-destructive">{HAS_RECORDS_MESSAGE}</span>}
+    </span>
   )
 }
 
@@ -852,10 +967,10 @@ function BusinessCard({
           <button
             onClick={onRemove}
             disabled={busy}
-            title="Delete business"
-            className="flex items-center rounded-lg bg-muted p-1.5 text-muted-foreground disabled:opacity-60"
+            aria-label={`Delete ${b.name}…`}
+            className="flex items-center gap-1 rounded-lg bg-muted px-2 py-1.5 text-[12px] font-semibold text-muted-foreground disabled:opacity-60"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-3.5 w-3.5" /> Delete…
           </button>
         </div>
       </div>

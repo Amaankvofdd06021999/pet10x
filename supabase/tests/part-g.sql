@@ -14,6 +14,19 @@
 --     decision outside the grammar, are refused (22023); a non-manager is
 --     refused (42501).
 --
+-- Covers 20261015000002 (sections 5-9):
+--   * admin_business_footprint / admin_delete_business — a non-admin (an
+--     outsider, and the business's own owner) is refused (42501); a name that
+--     differs (case, blank, null) is name_mismatch; a business with a clinic
+--     patient, or with an open booking, is has_records and survives with its
+--     rows; an empty business — one active colleague, who is counted and does
+--     not block — is deleted by its name typed with spaces around it, and
+--     audited once.
+--   * businesses has no client delete path: a direct delete by an admin, and
+--     by the owner, matches 0 rows; the admin can still update, and the owner
+--     can still update and insert (the select/insert/update split kept them).
+--     The fixture businesses and an active super admin join the actors below.
+--
 -- Actors are chosen from live data, not invented: Maple Court Residences
 -- (MCR2026), a non-admin manager of it, and two non-admin profiles that manage
 -- no building and hold no pending or approved link anywhere (an owner and an
@@ -331,6 +344,250 @@ begin
      and created_at >= now();
   if v_n <> 3 then raise exception 'FAIL: % link audit rows, expected 3', v_n; end if;
   raise notice 'ok: each link decision is stamped, notified (reason quoted) and audited';
+end $$;
+
+-- ===========================================================================
+-- 5. Guarded business deletion (20261015000002): fixtures, as the connection
+--    role
+-- ===========================================================================
+-- Three businesses owned by the Part G owner (non-admin, asserted in section
+-- 8): one empty but for a colleague, one with a clinic patient, one with a
+-- booking still to answer. An active super admin from live data runs the
+-- console's side.
+do $$
+declare
+  v_owner uuid := current_setting('part_g.owner')::uuid;
+  v_outsider uuid := current_setting('part_g.outsider')::uuid;
+  v_admin uuid; v_empty uuid; v_clinic uuid; v_booked uuid; v_customer uuid; v_patient uuid;
+begin
+  select pr.id into v_admin from public.profiles pr
+   where pr.is_super_admin and not pr.is_suspended
+   order by pr.created_at, pr.id limit 1;
+  if v_admin is null then raise exception 'FIXTURE: no active super admin'; end if;
+
+  -- business_bootstrap gives each one the owner's staff row and a location.
+  insert into public.businesses (owner_id, name, category)
+  values (v_owner, 'Part G Empty', 'Grooming') returning id into v_empty;
+  -- A colleague: counted as staff, and not a reason to refuse.
+  insert into public.business_staff (business_id, profile_id, role, is_active)
+  values (v_empty, v_outsider, 'manager', true);
+
+  insert into public.businesses (owner_id, name, category)
+  values (v_owner, 'Part G Clinic', 'Veterinary') returning id into v_clinic;
+  insert into public.clinic_customers (business_id, first_name)
+  values (v_clinic, 'Part G') returning id into v_customer;
+  insert into public.clinic_patients (business_id, customer_id, name)
+  values (v_clinic, v_customer, 'Part G patient') returning id into v_patient;
+
+  insert into public.businesses (owner_id, name, category)
+  values (v_owner, 'Part G Booked', 'Grooming') returning id into v_booked;
+  insert into public.service_bookings (business_id, customer_id, status)
+  values (v_booked, v_outsider, 'requested');
+
+  perform set_config('part_g.admin', v_admin::text, true);
+  perform set_config('part_g.biz_empty', v_empty::text, true);
+  perform set_config('part_g.biz_clinic', v_clinic::text, true);
+  perform set_config('part_g.biz_booked', v_booked::text, true);
+  perform set_config('part_g.patient', v_patient::text, true);
+  raise notice 'fixtures: admin % businesses empty % clinic % booked % patient %',
+    v_admin, v_empty, v_clinic, v_booked, v_patient;
+end $$;
+
+-- ===========================================================================
+-- 6. A non-admin neither counts nor deletes — not even the owner
+-- ===========================================================================
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
+do $$
+declare v_empty uuid := current_setting('part_g.biz_empty')::uuid;
+begin
+  if public.is_admin() then raise exception 'FIXTURE: outsider is an admin'; end if;
+  begin
+    perform public.admin_business_footprint(v_empty);
+    raise exception 'FAIL: a non-admin read a business footprint';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.admin_delete_business(v_empty, 'Part G Empty');
+    raise exception 'FAIL: a non-admin deleted a business';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.owner'), 'role', 'authenticated')::text, true);
+do $$
+declare v_empty uuid := current_setting('part_g.biz_empty')::uuid;
+begin
+  if public.is_admin() then raise exception 'FIXTURE: owner is an admin'; end if;
+  begin
+    perform public.admin_business_footprint(v_empty);
+    raise exception 'FAIL: the owner read their business footprint through the admin function';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.admin_delete_business(v_empty, 'Part G Empty');
+    raise exception 'FAIL: the owner deleted their business through the admin function';
+  exception when insufficient_privilege then null;
+  end;
+  raise notice 'ok: a non-admin, owner included, is refused footprint and delete (42501)';
+end $$;
+
+-- ===========================================================================
+-- 7. The admin: counts, a typed name, refusals while records exist, and no
+--    direct delete
+-- ===========================================================================
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.admin'), 'role', 'authenticated')::text, true);
+do $$
+declare
+  v_empty uuid := current_setting('part_g.biz_empty')::uuid;
+  v_clinic uuid := current_setting('part_g.biz_clinic')::uuid;
+  v_booked uuid := current_setting('part_g.biz_booked')::uuid;
+  v jsonb;
+  v_n int;
+begin
+  if not public.is_admin() then raise exception 'FIXTURE: admin is not is_admin()'; end if;
+
+  v := public.admin_business_footprint(v_empty);
+  if v is distinct from '{"patients":0,"visits":0,"invoices":0,"staff":1,"open_bookings":0,"appointments":0}'::jsonb then
+    raise exception 'FAIL: the empty business''s footprint is %, expected one colleague and nothing else', v;
+  end if;
+  v := public.admin_business_footprint(v_clinic);
+  if (v->>'patients')::int <> 1 or (v->>'staff')::int <> 0 then
+    raise exception 'FAIL: the clinic''s footprint is %, expected 1 patient and no staff beyond the owner', v;
+  end if;
+  v := public.admin_business_footprint(v_booked);
+  if (v->>'open_bookings')::int <> 1 then
+    raise exception 'FAIL: the booked business''s footprint is %, expected 1 open booking', v;
+  end if;
+  begin
+    perform public.admin_business_footprint(gen_random_uuid());
+    raise exception 'FAIL: a missing business had a footprint';
+  exception when no_data_found then null;
+  end;
+  raise notice 'ok: the footprint counts patients, open bookings and staff other than the owner; a missing business is P0002';
+
+  -- A direct delete, as the console used to do it: RLS matches nothing.
+  delete from public.businesses where id = v_empty;
+  get diagnostics v_n = row_count;
+  if v_n <> 0 then raise exception 'FAIL: an admin''s direct delete removed % business rows', v_n; end if;
+  -- …while the admin's other writes still go through.
+  update public.businesses set description = 'Part G admin edit' where id = v_clinic;
+  if not found then raise exception 'FAIL: the admin could no longer update a business'; end if;
+  raise notice 'ok: an admin''s direct delete matches 0 rows; an admin update still works';
+
+  v := public.admin_delete_business(v_empty, 'part g empty');
+  if v->>'error' is distinct from 'name_mismatch' then
+    raise exception 'FAIL: a name in the wrong case did not answer name_mismatch: %', v;
+  end if;
+  v := public.admin_delete_business(v_empty, '   ');
+  if v->>'error' is distinct from 'name_mismatch' then
+    raise exception 'FAIL: a blank name did not answer name_mismatch: %', v;
+  end if;
+  v := public.admin_delete_business(v_empty, null);
+  if v->>'error' is distinct from 'name_mismatch' then
+    raise exception 'FAIL: a null name did not answer name_mismatch: %', v;
+  end if;
+  raise notice 'ok: a name that differs in case, or is blank or null, is name_mismatch';
+
+  v := public.admin_delete_business(v_clinic, 'Part G Clinic');
+  if v->>'error' is distinct from 'has_records' or (v->'footprint'->>'patients')::int <> 1 then
+    raise exception 'FAIL: a business with a clinic patient did not answer has_records with its footprint: %', v;
+  end if;
+  v := public.admin_delete_business(v_booked, 'Part G Booked');
+  if v->>'error' is distinct from 'has_records' or (v->'footprint'->>'open_bookings')::int <> 1 then
+    raise exception 'FAIL: a business with an open booking did not answer has_records: %', v;
+  end if;
+  raise notice 'ok: a clinic patient or an open booking answers has_records, with the footprint';
+
+  v := public.admin_delete_business(gen_random_uuid(), 'Anything');
+  if v->>'error' is distinct from 'not_found' then
+    raise exception 'FAIL: a missing business did not answer not_found: %', v;
+  end if;
+
+  -- Trimmed on both sides; the colleague does not block.
+  v := public.admin_delete_business(v_empty, '  Part G Empty  ');
+  if not coalesce((v->>'ok')::boolean, false) then
+    raise exception 'FAIL: the empty business was not deleted: %', v;
+  end if;
+  raise notice 'ok: the empty business is deleted by its name typed with surrounding spaces';
+end $$;
+
+-- ===========================================================================
+-- 8. The owner: no direct delete, but edits and sign-up inserts still work
+-- ===========================================================================
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.owner'), 'role', 'authenticated')::text, true);
+do $$
+declare
+  v_clinic uuid := current_setting('part_g.biz_clinic')::uuid;
+  v_new uuid;
+  v_n int;
+begin
+  if public.is_admin() then raise exception 'FIXTURE: owner is an admin'; end if;
+
+  delete from public.businesses where id = v_clinic;
+  get diagnostics v_n = row_count;
+  if v_n <> 0 then raise exception 'FAIL: the owner''s direct delete removed % business rows', v_n; end if;
+
+  update public.businesses set description = 'Part G owner edit' where id = v_clinic;
+  if not found then raise exception 'FAIL: the owner could no longer update their business'; end if;
+
+  -- What clinic onboarding does from the browser: insert, and read the id back.
+  insert into public.businesses (owner_id, name, category)
+  values (auth.uid(), 'Part G New', 'Grooming') returning id into v_new;
+  if v_new is null then raise exception 'FAIL: the owner could not create a business'; end if;
+
+  delete from public.businesses where id = v_new;
+  get diagnostics v_n = row_count;
+  if v_n <> 0 then raise exception 'FAIL: the owner deleted the business they just created (% rows)', v_n; end if;
+  raise notice 'ok: an owner''s direct delete matches 0 rows; an owner still updates and inserts';
+end $$;
+
+-- ===========================================================================
+-- 9. What happened: one business gone and audited, the others intact
+-- ===========================================================================
+reset role;
+do $$
+declare
+  v_admin uuid := current_setting('part_g.admin')::uuid;
+  v_empty uuid := current_setting('part_g.biz_empty')::uuid;
+  v_n int;
+begin
+  if exists (select 1 from public.businesses where id = v_empty) then
+    raise exception 'FAIL: the empty business still exists';
+  end if;
+  if exists (select 1 from public.business_staff where business_id = v_empty) then
+    raise exception 'FAIL: the deleted business left staff rows behind';
+  end if;
+  if not exists (select 1 from public.businesses where id = current_setting('part_g.biz_clinic')::uuid
+                    and description = 'Part G owner edit') then
+    raise exception 'FAIL: the clinic is gone, or the owner''s edit did not land';
+  end if;
+  if not exists (select 1 from public.clinic_patients where id = current_setting('part_g.patient')::uuid) then
+    raise exception 'FAIL: the clinic''s patient did not survive the refused delete';
+  end if;
+  if not exists (select 1 from public.service_bookings
+                  where business_id = current_setting('part_g.biz_booked')::uuid and status = 'requested') then
+    raise exception 'FAIL: the open booking did not survive the refused delete';
+  end if;
+  if not exists (select 1 from public.businesses where owner_id = current_setting('part_g.owner')::uuid
+                    and name = 'Part G New') then
+    raise exception 'FAIL: the owner''s new business is gone';
+  end if;
+
+  select count(*) into v_n from public.audit_log
+   where action = 'business.deleted' and created_at >= now();
+  if v_n <> 1 then raise exception 'FAIL: % business.deleted audit rows, expected 1 (refusals audit nothing)', v_n; end if;
+  if not exists (select 1 from public.audit_log
+                  where action = 'business.deleted' and entity_id = v_empty and actor_id = v_admin
+                    and metadata->>'name' = 'Part G Empty'
+                    and (metadata->'footprint'->>'staff')::int = 1) then
+    raise exception 'FAIL: the audit row does not name the business, the admin and its footprint';
+  end if;
+  raise notice 'ok: the deleted business is audited; the refused ones keep their patient and booking';
 end $$;
 
 rollback;

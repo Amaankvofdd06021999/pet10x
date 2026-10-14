@@ -11,6 +11,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { buildingDeleteError, buildingHasHistory } from "./building-archive"
 import { businessTierError, isOpenRequest, type BusinessTier } from "./business-tier"
+import { deleteBusinessError, footprintError, parseFootprint, type BusinessFootprint } from "./business-delete"
 import { parsePlatformStats, userFlagsError, type AdminUser, type PlatformStats } from "./admin-users"
 
 type BuildingRow = Database["public"]["Tables"]["buildings"]["Row"]
@@ -250,11 +251,43 @@ export async function setBuildingArchived(id: string, archived: boolean): Promis
   return { error: null }
 }
 
-export async function deleteBusiness(id: string): Promise<{ error: string | null }> {
+/**
+ * What deleting a business would take with it (admin_business_footprint,
+ * 20261015000002): patients, visits, invoices, staff besides the owner, open
+ * bookings and upcoming appointments. `data` is null on any failure — the
+ * console does not offer Delete without the counts.
+ */
+export async function getBusinessFootprint(
+  id: string,
+): Promise<{ data: BusinessFootprint | null; error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { data: null, error: "Not configured." }
+  const { data, error } = await supabase.rpc("admin_business_footprint", { p_business: id })
+  if (error) return { data: null, error: footprintError(error) }
+  const parsed = parseFootprint(data)
+  return parsed ? { data: parsed, error: null } : { data: null, error: footprintError({ message: "malformed" }) }
+}
+
+/**
+ * Delete a business through admin_delete_business — the only delete a signed-in
+ * client has (no client role holds a delete policy on `businesses`). It wants
+ * the name typed and refuses while clinic records or open bookings exist; a
+ * has_records refusal carries the counts as they are now.
+ */
+export async function deleteBusinessGuarded(
+  id: string,
+  confirmName: string,
+): Promise<{ error: string | null; footprint?: BusinessFootprint }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
-  const { error } = await supabase.from("businesses").delete().eq("id", id)
-  return { error: error?.message ?? null }
+  const { data, error } = await supabase.rpc("admin_delete_business", {
+    p_business: id,
+    p_confirm_name: confirmName,
+  })
+  if (error) return { error: deleteBusinessError(error) }
+  const res = (data ?? {}) as { ok?: boolean; error?: string; footprint?: unknown }
+  if (res.ok === true) return { error: null }
+  return { error: deleteBusinessError({ error: res.error }), footprint: parseFootprint(res.footprint) ?? undefined }
 }
 
 export interface InviteResult {

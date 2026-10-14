@@ -29,7 +29,18 @@ type ConfirmDialogProps = {
   /** The button that closes without confirming. Defaults to "Cancel". */
   cancelLabel?: string
   tone?: 'danger' | 'default'
-  reason?: { label: string; required: boolean; placeholder?: string }
+  /**
+   * `requiredMessage` replaces the default "Add a reason…" when the field is
+   * not a reason at all — e.g. a name typed to confirm a delete.
+   */
+  reason?: { label: string; required: boolean; placeholder?: string; requiredMessage?: string }
+  /** Keeps the confirm button disabled, e.g. while what it acts on is loading. */
+  confirmDisabled?: boolean
+  /**
+   * A gentler alternative, shown as an outline button left of Cancel. The
+   * dialog clears its field; closing it (or not) is the caller's call.
+   */
+  secondaryAction?: { label: string; onClick: () => void }
   /** Resolves with an error message to keep the dialog open, or null to close it. */
   onConfirm: (reason: string | null) => Promise<{ error: string | null }>
 }
@@ -43,6 +54,8 @@ function ConfirmDialog({
   cancelLabel = 'Cancel',
   tone = 'default',
   reason,
+  confirmDisabled = false,
+  secondaryAction,
   onConfirm,
 }: ConfirmDialogProps) {
   const [text, setText] = React.useState('')
@@ -65,7 +78,11 @@ function ConfirmDialog({
     if (reason) {
       const result = validateReason(text, { required: reason.required })
       if (!result.ok) {
-        setError(REASON_ERRORS[result.error])
+        setError(
+          result.error === 'required' && reason.requiredMessage
+            ? reason.requiredMessage
+            : REASON_ERRORS[result.error],
+        )
         return
       }
       value = result.value
@@ -115,11 +132,23 @@ function ConfirmDialog({
           </p>
         )}
         <AlertDialogFooter>
+          {secondaryAction && (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => {
+                reset()
+                secondaryAction.onClick()
+              }}
+            >
+              {secondaryAction.label}
+            </Button>
+          )}
           <AlertDialogCancel disabled={busy}>{cancelLabel}</AlertDialogCancel>
           {/* A plain Button, not AlertDialogAction: that one closes on click, before onConfirm resolves. */}
           <Button
             variant={tone === 'danger' ? 'destructive' : 'default'}
-            disabled={busy}
+            disabled={busy || confirmDisabled}
             onClick={handleConfirm}
           >
             {confirmLabel}
