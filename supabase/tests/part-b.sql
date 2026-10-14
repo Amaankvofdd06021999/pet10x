@@ -292,11 +292,18 @@ select set_config('request.jwt.claims',
 do $$
 declare r jsonb; n integer;
 begin
-  -- Still no direct write.
+  -- Still no direct write: since 20261014000001 a manager's UPDATE matches no
+  -- row (pet_documents_update admits owner|admin only).
   update public.pet_documents set status = 'approved' where id = current_setting('part_b.doc')::uuid;
   get diagnostics n = row_count;
   if n <> 0 then raise exception 'FAIL: a manager''s direct UPDATE on pet_documents touched % row(s)', n; end if;
-  raise notice 'ok: direct UPDATE on pet_documents still refused';
+  raise notice 'ok: direct UPDATE on pet_documents matches nothing for a manager';
+
+  -- A delete produces no row, so WITH CHECK never saw it (20261014000001).
+  delete from public.pet_documents where id = current_setting('part_b.doc')::uuid;
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAIL: a manager''s direct DELETE on pet_documents removed % row(s)', n; end if;
+  raise notice 'ok: direct DELETE on pet_documents matches nothing for a manager';
 
   r := public.manager_review_pet_document(current_setting('part_b.doc2')::uuid, 'approve');
   if r->>'error' is distinct from 'no_file' then raise exception 'FAIL: approve without a file returned %', r; end if;
@@ -548,5 +555,23 @@ begin
   raise notice 'ok: admin_building_history returns nothing to a non-admin';
 end $$;
 reset role;
+
+-- ===========================================================================
+-- 5. A pet's records: managers read, never write (20261014000001)
+-- ===========================================================================
+do $$
+declare v text;
+begin
+  select string_agg(tablename || '.' || policyname || ' (' || cmd || ')', ', ') into v
+    from pg_catalog.pg_policies
+   where schemaname = 'public'
+     and tablename in ('care_entries', 'care_targets', 'pet_activity', 'pet_care_tasks',
+                       'pet_documents', 'pet_emergency_contacts', 'pet_feeding', 'pet_medications',
+                       'pet_photos', 'pet_vaccinations', 'pet_vet_visits')
+     and cmd <> 'SELECT'
+     and (coalesce(qual, '') like '%manages_building%' or coalesce(with_check, '') like '%manages_building%');
+  if v is not null then raise exception 'FAIL: a write policy admits managers: %', v; end if;
+  raise notice 'ok: no write policy on a pet''s records admits a manager';
+end $$;
 
 rollback;
