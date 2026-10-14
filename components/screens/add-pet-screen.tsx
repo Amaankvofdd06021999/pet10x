@@ -1,7 +1,7 @@
 "use client"
 
 import { useId, useRef, useState } from "react"
-import { useAuth } from "@/lib/auth-context"
+import { useMyBuildingLink } from "@/lib/data"
 import { OTHER_SPECIES, OTHER_BREED, breedsFor, addPet, setPetPhoto } from "@/lib/data"
 import type { Species } from "@/lib/data"
 import { toast } from "sonner"
@@ -46,7 +46,11 @@ interface AddPetScreenProps {
     another pet" remounts it: every field, the weight hook and the unsaved-guard
     baseline start over together, with nothing to remember to reset. */
 export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
-  const { user } = useAuth()
+  // The resident's OWN approved link, not `user.building`: that falls back to a
+  // manager's primary building, but a pet is attached to a building only
+  // through an approved resident link, so a manager's pet has nobody to review it.
+  const { data: link } = useMyBuildingLink()
+  const reviewer = link?.status === "approved" ? link.buildingName : null
   const [round, setRound] = useState(0)
   const [addedName, setAddedName] = useState<string | null>(null)
 
@@ -60,8 +64,8 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
           </div>
           <h1 className="text-[24px] font-semibold text-foreground">{name} is all set! 🐾</h1>
           <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground">
-            {user?.building
-              ? `Saved to your account — and shared with ${user.building} for approval. Let's set up their daily care.`
+            {reviewer
+              ? `Saved to your account — and shared with ${reviewer} for approval. Let's set up their daily care.`
               : `Saved to your account. Let's set up ${name}'s food, medicine and treats.`}
           </p>
           <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
@@ -90,14 +94,23 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
     )
   }
 
-  return <AddPetForm key={round} onBack={onBack} onSaved={setAddedName} />
+  return <AddPetForm key={round} onBack={onBack} onSaved={setAddedName} reviewed={reviewer !== null} />
 }
 
-function AddPetForm({ onBack, onSaved }: { onBack: () => void; onSaved: (name: string) => void }) {
-  const { user } = useAuth()
+function AddPetForm({
+  onBack,
+  onSaved,
+  reviewed,
+}: {
+  onBack: () => void
+  onSaved: (name: string) => void
+  /** The resident has an approved building link, so management reviews the pet. */
+  reviewed: boolean
+}) {
   const ids = useId()
   const id = (field: string) => `${ids}-${field}`
   const [saving, setSaving] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [name, setName] = useState("")
   const [species, setSpecies] = useState<Species | null>(null)
   // Breed is picked from a list; `customBreed` only carries the free text the
@@ -283,7 +296,7 @@ function AddPetForm({ onBack, onSaved }: { onBack: () => void; onSaved: (name: s
               />
               {breed === OTHER_BREED && (
                 <div className="mt-2">
-                  <Input id={id("breed-text")} value={customBreed} onChange={setCustomBreed} placeholder="Tell us the breed" />
+                  <Input id={id("breed-text")} label="Breed" value={customBreed} onChange={setCustomBreed} placeholder="Tell us the breed" />
                 </div>
               )}
             </>
@@ -294,7 +307,13 @@ function AddPetForm({ onBack, onSaved }: { onBack: () => void; onSaved: (name: s
 
         {/* Everything optional, closed by default. Native <details> keeps what was
             typed when it is collapsed; nothing here auto-opens. */}
-        <details className="group mb-6 rounded-xl border border-border bg-card/50">
+        <details
+          // Forced open while the weight is invalid: it sits in here, and a
+          // disabled "Add pet" with the reason hidden would be a silent block.
+          open={detailsOpen || !weightField.valid}
+          onToggle={(e) => setDetailsOpen(e.currentTarget.open)}
+          className="group mb-6 rounded-xl border border-border bg-card/50"
+        >
           <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-[15px] font-semibold text-foreground [&::-webkit-details-marker]:hidden">
             More details (optional)
             <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
@@ -464,9 +483,9 @@ function AddPetForm({ onBack, onSaved }: { onBack: () => void; onSaved: (name: s
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           {saving ? "Saving…" : "Add pet"}
         </button>
-        {/* Only for someone with an approved building link; anyone else has no
-            management to review the pet, so the line would be untrue. */}
-        {user?.building && (
+        {/* Only for a resident with an approved building link; anyone else has
+            no management to review the pet, so the line would be untrue. */}
+        {reviewed && (
           <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
             Your building&apos;s management will review this pet.
           </p>
@@ -542,10 +561,11 @@ function Select({
   )
 }
 
-function Input({ id, value, onChange, placeholder }: { id?: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+function Input({ id, label, value, onChange, placeholder }: { id?: string; label?: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <input
       id={id}
+      aria-label={label}
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
