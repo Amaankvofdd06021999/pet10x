@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button, Field, TextInput } from "@/components/screens/shared/ui"
 import { verificationBanner } from "@/lib/data/business-tier"
-import { requestVerification, useLatestVerification, type VerificationRequest } from "@/lib/data/clinic/verification"
+import { requestVerification, resubmitVerification, useLatestVerification, type VerificationRequest } from "@/lib/data/clinic/verification"
 import { validateVerification, type VerificationErrors, type VerificationInput } from "@/lib/data/verification-form"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
 
@@ -12,7 +12,8 @@ import type { ClinicMembership } from "@/lib/data/clinic/context"
  * can send a verification request with their licence details; then the banner
  * says it was requested, a request for more information or a rejection shows
  * the admin's words, and after a rejection the form opens prefilled from the
- * last request. Other staff see the state without the button — they cannot
+ * last request, and so does answering a request for more information
+ * ("Update and resubmit" reuses the same request). Other staff see the state without the button — they cannot
  * send one (bver_insert).
  */
 export function VerificationBanner({ clinic, canRequest }: { clinic: ClinicMembership; canRequest: boolean }) {
@@ -45,7 +46,11 @@ export function VerificationBanner({ clinic, canRequest }: { clinic: ClinicMembe
     setErrors({})
     setBusy(true)
     setFailed(null)
-    const { error } = await requestVerification(clinic.businessId, checked.value)
+    // A question from Pet10x is answered on the same request.
+    const { error } =
+      banner?.state === "needs_info" && latest.data
+        ? await resubmitVerification(latest.data.id, checked.value)
+        : await requestVerification(clinic.businessId, checked.value)
     setBusy(false)
     if (error) return setFailed(error)
     setOpen(false)
@@ -76,7 +81,7 @@ export function VerificationBanner({ clinic, canRequest }: { clinic: ClinicMembe
       {latest.error && <p className="mt-1 text-[11px] text-destructive">Couldn&apos;t check for a verification request.</p>}
       {canRequest && banner.canRequest && !latest.isLoading && !latest.error && !open && (
         <Button size="sm" variant="secondary" className="mt-2 w-full" onClick={() => openForm(latest.data)}>
-          {banner.state === "rejected" ? "Request again" : "Request verification"}
+          {banner.state === "rejected" ? "Request again" : banner.state === "needs_info" ? "Update and resubmit" : "Request verification"}
         </Button>
       )}
       {open && (

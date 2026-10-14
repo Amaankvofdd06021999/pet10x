@@ -6668,6 +6668,10 @@ export type Database = {
         }[]
       }
       admin_platform_stats: { Args: never; Returns: Json }
+      admin_request_verification_info: {
+        Args: { p_note: string; p_request: string }
+        Returns: Json
+      }
       admin_review_business_verification: {
         Args: { p_approve: boolean; p_note?: string; p_request: string }
         Returns: undefined
@@ -6706,6 +6710,16 @@ export type Database = {
         Returns: boolean
       }
       business_is_public: { Args: { p_business: string }; Returns: boolean }
+      business_resubmit_verification: {
+        Args: {
+          p_contact_name: string
+          p_contact_phone: string
+          p_issuing_body: string
+          p_licence_number: string
+          p_request: string
+        }
+        Returns: Json
+      }
       business_mark_booking_paid: {
         Args: { p_booking: string }
         Returns: string

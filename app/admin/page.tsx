@@ -1062,6 +1062,7 @@ function BusinessCard({
               >
                 <BadgeCheck className="h-3.5 w-3.5" /> Approve — verify
               </button>
+              {b.openRequest.status !== "needs_info" && (
               <button
                 onClick={() => setAsking(true)}
                 disabled={busy}
@@ -1069,6 +1070,7 @@ function BusinessCard({
               >
                 Ask for info
               </button>
+              )}
               <button
                 onClick={() => setRejecting(true)}
                 disabled={busy}

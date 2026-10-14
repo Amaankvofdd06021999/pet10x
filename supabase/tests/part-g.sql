@@ -590,4 +590,99 @@ begin
   raise notice 'ok: the deleted business is audited; the refused ones keep their patient and booking';
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- 20261015000003 — asking a clinic for information, and its answer
+-- ---------------------------------------------------------------------------
+reset role;
+do $$
+declare v_clinic uuid := current_setting('part_g.biz_clinic')::uuid; v_r uuid; v_old uuid;
+begin
+  -- A fixture request on the clinic (any older open one is closed first), and
+  -- an approved one for the not_open check.
+  update public.business_verifications set status = 'rejected'
+   where business_id = v_clinic and status in ('submitted', 'in_review', 'needs_info');
+  insert into public.business_verifications (business_id, kind, status)
+  values (v_clinic, 'licence', 'approved') returning id into v_old;
+  insert into public.business_verifications (business_id, kind, status, licence_number, issuing_body)
+  values (v_clinic, 'licence', 'submitted', 'VET-1', 'College') returning id into v_r;
+  perform set_config('part_g.vreq', v_r::text, true);
+  perform set_config('part_g.vreq_old', v_old::text, true);
+end $$;
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.owner'), 'role', 'authenticated')::text, true);
+do $$
+begin
+  begin
+    perform public.admin_request_verification_info(current_setting('part_g.vreq')::uuid, 'Please send more');
+    raise exception 'FAIL: a non-admin asked for information';
+  exception when sqlstate '42501' then null; end;
+  raise notice 'ok: a non-admin cannot ask for information (42501)';
+end $$;
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.admin'), 'role', 'authenticated')::text, true);
+do $$
+declare v jsonb;
+begin
+  v := public.admin_request_verification_info(current_setting('part_g.vreq_old')::uuid, 'Anything');
+  if v->>'error' is distinct from 'not_open' then raise exception 'FAIL: ask on an approved row gave %', v; end if;
+  v := public.admin_request_verification_info(current_setting('part_g.vreq')::uuid, 'Send a clearer licence number');
+  if (v->>'ok')::boolean is not true then raise exception 'FAIL: ask on a submitted row gave %', v; end if;
+  if not exists (select 1 from public.business_verifications
+                  where id = current_setting('part_g.vreq')::uuid and status = 'needs_info'
+                    and note = 'Send a clearer licence number' and reviewed_by = current_setting('part_g.admin')::uuid) then
+    raise exception 'FAIL: the request did not move to needs_info with the note and reviewer';
+  end if;
+  raise notice 'ok: ask on submitted works; on an approved row it is not_open';
+end $$;
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
+do $$
+begin
+  begin
+    perform public.business_resubmit_verification(current_setting('part_g.vreq')::uuid, 'VET-22', 'College', null, null);
+    raise exception 'FAIL: a non-member resubmitted';
+  exception when sqlstate '42501' then null; end;
+  raise notice 'ok: a non-member cannot resubmit (42501)';
+end $$;
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.owner'), 'role', 'authenticated')::text, true);
+do $$
+declare v jsonb;
+begin
+  begin
+    perform public.business_resubmit_verification(current_setting('part_g.vreq')::uuid, '#!', 'College', null, null);
+    raise exception 'FAIL: a bad licence number was accepted';
+  exception when sqlstate '22023' then null; end;
+  v := public.business_resubmit_verification(current_setting('part_g.vreq')::uuid, 'VET-22', 'College', 'Dr Lee', '604 555 0100');
+  if (v->>'ok')::boolean is not true then raise exception 'FAIL: resubmit gave %', v; end if;
+  if not exists (select 1 from public.business_verifications
+                  where id = current_setting('part_g.vreq')::uuid and status = 'submitted'
+                    and licence_number = 'VET-22' and note is null and reviewed_by is null) then
+    raise exception 'FAIL: the resubmitted request is not submitted with the new details';
+  end if;
+  v := public.business_resubmit_verification(current_setting('part_g.vreq')::uuid, 'VET-22', 'College', null, null);
+  if v->>'error' is distinct from 'not_needs_info' then raise exception 'FAIL: second resubmit gave %', v; end if;
+  raise notice 'ok: bad licence 22023; resubmit moves needs_info -> submitted; a second is not_needs_info';
+end $$;
+
+reset role;
+do $$
+begin
+  if not exists (select 1 from public.notifications
+                  where profile_id = current_setting('part_g.owner')::uuid
+                    and title like 'Pet10x needs more information:%' and created_at >= now()) then
+    raise exception 'FAIL: the owner was not notified';
+  end if;
+  if not exists (select 1 from public.audit_log where action = 'business.verification_info_requested' and created_at >= now())
+     or not exists (select 1 from public.audit_log where action = 'business.verification_resubmitted' and created_at >= now()) then
+    raise exception 'FAIL: the ask and the resubmit were not both audited';
+  end if;
+  raise notice 'ok: owner notified; both audited';
+end $$;
+
 rollback;

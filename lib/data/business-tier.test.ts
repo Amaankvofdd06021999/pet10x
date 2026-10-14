@@ -65,7 +65,7 @@ describe("verificationBanner", () => {
   it("shows the admin's question while more information is needed", () => {
     expect(verificationBanner("registered", { status: "needs_info", note: "Send the licence number" })).toEqual({
       state: "needs_info",
-      canRequest: false,
+      canRequest: true,
       note: "Send the licence number",
     })
   })

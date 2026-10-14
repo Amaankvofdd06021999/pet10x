@@ -54,9 +54,9 @@ export function verificationBanner(
   latest: { status: string; note: string | null } | null,
 ): BannerState | null {
   if (tier === "verified") return null
-  // needs_info is still open (business_verifications_one_open), so no second
-  // request can be sent; the banner carries the admin's question instead.
-  if (latest?.status === "needs_info") return { state: "needs_info", canRequest: false, note: latest.note }
+  // needs_info is still open (business_verifications_one_open): no new request,
+  // but the clinic answers the question by resubmitting this one.
+  if (latest?.status === "needs_info") return { state: "needs_info", canRequest: true, note: latest.note }
   if (latest && isOpenRequest(latest.status)) return { state: "requested", canRequest: false, note: null }
   if (latest?.status === "rejected") return { state: "rejected", canRequest: true, note: latest.note }
   return { state: "none", canRequest: true, note: null }

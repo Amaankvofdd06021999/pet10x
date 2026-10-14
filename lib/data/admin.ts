@@ -453,31 +453,23 @@ export async function reviewBusinessVerification(
 }
 
 /**
- * Ask the business for more information: the request moves to needs_info with
- * the admin's question as its note. A direct update (bver_admin); the clinic's
- * banner shows the note. Limited to open requests, so a request decided in the
- * meantime is not reopened.
+ * Ask the business for more information (admin_request_verification_info,
+ * 20261015000003): the request moves to needs_info with the admin's question
+ * as its note, the owner is notified, and the clinic's banner shows it. Only
+ * an open (submitted or in review) request can be asked about.
  */
 export async function askForVerificationInfo(requestId: string, note: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
-  const question = note.trim()
-  if (!question) return { error: "Say what you need from them." }
-  const { data: auth } = await supabase.auth.getUser()
-  const { data, error } = await supabase
-    .from("business_verifications")
-    .update({
-      status: "needs_info",
-      note: question,
-      reviewed_by: auth.user?.id ?? null,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq("id", requestId)
-    .in("status", ["submitted", "in_review", "needs_info"])
-    .select("id")
+  if (!note.trim()) return { error: "Say what you need from them." }
+  const { data, error } = await supabase.rpc("admin_request_verification_info", {
+    p_request: requestId,
+    p_note: note.trim(),
+  })
   if (error) return { error: businessTierError(error) }
-  if (!data || data.length === 0) return { error: "This request was already decided. Refresh to see it." }
-  return { error: null }
+  const res = data as { ok?: boolean; error?: string } | null
+  if (res?.ok === true) return { error: null }
+  return { error: "This request is no longer open for questions. Refresh to see it." }
 }
 
 /* ------------------------------------------------------------------ */

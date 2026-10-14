@@ -89,3 +89,27 @@ export async function requestVerification(
   })
   return { error: error ? businessTierError(error) : null }
 }
+
+/**
+ * Answer an admin's question: business_resubmit_verification re-checks the
+ * details, puts the same request back to `submitted` and clears the question
+ * (the audit log keeps it). The one open request is reused, so the unique
+ * index is never in the way.
+ */
+export async function resubmitVerification(
+  requestId: string,
+  details: VerificationInput,
+): Promise<{ error: string | null }> {
+  const db = getSupabaseBrowserClient()
+  if (!db) return { error: "Supabase is not configured." }
+  const { data, error } = await db.rpc("business_resubmit_verification", {
+    p_request: requestId,
+    p_licence_number: details.licenceNumber,
+    p_issuing_body: details.issuingBody,
+    p_contact_name: details.contactName,
+    p_contact_phone: details.contactPhone,
+  })
+  if (error) return { error: businessTierError(error) }
+  const res = data as { ok?: boolean } | null
+  return { error: res?.ok === true ? null : "This request is not waiting on you any more. Refresh to see it." }
+}
