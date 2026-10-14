@@ -787,7 +787,8 @@ comment on function public.admin_building_activity() is
 --
 --   2. service_bookings.cancelled_reason (<= 2000 characters) and
 --      cancelled_by ('customer' | 'business'), both set only by the two
---      cancel RPCs below.
+--      cancel RPCs below. service_bookings_insert_guard (20261012000008,
+--      copied verbatim) also clears both on a client insert.
 --
 --   3. business_cancel_booking(p_booking, p_reason) -> jsonb. The caller must
 --      administer the booking's business — can_admin_business: its owner, or
@@ -836,7 +837,9 @@ comment on function public.admin_building_activity() is
 --        owner/manager/reception staff hear of it, target clinic:today.
 --      * AFTER UPDATE OF status to booked, cancelled or no_show, made by
 --        someone other than the pet's owner: the owner hears, target
---        my-vets:visits. requested -> cancelled reads as a declined request.
+--        my-vets:visits. requested -> cancelled reads as a declined request;
+--        no_show -> booked as a rebooking. cancel_reason is quoted only when
+--        that same change wrote it.
 --      Suspended recipients are skipped throughout.
 --
 -- Whitespace: every required reason is trimmed of all whitespace (tabs and
@@ -883,6 +886,53 @@ comment on column public.service_bookings.cancelled_reason is
   'Why the business cancelled (business_cancel_booking, 20261015000005). At most 2000 characters.';
 comment on column public.service_bookings.cancelled_by is
   'customer (customer_cancel_booking) or business (business_cancel_booking), 20261015000005.';
+
+-- A customer books; they do not pre-cancel. service_bookings_insert_guard
+-- (20261012000008, the latest definition) verbatim, plus the two new columns
+-- cleared on a client insert, as it clears declined_reason. The trigger is
+-- unchanged and is not recreated.
+create or replace function public.service_bookings_insert_guard()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $guard$
+declare
+  v_price    integer;
+  v_currency text;
+begin
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+
+  if new.service_id is not null then
+    select s.price_cents, s.currency into v_price, v_currency
+      from public.business_services s
+     where s.id = new.service_id and s.business_id = new.business_id and s.active;
+    if not found then
+      raise exception 'That service isn''t available to book'
+        using errcode = '22023',
+              hint    = 'The service must belong to the business you are booking and be active.';
+    end if;
+  end if;
+
+  new.status           := 'requested';
+  new.responded_at     := null;
+  new.payment_id       := null;
+  new.declined_reason  := null;
+  new.cancelled_reason := null;
+  new.cancelled_by     := null;
+  new.amount_cents     := coalesce(v_price, 0);
+  new.currency         := coalesce(v_currency, new.currency, 'cad');
+  new.commission_cents := round(coalesce(v_price, 0) * 0.15)::integer;
+  return new;
+end;
+$guard$;
+
+comment on function public.service_bookings_insert_guard() is
+  'BEFORE INSERT on service_bookings (20261012000008; cancelled_* added 20261015000005). For authenticated/anon callers, rewrites status to requested, clears responded_at / payment_id / declined_reason / cancelled_reason / cancelled_by, and sets amount_cents, currency and commission_cents (15%) from the booked, active business_services row of the same business (0 with no service). Refuses a service that is not that business''s or not active (22023). Service role and definer RPCs pass untouched.';
+
+revoke all on function public.service_bookings_insert_guard() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 3. A business cancels a booking, with a reason
@@ -1202,18 +1252,23 @@ grant execute on function public.owner_cancel_appointment(uuid, text) to authent
 -- ---------------------------------------------------------------------------
 -- invoices.status is text with an inline CHECK (20260901000006), so Postgres
 -- named it; find it by what it says rather than trusting the name, and put
--- back the same list plus `declined`.
+-- back the same list plus `declined`. Exactly one must match: none means the
+-- table is not what this migration was written against, and two would mean
+-- dropping a constraint it does not understand — either way, stop.
 do $$
-declare v_name text;
+declare
+  v_names text[];
 begin
-  for v_name in
-    select c.conname from pg_catalog.pg_constraint c
-     where c.conrelid = 'public.invoices'::regclass and c.contype = 'c'
-       and pg_catalog.pg_get_constraintdef(c.oid) ilike '%status%'
-       and pg_catalog.pg_get_constraintdef(c.oid) ilike '%void%'
-  loop
-    execute format('alter table public.invoices drop constraint %I', v_name);
-  end loop;
+  select array_agg(c.conname order by c.conname) into v_names
+    from pg_catalog.pg_constraint c
+   where c.conrelid = 'public.invoices'::regclass and c.contype = 'c'
+     and pg_catalog.pg_get_constraintdef(c.oid) ilike '%status%'
+     and pg_catalog.pg_get_constraintdef(c.oid) ilike '%void%';
+  if coalesce(array_length(v_names, 1), 0) <> 1 then
+    raise exception 'Expected exactly one invoices status CHECK, found %', coalesce(array_length(v_names, 1), 0)
+      using detail = 'Matched: ' || coalesce(array_to_string(v_names, ', '), '(none)');
+  end if;
+  execute format('alter table public.invoices drop constraint %I', v_names[1]);
 end $$;
 
 alter table public.invoices
@@ -1380,7 +1435,14 @@ begin
   select b.name into v_clinic from public.businesses b where b.id = new.business_id;
   v_clinic := coalesce(nullif(trim(coalesce(v_clinic, '')), ''), 'Your vet');
   v_when := public.booking_when(new.starts_at, v_owner);
-  v_reason := nullif(regexp_replace(coalesce(new.cancel_reason, ''), '^\s+|\s+$', '', 'g'), '');
+  /* Quote cancel_reason only when THIS change wrote it. clinic_set_
+     appointment_status keeps the old value when no note is given
+     (coalesce(p_note, cancel_reason)), so a note the practice left when
+     marking a visit missed — possibly internal — would otherwise surface
+     on a later, note-less cancel. */
+  if new.cancel_reason is distinct from old.cancel_reason then
+    v_reason := nullif(regexp_replace(coalesce(new.cancel_reason, ''), '^\s+|\s+$', '', 'g'), '');
+  end if;
 
   insert into public.notifications
     (profile_id, kind, severity, title, body, action_label, action_target)
@@ -1389,12 +1451,15 @@ begin
     'appointment',
     case when new.status = 'booked' then 'success' else 'warning' end,
     case
+      when new.status = 'booked' and old.status = 'no_show' then 'Appointment rebooked'
       when new.status = 'booked' then 'Appointment confirmed'
       when new.status = 'no_show' then 'Marked as missed'
       when old.status = 'requested' then 'Appointment request declined'
       else 'Appointment cancelled'
     end,
     case
+      when new.status = 'booked' and old.status = 'no_show' then
+        v_clinic || ' rebooked ' || v_pet || '''s appointment' || coalesce(' on ' || v_when, '') || '.'
       when new.status = 'booked' then
         v_clinic || ' confirmed ' || v_pet || '''s appointment' || coalesce(' on ' || v_when, '') || '.'
       when new.status = 'no_show' then
@@ -3947,7 +4012,8 @@ rollback to savepoint checks; reset role;
 --     trimmed reason and cancelled_by business, and the customer is told,
 --     the body quoting the reason.
 --   * customer_cancel_booking still works, sets cancelled_by customer, tells
---     the business and does NOT tell the customer.
+--     the business and does NOT tell the customer. A customer's insert cannot
+--     pre-fill cancelled_by / cancelled_reason (the insert guard clears them).
 --   * business_booking_contact — the customer's email and phone to the
 --     business owner while confirmed or completed; null fields for a
 --     requested or cancelled booking, and for anyone else.
@@ -3957,7 +4023,8 @@ rollback to savepoint checks; reset role;
 --     (not_cancellable), and cancels a visit 3 days away, telling the
 --     practice; the practice confirming, declining a request, cancelling and
 --     marking missed each tell the owner (my-vets:visits), and the owner's
---     own cancel does not.
+--     own cancel does not; a missed visit's note is not quoted when it is
+--     later cancelled with none.
 --   * owner_decline_estimate — a non-owner is refused (42501), a blank note
 --     is 22023, an approved estimate is not_awaiting_approval; a sent one is
 --     declined, the note appended after the practice's, and the practice told
@@ -4764,9 +4831,20 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
 do $$
-declare v jsonb;
+declare v jsonb; v_row public.service_bookings%rowtype;
 begin
   if public.is_admin() then raise exception 'FIXTURE: outsider is an admin'; end if;
+
+  -- A customer's insert cannot arrive pre-cancelled: the insert guard
+  -- rewrites status and clears cancelled_by / cancelled_reason.
+  insert into public.service_bookings (business_id, customer_id, status, cancelled_by, cancelled_reason, scheduled_for)
+  values (current_setting('part_g.salon')::uuid, auth.uid(), 'cancelled', 'business', 'Pre-filled', now() + interval '8 days')
+  returning * into v_row;
+  if v_row.status <> 'requested' or v_row.cancelled_by is not null or v_row.cancelled_reason is not null then
+    raise exception 'FAIL: a customer insert kept %', row_to_json(v_row);
+  end if;
+  raise notice 'ok: a customer insert cannot pre-fill cancelled_by / cancelled_reason or the status';
+
   begin
     perform public.business_cancel_booking(current_setting('part_g.b_conf')::uuid, 'Not my business');
     raise exception 'FAIL: the customer cancelled through the business door';
@@ -4959,8 +5037,14 @@ select set_config('request.jwt.claims',
 do $$
 declare v jsonb;
 begin
-  v := public.clinic_set_appointment_status(current_setting('part_g.a_soon')::uuid, 'no_show'::public.appointment_status);
+  -- Missed, with a note the owner must never read…
+  v := public.clinic_set_appointment_status(current_setting('part_g.a_soon')::uuid, 'no_show'::public.appointment_status,
+                                            'Internal: no call, no show');
   if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: marking missed gave %', v; end if;
+  -- …then cancelled with no note: cancel_reason still holds the missed note
+  -- (coalesce(p_note, cancel_reason)), and the notice must not quote it.
+  v := public.clinic_set_appointment_status(current_setting('part_g.a_soon')::uuid, 'cancelled'::public.appointment_status);
+  if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: cancelling the missed visit gave %', v; end if;
   v := public.clinic_set_appointment_status(current_setting('part_g.a_conf')::uuid, 'cancelled'::public.appointment_status,
                                             'Vet is away');
   if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: cancelling the booked visit gave %', v; end if;
@@ -4984,9 +5068,10 @@ begin
      or v_appt.cancel_reason is distinct from 'Feeling better' then
     raise exception 'FAIL: the owner-cancelled visit is %', row_to_json(v_appt);
   end if;
-  -- a_soon was refused (too_late) while booked, then marked missed by the practice.
-  if (select status from public.appointments where id = current_setting('part_g.a_soon')::uuid) is distinct from 'no_show' then
-    raise exception 'FAIL: the visit an hour away is not booked-then-missed';
+  -- a_soon was refused (too_late) while booked, then marked missed and
+  -- cancelled by the practice.
+  if (select status from public.appointments where id = current_setting('part_g.a_soon')::uuid) is distinct from 'cancelled' then
+    raise exception 'FAIL: the visit an hour away is not missed-then-cancelled';
   end if;
   select * into v_inv from public.invoices where id = current_setting('part_g.e_sent')::uuid;
   if not found or v_inv.status is distinct from 'declined'
@@ -5015,12 +5100,22 @@ begin
   if v_n <> 1 then raise exception 'FAIL: % cancellation notices quoting the reason, expected 1', v_n; end if;
   select count(*) into v_n from public.notifications
    where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits'
-     and title = 'Marked as missed';
-  if v_n <> 1 then raise exception 'FAIL: % missed notices, expected 1', v_n; end if;
+     and title = 'Marked as missed' and body not like '%Internal%';
+  if v_n <> 1 then raise exception 'FAIL: % missed notices without the practice''s note, expected 1', v_n; end if;
+  -- The note-less cancel after the missed visit quotes nothing.
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits'
+     and title = 'Appointment cancelled' and body like 'Part G Clinic cancelled Part G Rex''s appointment on %.'
+     and body not like '%Reason%' and body not like '%Internal%';
+  if v_n <> 1 then raise exception 'FAIL: % note-less cancellation notices, expected 1 (the missed note must not be quoted)', v_n; end if;
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits'
+     and body like '%Internal%';
+  if v_n <> 0 then raise exception 'FAIL: % visit notices quote the practice''s missed note', v_n; end if;
   select count(*) into v_n from public.notifications
    where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits';
-  if v_n <> 4 then raise exception 'FAIL: the pet owner got % visit notices, expected 4 (their own cancel is silent)', v_n; end if;
-  raise notice 'ok: confirmed, declined request, cancelled and missed each tell the owner; their own cancel does not';
+  if v_n <> 5 then raise exception 'FAIL: the pet owner got % visit notices, expected 5 (their own cancel is silent)', v_n; end if;
+  raise notice 'ok: confirmed, declined request, cancelled, missed and missed-then-cancelled each tell the owner; a stale note is never quoted; their own cancel is silent';
 
   -- The practice.
   select count(*) into v_n from public.notifications

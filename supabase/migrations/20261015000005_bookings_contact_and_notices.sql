@@ -25,7 +25,8 @@
 --
 --   2. service_bookings.cancelled_reason (<= 2000 characters) and
 --      cancelled_by ('customer' | 'business'), both set only by the two
---      cancel RPCs below.
+--      cancel RPCs below. service_bookings_insert_guard (20261012000008,
+--      copied verbatim) also clears both on a client insert.
 --
 --   3. business_cancel_booking(p_booking, p_reason) -> jsonb. The caller must
 --      administer the booking's business — can_admin_business: its owner, or
@@ -74,7 +75,9 @@
 --        owner/manager/reception staff hear of it, target clinic:today.
 --      * AFTER UPDATE OF status to booked, cancelled or no_show, made by
 --        someone other than the pet's owner: the owner hears, target
---        my-vets:visits. requested -> cancelled reads as a declined request.
+--        my-vets:visits. requested -> cancelled reads as a declined request;
+--        no_show -> booked as a rebooking. cancel_reason is quoted only when
+--        that same change wrote it.
 --      Suspended recipients are skipped throughout.
 --
 -- Whitespace: every required reason is trimmed of all whitespace (tabs and
@@ -121,6 +124,53 @@ comment on column public.service_bookings.cancelled_reason is
   'Why the business cancelled (business_cancel_booking, 20261015000005). At most 2000 characters.';
 comment on column public.service_bookings.cancelled_by is
   'customer (customer_cancel_booking) or business (business_cancel_booking), 20261015000005.';
+
+-- A customer books; they do not pre-cancel. service_bookings_insert_guard
+-- (20261012000008, the latest definition) verbatim, plus the two new columns
+-- cleared on a client insert, as it clears declined_reason. The trigger is
+-- unchanged and is not recreated.
+create or replace function public.service_bookings_insert_guard()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $guard$
+declare
+  v_price    integer;
+  v_currency text;
+begin
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+
+  if new.service_id is not null then
+    select s.price_cents, s.currency into v_price, v_currency
+      from public.business_services s
+     where s.id = new.service_id and s.business_id = new.business_id and s.active;
+    if not found then
+      raise exception 'That service isn''t available to book'
+        using errcode = '22023',
+              hint    = 'The service must belong to the business you are booking and be active.';
+    end if;
+  end if;
+
+  new.status           := 'requested';
+  new.responded_at     := null;
+  new.payment_id       := null;
+  new.declined_reason  := null;
+  new.cancelled_reason := null;
+  new.cancelled_by     := null;
+  new.amount_cents     := coalesce(v_price, 0);
+  new.currency         := coalesce(v_currency, new.currency, 'cad');
+  new.commission_cents := round(coalesce(v_price, 0) * 0.15)::integer;
+  return new;
+end;
+$guard$;
+
+comment on function public.service_bookings_insert_guard() is
+  'BEFORE INSERT on service_bookings (20261012000008; cancelled_* added 20261015000005). For authenticated/anon callers, rewrites status to requested, clears responded_at / payment_id / declined_reason / cancelled_reason / cancelled_by, and sets amount_cents, currency and commission_cents (15%) from the booked, active business_services row of the same business (0 with no service). Refuses a service that is not that business''s or not active (22023). Service role and definer RPCs pass untouched.';
+
+revoke all on function public.service_bookings_insert_guard() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 3. A business cancels a booking, with a reason
@@ -440,18 +490,23 @@ grant execute on function public.owner_cancel_appointment(uuid, text) to authent
 -- ---------------------------------------------------------------------------
 -- invoices.status is text with an inline CHECK (20260901000006), so Postgres
 -- named it; find it by what it says rather than trusting the name, and put
--- back the same list plus `declined`.
+-- back the same list plus `declined`. Exactly one must match: none means the
+-- table is not what this migration was written against, and two would mean
+-- dropping a constraint it does not understand — either way, stop.
 do $$
-declare v_name text;
+declare
+  v_names text[];
 begin
-  for v_name in
-    select c.conname from pg_catalog.pg_constraint c
-     where c.conrelid = 'public.invoices'::regclass and c.contype = 'c'
-       and pg_catalog.pg_get_constraintdef(c.oid) ilike '%status%'
-       and pg_catalog.pg_get_constraintdef(c.oid) ilike '%void%'
-  loop
-    execute format('alter table public.invoices drop constraint %I', v_name);
-  end loop;
+  select array_agg(c.conname order by c.conname) into v_names
+    from pg_catalog.pg_constraint c
+   where c.conrelid = 'public.invoices'::regclass and c.contype = 'c'
+     and pg_catalog.pg_get_constraintdef(c.oid) ilike '%status%'
+     and pg_catalog.pg_get_constraintdef(c.oid) ilike '%void%';
+  if coalesce(array_length(v_names, 1), 0) <> 1 then
+    raise exception 'Expected exactly one invoices status CHECK, found %', coalesce(array_length(v_names, 1), 0)
+      using detail = 'Matched: ' || coalesce(array_to_string(v_names, ', '), '(none)');
+  end if;
+  execute format('alter table public.invoices drop constraint %I', v_names[1]);
 end $$;
 
 alter table public.invoices
@@ -618,7 +673,14 @@ begin
   select b.name into v_clinic from public.businesses b where b.id = new.business_id;
   v_clinic := coalesce(nullif(trim(coalesce(v_clinic, '')), ''), 'Your vet');
   v_when := public.booking_when(new.starts_at, v_owner);
-  v_reason := nullif(regexp_replace(coalesce(new.cancel_reason, ''), '^\s+|\s+$', '', 'g'), '');
+  /* Quote cancel_reason only when THIS change wrote it. clinic_set_
+     appointment_status keeps the old value when no note is given
+     (coalesce(p_note, cancel_reason)), so a note the practice left when
+     marking a visit missed — possibly internal — would otherwise surface
+     on a later, note-less cancel. */
+  if new.cancel_reason is distinct from old.cancel_reason then
+    v_reason := nullif(regexp_replace(coalesce(new.cancel_reason, ''), '^\s+|\s+$', '', 'g'), '');
+  end if;
 
   insert into public.notifications
     (profile_id, kind, severity, title, body, action_label, action_target)
@@ -627,12 +689,15 @@ begin
     'appointment',
     case when new.status = 'booked' then 'success' else 'warning' end,
     case
+      when new.status = 'booked' and old.status = 'no_show' then 'Appointment rebooked'
       when new.status = 'booked' then 'Appointment confirmed'
       when new.status = 'no_show' then 'Marked as missed'
       when old.status = 'requested' then 'Appointment request declined'
       else 'Appointment cancelled'
     end,
     case
+      when new.status = 'booked' and old.status = 'no_show' then
+        v_clinic || ' rebooked ' || v_pet || '''s appointment' || coalesce(' on ' || v_when, '') || '.'
       when new.status = 'booked' then
         v_clinic || ' confirmed ' || v_pet || '''s appointment' || coalesce(' on ' || v_when, '') || '.'
       when new.status = 'no_show' then

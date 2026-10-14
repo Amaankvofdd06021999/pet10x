@@ -40,7 +40,8 @@
 --     trimmed reason and cancelled_by business, and the customer is told,
 --     the body quoting the reason.
 --   * customer_cancel_booking still works, sets cancelled_by customer, tells
---     the business and does NOT tell the customer.
+--     the business and does NOT tell the customer. A customer's insert cannot
+--     pre-fill cancelled_by / cancelled_reason (the insert guard clears them).
 --   * business_booking_contact — the customer's email and phone to the
 --     business owner while confirmed or completed; null fields for a
 --     requested or cancelled booking, and for anyone else.
@@ -50,7 +51,8 @@
 --     (not_cancellable), and cancels a visit 3 days away, telling the
 --     practice; the practice confirming, declining a request, cancelling and
 --     marking missed each tell the owner (my-vets:visits), and the owner's
---     own cancel does not.
+--     own cancel does not; a missed visit's note is not quoted when it is
+--     later cancelled with none.
 --   * owner_decline_estimate — a non-owner is refused (42501), a blank note
 --     is 22023, an approved estimate is not_awaiting_approval; a sent one is
 --     declined, the note appended after the practice's, and the practice told
@@ -857,9 +859,20 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
 do $$
-declare v jsonb;
+declare v jsonb; v_row public.service_bookings%rowtype;
 begin
   if public.is_admin() then raise exception 'FIXTURE: outsider is an admin'; end if;
+
+  -- A customer's insert cannot arrive pre-cancelled: the insert guard
+  -- rewrites status and clears cancelled_by / cancelled_reason.
+  insert into public.service_bookings (business_id, customer_id, status, cancelled_by, cancelled_reason, scheduled_for)
+  values (current_setting('part_g.salon')::uuid, auth.uid(), 'cancelled', 'business', 'Pre-filled', now() + interval '8 days')
+  returning * into v_row;
+  if v_row.status <> 'requested' or v_row.cancelled_by is not null or v_row.cancelled_reason is not null then
+    raise exception 'FAIL: a customer insert kept %', row_to_json(v_row);
+  end if;
+  raise notice 'ok: a customer insert cannot pre-fill cancelled_by / cancelled_reason or the status';
+
   begin
     perform public.business_cancel_booking(current_setting('part_g.b_conf')::uuid, 'Not my business');
     raise exception 'FAIL: the customer cancelled through the business door';
@@ -1052,8 +1065,14 @@ select set_config('request.jwt.claims',
 do $$
 declare v jsonb;
 begin
-  v := public.clinic_set_appointment_status(current_setting('part_g.a_soon')::uuid, 'no_show'::public.appointment_status);
+  -- Missed, with a note the owner must never read…
+  v := public.clinic_set_appointment_status(current_setting('part_g.a_soon')::uuid, 'no_show'::public.appointment_status,
+                                            'Internal: no call, no show');
   if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: marking missed gave %', v; end if;
+  -- …then cancelled with no note: cancel_reason still holds the missed note
+  -- (coalesce(p_note, cancel_reason)), and the notice must not quote it.
+  v := public.clinic_set_appointment_status(current_setting('part_g.a_soon')::uuid, 'cancelled'::public.appointment_status);
+  if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: cancelling the missed visit gave %', v; end if;
   v := public.clinic_set_appointment_status(current_setting('part_g.a_conf')::uuid, 'cancelled'::public.appointment_status,
                                             'Vet is away');
   if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: cancelling the booked visit gave %', v; end if;
@@ -1077,9 +1096,10 @@ begin
      or v_appt.cancel_reason is distinct from 'Feeling better' then
     raise exception 'FAIL: the owner-cancelled visit is %', row_to_json(v_appt);
   end if;
-  -- a_soon was refused (too_late) while booked, then marked missed by the practice.
-  if (select status from public.appointments where id = current_setting('part_g.a_soon')::uuid) is distinct from 'no_show' then
-    raise exception 'FAIL: the visit an hour away is not booked-then-missed';
+  -- a_soon was refused (too_late) while booked, then marked missed and
+  -- cancelled by the practice.
+  if (select status from public.appointments where id = current_setting('part_g.a_soon')::uuid) is distinct from 'cancelled' then
+    raise exception 'FAIL: the visit an hour away is not missed-then-cancelled';
   end if;
   select * into v_inv from public.invoices where id = current_setting('part_g.e_sent')::uuid;
   if not found or v_inv.status is distinct from 'declined'
@@ -1108,12 +1128,22 @@ begin
   if v_n <> 1 then raise exception 'FAIL: % cancellation notices quoting the reason, expected 1', v_n; end if;
   select count(*) into v_n from public.notifications
    where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits'
-     and title = 'Marked as missed';
-  if v_n <> 1 then raise exception 'FAIL: % missed notices, expected 1', v_n; end if;
+     and title = 'Marked as missed' and body not like '%Internal%';
+  if v_n <> 1 then raise exception 'FAIL: % missed notices without the practice''s note, expected 1', v_n; end if;
+  -- The note-less cancel after the missed visit quotes nothing.
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits'
+     and title = 'Appointment cancelled' and body like 'Part G Clinic cancelled Part G Rex''s appointment on %.'
+     and body not like '%Reason%' and body not like '%Internal%';
+  if v_n <> 1 then raise exception 'FAIL: % note-less cancellation notices, expected 1 (the missed note must not be quoted)', v_n; end if;
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits'
+     and body like '%Internal%';
+  if v_n <> 0 then raise exception 'FAIL: % visit notices quote the practice''s missed note', v_n; end if;
   select count(*) into v_n from public.notifications
    where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:visits';
-  if v_n <> 4 then raise exception 'FAIL: the pet owner got % visit notices, expected 4 (their own cancel is silent)', v_n; end if;
-  raise notice 'ok: confirmed, declined request, cancelled and missed each tell the owner; their own cancel does not';
+  if v_n <> 5 then raise exception 'FAIL: the pet owner got % visit notices, expected 5 (their own cancel is silent)', v_n; end if;
+  raise notice 'ok: confirmed, declined request, cancelled, missed and missed-then-cancelled each tell the owner; a stale note is never quoted; their own cancel is silent';
 
   -- The practice.
   select count(*) into v_n from public.notifications
