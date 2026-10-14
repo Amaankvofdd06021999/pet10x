@@ -50,6 +50,9 @@ import {
   type BusinessFootprint,
 } from "@/lib/data/business-delete"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { MunicipalitiesTab } from "@/components/admin/municipalities-tab"
+import { ActivityTab } from "@/components/admin/activity-tab"
+import { parseAdminTab, type AdminTabId } from "@/lib/admin-tab"
 import {
   ShieldCheck,
   Building2,
@@ -68,6 +71,7 @@ import {
   Trash2,
   AlertTriangle,
   Landmark,
+  ScrollText,
   Archive,
   ArchiveRestore,
   LayoutDashboard,
@@ -176,12 +180,27 @@ const ADMIN_TABS = [
   { id: "managers", label: "Managers", icon: Users },
   { id: "businesses", label: "Businesses", icon: Store },
   { id: "reports", label: "City reports", icon: Landmark },
-] as const
-type AdminTab = (typeof ADMIN_TABS)[number]["id"]
+  { id: "municipalities", label: "Municipalities", icon: MapPin },
+  { id: "activity", label: "Activity", icon: ScrollText },
+] as const satisfies readonly { id: AdminTabId; label: string; icon: unknown }[]
+type AdminTab = AdminTabId
 
 function Portal() {
   const { user, signOut } = useAuth()
   const [tab, setTab] = useState<AdminTab>("overview")
+
+  // The tab lives in `?tab=` so a refresh or a shared link lands where it was.
+  // Read after mount, never during render, so the server HTML matches.
+  useEffect(() => {
+    const t = parseAdminTab(new URLSearchParams(window.location.search).get("tab"))
+    if (t) setTab(t)
+  }, [])
+  const pickTab = (t: AdminTab) => {
+    setTab(t)
+    const url = new URL(window.location.href)
+    url.searchParams.set("tab", t)
+    window.history.replaceState(window.history.state, "", url)
+  }
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
@@ -208,7 +227,7 @@ function Portal() {
             return (
               <button
                 key={t.id}
-                onClick={() => setTab(t.id)}
+                onClick={() => pickTab(t.id)}
                 className={`flex flex-1 flex-shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-[14px] font-semibold transition-colors ${
                   tab === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
                 }`}
@@ -228,8 +247,12 @@ function Portal() {
           <Managers />
         ) : tab === "businesses" ? (
           <Businesses />
-        ) : (
+        ) : tab === "reports" ? (
           <MunicipalReports />
+        ) : tab === "municipalities" ? (
+          <MunicipalitiesTab />
+        ) : (
+          <ActivityTab />
         )}
       </div>
     </div>

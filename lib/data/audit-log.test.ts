@@ -88,3 +88,12 @@ describe("auditAreaFilter", () => {
     expect(auditAreaFilter("rules")).toBe("action.like.building_rule.%,action.like.building.%")
   })
 })
+
+describe("admin actions", () => {
+  it("reads platform actions as sentences", () => {
+    const d = (action: string, metadata: unknown = {}) => describeAuditEntry({ action, entityType: null, metadata })
+    expect(d("user.suspended")).toBe("suspended an account")
+    expect(d("business.tier_set", { from: "free", to: "pro" })).toBe("changed a business's tier from free to pro")
+    expect(d("business.deleted")).toBe("deleted a business")
+  })
+})

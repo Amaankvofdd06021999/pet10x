@@ -143,6 +143,27 @@ export function describeAuditEntry(row: AuditRow): string {
       return "decided a resident's request to join"
     case "municipal_report.submitted":
       return "sent a report to the city"
+    // Platform admins' own actions, read in the admin console's Activity tab.
+    case "user.suspended":
+      return "suspended an account"
+    case "user.unsuspended":
+      return "unsuspended an account"
+    case "user.admin_granted":
+      return "made someone a Pet10x admin"
+    case "user.admin_revoked":
+      return "removed someone's Pet10x admin access"
+    case "business.tier_set":
+      return `changed a business's tier${fromTo(words(m.from), words(m.to))}`
+    case "business.verification_approved":
+      return "approved a business's verification"
+    case "business.verification_rejected":
+      return "rejected a business's verification"
+    case "business.verification_info_requested":
+      return "asked a business for more verification information"
+    case "business.verification_resubmitted":
+      return "resubmitted a business for verification"
+    case "business.deleted":
+      return "deleted a business"
   }
   return `changed the building's ${words(row.action.split(".")[0]) ?? "other"} records`
 }
