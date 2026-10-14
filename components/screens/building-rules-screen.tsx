@@ -65,7 +65,9 @@ import { useMemo, useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
 import { useAuth } from "@/lib/auth-context"
-import { useMyBuildingLink } from "@/lib/data/live"
+import { useMyBuildingLink, usePets } from "@/lib/data/live"
+import { useMyCompleteness } from "@/lib/data/completeness"
+import { requirementStatus } from "@/lib/data/building-rules-status"
 import { useMyBuildingRules, useBuildingPetRules } from "@/lib/data/building-rules-live"
 import {
   CATEGORY_LABEL,
@@ -74,14 +76,14 @@ import {
   relativeUpdated,
   type BuildingRuleCategory,
 } from "@/lib/data/building-rules"
-import { Building2, CheckCircle2, FileText, Loader2, ShieldCheck } from "lucide-react"
+import { Building2, CheckCircle2, FileText, Loader2, PlusCircle, ShieldCheck } from "lucide-react"
 
 export function BuildingRulesScreen({
   onBack,
   onNavigate,
 }: {
   onBack: () => void
-  onNavigate?: (screen: string) => void
+  onNavigate?: (screen: string, id?: string, petId?: string, tab?: string) => void
 }) {
   const { data: link, isLoading: linkLoading } = useMyBuildingLink()
   const { viewAs, activeBuildingId, managedBuildings, isLoading: authLoading } = useAuth()
@@ -116,6 +118,17 @@ export function BuildingRulesScreen({
     ? (managedBuilding ?? residentBuilding)
     : (residentBuilding ?? managedBuilding)
   const buildingId = building?.id
+
+  /* PER-PET STATUS IS THE VIEWER'S OWN, AGAINST THEIR OWN LINKED BUILDING.
+     `useMyCompleteness` computes gaps from the viewer's approved link, so those
+     gaps only describe the building on screen when it IS that building. A
+     manager reading their building's rules (or someone acting as a manager of
+     another building) gets neutral bullets: showing "met" there would be a
+     claim about pets nobody checked against these rules. */
+  const { data: pets } = usePets()
+  const { gaps, isLoading: gapsLoading } = useMyCompleteness()
+  const showPetStatus =
+    !gapsLoading && pets.length > 0 && residentBuilding !== null && residentBuilding.id === buildingId
 
   const { data: rules, isLoading: rulesLoading } = useMyBuildingRules(buildingId)
   const { data: petRules, isLoading: petRulesLoading } = useBuildingPetRules(buildingId)
@@ -171,12 +184,57 @@ export function BuildingRulesScreen({
                   </p>
                 ) : (
                   <ul className="space-y-1.5">
-                    {requirements.map((r) => (
-                      <li key={r.key} className="flex items-start gap-2">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-success" />
-                        <span className="text-[13.5px] leading-relaxed text-foreground">{r.label}</span>
-                      </li>
-                    ))}
+                    {requirements.map((r) => {
+                      /* Rules with no per-pet check (registry, limits) stay
+                         neutral even for a viewer with pets. */
+                      const perPet = showPetStatus
+                        ? pets.map((p) => ({ pet: p, status: requirementStatus(r.key, p.id, gaps) }))
+                        : []
+                      const hasStatus = perPet.some((x) => x.status.state !== "none")
+                      return (
+                        <li key={r.key} className="flex items-start gap-2">
+                          {hasStatus ? (
+                            <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                          ) : (
+                            <span aria-hidden className="mx-1.5 mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-muted-foreground/50" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[13.5px] leading-relaxed text-foreground">{r.label}</span>
+                            {hasStatus && (
+                              <ul className="mt-1 space-y-1">
+                                {perPet.map(({ pet, status }) => (
+                                  <li key={pet.id} className="flex items-center justify-between gap-2 text-[12.5px]">
+                                    <span className="min-w-0 truncate text-muted-foreground">{pet.name}</span>
+                                    {status.state === "met" ? (
+                                      <span className="flex flex-shrink-0 items-center gap-1 font-medium text-success">
+                                        <CheckCircle2 className="h-4 w-4" aria-hidden />
+                                        Met
+                                      </span>
+                                    ) : status.state === "unmet" ? (
+                                      <button
+                                        onClick={() =>
+                                          onNavigate?.(
+                                            status.gap.target.screen,
+                                            status.gap.target.id,
+                                            undefined,
+                                            status.gap.target.tab,
+                                          )
+                                        }
+                                        aria-label={status.gap.label}
+                                        className="flex flex-shrink-0 items-center gap-1 font-semibold text-warning-strong"
+                                      >
+                                        <PlusCircle className="h-4 w-4" aria-hidden />
+                                        Add
+                                      </button>
+                                    ) : null}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
               </div>
@@ -288,7 +346,13 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
  * so there are no rules to show and no honest way to guess which building's
  * rules they meant. The link flow is the answer, not an empty rules screen.
  */
-function NoBuilding({ onNavigate, pending }: { onNavigate?: (screen: string) => void; pending?: boolean }) {
+function NoBuilding({
+  onNavigate,
+  pending,
+}: {
+  onNavigate?: (screen: string, id?: string, petId?: string, tab?: string) => void
+  pending?: boolean
+}) {
   return (
     <div className="rounded-2xl card-raised p-6 text-center">
       <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-info/10">
