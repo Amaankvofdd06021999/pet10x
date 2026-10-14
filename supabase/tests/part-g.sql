@@ -27,6 +27,10 @@
 --     can still update and insert (the select/insert/update split kept them).
 --     The fixture businesses and an active super admin join the actors below.
 --
+-- Covers 20261015000004: admin_building_activity — a non-admin is refused
+--   (42501); an admin gets MCR2026's live counts (active residents at least
+--   the approved, not-left links).
+--
 -- Actors are chosen from live data, not invented: Maple Court Residences
 -- (MCR2026), a non-admin manager of it, and two non-admin profiles that manage
 -- no building and hold no pending or approved link anywhere (an owner and an
@@ -684,5 +688,42 @@ begin
   end if;
   raise notice 'ok: owner notified; both audited';
 end $$;
+
+-- ===========================================================================
+-- 10. admin_building_activity (20261015000004): admin only, live numbers
+-- ===========================================================================
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
+do $$
+begin
+  begin
+    perform * from public.admin_building_activity();
+    raise exception 'FAIL: a non-admin read building activity';
+  exception when insufficient_privilege then null;
+  end;
+  raise notice 'ok: a non-admin is refused building activity (42501)';
+end $$;
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.admin'), 'role', 'authenticated')::text, true);
+do $$
+declare
+  v_building uuid := current_setting('part_g.building')::uuid;
+  v_expected int;
+  v_row record;
+begin
+  -- Computed under the admin's own role, which reads every link.
+  select count(*) into v_expected from public.resident_links l
+   where l.building_id = v_building and l.status = 'approved' and l.left_at is null;
+  select * into v_row from public.admin_building_activity() a where a.building_id = v_building;
+  if not found then raise exception 'FAIL: no activity row for MCR2026'; end if;
+  if v_row.active_residents < v_expected then
+    raise exception 'FAIL: active_residents % is below the % approved, not-left links', v_row.active_residents, v_expected;
+  end if;
+  raise notice 'ok: admin sees MCR2026 with % active residents, % open cases, % open reports',
+    v_row.active_residents, v_row.open_cases, v_row.open_reports;
+end $$;
+reset role;
 
 rollback;

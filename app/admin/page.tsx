@@ -547,9 +547,10 @@ function BuildingCard({
               </>
             )}
           </button>
-          {building.historyFailed && (
+          {(building.historyFailed || building.activityFailed) && (
             <p role="alert" className="mt-2 text-[12.5px] text-destructive">
-              Couldn&apos;t load this building&apos;s history, so Delete isn&apos;t offered. Reload to try again.
+              Couldn&apos;t load this building&apos;s history
+              {building.historyFailed ? ", so Delete isn't offered" : ", so residents and cases are left out"}. Reload to try again.
             </p>
           )}
           {!building.hasHistory && (
@@ -1030,7 +1031,9 @@ function BusinessCard({
   // for the note the business will see first.
   const [staged, setStaged] = useState<BusinessTier>(b.tier)
   const [downgrading, setDowngrading] = useState(false)
-  useEffect(() => setStaged(b.tier), [b.tier])
+  useEffect(() => {
+    setStaged(b.tier)
+  }, [b.tier])
   const req = b.openRequest
   // Verified unlocks shared medical records, so it needs something to verify.
   const hasLicence = Boolean(req?.licenceNumber?.trim())
@@ -1198,7 +1201,7 @@ function BusinessCard({
             if (!o) setStaged(b.tier)
           }}
           title={`Change ${b.name} from ${tierLabel(b.tier)} to ${tierLabel(staged)}?`}
-          description={`Moving down takes away what ${tierLabel(b.tier)} unlocks. They are told, with your note.`}
+          description={`Moving down takes away what ${tierLabel(b.tier)} unlocks. The business owner is told, with your note.`}
           confirmLabel="Change tier"
           tone="danger"
           reason={{ label: "Note (the business sees this)", required: true, placeholder: "Why is the tier changing?" }}

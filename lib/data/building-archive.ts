@@ -27,34 +27,58 @@ export function buildingDeleteError(err: { code?: string; message: string }): st
   return err.code === "23503" ? HAS_HISTORY_MESSAGE : err.message
 }
 
+export interface BuildingActivity {
+  activeResidents: number
+  openCases: number
+  openReports: number
+}
+
 export interface BuildingCounts {
-  residents: number
   pets: number
   managers: number
-  /** Null when the open-case count could not be read; the summary then omits it. */
-  openCases: number | null
+  /** From admin_building_activity; null when that call failed, and the summary then omits these. */
+  activity: BuildingActivity | null
 }
 
 const isCount = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0
 
-/**
- * admin_building_history's `counts` jsonb (resident_links, pets,
- * building_managers) plus the open-case count, which the RPC does not carry —
- * it counts every report, closed ones too. Null unless the three are whole and
- * non-negative: no numbers beats wrong ones in a confirmation.
- */
-export function parseBuildingCounts(raw: unknown, openCases: number | null): BuildingCounts | null {
+/** One row of admin_building_activity, or null unless all three are whole and non-negative. */
+export function parseBuildingActivity(raw: unknown): BuildingActivity | null {
   if (!raw || typeof raw !== "object") return null
-  const { resident_links, pets, building_managers } = raw as Record<string, unknown>
-  if (!isCount(resident_links) || !isCount(pets) || !isCount(building_managers)) return null
-  return { residents: resident_links, pets, managers: building_managers, openCases: openCases !== null && isCount(openCases) ? openCases : null }
+  const { active_residents, open_cases, open_reports } = raw as Record<string, unknown>
+  if (!isCount(active_residents) || !isCount(open_cases) || !isCount(open_reports)) return null
+  return { activeResidents: active_residents, openCases: open_cases, openReports: open_reports }
+}
+
+/**
+ * admin_building_history's `counts` jsonb (pets, building_managers) with the
+ * live activity. History counts every resident link and every report, closed
+ * ones too, so residents and cases come from admin_building_activity instead.
+ * Null unless pets and managers are whole and non-negative: no numbers beats
+ * wrong ones in a confirmation.
+ */
+export function parseBuildingCounts(raw: unknown, activity: BuildingActivity | null): BuildingCounts | null {
+  if (!raw || typeof raw !== "object") return null
+  const { pets, building_managers } = raw as Record<string, unknown>
+  if (!isCount(pets) || !isCount(building_managers)) return null
+  return { pets, managers: building_managers, activity }
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
-/** "12 residents · 9 pets · 2 managers · 3 open cases" — the card line and the archive confirmation. */
+/**
+ * "12 residents · 9 pets · 2 managers · 3 open cases", with " · 2 open reports"
+ * only when there are some. Without the activity numbers the residents and
+ * case parts are left out rather than guessed.
+ */
 export function buildingSummary(c: BuildingCounts): string {
-  const parts = [plural(c.residents, "resident", "residents"), plural(c.pets, "pet", "pets"), plural(c.managers, "manager", "managers")]
-  if (c.openCases !== null) parts.push(plural(c.openCases, "open case", "open cases"))
+  const a = c.activity
+  const parts: string[] = []
+  if (a) parts.push(plural(a.activeResidents, "resident", "residents"))
+  parts.push(plural(c.pets, "pet", "pets"), plural(c.managers, "manager", "managers"))
+  if (a) {
+    parts.push(plural(a.openCases, "open case", "open cases"))
+    if (a.openReports > 0) parts.push(plural(a.openReports, "open report", "open reports"))
+  }
   return parts.join(" · ")
 }

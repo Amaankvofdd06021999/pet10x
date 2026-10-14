@@ -6638,6 +6638,15 @@ export type Database = {
         Args: { p_type: Database["public"]["Enums"]["accommodation_type"] }
         Returns: Database["public"]["Enums"]["doc_kind"][]
       }
+      admin_building_activity: {
+        Args: never
+        Returns: {
+          active_residents: number
+          building_id: string
+          open_cases: number
+          open_reports: number
+        }[]
+      }
       admin_building_history: {
         Args: never
         Returns: {
