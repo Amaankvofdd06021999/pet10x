@@ -40,6 +40,7 @@ import {
   type FineStatus,
 } from "./violations"
 import { decisionError } from "./decision-errors"
+import { gramsToKg, maxWeightKgOf, weightFlag } from "./weight-flag"
 import { petDocumentReviewError } from "./pet-document-review"
 
 interface Result<T> {
@@ -113,6 +114,26 @@ export function useRegistrationsLive(): Result<Registration[]> {
       return
     }
 
+    /* Each building's own weight limit, in one query for all the rows above —
+       * not one per pet. `buildings.pet_rules.max_weight_kg` is kilograms. A
+       * failed read is an error, not "no limit": treating it as none would
+       * mark every heavy pet "safe to approve". */
+    const buildingIds = [...new Set((rows ?? []).map((r) => r.building_id).filter((b): b is string => !!b))]
+    const maxKgByBuilding = new Map<string, number | null>()
+    if (buildingIds.length > 0) {
+      const { data: bRows, error: bErr } = await supabase
+        .from("buildings")
+        .select("id, pet_rules")
+        .in("id", buildingIds)
+      if (bErr) {
+        setError(bErr.message)
+        setData([])
+        setLoading(false)
+        return
+      }
+      for (const b of bRows ?? []) maxKgByBuilding.set(b.id, maxWeightKgOf(b.pet_rules))
+    }
+
     type Row = {
       id: string
       building_id: string | null
@@ -140,7 +161,11 @@ export function useRegistrationsLive(): Result<Registration[]> {
         const flags: string[] = []
         if (!hasVax) flags.push("No current vaccination on file")
         if (!hasLicense) flags.push("Municipal licence missing")
-        if (r.weight_grams && r.weight_grams > 25000) flags.push("Exceeds the 25 kg building weight limit")
+        const heavy = weightFlag(
+          gramsToKg(r.weight_grams),
+          r.building_id ? (maxKgByBuilding.get(r.building_id) ?? null) : null,
+        )
+        if (heavy) flags.push(heavy)
 
         return {
           id: r.id,

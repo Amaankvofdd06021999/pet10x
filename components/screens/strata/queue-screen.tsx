@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { approveResidentLink, denyResidentLink } from "@/lib/data"
 import { decideRegistration } from "@/lib/data/manager-queues"
+import { groupBulkByBuilding } from "@/lib/data/bulk-approve"
 import { setIncidentStatus, escalateIncident } from "@/lib/data/incidents"
 import { setFineStatus } from "@/lib/data/portfolio"
 import { SETTLEABLE_IN_CASE } from "@/lib/data/fine-actions"
@@ -11,6 +12,7 @@ import type { FineStatus } from "@/lib/data/violations"
 import { useWorkQueue, type QueueItem, type Urgency } from "@/lib/data/work-queue"
 import { PetDocumentReviewControls } from "@/components/screens/manager/pet-document-review"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { decisionError } from "@/lib/data/decision-errors"
 import { useStrata } from "./portal-context"
 import { LoadError, Spinner, EmptyState, BuildingTag } from "./strata-ui"
 import {
@@ -28,6 +30,9 @@ import {
   Loader2,
   CheckCheck,
 } from "lucide-react"
+
+// A call that threw rather than answering: the same sentence a failed save gets.
+const THROWN = decisionError({}) ?? "Couldn't save that. Try again."
 
 const URGENCY_DOT: Record<Urgency, string> = {
   high: "bg-destructive",
@@ -173,6 +178,7 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
   const { selectedBuildingId, nameFor } = useStrata()
   const [busy, setBusy] = useState<string | null>(null)
   const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
   // The row action whose confirm dialog is open.
   const [confirming, setConfirming] = useState<{ item: QueueItem; action: RowAction } | null>(null)
 
@@ -205,18 +211,29 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
     return { error: null }
   }
 
+  /** The confirmed bulk approve. Each failure keeps its own sentence (decisionError). */
   async function bulkApprove() {
-    if (!safe.length) return
+    if (!safe.length) return { error: null }
     setBulkBusy(true)
     const results = await Promise.allSettled(
       safe.map((i) => (i.kind === "registration" ? decideRegistration(i.refId, true) : approveResidentLink(i.refId))),
     )
     setBulkBusy(false)
-    const ok = results.filter((r) => r.status === "fulfilled" && !r.value.error).length
-    const failed = safe.length - ok
-    if (ok) toast.success(`Approved ${ok} safe item${ok === 1 ? "" : "s"}`)
-    if (failed) toast.error(`${failed} item${failed === 1 ? "" : "s"} could not be approved`)
+    const reasons: string[] = []
+    let ok = 0
+    for (const r of results) {
+      if (r.status === "fulfilled" && !r.value.error) ok++
+      else reasons.push(r.status === "fulfilled" ? (r.value.error ?? THROWN) : THROWN)
+    }
+    const failed = reasons.length
+    if (ok) toast.success(`Approved ${ok} of ${safe.length}`)
+    if (failed) {
+      toast.error(`${failed} of ${safe.length} could not be approved`, {
+        description: [...new Set(reasons)].join(" "),
+      })
+    }
     refetchAll()
+    return { error: null }
   }
 
   if (isLoading) return <Spinner />
@@ -231,7 +248,7 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
         </p>
         {safe.length > 0 && (
           <button
-            onClick={bulkApprove}
+            onClick={() => setBulkOpen(true)}
             disabled={bulkBusy}
             className="ml-auto flex items-center gap-2 rounded-lg bg-success/15 px-3.5 py-1.5 text-[13px] font-semibold text-success transition-colors hover:bg-success/25 disabled:opacity-60"
           >
@@ -299,6 +316,30 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        title={`Approve ${safe.length} safe item${safe.length === 1 ? "" : "s"}?`}
+        description={
+          // Spans, not div/ul: the dialog renders this inside a <p>.
+          <span className="block space-y-2 text-left">
+            <span className="block">Each has no flags against its building&apos;s rules. They are told right away.</span>
+            {groupBulkByBuilding(safe, nameFor).map((g) => (
+              <span key={g.building} className="block">
+                <span className="block text-[12px] font-semibold text-foreground">{g.building}</span>
+                {g.labels.map((l, i) => (
+                  <span key={i} className="block text-[12.5px]">
+                    {l}
+                  </span>
+                ))}
+              </span>
+            ))}
+          </span>
+        }
+        confirmLabel={`Approve ${safe.length}`}
+        onConfirm={bulkApprove}
+      />
 
       <ConfirmDialog
         open={confirming !== null}

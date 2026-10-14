@@ -16,6 +16,10 @@ import { useBuildingResidents } from "./live"
 import { useOutstandingFines } from "./portfolio"
 import type { DocumentReviewItem } from "./types"
 
+// The weight rule lives in ./weight-flag (pure, tested); the registration flags
+// that drive `safeToBulk` below are built from it in manager-queues.
+export { weightFlag } from "./weight-flag"
+
 export type QueueKind = "registration" | "link" | "incident" | "accommodation" | "document" | "fine"
 export type Urgency = "high" | "medium" | "low"
 
@@ -31,6 +35,8 @@ export interface QueueItem {
   sortTs: number // ms; smaller (older / more overdue) sorts first within an urgency band
   ageLabel: string
   safeToBulk: boolean
+  /** How the bulk-approve dialog names this item: "Rex (Sam Lee)" / "Sam Lee, Unit 4B". */
+  bulkLabel: string
   /** Set on `fine` items: the fine's status, which decides what may be done to it. */
   fineStatus?: string
   /** Set on `document` items: what the review controls need to act. */
@@ -102,6 +108,7 @@ export function useWorkQueue(): UseWorkQueueResult {
         sortTs: ts(r.createdAt),
         ageLabel: ageLabel(r.createdAt),
         safeToBulk: r.flags.length === 0,
+        bulkLabel: `${r.name} (${r.resident})`,
       })
     }
 
@@ -121,6 +128,7 @@ export function useWorkQueue(): UseWorkQueueResult {
         sortTs: ts(l.requestedAt),
         ageLabel: ageLabel(l.requestedAt),
         safeToBulk: true,
+        bulkLabel: `${l.residentName}, Unit ${l.unit ?? "—"}`,
       })
     }
 
@@ -141,6 +149,7 @@ export function useWorkQueue(): UseWorkQueueResult {
         sortTs: ts(i.createdAt),
         ageLabel: ageLabel(i.createdAt),
         safeToBulk: false,
+        bulkLabel: "",
       })
     }
 
@@ -181,6 +190,7 @@ export function useWorkQueue(): UseWorkQueueResult {
         sortTs: ts(a.submittedAt ?? a.createdAt),
         ageLabel: ageLabel(a.submittedAt ?? a.createdAt),
         safeToBulk: false,
+        bulkLabel: "",
       })
     }
 
@@ -201,6 +211,7 @@ export function useWorkQueue(): UseWorkQueueResult {
         sortTs: d.expiresOn ? ts(d.expiresOn) : Date.now(),
         ageLabel: d.expiring,
         safeToBulk: false,
+        bulkLabel: "",
         doc: d,
       })
     }
@@ -222,6 +233,7 @@ export function useWorkQueue(): UseWorkQueueResult {
         sortTs: ts(f.createdAt),
         ageLabel: ageLabel(f.createdAt),
         safeToBulk: false,
+        bulkLabel: "",
         fineStatus: f.status,
       })
     }

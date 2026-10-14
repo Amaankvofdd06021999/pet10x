@@ -1,0 +1,26 @@
+/**
+ * The weight rule for pet registrations, in one place.
+ *
+ * The limit is each building's own — `buildings.pet_rules.max_weight_kg`, in
+ * kilograms — while `pets.weight_grams` is grams. The check used to be a
+ * hard-coded `> 25000` grams, which told a manager of a 15 kg building that a
+ * 20 kg dog was fine, and flagged a 30 kg dog in a building with no limit.
+ */
+
+/** The building's limit in kg, or null when it sets none (or sets nonsense). */
+export function maxWeightKgOf(petRules: unknown): number | null {
+  const v = ((petRules ?? {}) as Record<string, unknown>).max_weight_kg
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null
+}
+
+/** `pets.weight_grams` as kg; null for unknown (null or 0). */
+export function gramsToKg(grams: number | null): number | null {
+  return grams ? grams / 1000 : null
+}
+
+/** The flag a registration carries when it is over the limit; null otherwise. */
+export function weightFlag(weightKg: number | null, maxWeightKg: number | null): string | null {
+  if (weightKg === null || maxWeightKg === null) return null
+  if (weightKg <= maxWeightKg) return null
+  return `Over this building's ${Number(maxWeightKg)} kg limit`
+}
