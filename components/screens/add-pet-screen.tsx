@@ -7,8 +7,8 @@ import type { Species } from "@/lib/data"
 import { toast } from "sonner"
 import { isDirty } from "@/lib/unsaved"
 import { useUnsavedGuard } from "@/components/use-unsaved-guard"
-import { WeightInput } from "@/components/screens/pet/weight-input"
-import { defaultWeightUnit, parseWeightKg, type WeightUnit } from "@/lib/units"
+import { WeightInput, useWeightField } from "@/components/screens/pet/weight-input"
+import { defaultWeightUnit } from "@/lib/units"
 import {
   SIZE_BANDS,
   MAX_HEIGHT_INCHES,
@@ -58,11 +58,12 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
   const [showChart, setShowChart] = useState(false)
   const [dob, setDob] = useState("")
   const [gender, setGender] = useState<"Male" | "Female" | "">("")
-  const [weight, setWeight] = useState("")
-  // Not in the dirty baseline: choosing a unit alone is not an edit. Starts
-  // as kg so server and first client render agree, then follows the locale.
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg")
-  useEffect(() => setWeightUnit(defaultWeightUnit(navigator.language)), [])
+  // The unit is not in the dirty baseline: choosing one alone is not an edit.
+  // It starts as kg so server and first client render agree, then follows the
+  // locale (the text is empty then, so nothing converts).
+  const weightField = useWeightField(null)
+  const setWeightUnit = weightField.setUnit
+  useEffect(() => setWeightUnit(defaultWeightUnit(navigator.language)), [setWeightUnit])
   const [color, setColor] = useState("")
   const [microchip, setMicrochip] = useState("")
   const [neutered, setNeutered] = useState(false)
@@ -77,12 +78,12 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
     !submitted &&
     isDirty(
       { neutered: false }, // every other field opens empty
-      { name, species, breed, customBreed, sizeBand, heightIn, restraints, dob, gender, weight, color, microchip, neutered, photoFile },
+      { name, species, breed, customBreed, sizeBand, heightIn, restraints, dob, gender, weight: weightField.text, color, microchip, neutered, photoFile },
     )
   useUnsavedGuard(dirty)
 
   const breedOptions = breedsFor(species)
-  const parsedWeight = parseWeightKg(weight, weightUnit)
+  const parsedWeight = weightField.parsed
   const canSubmit = name.trim().length > 0 && species !== null && parsedWeight.ok
 
   const handleSubmit = async () => {
@@ -143,7 +144,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
             <button
               onClick={() => {
                 setSubmitted(false)
-                setName(""); setSpecies(null); setBreed(""); setCustomBreed(""); setDob(""); setGender(""); setWeight(""); setColor(""); setMicrochip(""); setNeutered(false)
+                setName(""); setSpecies(null); setBreed(""); setCustomBreed(""); setDob(""); setGender(""); weightField.setText(""); setColor(""); setMicrochip(""); setNeutered(false)
                 setSizeBand(""); setHeightIn(""); setRestraints([])
                 setPhotoFile(null); setPhotoPreview(null)
               }}
@@ -290,7 +291,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
             />
           </Field>
           <Field label="Weight">
-            <WeightInput value={weight} unit={weightUnit} onChange={setWeight} onUnitChange={setWeightUnit} />
+            <WeightInput field={weightField} />
           </Field>
         </div>
 
