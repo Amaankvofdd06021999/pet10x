@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { defaultWeightUnit, formatWeight, parseWeightKg, toggleWeightUnit, type WeightFieldState } from "./units"
+import { defaultWeightUnit, formatWeight, parseWeightKg, initWeightField, toggleWeightUnit, weightFieldReducer, type WeightFieldState } from "./units"
 
 describe("parseWeightKg", () => {
   it("lb toggle", () => expect(parseWeightKg("70", "lb")).toEqual({ ok: true, kg: 31.8 }))
@@ -72,5 +72,31 @@ describe("toggleWeightUnit", () => {
   it("same unit is a no-op", () => {
     const s = start("5", "kg")
     expect(toggleWeightUnit(s, "kg")).toBe(s)
+  })
+})
+
+describe("weightFieldReducer", () => {
+  it("the locale default does not override a unit the user chose", () => {
+    let s = initWeightField(null)
+    s = weightFieldReducer(s, { type: "setUnit", unit: "lb" })
+    s = weightFieldReducer(s, { type: "applyDefaultUnit", unit: "kg" })
+    expect(s.unit).toBe("lb")
+  })
+  it("the locale default applies once to an untouched field, and typing keeps it", () => {
+    let s = weightFieldReducer(initWeightField(null), { type: "applyDefaultUnit", unit: "lb" })
+    expect(s.unit).toBe("lb")
+    s = weightFieldReducer(s, { type: "setText", text: "70" })
+    s = weightFieldReducer(s, { type: "applyDefaultUnit", unit: "lb" })
+    expect(s).toMatchObject({ text: "70", unit: "lb", edited: true })
+  })
+  it("the default converts a stored weight being edited", () => {
+    const s = weightFieldReducer(initWeightField(31.8), { type: "applyDefaultUnit", unit: "lb" })
+    expect(s).toMatchObject({ text: "70.1", unit: "lb", edited: false })
+  })
+  it("reset clears text and edited, and restores the default unit as not chosen", () => {
+    let s = weightFieldReducer(initWeightField(null), { type: "setText", text: "12" })
+    s = weightFieldReducer(s, { type: "setUnit", unit: "lb" })
+    s = weightFieldReducer(s, { type: "reset", unit: "kg" })
+    expect(s).toEqual({ text: "", unit: "kg", kgExact: null, edited: false, unitChosen: false })
   })
 })

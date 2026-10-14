@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { OTHER_SPECIES, OTHER_BREED, breedsFor, addPet, setPetPhoto } from "@/lib/data"
 import type { Species } from "@/lib/data"
@@ -8,7 +8,6 @@ import { toast } from "sonner"
 import { isDirty } from "@/lib/unsaved"
 import { useUnsavedGuard } from "@/components/use-unsaved-guard"
 import { WeightInput, useWeightField } from "@/components/screens/pet/weight-input"
-import { defaultWeightUnit } from "@/lib/units"
 import {
   SIZE_BANDS,
   MAX_HEIGHT_INCHES,
@@ -59,11 +58,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
   const [dob, setDob] = useState("")
   const [gender, setGender] = useState<"Male" | "Female" | "">("")
   // The unit is not in the dirty baseline: choosing one alone is not an edit.
-  // It starts as kg so server and first client render agree, then follows the
-  // locale (the text is empty then, so nothing converts).
   const weightField = useWeightField(null)
-  const setWeightUnit = weightField.setUnit
-  useEffect(() => setWeightUnit(defaultWeightUnit(navigator.language)), [setWeightUnit])
   const [color, setColor] = useState("")
   const [microchip, setMicrochip] = useState("")
   const [neutered, setNeutered] = useState(false)
@@ -144,7 +139,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
             <button
               onClick={() => {
                 setSubmitted(false)
-                setName(""); setSpecies(null); setBreed(""); setCustomBreed(""); setDob(""); setGender(""); weightField.setText(""); setColor(""); setMicrochip(""); setNeutered(false)
+                setName(""); setSpecies(null); setBreed(""); setCustomBreed(""); setDob(""); setGender(""); weightField.reset(); setColor(""); setMicrochip(""); setNeutered(false)
                 setSizeBand(""); setHeightIn(""); setRestraints([])
                 setPhotoFile(null); setPhotoPreview(null)
               }}

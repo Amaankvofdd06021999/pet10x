@@ -67,3 +67,33 @@ export function formatWeight(kg: number, unit: WeightUnit): string {
   const v = unit === "lb" ? kg / KG_PER_LB : kg
   return String(Math.round(v * 10) / 10)
 }
+
+/** Everything a weight field holds. `edited`: the user has typed. `unitChosen`:
+    the user has tapped a unit, so the locale default must never override it. */
+export type WeightField = WeightFieldState & { edited: boolean; unitChosen: boolean }
+
+export type WeightFieldAction =
+  | { type: "setText"; text: string }
+  | { type: "setUnit"; unit: WeightUnit }
+  | { type: "applyDefaultUnit"; unit: WeightUnit }
+  | { type: "reset"; unit: WeightUnit }
+
+/** A field opened on a stored weight (kg) or empty; always starts in kg so the
+    server render and the first client render agree. */
+export function initWeightField(kg: number | null): WeightField {
+  return { text: kg === null ? "" : formatWeight(kg, "kg"), unit: "kg", kgExact: kg, edited: false, unitChosen: false }
+}
+
+export function weightFieldReducer(s: WeightField, a: WeightFieldAction): WeightField {
+  switch (a.type) {
+    case "setText":
+      return { ...s, text: a.text, kgExact: null, edited: true }
+    case "setUnit":
+      return { ...s, ...toggleWeightUnit(s, a.unit), unitChosen: true }
+    case "applyDefaultUnit":
+      // The locale guess only fills in for a user who has not chosen.
+      return s.unitChosen ? s : { ...s, ...toggleWeightUnit(s, a.unit) }
+    case "reset":
+      return { ...initWeightField(null), unit: a.unit }
+  }
+}

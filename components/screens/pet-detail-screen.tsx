@@ -8,7 +8,6 @@ import { PetPhotoGallery } from "@/components/screens/pet/photo-gallery"
 import { VetRecords } from "@/components/screens/pet/vet-records"
 import { RemovePetSheet } from "@/components/screens/pet/remove-pet-sheet"
 import { WeightInput, useWeightField } from "@/components/screens/pet/weight-input"
-import { defaultWeightUnit } from "@/lib/units"
 import {
   ArrowLeft,
   Camera,
@@ -372,7 +371,7 @@ function EditForm({
   const m = pet.medical
   // The edit form only mounts after a tap, so reading the locale here is client-only.
   // pet.weight is the stored kg as text ("31.8 kg"); the field shows it in the chosen unit.
-  const weightField = useWeightField(pet.weight ? parseFloat(pet.weight) : null, () => defaultWeightUnit(navigator.language))
+  const weightField = useWeightField(pet.weight ? parseFloat(pet.weight) : null)
   const [f, setF] = useState({
     name: pet.name,
     breed: pet.breed,

@@ -1,33 +1,33 @@
 "use client"
 
-import { useId, useState } from "react"
-import { formatWeight, parseWeightKg, toggleWeightUnit, type WeightFieldState, type WeightUnit } from "@/lib/units"
+import { useCallback, useEffect, useId, useReducer } from "react"
+import { defaultWeightUnit, initWeightField, parseWeightKg, weightFieldReducer, type WeightUnit } from "@/lib/units"
 
 export const WEIGHT_ERROR = "Enter a weight like 12.5"
 
 /** State for a weight field, shared so both screens toggle the same way: the
-    toggle converts what is typed (see toggleWeightUnit). `initialKg` is a
-    stored weight to edit; `edited` is true once the user types, so an
-    untouched legacy value is neither re-saved nor flagged invalid. */
-export function useWeightField(initialKg: number | null, initialUnit: WeightUnit | (() => WeightUnit) = "kg") {
-  const [state, setState] = useState<WeightFieldState>(() => {
-    const unit = typeof initialUnit === "function" ? initialUnit() : initialUnit
-    return { text: initialKg === null ? "" : formatWeight(initialKg, unit), unit, kgExact: initialKg }
-  })
-  const [edited, setEdited] = useState(false)
+    toggle converts what is typed. A thin wrapper over weightFieldReducer.
+    `initialKg` is a stored weight to edit. The locale's unit is applied once,
+    after mount (never during render, so a cold load cannot mismatch), and
+    never over a unit the user has tapped. */
+export function useWeightField(initialKg: number | null) {
+  const [state, dispatch] = useReducer(weightFieldReducer, initialKg, initWeightField)
+  useEffect(() => dispatch({ type: "applyDefaultUnit", unit: defaultWeightUnit(navigator.language) }), [])
   const parsed = parseWeightKg(state.text, state.unit)
+  // dispatch is stable, so these are stable too.
+  const setText = useCallback((text: string) => dispatch({ type: "setText", text }), [])
+  const setUnit = useCallback((unit: WeightUnit) => dispatch({ type: "setUnit", unit }), [])
+  const reset = useCallback(() => dispatch({ type: "reset", unit: defaultWeightUnit(navigator.language) }), [])
   return {
     text: state.text,
     unit: state.unit,
-    edited,
+    edited: state.edited,
     parsed,
     /** Saveable: nothing typed yet, or what was typed parses. */
-    valid: !edited || parsed.ok,
-    setText: (text: string) => {
-      setState((s) => ({ ...s, text, kgExact: null }))
-      setEdited(true)
-    },
-    setUnit: (u: WeightUnit) => setState((s) => toggleWeightUnit(s, u)),
+    valid: !state.edited || parsed.ok,
+    setText,
+    setUnit,
+    reset,
   }
 }
 
