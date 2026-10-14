@@ -15,7 +15,7 @@ import { ExternalLink, Loader2, ShoppingBag } from "lucide-react"
  * noise to someone with one dog. Items tagged for no species are universal and
  * always shown.
  */
-export function ShopScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
+export function ShopScreen({ onBack }: { onBack: () => void }) {
   const { data: pets } = usePets()
   const { data: items, isLoading } = useShopItems()
   const [category, setCategory] = useState<string>("all")
@@ -28,7 +28,7 @@ export function ShopScreen({ onNavigate }: { onNavigate?: (screen: string) => vo
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
-      <IOSNavBar title="Shop" largeTitle={false} leftAction={<NavBackButton onClick={() => onNavigate?.("home")} />} />
+      <IOSNavBar title="Shop" largeTitle={false} leftAction={<NavBackButton onClick={onBack} />} />
 
       <main className="ios-scroll flex-1 px-4 pb-24 pt-2">
         {categories.length > 2 && (

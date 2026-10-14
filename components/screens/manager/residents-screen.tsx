@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
-import { NavBackButton } from "@/components/nav-back-button"
 import {
   useBuildingResidents,
   useBuildingPets,
@@ -19,7 +18,7 @@ import type { ResidentLinkRow, ManagerPet } from "@/lib/data"
 import { toast } from "sonner"
 import { Search, Check, X, Clock, UserMinus, Loader2, Users, Dog, Cat, ChevronDown, Shield } from "lucide-react"
 
-export function ManagerResidentsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
+export function ManagerResidentsScreen() {
   const [search, setSearch] = useState("")
   const { data: residents, isLoading, refetch } = useBuildingResidents()
   const { data: buildingPets } = useBuildingPets()
@@ -77,7 +76,6 @@ export function ManagerResidentsScreen({ onNavigate }: { onNavigate?: (screen: s
       <IOSNavBar
         title="Residents"
         largeTitle={false}
-        leftAction={<NavBackButton onClick={() => onNavigate?.("dashboard")} />}
       />
 
       <div className="sticky top-16 z-30 bg-background px-4 pb-2">

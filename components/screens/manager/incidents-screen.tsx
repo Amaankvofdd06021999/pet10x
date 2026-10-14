@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
-import { NavBackButton } from "@/components/nav-back-button"
 import { AlertTriangle, Inbox, Loader2, Search } from "lucide-react"
 import { useIncidents, isOpenIncident, INCIDENT_TYPE_LABEL, type IncidentStatus } from "@/lib/data/incidents"
 import { IncidentCard } from "@/components/screens/manager/incident-card"
@@ -39,7 +38,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
 ]
 
-export function ManagerIncidentsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
+export function ManagerIncidentsScreen() {
   const { data: incidents, isLoading, refetch } = useIncidents()
   const { activeBuildingId } = useAuth()
   const { data: building } = useManagerBuilding(activeBuildingId)
@@ -83,7 +82,6 @@ export function ManagerIncidentsScreen({ onNavigate }: { onNavigate?: (screen: s
       <IOSNavBar
         title="Incident reports"
         largeTitle={false}
-        leftAction={<NavBackButton onClick={() => onNavigate?.("dashboard")} />}
       />
 
       <div className="sticky top-16 z-30 bg-background px-4 pb-3">

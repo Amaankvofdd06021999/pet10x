@@ -32,7 +32,6 @@ import {
 } from "@/lib/data"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
-import { NavBackButton } from "@/components/nav-back-button"
 import {
   Heart,
   MessageCircle,
@@ -191,10 +190,8 @@ const FIELD =
   "mt-1 w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
 
 export function CommunityScreen({
-  onNavigate,
   initialTab,
 }: {
-  onNavigate?: (screen: string) => void
   /** A `FeedTab`; anything else opens the feed. Home's Pet Events tile asks
       for "events" — it used to land on the feed and leave you to find them. */
   initialTab?: string
@@ -485,7 +482,6 @@ export function CommunityScreen({
       <IOSNavBar
         title="Community"
         largeTitle={false}
-        leftAction={<NavBackButton onClick={() => onNavigate?.("home")} />}
         rightAction={
           <button
             onClick={() => setComposerOpen(true)}

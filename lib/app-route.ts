@@ -218,3 +218,27 @@ export function replaceRouteParams(search: string, route: AppRoute): string {
   const s = p.toString()
   return s ? `?${s}` : ""
 }
+
+/* ------------------------------------------------------------------ */
+/* The first entries of a cold load.                                   */
+/* ------------------------------------------------------------------ */
+
+export type HistoryWrite = { route: AppRoute; activeTab: ScreenKey; depth: number; replace: boolean }
+
+/**
+ * The entries to write for the first ready render.
+ *
+ * A screen opened cold from a link (depth 0) that is not a tab root has
+ * nothing behind it, so the phone's or browser's Back would leave the app. The
+ * tab root goes underneath instead: replace the current entry with it, then
+ * push the screen at depth 1. A tab root, or a refresh that already has
+ * history behind it, is just stamped in place.
+ */
+export function coldLoadEntries(initial: Omit<AppHistoryState, "pet10x">): HistoryWrite[] {
+  const { route, activeTab, depth } = initial
+  if (depth > 0 || TAB_ROOTS.has(route.screen)) return [{ route, activeTab, depth, replace: true }]
+  return [
+    { route: { screen: activeTab }, activeTab, depth: 0, replace: true },
+    { route, activeTab, depth: 1, replace: false },
+  ]
+}

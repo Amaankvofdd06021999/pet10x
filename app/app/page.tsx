@@ -35,6 +35,7 @@ import { AccommodationRequestScreen } from "@/components/screens/accommodation-r
 import { isScreenKey, type ScreenKey, type Surface } from "@/lib/navigation"
 import {
   backTarget,
+  coldLoadEntries,
   defaultTab,
   initialRoute,
   readHistoryState,
@@ -242,7 +243,10 @@ function AppContent() {
       applyScreen(screen, id, petId, tab)
       return
     }
-    navigateTo({ screen, id, petId, tab }, activeTab, depth.current + 1)
+    // A tab root selects its own tab, exactly as a popstate or a refresh
+    // restores it — otherwise the bar highlights the tab it came from.
+    const route: AppRoute = { screen, id, petId, tab }
+    navigateTo(route, tabForRoute(route, activeTab, surface), depth.current + 1)
   }
 
   /* Reset tabs when user/role changes (e.g. after sign-in, or a persona
@@ -310,19 +314,18 @@ function AppContent() {
   useEffect(() => {
     if (deepLinkDone.current || !userReady || onboardingPending) return
     deepLinkDone.current = true
-    const initial = initialRoute(window.location.search, window.history.state, surface)
-    if (initial) {
-      applyRoute(initial.route, initial.activeTab)
-      writeHistory(initial.route, initial.activeTab, initial.depth, true)
-    } else {
-      // No route in the URL: stamp the entry with what is showing — the tab
-      // root, or a screen tapped while the persona was still resolving — so
-      // Back to it restores it and the bar drops any unusable `target=`.
+    // No route in the URL: what is showing — the tab root, or a screen tapped
+    // while the persona was still resolving — so Back to it restores it and
+    // the bar drops any unusable `target=`.
+    let initial = initialRoute(window.location.search, window.history.state, surface)
+    if (!initial) {
       const route = currentRoute.current ?? { screen: defaultTab(surface) }
-      const tab = tabForRoute(route, activeTab, surface)
-      applyRoute(route, tab)
-      writeHistory(route, tab, 0, true)
+      initial = { route, activeTab: tabForRoute(route, activeTab, surface), depth: 0 }
     }
+    applyRoute(initial.route, initial.activeTab)
+    // A non-root screen opened cold gets its tab root written underneath, so
+    // the phone's Back lands there instead of leaving the app.
+    for (const w of coldLoadEntries(initial)) writeHistory(w.route, w.activeTab, w.depth, w.replace)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, when the session is ready
   }, [userReady, onboardingPending, isManager])
 
@@ -442,7 +445,7 @@ function AppContent() {
           ) : currentScreen === "report" ? (
             <ReportScreen onBack={handleBack} />
           ) : currentScreen === "shop" ? (
-            <ShopScreen onNavigate={handleNavigate} />
+            <ShopScreen onBack={handleBack} />
           ) : currentScreen === "my-bookings" ? (
             <MyBookingsScreen onBack={handleBack} />
           ) : currentScreen === "accommodations" ? (
@@ -463,10 +466,10 @@ function AppContent() {
           ) : isManager ? (
             <>
               {currentScreen === "dashboard" && <ManagerDashboardScreen onNavigate={handleNavigate} />}
-              {currentScreen === "residents" && <ManagerResidentsScreen onNavigate={handleNavigate} />}
+              {currentScreen === "residents" && <ManagerResidentsScreen />}
               {currentScreen === "violations" && <ManagerViolationsScreen onNavigate={handleNavigate} />}
-              {currentScreen === "approvals" && <ManagerApprovalsScreen onNavigate={handleNavigate} />}
-              {currentScreen === "incidents" && <ManagerIncidentsScreen onNavigate={handleNavigate} />}
+              {currentScreen === "approvals" && <ManagerApprovalsScreen />}
+              {currentScreen === "incidents" && <ManagerIncidentsScreen />}
               {currentScreen === "settings" && <ManagerSettingsScreen onNavigate={handleNavigate} />}
               {/* Managers have no Alerts tab, but the dashboard bell routes
                   here — without this the screen renders blank. */}
@@ -475,7 +478,7 @@ function AppContent() {
           ) : (
             <>
               {currentScreen === "home" && <HomeScreen onNavigate={handleNavigate} />}
-              {currentScreen === "community" && <CommunityScreen onNavigate={handleNavigate} initialTab={screenTab} />}
+              {currentScreen === "community" && <CommunityScreen initialTab={screenTab} />}
               {currentScreen === "services" && <ServicesScreen onNavigate={handleNavigate} />}
               {currentScreen === "alerts" && <AlertsScreen onNavigate={handleNavigate} onBack={handleBack} />}
               {currentScreen === "profile" && <ProfileScreen onNavigate={handleNavigate} />}

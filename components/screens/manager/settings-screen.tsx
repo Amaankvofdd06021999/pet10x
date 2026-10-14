@@ -7,7 +7,6 @@ import { Portal } from "@/components/ui/portal"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { PersonaSwitcher } from "@/components/persona-switcher"
 import { PERSONA_LABEL } from "@/lib/rbac"
-import { NavBackButton } from "@/components/nav-back-button"
 import QRCode from "qrcode"
 import {
   useManagerBuilding,
@@ -95,7 +94,6 @@ export function ManagerSettingsScreen({ onNavigate }: { onNavigate?: (screen: st
       <IOSNavBar
         title="Settings"
         largeTitle={false}
-        leftAction={<NavBackButton onClick={() => onNavigate?.("dashboard")} />}
       />
 
       <main className="ios-scroll flex-1 px-4 pb-24">

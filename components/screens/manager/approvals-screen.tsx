@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
-import { NavBackButton } from "@/components/nav-back-button"
 import { useRegistrations, useDocumentsReview } from "@/lib/data"
 import { useRegistrationsLive, decideRegistration } from "@/lib/data/manager-queues"
 import {
@@ -59,7 +58,7 @@ function ApprovalsEmptyState({ title, subtext }: { title: string; subtext: strin
   )
 }
 
-export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: string) => void }) {
+export function ManagerApprovalsScreen() {
   const [activeTab, setActiveTab] = useState<ApprovalTab>("incidents")
   const [expandedReg, setExpandedReg] = useState<string | null>(null)
   const [expandedAcc, setExpandedAcc] = useState<string | null>(null)
@@ -84,7 +83,6 @@ export function ManagerApprovalsScreen({ onNavigate }: { onNavigate?: (screen: s
       <IOSNavBar
         title="Approvals"
         largeTitle={false}
-        leftAction={<NavBackButton onClick={() => onNavigate?.("dashboard")} />}
       />
 
       {/* Tabs */}
