@@ -6,11 +6,13 @@ import {
   useOwnerBookings,
   setBookingStatus,
   markBookingPaid,
+  businessCancelBooking,
   BOOKING_STATUS_LABEL,
   type BookingStatus,
   type OwnerBooking,
 } from "@/lib/data/bookings"
 import { formatPrice } from "@/lib/data/business"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { SectionCard, EmptyState, Spinner, LoadError, TextInput } from "./business-ui"
 import { Inbox, Check, X, Play, CircleCheck, DollarSign, Clock, Dog, Loader2, CalendarDays } from "lucide-react"
 
@@ -48,6 +50,7 @@ export function BookingsTab({ businessId }: { businessId: string }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [decliningId, setDecliningId] = useState<string | null>(null)
   const [reason, setReason] = useState("")
+  const [cancelling, setCancelling] = useState<OwnerBooking | null>(null)
 
   const counts = useMemo(() => {
     const m: Record<Segment, number> = { requests: 0, upcoming: 0, active: 0, history: 0 }
@@ -74,6 +77,17 @@ export function BookingsTab({ businessId }: { businessId: string }) {
     }
     toast.success(label)
     refetch()
+  }
+
+  /* Cancelling goes through business_cancel_booking, never a plain status
+     update: the RPC records who cancelled and why, and that is what tells the
+     customer. The dialog keeps a failure on screen, so only success toasts. */
+  async function cancelWithReason(b: OwnerBooking, why: string | null): Promise<{ error: string | null }> {
+    const { error: e } = await businessCancelBooking(b.id, why ?? "")
+    if (e) return { error: e }
+    toast.success("Booking cancelled")
+    refetch()
+    return { error: null }
   }
 
   if (isLoading) return <Spinner />
@@ -126,10 +140,27 @@ export function BookingsTab({ businessId }: { businessId: string }) {
               onCancelDecline={() => setDecliningId(null)}
               onAct={act}
               onDeclined={() => setDecliningId(null)}
+              onStartCancel={() => setCancelling(b)}
             />
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={cancelling !== null}
+        onOpenChange={(open) => !open && setCancelling(null)}
+        title="Cancel this booking?"
+        description={
+          cancelling
+            ? `This cancels ${cancelling.serviceName ?? "the booking"} for ${cancelling.customerName}. They're told, with your reason.`
+            : ""
+        }
+        confirmLabel="Cancel booking"
+        cancelLabel="Keep booking"
+        tone="danger"
+        reason={{ label: "Reason (the customer sees this)", required: true, placeholder: "Groomer is out sick that day" }}
+        onConfirm={(why) => (cancelling ? cancelWithReason(cancelling, why) : Promise.resolve({ error: null }))}
+      />
     </div>
   )
 }
@@ -144,6 +175,7 @@ function BookingCard({
   onCancelDecline,
   onAct,
   onDeclined,
+  onStartCancel,
 }: {
   b: OwnerBooking
   busy: boolean
@@ -154,6 +186,7 @@ function BookingCard({
   onCancelDecline: () => void
   onAct: (id: string, label: string, fn: () => Promise<{ error: string | null }>) => Promise<void>
   onDeclined: () => void
+  onStartCancel: () => void
 }) {
   const age = hoursSince(b.createdAt)
   const overdue = b.status === "requested" && age > 4
@@ -240,8 +273,7 @@ function BookingCard({
             <>
               <Action busy={busy} tone="accept" icon={<Play className="h-3.5 w-3.5" />} label="Start job"
                 onClick={() => onAct(b.id, "Job started", () => setBookingStatus(b.id, "in_progress"))} />
-              <Action busy={busy} tone="neutral" icon={<X className="h-3.5 w-3.5" />} label="Cancel"
-                onClick={() => onAct(b.id, "Booking cancelled", () => setBookingStatus(b.id, "cancelled"))} />
+              <Action busy={busy} tone="neutral" icon={<X className="h-3.5 w-3.5" />} label="Cancel" onClick={onStartCancel} />
             </>
           )}
           {b.status === "in_progress" && (

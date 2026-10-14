@@ -12,6 +12,8 @@ import {
   type CampaignKind,
 } from "@/lib/data/bookings"
 import type { MyBusiness } from "@/lib/data/business"
+import { campaignLaunchBlock } from "@/lib/data/campaign-launch"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { SectionCard, Spinner, EmptyState, TextInput, Field } from "./business-ui"
 import { Megaphone, Plus, Trash2, Loader2, Building2, Users, Dog, Cat } from "lucide-react"
 
@@ -26,11 +28,15 @@ export function PromotionsTab({ business }: { business: MyBusiness }) {
   const [buildingId, setBuildingId] = useState("")
   const [days, setDays] = useState("30")
   const [radiusKm, setRadiusKm] = useState("8")
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  // Why Launch is disabled, or null when it isn't.
+  const launchBlock = campaignLaunchBlock(business)
 
   const nameFor = (id: string | null) => buildings.find((b) => b.id === id)?.name ?? "—"
   const target = buildings.find((b) => b.id === buildingId)
 
   async function create() {
+    if (launchBlock) return
     if (kind === "community_sponsored" && !buildingId) return toast.error("Pick a building to sponsor.")
     setBusy(true)
     const { error } = await createCampaign({
@@ -56,12 +62,13 @@ export function PromotionsTab({ business }: { business: MyBusiness }) {
     refetch()
   }
 
-  async function remove(id: string) {
-    if (!confirm("Delete this campaign?")) return
+  /* The dialog keeps a failure on screen, so only success toasts. */
+  async function remove(id: string): Promise<{ error: string | null }> {
     const { error } = await deleteCampaign(id)
-    if (error) return toast.error("Couldn't delete", { description: error })
+    if (error) return { error: "Couldn't delete the campaign. Try again." }
     toast.success("Campaign deleted")
     refetch()
+    return { error: null }
   }
 
   return (
@@ -137,13 +144,21 @@ export function PromotionsTab({ business }: { business: MyBusiness }) {
               <TextInput value={days} onChange={setDays} placeholder="30" />
             </Field>
 
+            {/* Said before the button, so nobody wonders what launching costs. */}
+            <p className="text-[12.5px] font-semibold text-success">Free during beta</p>
             <button
               onClick={create}
-              disabled={busy}
+              disabled={busy || launchBlock !== null}
+              aria-describedby={launchBlock ? "launch-block" : undefined}
               className="flex items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-[13px] font-semibold text-white disabled:opacity-60"
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />} Launch campaign
             </button>
+            {launchBlock && (
+              <p id="launch-block" className="-mt-1 text-center text-[12px] text-muted-foreground">
+                {launchBlock}
+              </p>
+            )}
           </div>
         )}
 
@@ -171,7 +186,11 @@ export function PromotionsTab({ business }: { business: MyBusiness }) {
                 >
                   {c.active ? "Active" : "Paused"}
                 </button>
-                <button onClick={() => remove(c.id)} className="rounded-lg bg-muted p-2 text-muted-foreground hover:text-destructive">
+                <button
+                  onClick={() => setDeletingId(c.id)}
+                  aria-label={`Delete ${CAMPAIGN_LABEL[c.kind]} campaign`}
+                  className="rounded-lg bg-muted p-2 text-muted-foreground hover:text-destructive"
+                >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -179,6 +198,16 @@ export function PromotionsTab({ business }: { business: MyBusiness }) {
           </div>
         )}
       </SectionCard>
+
+      <ConfirmDialog
+        open={deletingId !== null}
+        onOpenChange={(open) => !open && setDeletingId(null)}
+        title="Delete this campaign?"
+        description="It stops showing to residents straight away. This can't be undone — to stop it for now, pause it instead."
+        confirmLabel="Delete campaign"
+        tone="danger"
+        onConfirm={() => (deletingId ? remove(deletingId) : Promise.resolve({ error: null }))}
+      />
 
       <SectionCard title="Reachable audience">
         <p className="mb-3 text-[12.5px] text-muted-foreground">

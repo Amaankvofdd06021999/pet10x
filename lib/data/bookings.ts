@@ -133,11 +133,21 @@ export async function updateService(
   return { error: error?.message ?? null }
 }
 
-export async function deleteService(id: string): Promise<{ error: string | null }> {
-  const supabase = getSupabaseBrowserClient()
-  if (!supabase) return { error: "Not configured." }
-  const { error } = await supabase.from("business_services").delete().eq("id", id)
-  return { error: error?.message ?? null }
+/*
+ * Services are archived, never deleted from the app. `active` is the one
+ * switch: an inactive service is gone from the customer's list
+ * (business-detail-screen filters on it) and the booking insert guard refuses
+ * new requests for it, while every past booking still joins to its name.
+ */
+
+/** Take a service off your catalog. Past bookings keep its name. */
+export function archiveService(id: string): Promise<{ error: string | null }> {
+  return updateService(id, { active: false })
+}
+
+/** Put an archived service back on your catalog. */
+export function restoreService(id: string): Promise<{ error: string | null }> {
+  return updateService(id, { active: true })
 }
 
 /* ------------------------------------------------------------------ */
@@ -252,10 +262,14 @@ export function useOwnerBookings(businessId?: string): LiveResult<OwnerBooking[]
   return { data, isLoading, error, refetch }
 }
 
-/** Move a booking along the lifecycle (RLS bookings_owner_update). */
+/**
+ * Move a booking along the lifecycle (RLS bookings_owner_update). Not for
+ * cancelling: a plain update leaves cancelled_by and the reason empty, so the
+ * customer is never told — use businessCancelBooking. The type refuses it.
+ */
 export async function setBookingStatus(
   id: string,
-  status: BookingStatus,
+  status: Exclude<BookingStatus, "cancelled">,
   opts?: { declinedReason?: string },
 ): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()

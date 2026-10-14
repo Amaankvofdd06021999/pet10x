@@ -17,7 +17,8 @@ export function DashboardTab({
   const { data: services } = useBusinessServices(business.id)
   const { data: reviews } = useBusinessReviews(business.id)
 
-  const completeness = profileCompleteness(business, services.length)
+  // Archived services are hidden from customers, so they don't count toward a bookable profile.
+  const completeness = profileCompleteness(business, services.filter((s) => s.active).length)
   const earnings = computeEarnings(bookings)
 
   const requests = bookings.filter((b) => b.status === "requested")

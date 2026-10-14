@@ -153,7 +153,7 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
         title="Cancel this booking?"
         description={
           cancelling
-            ? `Your ${cancelling.serviceName ?? "booking"} with ${cancelling.businessName} is cancelled and the business is told.`
+            ? `This cancels your ${cancelling.serviceName ?? "booking"} with ${cancelling.businessName}. The business is told.`
             : ""
         }
         confirmLabel="Cancel booking"

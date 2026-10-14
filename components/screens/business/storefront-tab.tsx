@@ -16,7 +16,8 @@ import {
   useBusinessServices,
   createService,
   updateService,
-  deleteService,
+  archiveService,
+  restoreService,
   type ServiceItem,
 } from "@/lib/data/bookings"
 import {
@@ -28,8 +29,9 @@ import {
   type ServiceInput,
 } from "@/lib/data/fees"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { SectionCard, TextInput, Field, Spinner, Stars } from "./business-ui"
-import { Loader2, Navigation, Plus, Trash2, Store, MapPin, Star, Eye, Pencil } from "lucide-react"
+import { Loader2, Navigation, Plus, Archive, ArchiveRestore, ChevronDown, Store, MapPin, Star, Eye, Pencil } from "lucide-react"
 
 const CATEGORIES = ["Veterinary", "Grooming", "Boarding", "Dog walking", "Training", "Pet store", "Other"]
 
@@ -312,6 +314,11 @@ function ServiceCatalog({
   const [description, setDescription] = useState("")
   const [errors, setErrors] = useState<ServiceErrors>({})
   const [editing, setEditing] = useState<ServiceItem | null>(null)
+  const [archiving, setArchiving] = useState<ServiceItem | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
+  const [restoring, setRestoring] = useState<string | null>(null)
+  const live = services.filter((s) => s.active)
+  const archived = services.filter((s) => !s.active)
   // New services take the column default; existing ones show their own.
   const currency = services[0]?.currency ?? "cad"
 
@@ -336,17 +343,21 @@ function ServiceCatalog({
     refetch()
   }
 
-  async function toggle(s: ServiceItem) {
-    const { error } = await updateService(s.id, { active: !s.active })
-    if (error) return toast.error("Couldn't update", { description: error })
+  /* The dialog keeps a failure on screen, so only success toasts. */
+  async function archive(s: ServiceItem): Promise<{ error: string | null }> {
+    const { error } = await archiveService(s.id)
+    if (error) return { error: "Couldn't archive the service. Try again." }
+    toast.success("Service archived")
     refetch()
+    return { error: null }
   }
 
-  async function remove(s: ServiceItem) {
-    if (!confirm(`Remove “${s.name}” from your catalog?`)) return
-    const { error } = await deleteService(s.id)
-    if (error) return toast.error("Couldn't delete", { description: error })
-    toast.success("Service removed")
+  async function restore(s: ServiceItem) {
+    setRestoring(s.id)
+    const { error } = await restoreService(s.id)
+    setRestoring(null)
+    if (error) return toast.error("Couldn't restore the service", { description: "Try again." })
+    toast.success("Service restored")
     refetch()
   }
 
@@ -383,30 +394,24 @@ function ServiceCatalog({
 
       {isLoading ? (
         <Spinner />
-      ) : services.length === 0 ? (
+      ) : live.length === 0 ? (
         <p className="py-6 text-center text-[13px] text-muted-foreground">
-          No services yet — add one so residents can book you.
+          {archived.length > 0
+            ? "No services on your catalog — add one or restore an archived one so residents can book you."
+            : "No services yet — add one so residents can book you."}
         </p>
       ) : (
         <div className="space-y-2">
-          {services.map((s) => (
+          {live.map((s) => (
             <div key={s.id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className={`text-[14px] font-semibold ${s.active ? "text-foreground" : "text-muted-foreground line-through"}`}>
-                    {s.name}
-                  </p>
+                  <p className="text-[14px] font-semibold text-foreground">{s.name}</p>
                   {s.durationMin ? <span className="text-[11.5px] text-muted-foreground">{s.durationMin} min</span> : null}
                 </div>
                 {s.description && <p className="truncate text-[12px] text-muted-foreground">{s.description}</p>}
               </div>
               <p className="text-[15px] font-bold text-foreground">{formatPrice(s.priceCents, s.currency)}</p>
-              <button
-                onClick={() => toggle(s)}
-                className={`rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold ${s.active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}
-              >
-                {s.active ? "Live" : "Hidden"}
-              </button>
               <button
                 onClick={() => setEditing(s)}
                 aria-label={`Edit ${s.name}`}
@@ -414,13 +419,61 @@ function ServiceCatalog({
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
-              <button onClick={() => remove(s)} className="rounded-lg bg-muted p-2 text-muted-foreground hover:text-destructive">
-                <Trash2 className="h-3.5 w-3.5" />
+              <button
+                onClick={() => setArchiving(s)}
+                aria-label={`Archive ${s.name}`}
+                className="rounded-lg bg-muted p-2 text-muted-foreground hover:text-destructive"
+              >
+                <Archive className="h-3.5 w-3.5" />
               </button>
             </div>
           ))}
         </div>
       )}
+
+      {/* Archived services stay out of the way but one tap from coming back. */}
+      {!isLoading && archived.length > 0 && (
+        <div className="mt-3">
+          <button
+            onClick={() => setShowArchived((v) => !v)}
+            aria-expanded={showArchived}
+            className="flex items-center gap-1 text-[12.5px] font-semibold text-muted-foreground hover:text-foreground"
+          >
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showArchived ? "rotate-180" : ""}`} />
+            Archived ({archived.length})
+          </button>
+          {showArchived && (
+            <div className="mt-2 space-y-2">
+              {archived.map((s) => (
+                <div key={s.id} className="flex items-center gap-3 rounded-xl border border-dashed border-border p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-semibold text-muted-foreground">{s.name}</p>
+                    <p className="text-[12px] text-muted-foreground">Hidden from customers</p>
+                  </div>
+                  <p className="text-[14px] text-muted-foreground">{formatPrice(s.priceCents, s.currency)}</p>
+                  <button
+                    onClick={() => restore(s)}
+                    disabled={restoring === s.id}
+                    className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-[11.5px] font-semibold text-foreground disabled:opacity-50"
+                  >
+                    {restoring === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArchiveRestore className="h-3.5 w-3.5" />}
+                    Restore
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={archiving !== null}
+        onOpenChange={(open) => !open && setArchiving(null)}
+        title={archiving ? `Archive ${archiving.name}?` : "Archive this service?"}
+        description="Customers can no longer see or book it. Past bookings keep this service's name, and you can restore it any time."
+        confirmLabel="Archive"
+        onConfirm={() => (archiving ? archive(archiving) : Promise.resolve({ error: null }))}
+      />
 
       <EditServiceDialog
         service={editing}
