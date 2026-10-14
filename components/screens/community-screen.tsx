@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { ScopeNotice } from "@/components/screens/manager/scope-notice"
 import {
   useCommunityPosts,
   useCommunityScope,
@@ -197,7 +198,7 @@ export function CommunityScreen({
       for "events" — it used to land on the feed and leave you to find them. */
   initialTab?: string
 }) {
-  const { viewAs, activeBuildingId } = useAuth()
+  const { viewAs, activeBuildingId, personasStatus } = useAuth()
   /* Worn as a manager, the feed is the ACTIVE building's (BM-11), not whatever
      a resident link or a lone manager row resolves to. The body is rendered
      only once that choice is registered with the data layer (an effect, since
@@ -211,6 +212,24 @@ export function CommunityScreen({
     setApplied({ id: managerBuilding })
     return () => setCommunityManagerBuilding(null)
   }, [managerBuilding])
+  const asManager = viewAs === "building-manager"
+  /* A manager waits for their buildings. If they never load, say so rather than
+     fall back to a resident link's feed — that would post into the wrong
+     building. */
+  if (asManager && personasStatus === "loading") {
+    return (
+      <div className="flex min-h-dvh items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+  if (asManager && (personasStatus === "error" || !activeBuildingId)) {
+    return (
+      <div className="px-4 pt-6">
+        <ScopeNotice notice="Couldn't load your buildings. Try again in a moment." />
+      </div>
+    )
+  }
   if (applied === null || applied.id !== managerBuilding) return null
   return <CommunityScreenBody key={managerBuilding ?? "own"} initialTab={initialTab} />
 }

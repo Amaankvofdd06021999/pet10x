@@ -1615,9 +1615,9 @@ export interface CommunityScope {
 /**
  * The building a manager has chosen, while they are looking at Community as a
  * manager; null otherwise. Module state because five readers and writers share
- * `currentScope`, and the screen that sets it unsets it on unmount, so a
- * resident's feed never sees it. `useCommunityManagerBuilding` is the only
- * setter.
+ * `currentScope`; the screen that sets it
+ * (`setCommunityManagerBuilding`) clears it on unmount, so a resident's feed
+ * never sees it.
  */
 let preferredManagerBuilding: string | null = null
 

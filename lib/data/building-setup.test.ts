@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { bylawsPublished, fineScheduleSet, setupChecklist, setupHiddenKey } from "./building-setup"
+import { bylawsPublished, fineScheduleSet, setupChecklist, setupHiddenKey, setupRows } from "./building-setup"
 import { searchToRoute, routeToSearch } from "../app-route"
 
 const none = { bylawsPublished: false, fineScheduleSet: false, houseRulesCount: 0, staffCount: 0 }
@@ -36,6 +36,8 @@ describe("setup inputs", () => {
     expect(bylawsPublished({ require_rabies: true })).toBe(true)
     expect(bylawsPublished({ max_weight_kg: 20 })).toBe(true)
     expect(bylawsPublished(null)).toBe(false)
+    expect(bylawsPublished({ notes: "Bylaw 3(4)" })).toBe(true)
+    expect(bylawsPublished({ notes: "  " })).toBe(false)
   })
   it("the fine schedule is set once either fine has a price", () => {
     expect(fineScheduleSet({})).toBe(false)
@@ -44,5 +46,20 @@ describe("setup inputs", () => {
   })
   it("hides per building", () => {
     expect(setupHiddenKey("b1")).toBe("pet10x.setup-hidden.b1")
+  })
+})
+
+describe("setupRows", () => {
+  const base = { bylawsPublished: true, fineScheduleSet: true, houseRulesCount: 1 }
+  it("holds the staff row back while counting", () => {
+    expect(setupRows(base, "loading").map((r) => r.key)).toEqual(["bylaws", "fines", "rules"])
+  })
+  it("keeps the card useful when the count fails: staff row says so and is not done", () => {
+    const rows = setupRows(base, "error")
+    expect(rows).toHaveLength(4)
+    expect(rows[3]).toMatchObject({ key: "staff", label: "Couldn't check staff", done: false })
+  })
+  it("uses the count when known", () => {
+    expect(setupRows(base, 1).every((r) => r.done)).toBe(true)
   })
 })

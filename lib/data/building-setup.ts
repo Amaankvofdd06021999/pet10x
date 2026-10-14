@@ -39,11 +39,28 @@ export function setupChecklist(b: SetupInputs): SetupRow[] {
 
 /**
  * Bylaws are "published" once `pet_rules` holds at least one requirement a
- * machine checks — the same reading residents get (`readRequirements`). A
+ * machine checks — the same reading residents get (`readRequirements`) — or
+ * non-empty `notes`, the bylaw text a building may publish as prose. A
  * building that has only toggled things off has published nothing.
  */
 export function bylawsPublished(petRules: unknown): boolean {
-  return readRequirements(petRules).length > 0
+  const notes = (petRules as { notes?: unknown } | null)?.notes
+  return readRequirements(petRules).length > 0 || (typeof notes === "string" && notes.trim() !== "")
+}
+
+/** What the staff head count is doing: still asking, failed, or an answer. */
+export type StaffCount = "loading" | "error" | number
+
+/**
+ * The rows to show. A failed or pending staff count must not hide the card:
+ * while loading the staff row is held back; after a failure it says so and is
+ * not done, so the code and the other three rows are still there.
+ */
+export function setupRows(b: Omit<SetupInputs, "staffCount">, staff: StaffCount): SetupRow[] {
+  const rows = setupChecklist({ ...b, staffCount: typeof staff === "number" ? staff : 0 })
+  if (staff === "loading") return rows.filter((r) => r.key !== "staff")
+  if (staff === "error") return rows.map((r) => (r.key === "staff" ? { ...r, label: "Couldn't check staff", done: false } : r))
+  return rows
 }
 
 /** Set once either fine has a price; `readFineSchedule` is the rule the database charges by. */

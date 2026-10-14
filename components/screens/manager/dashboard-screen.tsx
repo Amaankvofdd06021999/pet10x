@@ -164,7 +164,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
             known: until then `building` may be the fallback's first building,
             and a code for the wrong one is worse than none. Keyed by building
             so a switch starts its checklist afresh. */}
-        {personasStatus !== "loading" && building && !building.archivedAt && (
+        {personasStatus === "ready" && building && !building.archivedAt && (
           <SetupCard key={building.id} building={building} onNavigate={onNavigate} />
         )}
 

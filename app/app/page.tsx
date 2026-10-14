@@ -273,6 +273,16 @@ function AppContent() {
     const route: AppRoute = { screen, id, petId, tab }
     navigateTo(route, tabForRoute(route, activeTab, surface), depth.current + 1)
   }
+  /* Settings opened a sheet from `?tab=`: replace the entry with the tab-less
+   * route so a reload does not reopen it. The screen keeps its own state. */
+  const consumeSettingsTab = useCallback(() => {
+    const cur = currentRoute.current
+    if (!cur || cur.screen !== "settings" || !cur.tab) return
+    const next: AppRoute = { screen: "settings" }
+    currentRoute.current = next
+    writeHistory(next, activeTabRef.current, depth.current, true)
+  }, [writeHistory])
+
   const handleNavigate = (screen: string, id?: string, petId?: string, tab?: string) =>
     leaving(() => navigateNow(screen, id, petId, tab))
 
@@ -516,7 +526,11 @@ function AppContent() {
               {currentScreen === "approvals" && <ManagerApprovalsScreen onNavigate={handleNavigate} />}
               {currentScreen === "incidents" && <ManagerIncidentsScreen />}
               {currentScreen === "community" && <CommunityScreen initialTab={screenTab} />}
-              {currentScreen === "settings" && <ManagerSettingsScreen onNavigate={handleNavigate} initialTab={screenTab} />}
+              {currentScreen === "settings" && <ManagerSettingsScreen
+                  onNavigate={handleNavigate}
+                  initialTab={screenTab}
+                  onTabConsumed={consumeSettingsTab}
+                />}
               {/* Managers have no Alerts tab, but the dashboard bell routes
                   here — without this the screen renders blank. */}
               {currentScreen === "alerts" && <AlertsScreen onNavigate={handleNavigate} onBack={handleBack} />}

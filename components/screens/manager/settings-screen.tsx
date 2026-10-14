@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 import { Portal } from "@/components/ui/portal"
@@ -74,8 +74,11 @@ const OPEN_ON_ARRIVAL: Record<string, { sheet?: Sheet; page?: Page }> = {
 export function ManagerSettingsScreen({
   onNavigate,
   initialTab,
+  onTabConsumed,
 }: {
   onNavigate?: (screen: string) => void
+  /** Called once the tab has opened its sheet, so the shell can drop it from the URL. */
+  onTabConsumed?: () => void
   /** The setup checklist's target: open this sheet (or page) on arrival. */
   initialTab?: string
 }) {
@@ -89,6 +92,16 @@ export function ManagerSettingsScreen({
   const publishedRules = houseRules.filter((r) => r.isPublished).length
   const [sheet, setSheet] = useState<Sheet>(() => (initialTab ? (OPEN_ON_ARRIVAL[initialTab]?.sheet ?? null) : null))
   const [page, setPage] = useState<Page>(() => (initialTab ? (OPEN_ON_ARRIVAL[initialTab]?.page ?? null) : null))
+
+  /* Open once, then forget: a reload of `?tab=rules` would otherwise reopen the
+     sheet the manager has since closed. Waits for the building, as the sheets
+     do. */
+  const consumed = useRef(false)
+  useEffect(() => {
+    if (!initialTab || consumed.current || !building) return
+    consumed.current = true
+    onTabConsumed?.()
+  }, [initialTab, building, onTabConsumed])
 
   if (building && page === "audit") {
     return <AuditLogScreen buildingId={building.id} buildingName={building.name} onBack={() => setPage(null)} />

@@ -9,7 +9,8 @@ import { useManagerBuildingRules } from "@/lib/data/building-rules-live"
 import {
   bylawsPublished,
   fineScheduleSet,
-  setupChecklist,
+  setupRows,
+  type StaffCount,
   setupHiddenKey,
 } from "@/lib/data/building-setup"
 
@@ -19,11 +20,11 @@ import {
  * answered, and after a failed read, so the row never claims a state it does
  * not know.
  */
-function useOtherManagerCount(buildingId: string, selfId: string | undefined): number | null {
-  const [count, setCount] = useState<number | null>(null)
+function useOtherManagerCount(buildingId: string, selfId: string | undefined): StaffCount {
+  const [count, setCount] = useState<StaffCount>("loading")
   useEffect(() => {
     let live = true
-    setCount(null)
+    setCount("loading")
     const supabase = getSupabaseBrowserClient()
     if (!supabase || !selfId) return
     void supabase
@@ -32,7 +33,7 @@ function useOtherManagerCount(buildingId: string, selfId: string | undefined): n
       .eq("building_id", buildingId)
       .neq("profile_id", selfId)
       .then(({ count: n, error }) => {
-        if (live && !error) setCount(n ?? 0)
+        if (live) setCount(error ? "error" : (n ?? 0))
       })
     return () => {
       live = false
@@ -91,15 +92,17 @@ export function SetupCard({
     }
   }, [building.code])
 
-  if (hidden || rulesLoading || staff === null) return null
+  if (hidden || rulesLoading) return null
 
-  const rows = setupChecklist({
+  const rows = setupRows(
+    {
     bylawsPublished: bylawsPublished(building.rules),
     fineScheduleSet: fineScheduleSet(building.rules),
     houseRulesCount: houseRules.filter((r) => r.isPublished).length,
-    staffCount: staff,
-  })
-  const complete = rows.every((r) => r.done)
+    },
+    staff,
+  )
+  const complete = staff !== "loading" && rows.every((r) => r.done)
 
   function hide() {
     try {
