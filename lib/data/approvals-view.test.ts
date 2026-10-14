@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest"
-import { approvalsState, defaultApprovalsTab } from "./approvals-view"
+import { approvalsState, defaultApprovalsTab, refreshFailed } from "./approvals-view"
 
 describe("approvalsState", () => {
-  it("loading wins over everything", () => {
+  it("loading with nothing listed yet is loading, whatever the error", () => {
     expect(approvalsState({ isLoading: true, error: "boom", data: [] })).toBe("loading")
-    expect(approvalsState({ isLoading: true, error: null, data: [1] })).toBe("loading")
+    expect(approvalsState({ isLoading: true, error: null, data: [] })).toBe("loading")
+  })
+  it("a refetch keeps the list that is already shown", () => {
+    expect(approvalsState({ isLoading: true, error: null, data: [1] })).toBe("ready")
+  })
+  it("a failed refresh with rows still shows them, and says so", () => {
+    const q = { isLoading: false, error: "boom", data: [1] }
+    expect(approvalsState(q)).toBe("ready")
+    expect(refreshFailed(q)).toBe(true)
+    expect(refreshFailed({ ...q, error: null })).toBe(false)
+    expect(refreshFailed({ ...q, data: [] })).toBe(false)
   })
   it("an error is not an empty list", () => {
     expect(approvalsState({ isLoading: false, error: "boom", data: [] })).toBe("error")

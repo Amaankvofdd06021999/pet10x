@@ -40,7 +40,7 @@ import {
   type FineStatus,
 } from "./violations"
 import { decisionError } from "./decision-errors"
-import { gramsToKg, maxWeightKgOf, weightFlag } from "./weight-flag"
+import { gramsToKg, maxWeightKgOf, weightCheck } from "./weight-flag"
 import { petDocumentReviewError } from "./pet-document-review"
 
 interface Result<T> {
@@ -161,10 +161,7 @@ export function useRegistrationsLive(): Result<Registration[]> {
         const flags: string[] = []
         if (!hasVax) flags.push("No current vaccination on file")
         if (!hasLicense) flags.push("Municipal licence missing")
-        const heavy = weightFlag(
-          gramsToKg(r.weight_grams),
-          r.building_id ? (maxKgByBuilding.get(r.building_id) ?? null) : null,
-        )
+        const heavy = weightCheck(gramsToKg(r.weight_grams), r.building_id, maxKgByBuilding)
         if (heavy) flags.push(heavy)
 
         return {

@@ -26,7 +26,7 @@ import { useIncidents, isOpenIncident } from "@/lib/data/incidents"
 import { IncidentCard } from "@/components/screens/manager/incident-card"
 import { PetDocumentReviewControls } from "@/components/screens/manager/pet-document-review"
 import { SpeciesIcon, Spinner, LoadError, EmptyState } from "@/components/screens/shared/ui"
-import { approvalsState, defaultApprovalsTab, type ApprovalsTabId } from "@/lib/data/approvals-view"
+import { approvalsState, defaultApprovalsTab, refreshFailed, type ApprovalsTabId } from "@/lib/data/approvals-view"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { toast } from "sonner"
 import {
@@ -70,7 +70,16 @@ function TabBody<T>({
     case "empty":
       return <>{empty}</>
     case "ready":
-      return <>{children(q.data)}</>
+      return (
+        <>
+          {refreshFailed(q) && (
+            <p className="mb-2 text-[12px] text-muted-foreground" role="status">
+              Couldn&apos;t refresh. Showing what loaded last.
+            </p>
+          )}
+          {children(q.data)}
+        </>
+      )
   }
 }
 
@@ -115,17 +124,22 @@ export function ManagerApprovalsScreen({
   const openIncidents = incidents.filter((i) => isOpenIncident(i.status))
   const incidentsView = { ...incQ, data: openIncidents }
   const allLoaded = !(regsQ.isLoading || accQ.isLoading || docsQ.isLoading || incQ.isLoading)
-  const activeTab: ApprovalTab =
-    pickedTab ??
-    initialTab ??
-    (allLoaded
-      ? defaultApprovalsTab({
-          registrations: registrations.length,
-          documents: documentsReview.length,
-          accommodations: accommodations.length,
-          incidents: openIncidents.length,
-        })
-      : "registrations")
+  // Chosen ONCE, the first time every list has loaded. Re-deriving it on each
+  // render would move the manager off the tab they are working in whenever a
+  // refetch changes which list is first non-empty (approving the last
+  // registration, say).
+  const [latchedTab, setLatchedTab] = useState<ApprovalTab | null>(null)
+  if (allLoaded && latchedTab === null) {
+    setLatchedTab(
+      defaultApprovalsTab({
+        registrations: registrations.length,
+        documents: documentsReview.length,
+        accommodations: accommodations.length,
+        incidents: openIncidents.length,
+      }),
+    )
+  }
+  const activeTab: ApprovalTab = pickedTab ?? initialTab ?? latchedTab ?? "registrations"
   const setActiveTab = setPickedTab
   // Every count is derived. These were hardcoded 3 / 2 / 4 while the lists
   // beneath them came from live queries, so a tab could advertise rows that
@@ -139,10 +153,10 @@ export function ManagerApprovalsScreen({
   // A count is only a count once its list has loaded; "(0)" beside a tab that
   // is still loading, or failed, would say there is nothing there.
   const tabReady: Record<ApprovalTab, boolean> = {
-    registrations: !regsQ.isLoading && !regsQ.error,
-    documents: !docsQ.isLoading && !docsQ.error,
-    accommodations: !accQ.isLoading && !accQ.error,
-    incidents: !incQ.isLoading && !incQ.error,
+    registrations: approvalsState(regsQ) !== "loading" && approvalsState(regsQ) !== "error",
+    documents: approvalsState(docsQ) !== "loading" && approvalsState(docsQ) !== "error",
+    accommodations: approvalsState(accQ) !== "loading" && approvalsState(accQ) !== "error",
+    incidents: approvalsState(incQ) !== "loading" && approvalsState(incQ) !== "error",
   }
 
   return (

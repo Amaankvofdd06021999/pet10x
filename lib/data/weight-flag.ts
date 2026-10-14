@@ -18,6 +18,23 @@ export function gramsToKg(grams: number | null): number | null {
   return grams ? grams / 1000 : null
 }
 
+export const RULES_UNCHECKED = "Couldn't check this building's rules"
+
+/**
+ * The weight flag for a pet in `buildingId`, given the limits that were loaded.
+ * A building missing from `limits` means its rules could not be read, which is
+ * not "no limit": the pet gets a flag, so it is never counted safe to approve.
+ */
+export function weightCheck(
+  weightKg: number | null,
+  buildingId: string | null,
+  limits: Map<string, number | null>,
+): string | null {
+  if (buildingId === null) return null
+  if (!limits.has(buildingId)) return RULES_UNCHECKED
+  return weightFlag(weightKg, limits.get(buildingId) ?? null)
+}
+
 /** The flag a registration carries when it is over the limit; null otherwise. */
 export function weightFlag(weightKg: number | null, maxWeightKg: number | null): string | null {
   if (weightKg === null || maxWeightKg === null) return null

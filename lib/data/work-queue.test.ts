@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { weightFlag, maxWeightKgOf, gramsToKg } from "./weight-flag"
+import { weightFlag, weightCheck, maxWeightKgOf, gramsToKg, RULES_UNCHECKED } from "./weight-flag"
 
 describe("weightFlag", () => {
   it("flags a pet over the building's limit, naming the limit", () => {
@@ -42,5 +42,17 @@ describe("gramsToKg", () => {
   it("feeds weightFlag in the right unit (25,001 g is over a 25 kg limit; 25,000 g is not)", () => {
     expect(weightFlag(gramsToKg(25001), 25)).not.toBeNull()
     expect(weightFlag(gramsToKg(25000), 25)).toBeNull()
+  })
+})
+
+describe("weightCheck", () => {
+  const limits = new Map<string, number | null>([["a", 15], ["b", null]])
+  it("uses the pet's own building", () => {
+    expect(weightCheck(20, "a", limits)).toBe("Over this building's 15 kg limit")
+    expect(weightCheck(20, "b", limits)).toBeNull()
+  })
+  it("a building missing from the response is flagged, never safe", () => {
+    expect(weightCheck(5, "zzz", limits)).toBe(RULES_UNCHECKED)
+    expect(weightCheck(null, "zzz", limits)).toBe(RULES_UNCHECKED)
   })
 })

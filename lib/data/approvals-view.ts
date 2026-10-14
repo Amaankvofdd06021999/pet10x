@@ -9,9 +9,17 @@
 export type ApprovalsState = "loading" | "error" | "empty" | "ready"
 
 export function approvalsState<T>(q: { isLoading: boolean; error: string | null; data: T[] }): ApprovalsState {
-  if (q.isLoading) return "loading"
-  if (q.error) return "error"
-  return q.data.length === 0 ? "empty" : "ready"
+  const hasData = q.data.length > 0
+  // A refetch keeps what is already listed: swapping the list for a spinner
+  // would throw away scroll position and which card is open.
+  if (q.isLoading) return hasData ? "ready" : "loading"
+  if (q.error) return hasData ? "ready" : "error"
+  return hasData ? "ready" : "empty"
+}
+
+/** True when rows are shown but the last refresh failed, so the list may be stale. */
+export function refreshFailed<T>(q: { isLoading: boolean; error: string | null; data: T[] }): boolean {
+  return !q.isLoading && q.error !== null && q.data.length > 0
 }
 
 export type ApprovalsTabId = "registrations" | "documents" | "accommodations" | "incidents"
