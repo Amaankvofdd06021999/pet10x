@@ -68,6 +68,8 @@ export interface AdminBusiness {
   createdAt: string
   /** The business's open verification request, if it has one. */
   openRequest: AdminVerificationRequest | null
+  /** The owner's name and email, for the admin to judge a request by. Null if unreadable. */
+  owner: { name: string; email: string } | null
 }
 
 export interface AdminVerificationRequest {
@@ -75,6 +77,13 @@ export interface AdminVerificationRequest {
   kind: string
   licenceNumber: string | null
   issuingBody: string | null
+  contactName: string | null
+  contactPhone: string | null
+  /** Storage path of an uploaded document; null until a bucket exists for them. */
+  documentPath: string | null
+  status: string
+  /** The admin's last question, when the status is needs_info. */
+  note: string | null
   createdAt: string
 }
 
@@ -350,7 +359,9 @@ export function useAdminBusinesses() {
       supabase.from("businesses").select("*").order("created_at", { ascending: false }),
       supabase
         .from("business_verifications")
-        .select("id, business_id, kind, status, licence_number, issuing_body, created_at")
+        .select(
+          "id, business_id, kind, status, note, licence_number, issuing_body, contact_name, contact_phone, document_path, created_at",
+        )
         .in("status", ["submitted", "in_review", "needs_info"])
         .order("created_at", { ascending: true }),
     ])
@@ -366,8 +377,21 @@ export function useAdminBusinesses() {
           kind: q.kind,
           licenceNumber: q.licence_number,
           issuingBody: q.issuing_body,
+          contactName: q.contact_name,
+          contactPhone: q.contact_phone,
+          documentPath: q.document_path,
+          status: q.status,
+          note: q.note,
           createdAt: q.created_at,
         })
+      }
+      // Owners of the businesses with an open request (profiles_admin_all). A
+      // failure leaves the owner blank rather than hiding the queue.
+      const ownerIds = Array.from(new Set((rows ?? []).filter((r: BusinessRow) => open.has(r.id)).map((r: BusinessRow) => r.owner_id)))
+      const owners = new Map<string, { name: string; email: string }>()
+      if (ownerIds.length > 0) {
+        const { data: profs } = await supabase.from("profiles").select("id, full_name, email").in("id", ownerIds)
+        for (const p of profs ?? []) owners.set(p.id, { name: p.full_name || p.email || "Unnamed account", email: p.email ?? "" })
       }
       setData(
         (rows ?? []).map((r: BusinessRow) => ({
@@ -379,6 +403,7 @@ export function useAdminBusinesses() {
           ownerId: r.owner_id,
           createdAt: r.created_at,
           openRequest: open.get(r.id) ?? null,
+          owner: owners.get(r.owner_id) ?? null,
         })),
       )
       setError(null)
@@ -425,6 +450,34 @@ export async function reviewBusinessVerification(
     p_note: note?.trim() || undefined,
   })
   return { error: error ? businessTierError(error) : null }
+}
+
+/**
+ * Ask the business for more information: the request moves to needs_info with
+ * the admin's question as its note. A direct update (bver_admin); the clinic's
+ * banner shows the note. Limited to open requests, so a request decided in the
+ * meantime is not reopened.
+ */
+export async function askForVerificationInfo(requestId: string, note: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: "Not configured." }
+  const question = note.trim()
+  if (!question) return { error: "Say what you need from them." }
+  const { data: auth } = await supabase.auth.getUser()
+  const { data, error } = await supabase
+    .from("business_verifications")
+    .update({
+      status: "needs_info",
+      note: question,
+      reviewed_by: auth.user?.id ?? null,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", requestId)
+    .in("status", ["submitted", "in_review", "needs_info"])
+    .select("id")
+  if (error) return { error: businessTierError(error) }
+  if (!data || data.length === 0) return { error: "This request was already decided. Refresh to see it." }
+  return { error: null }
 }
 
 /* ------------------------------------------------------------------ */

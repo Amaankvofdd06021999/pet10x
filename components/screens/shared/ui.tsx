@@ -236,7 +236,7 @@ export function Field({
         </p>
       )}
       {error && (
-        <p id={errId} className="text-[11.5px] font-medium text-destructive">
+        <p id={errId} role="alert" className="text-[11.5px] font-medium text-destructive">
           {error}
         </p>
       )}

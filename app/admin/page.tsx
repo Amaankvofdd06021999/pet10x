@@ -18,6 +18,7 @@ import {
   useAdminBusinesses,
   setBusinessTier,
   reviewBusinessVerification,
+  askForVerificationInfo,
   getBusinessFootprint,
   deleteBusinessGuarded,
   useAdminManagers,
@@ -753,6 +754,15 @@ function Businesses() {
     return true
   }
 
+  async function askForInfo(b: AdminBusiness, note: string | null): Promise<{ error: string | null }> {
+    if (!b.openRequest) return { error: "There is no open request to ask about." }
+    const { error: err } = await askForVerificationInfo(b.openRequest.id, note ?? "")
+    if (err) return { error: err }
+    toast.success(`Asked ${b.name} for more information`)
+    refetch()
+    return { error: null }
+  }
+
   // Delete asks admin_business_footprint what the business holds before
   // offering anything, and admin_delete_business decides (20261015000002):
   // the name typed, no clinic records, no open bookings. No counts, no Delete.
@@ -845,6 +855,7 @@ function Businesses() {
           busy={busy === b.id}
           onTier={(t) => changeTier(b, t)}
           onReview={(approve, note) => review(b, approve, note)}
+          onAsk={(note) => askForInfo(b, note)}
           onRemove={() => startDelete(b)}
         />
       ))}
@@ -928,16 +939,23 @@ function BusinessCard({
   busy,
   onTier,
   onReview,
+  onAsk,
   onRemove,
 }: {
   business: AdminBusiness
   busy: boolean
   onTier: (tier: BusinessTier) => void
   onReview: (approve: boolean, note?: string) => Promise<boolean>
+  onAsk: (note: string | null) => Promise<{ error: string | null }>
   onRemove: () => void
 }) {
   const [rejecting, setRejecting] = useState(false)
+  const [approving, setApproving] = useState(false)
+  const [asking, setAsking] = useState(false)
   const [note, setNote] = useState("")
+  const req = b.openRequest
+  // Verified unlocks shared medical records, so it needs something to verify.
+  const hasLicence = Boolean(req?.licenceNumber?.trim())
 
   return (
     <div className="rounded-xl card-raised p-3.5">
@@ -988,11 +1006,20 @@ function BusinessCard({
             Verification requested{" "}
             {new Date(b.openRequest.createdAt).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}
           </p>
-          {(b.openRequest.licenceNumber || b.openRequest.issuingBody) && (
+          {b.openRequest.status === "needs_info" && (
             <p className="mt-0.5 text-[12px] text-muted-foreground">
-              {[b.openRequest.issuingBody, b.openRequest.licenceNumber].filter(Boolean).join(" · ")}
+              Waiting on the business. You asked: {b.openRequest.note}
             </p>
           )}
+          <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12px]">
+            <RequestFact label="Licence number" value={b.openRequest.licenceNumber} />
+            <RequestFact label="Issuing body" value={b.openRequest.issuingBody} />
+            <RequestFact label="Contact" value={b.openRequest.contactName} />
+            <RequestFact label="Phone" value={b.openRequest.contactPhone} />
+            <RequestFact label="Document" value={b.openRequest.documentPath ? "Attached" : null} empty="None uploaded" />
+            <RequestFact label="Owner" value={b.owner?.name ?? null} empty="Not available" />
+            <RequestFact label="Owner email" value={b.owner?.email || null} empty="Not available" />
+          </dl>
           {rejecting ? (
             <div className="mt-2 flex flex-col gap-1.5">
               <textarea
@@ -1026,13 +1053,21 @@ function BusinessCard({
               </div>
             </div>
           ) : (
-            <div className="mt-2 flex gap-1.5">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <button
-                onClick={() => onReview(true)}
-                disabled={busy}
+                onClick={() => setApproving(true)}
+                disabled={busy || !hasLicence}
+                aria-describedby={hasLicence ? undefined : `need-licence-${b.id}`}
                 className="flex items-center gap-1.5 rounded-lg bg-success/15 px-3 py-1.5 text-[12px] font-semibold text-success disabled:opacity-60"
               >
                 <BadgeCheck className="h-3.5 w-3.5" /> Approve — verify
+              </button>
+              <button
+                onClick={() => setAsking(true)}
+                disabled={busy}
+                className="rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
+              >
+                Ask for info
               </button>
               <button
                 onClick={() => setRejecting(true)}
@@ -1043,9 +1078,47 @@ function BusinessCard({
               </button>
             </div>
           )}
+          {!rejecting && !hasLicence && (
+            <p id={`need-licence-${b.id}`} className="mt-1 text-[11.5px] text-muted-foreground">
+              Needs a licence number
+            </p>
+          )}
         </div>
       )}
+      {approving && (
+        <ConfirmDialog
+          open
+          onOpenChange={setApproving}
+          title={`Verify ${b.name}?`}
+          description="Verified clinics can receive shared medical records and emergency access."
+          confirmLabel="Verify"
+          onConfirm={async () => {
+            const done = await onReview(true)
+            return { error: done ? null : "Couldn't record the decision. Try again." }
+          }}
+        />
+      )}
+      {asking && (
+        <ConfirmDialog
+          open
+          onOpenChange={setAsking}
+          title={`Ask ${b.name} for more information?`}
+          description="They see your question on their verification banner."
+          confirmLabel="Send question"
+          reason={{ label: "What do you need from them?", required: true, placeholder: "For example, the licence number on your certificate" }}
+          onConfirm={onAsk}
+        />
+      )}
     </div>
+  )
+}
+
+function RequestFact({ label, value, empty = "Not given" }: { label: string; value: string | null; empty?: string }) {
+  return (
+    <>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={value ? "break-words font-medium text-foreground" : "text-muted-foreground"}>{value || empty}</dd>
+    </>
   )
 }
 

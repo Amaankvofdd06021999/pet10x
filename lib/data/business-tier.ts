@@ -41,10 +41,10 @@ export function awaitingReview(b: { tier: BusinessTier; openRequest: boolean }):
 }
 
 export interface BannerState {
-  state: "none" | "requested" | "rejected"
+  state: "none" | "requested" | "needs_info" | "rejected"
   /** Whether a new request may be sent (the database allows one open per kind). */
   canRequest: boolean
-  /** The admin's reason, on a rejection. */
+  /** The admin's reason, on a rejection or a request for more information. */
   note: string | null
 }
 
@@ -54,6 +54,9 @@ export function verificationBanner(
   latest: { status: string; note: string | null } | null,
 ): BannerState | null {
   if (tier === "verified") return null
+  // needs_info is still open (business_verifications_one_open), so no second
+  // request can be sent; the banner carries the admin's question instead.
+  if (latest?.status === "needs_info") return { state: "needs_info", canRequest: false, note: latest.note }
   if (latest && isOpenRequest(latest.status)) return { state: "requested", canRequest: false, note: null }
   if (latest?.status === "rejected") return { state: "rejected", canRequest: true, note: latest.note }
   return { state: "none", canRequest: true, note: null }

@@ -1,58 +1,113 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/screens/shared/ui"
+import { Button, Field, TextInput } from "@/components/screens/shared/ui"
 import { verificationBanner } from "@/lib/data/business-tier"
-import { requestVerification, useLatestVerification } from "@/lib/data/clinic/verification"
+import { requestVerification, useLatestVerification, type VerificationRequest } from "@/lib/data/clinic/verification"
+import { validateVerification, type VerificationErrors, type VerificationInput } from "@/lib/data/verification-form"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
 
 /**
  * "Not yet verified", and the way out of it. The practice's owner or a manager
- * can send a verification request; then the banner says it was requested, and
- * a rejection shows the admin's reason with the option to ask again. Other
- * staff see the state without the button — they cannot send one (bver_insert).
+ * can send a verification request with their licence details; then the banner
+ * says it was requested, a request for more information or a rejection shows
+ * the admin's words, and after a rejection the form opens prefilled from the
+ * last request. Other staff see the state without the button — they cannot
+ * send one (bver_insert).
  */
 export function VerificationBanner({ clinic, canRequest }: { clinic: ClinicMembership; canRequest: boolean }) {
   const latest = useLatestVerification(clinic.businessId)
+  const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState<string | null>(null)
+  const [errors, setErrors] = useState<VerificationErrors>({})
+  const [form, setForm] = useState<VerificationInput>({ licenceNumber: "", issuingBody: "", contactName: "", contactPhone: "" })
 
   const banner = verificationBanner(clinic.tier, latest.isLoading ? null : latest.data)
   if (!banner) return null
 
-  async function request() {
+  function openForm(previous: VerificationRequest | null) {
+    setForm({
+      licenceNumber: previous?.licenceNumber ?? "",
+      issuingBody: previous?.issuingBody ?? "",
+      contactName: previous?.contactName ?? "",
+      contactPhone: previous?.contactPhone ?? "",
+    })
+    setErrors({})
+    setFailed(null)
+    setOpen(true)
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const checked = validateVerification(form)
+    if (!checked.ok) return setErrors(checked.errors)
+    setErrors({})
     setBusy(true)
     setFailed(null)
-    const { error } = await requestVerification(clinic.businessId)
+    const { error } = await requestVerification(clinic.businessId, checked.value)
     setBusy(false)
     if (error) return setFailed(error)
+    setOpen(false)
     latest.refetch()
   }
 
   const heading =
     banner.state === "requested"
       ? "Verification requested"
-      : banner.state === "rejected"
-        ? "Verification not approved"
-        : "Not yet verified"
+      : banner.state === "needs_info"
+        ? "Pet10x needs more information"
+        : banner.state === "rejected"
+          ? "Verification not approved"
+          : "Not yet verified"
   const body =
     banner.state === "requested"
       ? "Pet10x is reviewing your practice. You'll be notified of the decision."
-      : banner.state === "rejected"
+      : banner.state === "needs_info" || banner.state === "rejected"
         ? banner.note
         : "Verify to receive shared records and take Pet10x bookings."
+  const set = (k: keyof VerificationInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }))
 
   return (
     <div className="rounded-xl bg-warning/10 p-2.5">
       <p className="text-[11.5px] font-semibold text-warning-strong">{heading}</p>
       {body && <p className="mt-0.5 text-[11px] text-muted-foreground">{body}</p>}
       {latest.error && <p className="mt-1 text-[11px] text-destructive">Couldn&apos;t check for a verification request.</p>}
-      {canRequest && banner.canRequest && !latest.isLoading && !latest.error && (
-        <Button size="sm" variant="secondary" className="mt-2 w-full" busy={busy} onClick={request}>
+      {canRequest && banner.canRequest && !latest.isLoading && !latest.error && !open && (
+        <Button size="sm" variant="secondary" className="mt-2 w-full" onClick={() => openForm(latest.data)}>
           {banner.state === "rejected" ? "Request again" : "Request verification"}
         </Button>
       )}
-      {failed && <p className="mt-1 text-[11px] text-destructive">{failed}</p>}
+      {open && (
+        <form onSubmit={submit} noValidate className="mt-2 flex flex-col gap-2">
+          <Field label="Licence number" required error={errors.licenceNumber}>
+            {(p) => <TextInput {...p} value={form.licenceNumber} onChange={set("licenceNumber")} autoComplete="off" />}
+          </Field>
+          <Field label="Issuing body" required error={errors.issuingBody} hint="Who issued the licence, for example your provincial college.">
+            {(p) => <TextInput {...p} value={form.issuingBody} onChange={set("issuingBody")} autoComplete="off" />}
+          </Field>
+          <Field label="Contact name" error={errors.contactName}>
+            {(p) => <TextInput {...p} value={form.contactName} onChange={set("contactName")} autoComplete="name" />}
+          </Field>
+          <Field label="Contact phone" error={errors.contactPhone}>
+            {(p) => <TextInput {...p} type="tel" value={form.contactPhone} onChange={set("contactPhone")} autoComplete="tel" />}
+          </Field>
+          <div className="flex gap-1.5">
+            <Button type="submit" size="sm" className="flex-1" busy={busy}>
+              Send request
+            </Button>
+            <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+      {failed && (
+        <p role="alert" className="mt-1 text-[11px] text-destructive">
+          {failed}
+        </p>
+      )}
     </div>
   )
 }

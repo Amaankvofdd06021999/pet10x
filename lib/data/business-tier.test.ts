@@ -53,13 +53,21 @@ describe("verificationBanner", () => {
   })
 
   it("says requested while one is open, with no second button", () => {
-    for (const status of ["submitted", "in_review", "needs_info"]) {
+    for (const status of ["submitted", "in_review"]) {
       expect(verificationBanner("registered", { status, note: null })).toEqual({
         state: "requested",
         canRequest: false,
         note: null,
       })
     }
+  })
+
+  it("shows the admin's question while more information is needed", () => {
+    expect(verificationBanner("registered", { status: "needs_info", note: "Send the licence number" })).toEqual({
+      state: "needs_info",
+      canRequest: false,
+      note: "Send the licence number",
+    })
   })
 
   it("shows the admin's note on a rejection, and allows asking again", () => {
