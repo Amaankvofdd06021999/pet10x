@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Stethoscope, ArrowRight } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
@@ -28,11 +29,22 @@ const MODULE_BLURB: Record<string, string> = {
 
 /** A practice signs itself in. No verification needed to reach the console. */
 export function ClinicSignIn() {
-  const { signInWithPassword } = useAuth()
+  const { signInWithPassword, resetPassword } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  // The same reset email /login sends (lib/auth-context resetPassword).
+  async function forgot() {
+    setError(null)
+    setInfo(null)
+    if (!email.trim()) return setError("Enter your email first, then tap “Forgot password?”.")
+    const res = await resetPassword(email.trim())
+    if (res.error) setError(res.error)
+    else setInfo(`Password reset link sent to ${email.trim()}.`)
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -89,8 +101,16 @@ export function ClinicSignIn() {
           <Button type="submit" busy={busy} className="mt-1 w-full">
             Sign in <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Button>
-          <p className="text-center text-[11.5px] text-muted-foreground">
-            New here? Sign in with your Pet10x account and register your practice on the next screen.
+          {info && <p role="status" className="text-center text-[12.5px] text-success">{info}</p>}
+          <button type="button" onClick={() => void forgot()} className="text-center text-[13px] font-medium text-primary">
+            Forgot password?
+          </button>
+          <p className="text-center text-[12.5px] text-muted-foreground">
+            New here?{" "}
+            <Link href="/login?mode=signup&next=%2Fclinic" className="font-semibold text-primary">
+              Create an account
+            </Link>
+            , then register your practice on the next screen.
           </p>
         </div>
       </form>

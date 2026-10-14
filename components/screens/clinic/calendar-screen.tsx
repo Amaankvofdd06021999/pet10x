@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { toast } from "sonner"
 import { ChevronLeft, ChevronRight, Plus, CalendarDays } from "lucide-react"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
 import { useClinicLocations, useClinicStaff } from "@/lib/data/clinic/context"
@@ -8,6 +9,8 @@ import {
   useDayAppointments, useAppointmentTypes, createAppointment, setAppointmentStatus,
   NEXT_STATUS, STATUS_LABEL, type Appointment, type AppointmentStatus,
 } from "@/lib/data/clinic/schedule"
+import { calendarColumns } from "@/lib/data/clinic/calendar-columns"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useClinicPatients } from "@/lib/data/clinic/customers"
 import { formatTime, todayISO, addDaysISO, formatDayLabel, minutesInto } from "@/lib/data/clinic/time"
 import {
@@ -40,11 +43,24 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
   const [bookOpen, setBookOpen] = useState(false)
   const [selected, setSelected] = useState<Appointment | null>(null)
 
-  const columns = useMemo(() => {
-    const bookable = staff.data.filter((s) => s.isBookable && s.isActive)
-    if (bookable.length === 0) return [{ id: null as string | null, name: "Unassigned" }]
-    return bookable.map((s) => ({ id: s.id as string | null, name: s.name }))
-  }, [staff.data])
+  // Cancelled and No-show are confirmed in their own dialog. The appointment
+  // modal closes first: ConfirmDialog (z-50) would open under the Modal (z-[100]).
+  const [pending, setPending] = useState<{ appt: Appointment; status: "cancelled" | "no_show" } | null>(null)
+
+  const columns = useMemo(
+    () =>
+      calendarColumns(
+        staff.data.filter((s) => s.isActive).map((s) => ({ id: s.id, name: s.name, bookable: s.isBookable })),
+        appts.data,
+      ),
+    [staff.data, appts.data],
+  )
+
+  async function moveTo(appt: Appointment, status: AppointmentStatus, note?: string): Promise<{ error: string | null }> {
+    const res = await setAppointmentStatus(appt.id, status, note)
+    if (!res.error) appts.refetch()
+    return res
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -168,6 +184,38 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
         locationId={locations.find((l) => l.isPrimary)?.id ?? null}
       />
 
+      <ConfirmDialog
+        open={pending !== null}
+        onOpenChange={(o) => {
+          if (!o) setPending(null)
+        }}
+        title={
+          pending?.status === "no_show"
+            ? `Mark ${pending.appt.patientName} as a no-show?`
+            : `Cancel ${pending?.appt.patientName ?? "this"} appointment?`
+        }
+        description={
+          pending?.status === "no_show"
+            ? "It stays on the calendar as a no-show, and the owner is told they were marked as missed."
+            : "It comes off the book and the owner is told, with your reason."
+        }
+        confirmLabel={pending?.status === "no_show" ? "Mark as no-show" : "Cancel appointment"}
+        cancelLabel="Keep it"
+        tone="danger"
+        reason={
+          pending?.status === "no_show"
+            ? { label: "Note (not shown to the owner)", required: false }
+            : { label: "Reason (the owner sees this)", required: true }
+        }
+        onConfirm={async (reason) => {
+          if (!pending) return { error: null }
+          const res = await moveTo(pending.appt, pending.status, reason ?? undefined)
+          if (res.error) return res
+          toast.success(pending.status === "no_show" ? "Marked as a no-show" : "Appointment cancelled")
+          return { error: null }
+        }}
+      />
+
       <Modal
         open={selected !== null}
         onClose={() => setSelected(null)}
@@ -182,12 +230,14 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
                   size="sm"
                   variant={s === "cancelled" || s === "no_show" ? "secondary" : "primary"}
                   onClick={async () => {
-                    const res = await setAppointmentStatus(selected.id, s)
-                    if (res.error) window.alert(res.error)
-                    else {
+                    if (s === "cancelled" || s === "no_show") {
+                      setPending({ appt: selected, status: s })
                       setSelected(null)
-                      appts.refetch()
+                      return
                     }
+                    const res = await moveTo(selected, s)
+                    if (res.error) toast.error(res.error)
+                    else setSelected(null)
                   }}
                 >
                   {STATUS_LABEL[s]}
@@ -240,7 +290,10 @@ function BookModal({
   const patients = useClinicPatients(clinic.businessId, search)
   const [patientId, setPatientId] = useState("")
   const [typeId, setTypeId] = useState("")
-  const [staffId, setStaffId] = useState("")
+  // null = not chosen yet: a booking defaults to the first clinician so it
+  // doesn't land Unassigned; picking "Unassigned" stores "".
+  const [chosenStaff, setChosenStaff] = useState<string | null>(null)
+  const staffId = chosenStaff ?? staff[0]?.id ?? ""
   const [time, setTime] = useState("09:00")
   const [note, setNote] = useState("")
   const [busy, setBusy] = useState(false)
@@ -322,7 +375,7 @@ function BookModal({
         </div>
         <Field label="Clinician">
           {(p) => (
-            <Select {...p} value={staffId} onChange={(e) => setStaffId(e.target.value)}>
+            <Select {...p} value={staffId} onChange={(e) => setChosenStaff(e.target.value)}>
               <option value="">Unassigned</option>
               {staff.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>

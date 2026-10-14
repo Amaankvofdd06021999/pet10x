@@ -3,12 +3,17 @@
 import { useCallback, useEffect, useState } from "react"
 import {
   CalendarDays, Users, Bell, Stethoscope, ShoppingBag, Receipt,
-  Siren, UsersRound, LayoutDashboard, LogOut, Loader2, Building2, ChevronDown, BellRing,
+  Siren, UsersRound, LayoutDashboard, LogOut, Loader2, Building2, ChevronDown, BellRing, UserRound, LifeBuoy,
 } from "lucide-react"
+import Link from "next/link"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { useActiveClinic, capabilities } from "@/lib/data/clinic/context"
 import { useBusinessType, FALLBACK_TYPE, type ModuleKey } from "@/lib/data/business-types"
 import { Button, Pill } from "@/components/screens/shared/ui"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Toaster } from "@/components/ui/sonner"
 import { ClinicTodayScreen } from "@/components/screens/clinic/today-screen"
 import { ClinicCalendarScreen } from "@/components/screens/clinic/calendar-screen"
@@ -205,6 +210,27 @@ function Console() {
               onOpenTab={openTab}
               onOpenSettings={() => setNotificationsOpen(true)}
             />
+            {/* The sidebar's account block is desktop-only; a phone gets this. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="sm" aria-label="Account" className="md:hidden">
+                  <UserRound className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuLabel className="truncate font-normal text-muted-foreground">{user?.email}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setNotificationsOpen(true)}>
+                  <BellRing aria-hidden="true" /> Email &amp; push
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/help"><LifeBuoy aria-hidden="true" /> Help</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void signOut()}>
+                  <LogOut aria-hidden="true" /> Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {clinics.length > 1 && (
               <div className="relative">
                 <Button variant="secondary" size="sm" onClick={() => setSwitcherOpen((v) => !v)}>

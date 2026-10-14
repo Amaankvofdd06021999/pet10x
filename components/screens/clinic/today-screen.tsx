@@ -13,6 +13,7 @@ import {
 import { useLatestVerification } from "@/lib/data/clinic/verification"
 import { verificationBanner } from "@/lib/data/business-tier"
 import { clinicSetupChecklist, type SetupTarget } from "@/lib/data/clinic/setup-checklist"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { PatientPanel, type BillOpened } from "./patient-panel"
 import { checkoutCompletes } from "@/lib/data/clinic/billing"
 import { useReminderQueue, useClinicTasks, completeTask, addTask } from "@/lib/data/clinic/reminders"
@@ -51,6 +52,7 @@ export function ClinicTodayScreen({
   const [taskTitle, setTaskTitle] = useState("")
   const [checkout, setCheckout] = useState<{ appt: Appointment; visitId: string } | null>(null)
   const [checkoutBusy, setCheckoutBusy] = useState(false)
+  const [declining, setDeclining] = useState<Appointment | null>(null)
   const caps = capabilities(clinic.role, clinic.tier, clinic.isOwner)
 
   const today = todayISO(new Date(), tz)
@@ -180,7 +182,7 @@ export function ClinicTodayScreen({
                 actions={
                   <>
                     <Button size="sm" onClick={() => void move(a, "booked")}>Confirm</Button>
-                    <Button size="sm" variant="ghost" onClick={() => void move(a, "cancelled")}>Decline</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setDeclining(a)}>Decline request</Button>
                   </>
                 } />
             ))}
@@ -296,6 +298,27 @@ export function ClinicTodayScreen({
         )}
       </SectionCard>
 
+      <ConfirmDialog
+        open={declining !== null}
+        onOpenChange={(o) => {
+          if (!o) setDeclining(null)
+        }}
+        title={`Decline ${declining?.patientName ?? "this"} request?`}
+        description="The owner is told the request was declined, with your reason."
+        confirmLabel="Decline request"
+        cancelLabel="Keep it"
+        tone="danger"
+        reason={{ label: "Reason (the owner sees this)", required: true, placeholder: "We're fully booked that day" }}
+        onConfirm={async (reason) => {
+          if (!declining) return { error: null }
+          const res = await setAppointmentStatus(declining.id, "cancelled", reason ?? undefined)
+          if (res.error) return res
+          toast.success("Request declined")
+          appts.refetch()
+          return { error: null }
+        }}
+      />
+
       <Modal
         open={taskOpen}
         onClose={() => setTaskOpen(false)}
@@ -307,7 +330,8 @@ export function ClinicTodayScreen({
               onClick={async () => {
                 const res = await addTask(clinic.businessId, taskTitle, todayISO(new Date(), tz))
                 if (res.error) {
-                  toast.error(res.error)
+                  // The only message a person can act on is the empty title.
+                  toast.error(taskTitle.trim() ? "Couldn't add the task. Try again." : "Say what needs doing.")
                   return
                 }
                 setTaskTitle("")

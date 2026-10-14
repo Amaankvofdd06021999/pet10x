@@ -275,7 +275,8 @@ export async function setAppointmentStatus(
     p_status: status,
     p_note: note ?? undefined,
   })
-  if (error) return { error: error.message }
+  // A transport failure's text is for developers; say what to do instead.
+  if (error) return { error: "Couldn't update the appointment. Try again." }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
 }

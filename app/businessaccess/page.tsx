@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { PasswordField } from "@/components/ui/password-field"
 import { CodeEntry, CODE_TTL_MS, RESEND_COOLDOWN_MS } from "@/components/auth/code-entry"
 import { ConsentLine } from "@/components/legal/consent-line"
@@ -90,7 +91,7 @@ function Gate() {
  * component's state until then, exactly as on the resident screen.
  */
 function BusinessAuth() {
-  const { signInWithPassword, startSignup, verifySignup } = useAuth()
+  const { signInWithPassword, startSignup, verifySignup, resetPassword } = useAuth()
   const [mode, setMode] = useState<"signin" | "signup">("signin")
   const [step, setStep] = useState<"details" | "code">("details")
   const [f, setF] = useState({ businessName: "", category: CATEGORIES[0] as string, fullName: "", email: "", password: "" })
@@ -162,6 +163,16 @@ function BusinessAuth() {
     const sent = await sendCode()
     setLoading(false)
     if (sent) setStep("code")
+  }
+
+  // The same reset email /login sends (lib/auth-context resetPassword).
+  async function forgot() {
+    setError(null)
+    setInfo(null)
+    if (!f.email.trim()) return setError("Enter your email first, then tap “Forgot password?”.")
+    const { error: e } = await resetPassword(f.email.trim())
+    if (e) setError(e)
+    else setInfo(`Password reset link sent to ${f.email.trim()}.`)
   }
 
   async function verify() {
@@ -306,6 +317,7 @@ function BusinessAuth() {
                   showRules={mode === "signup"}
                 />
                 {error && <p className="text-[13px] text-destructive">{error}</p>}
+                {info && <p className="text-[13px] text-success">{info}</p>}
                 <button
                   onClick={submit}
                   disabled={loading}
@@ -314,6 +326,19 @@ function BusinessAuth() {
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                   {mode === "signin" ? "Sign in" : "Email me a code"}
                 </button>
+                {mode === "signin" && (
+                  <>
+                    <button type="button" onClick={() => void forgot()} className="text-center text-[13px] font-medium text-accent">
+                      Forgot password?
+                    </button>
+                    <Link
+                      href="/login?mode=signup&next=%2Fbusinessaccess"
+                      className="text-center text-[13px] font-medium text-accent"
+                    >
+                      Create an account
+                    </Link>
+                  </>
+                )}
               </div>
             </>
           )}
