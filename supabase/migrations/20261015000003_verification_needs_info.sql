@@ -12,7 +12,7 @@
 -- WHAT THIS DOES (no table, policy or index changes)
 --
 --   1. admin_request_verification_info(p_request, p_note) -> jsonb
---      Admin only (42501). The note is required, trimmed, 2000 characters at
+--      Admin only (42501). The note is required, trimmed of all whitespace (regexp `\s`), 2000 characters at
 --      most (22023). Allowed only from 'submitted' or 'in_review'; anything
 --      else is {ok:false, error:'not_open'} (a second question on a
 --      needs_info row is not a thing: the clinic has not answered yet).
@@ -43,7 +43,7 @@ as $$
 declare
   v_req  record;
   v_biz  record;
-  v_note text := nullif(btrim(coalesce(p_note, '')), '');
+  v_note text := nullif(regexp_replace(coalesce(p_note, ''), '^\s+|\s+$', '', 'g'), '');
 begin
   if not public.is_admin() then
     raise exception 'Only a Pet10x admin can ask for more information' using errcode = '42501';

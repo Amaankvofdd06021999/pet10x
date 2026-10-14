@@ -28,7 +28,8 @@ begin;
 -- WHAT THIS DOES
 --
 --   1. manager_decide_registration gains `p_note text default null`.
---      Deny REQUIRES a note (trimmed; whitespace is not a reason), at most
+--      Deny REQUIRES a note (trimmed of all whitespace — tabs and
+--      newlines too, regexp `\s`; whitespace is not a reason), at most
 --      2000 characters — the same rule pet document rejections and
 --      accommodation denials follow, for the same reason: a "no" the owner
 --      cannot learn the reason for is a dead end. Approve takes an optional
@@ -89,7 +90,7 @@ set search_path = public, pg_temp
 as $function$
 declare
   v_pet  public.pets%rowtype;
-  v_note text := nullif(btrim(coalesce(p_note, '')), '');
+  v_note text := nullif(regexp_replace(coalesce(p_note, ''), '^\s+|\s+$', '', 'g'), '');
 begin
   -- The live check, unchanged in meaning: the pet must exist AND the caller
   -- must manage its building (or be an admin). It comes first, so nothing
@@ -182,7 +183,7 @@ set search_path = public, pg_temp
 as $$
 declare
   v_link     public.resident_links%rowtype;
-  v_reason   text := nullif(btrim(coalesce(p_reason, '')), '');
+  v_reason   text := nullif(regexp_replace(coalesce(p_reason, ''), '^\s+|\s+$', '', 'g'), '');
   v_to       public.resident_link_status;
   v_building text;
 begin
@@ -567,7 +568,7 @@ grant execute on function public.admin_delete_business(uuid, text) to authentica
 -- WHAT THIS DOES (no table, policy or index changes)
 --
 --   1. admin_request_verification_info(p_request, p_note) -> jsonb
---      Admin only (42501). The note is required, trimmed, 2000 characters at
+--      Admin only (42501). The note is required, trimmed of all whitespace (regexp `\s`), 2000 characters at
 --      most (22023). Allowed only from 'submitted' or 'in_review'; anything
 --      else is {ok:false, error:'not_open'} (a second question on a
 --      needs_info row is not a thing: the clinic has not answered yet).
@@ -598,7 +599,7 @@ as $$
 declare
   v_req  record;
   v_biz  record;
-  v_note text := nullif(btrim(coalesce(p_note, '')), '');
+  v_note text := nullif(regexp_replace(coalesce(p_note, ''), '^\s+|\s+$', '', 'g'), '');
 begin
   if not public.is_admin() then
     raise exception 'Only a Pet10x admin can ask for more information' using errcode = '42501';
@@ -840,7 +841,8 @@ comment on function public.admin_building_activity() is
 --
 -- Whitespace: every required reason is trimmed of all whitespace (tabs and
 -- newlines too, regexp `\s`), not just spaces — btrim() alone leaves a tab,
--- which is not a reason.
+-- which is not a reason. The same expression, nullif(regexp_replace(coalesce(x,
+-- ''), '^\s+|\s+$', '', 'g'), ''), is used in 20261015000001 and 000003.
 
 -- ---------------------------------------------------------------------------
 -- 1. Business contact details
@@ -941,7 +943,8 @@ grant execute on function public.business_cancel_booking(uuid, text) to authenti
 -- ---------------------------------------------------------------------------
 -- LIVE body (identical to 20261012000009), with `cancelled` added: the status
 -- list, one guard (only a business's cancellation), the reason column it
--- quotes, and a branch in each CASE.
+-- quotes (trimmed of all whitespace, as every reason in this migration), and a
+-- branch in each CASE.
 create or replace function public.notify_customer_of_booking_status()
 returns trigger
 language plpgsql
@@ -970,8 +973,9 @@ begin
   select b.name into v_biz from public.businesses b where b.id = new.business_id;
   select s.name into v_service from public.business_services s where s.id = new.service_id;
   v_when := public.booking_when(new.scheduled_for, new.customer_id);
-  v_reason := nullif(trim(coalesce(
-    case when new.status = 'cancelled' then new.cancelled_reason else new.declined_reason end, '')), '');
+  v_reason := nullif(regexp_replace(coalesce(
+    case when new.status = 'cancelled' then new.cancelled_reason else new.declined_reason end, ''),
+    '^\s+|\s+$', '', 'g'), '');
 
   insert into public.notifications
     (profile_id, kind, severity, title, body, action_label, action_target)
@@ -1376,7 +1380,7 @@ begin
   select b.name into v_clinic from public.businesses b where b.id = new.business_id;
   v_clinic := coalesce(nullif(trim(coalesce(v_clinic, '')), ''), 'Your vet');
   v_when := public.booking_when(new.starts_at, v_owner);
-  v_reason := nullif(trim(coalesce(new.cancel_reason, '')), '');
+  v_reason := nullif(regexp_replace(coalesce(new.cancel_reason, ''), '^\s+|\s+$', '', 'g'), '');
 
   insert into public.notifications
     (profile_id, kind, severity, title, body, action_label, action_target)

@@ -79,7 +79,8 @@
 --
 -- Whitespace: every required reason is trimmed of all whitespace (tabs and
 -- newlines too, regexp `\s`), not just spaces — btrim() alone leaves a tab,
--- which is not a reason.
+-- which is not a reason. The same expression, nullif(regexp_replace(coalesce(x,
+-- ''), '^\s+|\s+$', '', 'g'), ''), is used in 20261015000001 and 000003.
 
 -- ---------------------------------------------------------------------------
 -- 1. Business contact details
@@ -180,7 +181,8 @@ grant execute on function public.business_cancel_booking(uuid, text) to authenti
 -- ---------------------------------------------------------------------------
 -- LIVE body (identical to 20261012000009), with `cancelled` added: the status
 -- list, one guard (only a business's cancellation), the reason column it
--- quotes, and a branch in each CASE.
+-- quotes (trimmed of all whitespace, as every reason in this migration), and a
+-- branch in each CASE.
 create or replace function public.notify_customer_of_booking_status()
 returns trigger
 language plpgsql
@@ -209,8 +211,9 @@ begin
   select b.name into v_biz from public.businesses b where b.id = new.business_id;
   select s.name into v_service from public.business_services s where s.id = new.service_id;
   v_when := public.booking_when(new.scheduled_for, new.customer_id);
-  v_reason := nullif(trim(coalesce(
-    case when new.status = 'cancelled' then new.cancelled_reason else new.declined_reason end, '')), '');
+  v_reason := nullif(regexp_replace(coalesce(
+    case when new.status = 'cancelled' then new.cancelled_reason else new.declined_reason end, ''),
+    '^\s+|\s+$', '', 'g'), '');
 
   insert into public.notifications
     (profile_id, kind, severity, title, body, action_label, action_target)
@@ -615,7 +618,7 @@ begin
   select b.name into v_clinic from public.businesses b where b.id = new.business_id;
   v_clinic := coalesce(nullif(trim(coalesce(v_clinic, '')), ''), 'Your vet');
   v_when := public.booking_when(new.starts_at, v_owner);
-  v_reason := nullif(trim(coalesce(new.cancel_reason, '')), '');
+  v_reason := nullif(regexp_replace(coalesce(new.cancel_reason, ''), '^\s+|\s+$', '', 'g'), '');
 
   insert into public.notifications
     (profile_id, kind, severity, title, body, action_label, action_target)

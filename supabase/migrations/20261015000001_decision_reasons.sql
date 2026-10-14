@@ -20,7 +20,8 @@
 -- WHAT THIS DOES
 --
 --   1. manager_decide_registration gains `p_note text default null`.
---      Deny REQUIRES a note (trimmed; whitespace is not a reason), at most
+--      Deny REQUIRES a note (trimmed of all whitespace — tabs and
+--      newlines too, regexp `\s`; whitespace is not a reason), at most
 --      2000 characters — the same rule pet document rejections and
 --      accommodation denials follow, for the same reason: a "no" the owner
 --      cannot learn the reason for is a dead end. Approve takes an optional
@@ -81,7 +82,7 @@ set search_path = public, pg_temp
 as $function$
 declare
   v_pet  public.pets%rowtype;
-  v_note text := nullif(btrim(coalesce(p_note, '')), '');
+  v_note text := nullif(regexp_replace(coalesce(p_note, ''), '^\s+|\s+$', '', 'g'), '');
 begin
   -- The live check, unchanged in meaning: the pet must exist AND the caller
   -- must manage its building (or be an admin). It comes first, so nothing
@@ -174,7 +175,7 @@ set search_path = public, pg_temp
 as $$
 declare
   v_link     public.resident_links%rowtype;
-  v_reason   text := nullif(btrim(coalesce(p_reason, '')), '');
+  v_reason   text := nullif(regexp_replace(coalesce(p_reason, ''), '^\s+|\s+$', '', 'g'), '');
   v_to       public.resident_link_status;
   v_building text;
 begin
