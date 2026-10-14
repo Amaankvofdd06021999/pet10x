@@ -1489,6 +1489,134 @@ create trigger trg_appts_notify_status
   execute function public.notify_owner_of_appointment_status();
 
 
+-- ===== migration 20261015000006_clinic_defaults.sql =====
+-- Pet10x — a new business starts with appointment types and weekday hours,
+-- so a new clinic can be booked on day one.
+--
+-- THE GAP (UX audit, vet clinics):
+--   * business_bootstrap (20260901000000) gives a new business its owner's
+--     staff row and a primary location, and nothing else. A clinic with no
+--     appointment_types has nothing to book, and one with no
+--     staff_availability has no slots: clinic_available_slots returns [] until
+--     someone finds both settings screens. Seven live businesses have zero
+--     appointment types today.
+--
+-- WHAT THIS DOES
+--
+--   1. seed_business_defaults(p_business) -> void. Internal only: SECURITY
+--      DEFINER, search_path public, pg_temp, execute revoked from public,
+--      anon and authenticated (only business_bootstrap and this migration's
+--      backfill call it). Two independent seeds, each only when the business
+--      has none of that thing yet, so calling it again changes nothing:
+--
+--      * appointment_types, when the business has zero (active or not), by
+--        business_kind (text, FK to business_types):
+--          veterinary — Wellness exam 30 min, Vaccination 15, Sick visit 30;
+--                       online-bookable, each request confirmed by the
+--                       practice (requires_confirmation true).
+--          grooming   — Bath & brush 60 min, Full groom 90; not online-bookable.
+--          any other  — Appointment 30 min; not online-bookable.
+--        Only a clinic takes online visit requests through these types, so
+--        only veterinary ones are bookable out of the box; everyone else can
+--        switch it on. price_cents is 0, the column's NOT NULL default: 0
+--        means "no price set", not "free". sort_order 0, 1, 2.
+--
+--      * staff_availability, when the business has zero rows: Monday to
+--        Friday (weekday 1..5, extract(dow) — 0 is Sunday, as
+--        clinic_available_slots reads it) 09:00–17:00 for the owner's own
+--        business_staff row, location_id null (every location). The times
+--        are local to the business: clinic_available_slots reads them in
+--        businesses.timezone. A business whose owner has no staff row gets
+--        no hours (nothing to attach them to).
+--
+--   2. business_bootstrap — LIVE definition (as 20260901000000) verbatim,
+--      plus a call to seed_business_defaults(new.id) after the staff row
+--      exists. The trigger is unchanged and is not recreated.
+--
+--   3. Backfill: every existing business through the same helper. Its own
+--      zero-row checks make this touch only the businesses that are missing
+--      types or hours; the rest are left exactly as they are.
+
+-- ---------------------------------------------------------------------------
+-- 1. The defaults
+-- ---------------------------------------------------------------------------
+create or replace function public.seed_business_defaults(p_business uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_kind  text;
+  v_owner uuid;
+begin
+  select b.business_kind, b.owner_id into v_kind, v_owner
+    from public.businesses b where b.id = p_business;
+  if not found then
+    return;
+  end if;
+
+  if not exists (select 1 from public.appointment_types t where t.business_id = p_business) then
+    insert into public.appointment_types
+      (business_id, name, duration_min, price_cents, is_online_bookable, requires_confirmation, sort_order)
+    select p_business, d.name, d.duration_min, 0, d.bookable, true, d.sort_order
+      from (values
+              ('veterinary', 'Wellness exam', 30, true,  0),
+              ('veterinary', 'Vaccination',   15, true,  1),
+              ('veterinary', 'Sick visit',    30, true,  2),
+              ('grooming',   'Bath & brush',  60, false, 0),
+              ('grooming',   'Full groom',    90, false, 1),
+              ('other',      'Appointment',   30, false, 0)
+           ) as d(kind, name, duration_min, bookable, sort_order)
+     where d.kind = case when v_kind in ('veterinary', 'grooming') then v_kind else 'other' end;
+  end if;
+
+  if not exists (select 1 from public.staff_availability a where a.business_id = p_business) then
+    insert into public.staff_availability (business_id, staff_id, location_id, weekday, start_time, end_time)
+    select p_business, s.id, null, wd.weekday::smallint, '09:00'::time, '17:00'::time
+      from public.business_staff s
+      cross join generate_series(1, 5) as wd(weekday)
+     where s.business_id = p_business and s.profile_id = v_owner;
+  end if;
+end;
+$$;
+
+revoke all on function public.seed_business_defaults(uuid) from public, anon, authenticated;
+
+comment on function public.seed_business_defaults(uuid) is
+  'Internal (20261015000006); called by business_bootstrap and the backfill, not by clients. When the business has no appointment_types: veterinary gets Wellness exam 30, Vaccination 15, Sick visit 30 (online-bookable); grooming Bath & brush 60, Full groom 90; any other kind Appointment 30 (not online-bookable); price_cents 0 means no price set. When it has no staff_availability: Mon-Fri (dow 1..5) 09:00-17:00 for the owner''s business_staff row, every location. Idempotent.';
+
+-- ---------------------------------------------------------------------------
+-- 2. business_bootstrap seeds them for every new business
+-- ---------------------------------------------------------------------------
+-- LIVE definition verbatim, plus the call at the end: the owner's staff row
+-- must exist before hours can hang off it.
+create or replace function public.business_bootstrap()
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  insert into public.business_staff (business_id, profile_id, role, is_active, is_bookable, joined_at)
+  values (new.id, new.owner_id,
+          case when new.business_kind = 'veterinary' then 'veterinarian'::public.clinic_staff_role
+               else 'owner'::public.clinic_staff_role end,
+          true, true, now())
+  on conflict (business_id, profile_id) do nothing;
+  insert into public.business_locations
+    (business_id, name, address, city, region, postal_code, country, latitude, longitude, is_primary)
+  values (new.id, coalesce(new.name,'Main location'), new.address, new.city, new.region,
+          new.postal_code, coalesce(new.country,'CA'), new.latitude, new.longitude, true);
+  perform public.seed_business_defaults(new.id);
+  return new;
+end; $$;
+
+comment on function public.business_bootstrap() is
+  'AFTER INSERT on businesses (20260901000000, 20261015000006): the owner''s staff row, a primary location, then seed_business_defaults — appointment types and Mon-Fri 09:00-17:00 hours — so a new business can be booked on day one.';
+
+-- ---------------------------------------------------------------------------
+-- 3. Backfill the businesses that already exist
+-- ---------------------------------------------------------------------------
+select public.seed_business_defaults(b.id) from public.businesses b;
+
+
 -- ===== checks part-a-archive =====
 -- Part A — owner_archive_pet, impersonated, in ONE rolled-back transaction.
 --
@@ -4035,6 +4163,15 @@ rollback to savepoint checks; reset role;
 --   estimates. The owner is the business side throughout, the outsider the
 --   customer and pet owner.
 --
+-- Covers 20261015000006 (section 15): a new veterinary business (inserted, so
+--   business_bootstrap fires) has exactly Wellness exam / Vaccination / Sick
+--   visit, active and online-bookable, and Mon-Fri 09:00-17:00 on the owner's
+--   staff row; clinic_available_slots, asked by the owner, offers at least one
+--   slot for its first type on the next Monday at least two days out. A new
+--   grooming business gets Bath & brush and Full groom, neither online-
+--   bookable. seed_business_defaults called again adds nothing, and no client
+--   role can execute it.
+--
 -- Actors are chosen from live data, not invented: Maple Court Residences
 -- (MCR2026), a non-admin manager of it, and two non-admin profiles that manage
 -- no building and hold no pending or approved link anywhere (an owner and an
@@ -5129,6 +5266,124 @@ begin
      and body = 'The owner declined the estimate PG-E1 for Part G Rex (120.00 CAD). Reason: Too expensive right now';
   if v_n <> 1 then raise exception 'FAIL: the practice got % estimate-declined notices, expected 1', v_n; end if;
   raise notice 'ok: the practice hears of the owner''s cancel (clinic:today) and decline (clinic:billing)';
+end $$;
+reset role;
+
+-- ===========================================================================
+-- 15. A new business can be booked on day one (20261015000006): fixtures and
+--     checks as the connection role, then the slots as the owner
+-- ===========================================================================
+-- Two businesses with an explicit business_kind (the earlier fixtures pass
+-- only a category, so they are kind 'other'): inserting them fires
+-- business_bootstrap, which now seeds types and hours.
+reset role;
+select set_config('request.jwt.claims', '', true);
+do $$
+declare
+  v_owner uuid := current_setting('part_g.owner')::uuid;
+  v_vet uuid; v_groom uuid; v_staff uuid; v_n int; v_m int;
+begin
+  insert into public.businesses (owner_id, name, category, business_kind)
+  values (v_owner, 'Part G New Clinic', 'Veterinary', 'veterinary') returning id into v_vet;
+  insert into public.businesses (owner_id, name, category, business_kind)
+  values (v_owner, 'Part G New Groomer', 'Grooming', 'grooming') returning id into v_groom;
+
+  -- The vet: three active, online-bookable types, confirmed by the practice.
+  select count(*) into v_n from public.appointment_types
+   where business_id = v_vet and is_active and is_online_bookable and requires_confirmation
+     and price_cents = 0
+     and (name, duration_min, sort_order) in (('Wellness exam', 30, 0), ('Vaccination', 15, 1), ('Sick visit', 30, 2));
+  select count(*) into v_m from public.appointment_types where business_id = v_vet;
+  if v_n <> 3 or v_m <> 3 then
+    raise exception 'FAIL: the new clinic has % matching bookable types of %, expected 3 of 3', v_n, v_m;
+  end if;
+
+  -- Its hours: Mon-Fri 09:00-17:00 on the owner's own staff row, every location.
+  select s.id into v_staff from public.business_staff s
+   where s.business_id = v_vet and s.profile_id = v_owner and s.is_active and s.is_bookable;
+  if v_staff is null then raise exception 'FAIL: the new clinic has no active, bookable owner staff row'; end if;
+  select count(*) into v_n from public.staff_availability
+   where business_id = v_vet and staff_id = v_staff and location_id is null
+     and weekday between 1 and 5 and start_time = '09:00'::time and end_time = '17:00'::time
+     and valid_from is null and valid_to is null;
+  select count(distinct weekday) into v_m from public.staff_availability where business_id = v_vet;
+  if v_n <> 5 or v_m <> 5
+     or (select count(*) from public.staff_availability where business_id = v_vet) <> 5 then
+    raise exception 'FAIL: the new clinic has % weekday 09-17 rows over % weekdays, expected 5 and 5', v_n, v_m;
+  end if;
+  raise notice 'ok: a new clinic starts with Wellness exam, Vaccination and Sick visit, bookable online, and Mon-Fri 09:00-17:00';
+
+  -- The groomer: two types, neither bookable online; the same hours.
+  select count(*) into v_n from public.appointment_types
+   where business_id = v_groom and is_active and not is_online_bookable and price_cents = 0
+     and (name, duration_min, sort_order) in (('Bath & brush', 60, 0), ('Full groom', 90, 1));
+  select count(*) into v_m from public.appointment_types where business_id = v_groom;
+  if v_n <> 2 or v_m <> 2 then
+    raise exception 'FAIL: the new groomer has % matching types of %, expected 2 of 2, none online-bookable', v_n, v_m;
+  end if;
+  select count(*) into v_n from public.staff_availability sa
+    join public.business_staff s on s.id = sa.staff_id and s.profile_id = v_owner
+   where sa.business_id = v_groom and sa.weekday between 1 and 5;
+  if v_n <> 5 then raise exception 'FAIL: the new groomer has % weekday hours rows, expected 5', v_n; end if;
+  raise notice 'ok: a new groomer starts with Bath & brush and Full groom, not bookable online, and weekday hours';
+
+  -- Calling the helper again (twice) adds nothing.
+  perform public.seed_business_defaults(v_vet);
+  perform public.seed_business_defaults(v_vet);
+  perform public.seed_business_defaults(v_groom);
+  if (select count(*) from public.appointment_types where business_id = v_vet) <> 3
+     or (select count(*) from public.staff_availability where business_id = v_vet) <> 5
+     or (select count(*) from public.appointment_types where business_id = v_groom) <> 2
+     or (select count(*) from public.staff_availability where business_id = v_groom) <> 5 then
+    raise exception 'FAIL: seed_business_defaults duplicated rows on a second call';
+  end if;
+  raise notice 'ok: seed_business_defaults is idempotent';
+
+  -- Internal only: no client role may call it.
+  if has_function_privilege('authenticated', 'public.seed_business_defaults(uuid)', 'execute')
+     or has_function_privilege('anon', 'public.seed_business_defaults(uuid)', 'execute') then
+    raise exception 'FAIL: a client role can execute seed_business_defaults';
+  end if;
+  raise notice 'ok: seed_business_defaults is not callable by clients';
+
+  -- What the owner's block below needs, read here, so that block tests only
+  -- clinic_available_slots and does not lean on any table's read policy.
+  perform set_config('part_g.biz_new_vet', v_vet::text, true);
+  perform set_config('part_g.new_vet_staff', v_staff::text, true);
+  perform set_config('part_g.new_vet_type',
+    (select id from public.appointment_types where business_id = v_vet order by sort_order, name limit 1)::text, true);
+  perform set_config('part_g.new_vet_tz',
+    (select coalesce(timezone, 'America/Vancouver') from public.businesses where id = v_vet), true);
+end $$;
+
+-- The owner is staff of the new clinic, so clinic_available_slots answers
+-- whatever the clinic's tier (a new business is only registered, not public).
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.owner'), 'role', 'authenticated')::text, true);
+do $$
+declare
+  v_vet uuid := current_setting('part_g.biz_new_vet')::uuid;
+  v_type uuid := current_setting('part_g.new_vet_type')::uuid;
+  v_tz text := current_setting('part_g.new_vet_tz');
+  v_day date; v_slots jsonb;
+begin
+  if public.is_admin() then raise exception 'FIXTURE: owner is an admin'; end if;
+  if not public.staff_of_business(v_vet) then raise exception 'FIXTURE: the owner is not staff of the new clinic'; end if;
+  -- The first Monday at least two days out in the clinic's own time zone, so
+  -- every 09:00 slot that day is in the future.
+  v_day := (now() at time zone v_tz)::date + 2;
+  v_day := v_day + ((8 - extract(isodow from v_day)::int) % 7);
+  if extract(dow from v_day) <> 1 then raise exception 'FIXTURE: % is not a Monday', v_day; end if;
+
+  v_slots := public.clinic_available_slots(v_vet, v_type, v_day);
+  if jsonb_typeof(v_slots) is distinct from 'array' or jsonb_array_length(v_slots) < 1 then
+    raise exception 'FAIL: the new clinic offers no slots on % (%)', v_day, v_slots;
+  end if;
+  if (v_slots -> 0 ->> 'staff_id')::uuid is distinct from current_setting('part_g.new_vet_staff')::uuid then
+    raise exception 'FAIL: the first slot is not with the owner''s staff row: %', v_slots -> 0;
+  end if;
+  raise notice 'ok: the new clinic offers % slots for its first type on Monday %', jsonb_array_length(v_slots), v_day;
 end $$;
 reset role;
 
