@@ -13,7 +13,7 @@ D=$(date +%F)
   echo "-- Any other error is the first thing that broke; fix it before running apply.sql."
   echo "begin;"
   for f in "${M[@]}"; do printf '\n-- ===== migration %s =====\n' "$f"; cat "migrations/$f"; echo; done
-  for t in part-g; do
+  for t in part-a-archive part-b part-c part-e part-d part-f part-g; do
     printf '\n-- ===== checks %s =====\n' "$t"
     sed -E 's/^begin;[[:space:]]*$/savepoint checks;/; s/^rollback;[[:space:]]*$/rollback to savepoint checks; reset role;/' "tests/$t.sql"
     echo

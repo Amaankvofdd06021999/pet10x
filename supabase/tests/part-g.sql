@@ -5,8 +5,9 @@
 --   * manager_decide_registration — a deny with a note notifies the owner and
 --     the body quotes the note; a whitespace-only note, and a 2-argument deny
 --     with no note at all, are refused (22023); an approve with no note is
---     allowed and notifies too; a non-manager is refused (42501); both
---     decisions are audit-logged.
+--     allowed and notifies too; deciding a registration that is no longer
+--     pending is refused (22023) and notifies nobody again; a non-manager is
+--     refused (42501); both decisions are audit-logged.
 --   * manager_decide_link — approve, remove and deny each move the link,
 --     stamp decided_at/decided_by, notify the resident (the reason quoted when
 --     given) and write audit_log; removing a link that is still pending, and a
@@ -15,7 +16,9 @@
 --
 -- Actors are chosen from live data, not invented: Maple Court Residences
 -- (MCR2026), a non-admin manager of it, and two non-admin profiles that manage
--- no building (an owner and an outsider). Each is asserted is_admin() = false
+-- no building and hold no pending or approved link anywhere (an owner and an
+-- outsider) — so the fixture links cannot collide with
+-- resident_links_active_uniq, whatever its exact columns. Each is asserted is_admin() = false
 -- inside its own impersonation, because every check here carries is_admin() as
 -- a disjunct and an admin control proves nothing. The pet and the two links
 -- are fixtures planted in this transaction.
@@ -42,7 +45,7 @@ begin;
 do $$
 declare
   v_building uuid; v_manager uuid; v_owner uuid; v_outsider uuid;
-  v_pet uuid; v_link_a uuid; v_link_b uuid;
+  v_pet uuid; v_pet_b uuid; v_link_a uuid; v_link_b uuid;
 begin
   select b.id into v_building from public.buildings b where upper(b.building_code) = 'MCR2026';
   if v_building is null then raise exception 'FIXTURE: building MCR2026 not found'; end if;
@@ -57,19 +60,27 @@ begin
   select pr.id into v_owner from public.profiles pr
    where not coalesce(pr.is_super_admin, false) and not pr.is_suspended
      and not exists (select 1 from public.building_managers bm where bm.profile_id = pr.id)
+     and not exists (select 1 from public.resident_links rl
+                      where rl.profile_id = pr.id and rl.status in ('pending', 'approved'))
    order by pr.created_at, pr.id limit 1;
   select pr.id into v_outsider from public.profiles pr
    where pr.id <> v_owner and not coalesce(pr.is_super_admin, false) and not pr.is_suspended
      and not exists (select 1 from public.building_managers bm where bm.profile_id = pr.id)
+     and not exists (select 1 from public.resident_links rl
+                      where rl.profile_id = pr.id and rl.status in ('pending', 'approved'))
    order by pr.created_at, pr.id limit 1;
   if v_owner is null or v_outsider is null then
-    raise exception 'FIXTURE: need two non-admin profiles that manage no building';
+    raise exception 'FIXTURE: need two non-admin profiles that manage no building and hold no active link';
   end if;
 
-  -- A pet waiting on a registration decision in MCR2026.
+  -- Two pets waiting on a registration decision in MCR2026: Biscuit will be
+  -- denied, Pepper approved.
   insert into public.pets (owner_id, name, species, building_id, registration_status)
   values (v_owner, 'Part G Biscuit', 'dog', v_building, 'pending')
   returning id into v_pet;
+  insert into public.pets (owner_id, name, species, building_id, registration_status)
+  values (v_owner, 'Part G Pepper', 'cat', v_building, 'pending')
+  returning id into v_pet_b;
 
   -- Two pending link requests: A will be approved then removed; B will be
   -- refused an illegal removal, then denied with a reason.
@@ -83,10 +94,11 @@ begin
   perform set_config('part_g.owner', v_owner::text, true);
   perform set_config('part_g.outsider', v_outsider::text, true);
   perform set_config('part_g.pet', v_pet::text, true);
+  perform set_config('part_g.pet_b', v_pet_b::text, true);
   perform set_config('part_g.link_a', v_link_a::text, true);
   perform set_config('part_g.link_b', v_link_b::text, true);
-  raise notice 'fixtures: building % manager % owner % outsider % pet % links % %',
-    v_building, v_manager, v_owner, v_outsider, v_pet, v_link_a, v_link_b;
+  raise notice 'fixtures: building % manager % owner % outsider % pets % % links % %',
+    v_building, v_manager, v_owner, v_outsider, v_pet, v_pet_b, v_link_a, v_link_b;
 end $$;
 
 -- ===========================================================================
@@ -104,7 +116,7 @@ begin
   exception when insufficient_privilege then null;
   end;
   begin
-    perform public.manager_decide_registration(current_setting('part_g.pet')::uuid, true);
+    perform public.manager_decide_registration(current_setting('part_g.pet_b')::uuid, true);
     raise exception 'FAIL: a non-manager approved a registration';
   exception when insufficient_privilege then null;
   end;
@@ -123,12 +135,15 @@ begin
 end $$;
 
 -- ===========================================================================
--- 2. Registration: a deny needs a reason; an approve does not
+-- 2. Registration: a deny needs a reason; an approve does not; a decided
+--    registration is not decided again
 -- ===========================================================================
 select set_config('request.jwt.claims',
   json_build_object('sub', current_setting('part_g.manager'), 'role', 'authenticated')::text, true);
 do $$
-declare v_pet uuid := current_setting('part_g.pet')::uuid;
+declare
+  v_pet uuid := current_setting('part_g.pet')::uuid;
+  v_pet_b uuid := current_setting('part_g.pet_b')::uuid;
 begin
   if public.is_admin() then raise exception 'FIXTURE: manager is an admin'; end if;
   if not public.manages_building(current_setting('part_g.building')::uuid) then
@@ -161,11 +176,29 @@ begin
     raise exception 'FAIL: the deny did not deny';
   end if;
 
-  perform public.manager_decide_registration(v_pet, true);
-  if (select registration_status from public.pets where id = v_pet) <> 'approved' then
+  perform public.manager_decide_registration(v_pet_b, true);
+  if (select registration_status from public.pets where id = v_pet_b) <> 'approved' then
     raise exception 'FAIL: the approve with no note did not approve';
   end if;
-  raise notice 'ok: blank, missing and over-long reasons are refused (22023); a reasoned deny and a bare approve go through';
+
+  -- A second tap on either: refused, and (checked in section 4) nobody is
+  -- notified twice.
+  begin
+    perform public.manager_decide_registration(v_pet, false, 'Still over the limit');
+    raise exception 'FAIL: a denied registration was denied again';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.manager_decide_registration(v_pet, true);
+    raise exception 'FAIL: a denied registration was approved without a new application';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    perform public.manager_decide_registration(v_pet_b, true);
+    raise exception 'FAIL: an approved registration was approved again';
+  exception when invalid_parameter_value then null;
+  end;
+  raise notice 'ok: blank, missing and over-long reasons are refused (22023); a reasoned deny and a bare approve go through; a decided registration is not decided again (22023)';
 end $$;
 
 -- ===========================================================================
@@ -227,6 +260,7 @@ reset role;
 do $$
 declare
   v_pet uuid := current_setting('part_g.pet')::uuid;
+  v_pet_b uuid := current_setting('part_g.pet_b')::uuid;
   v_owner uuid := current_setting('part_g.owner')::uuid;
   v_outsider uuid := current_setting('part_g.outsider')::uuid;
   v_manager uuid := current_setting('part_g.manager')::uuid;
@@ -245,12 +279,17 @@ begin
 
   select count(*) into v_n from public.notifications
    where profile_id = v_owner and created_at >= now()
-     and action_target = 'pet-detail:' || v_pet::text
+     and action_target = 'pet-detail:' || v_pet::text;
+  if v_n <> 1 then raise exception 'FAIL: the denied pet''s owner got % notifications, expected 1 (a refused retry notified)', v_n; end if;
+
+  select count(*) into v_n from public.notifications
+   where profile_id = v_owner and created_at >= now()
+     and action_target = 'pet-detail:' || v_pet_b::text
      and kind = 'building' and severity = 'success';
   if v_n <> 1 then raise exception 'FAIL: the owner got % approve notifications, expected 1', v_n; end if;
 
   select count(*) into v_n from public.audit_log
-   where action = 'pet.registration_decided' and entity_id = v_pet and actor_id = v_manager
+   where action = 'pet.registration_decided' and entity_id in (v_pet, v_pet_b) and actor_id = v_manager
      and created_at >= now();
   if v_n <> 2 then raise exception 'FAIL: % registration audit rows, expected 2', v_n; end if;
   if not exists (select 1 from public.audit_log

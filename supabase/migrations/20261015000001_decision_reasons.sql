@@ -27,6 +27,11 @@
 --      note. Both outcomes now notify the owner (kind `building`, opening
 --      pet-detail:<pet>) and write audit_log `pet.registration_decided`.
 --      The 'forbidden' refusal keeps its words and gains errcode 42501.
+--      It decides only a PENDING registration (22023 otherwise): the live
+--      version would re-decide anything, so a second tap re-notified the
+--      owner. Every manager queue lists pending pets only
+--      (lib/data/manager-queues.ts), so a denied pet is not re-decided from
+--      the app — the owner applies again, which puts it back to pending.
 --      The old 2-argument overload is DROPPED, not left beside the new one:
 --      two overloads would make a 2-argument call ambiguous. A client still
 --      sending only (p_pet, p_approve) resolves to the new function through
@@ -39,10 +44,14 @@
 --          deny      pending  -> denied
 --          remove    approved -> left      (left_at = now())
 --
---      Anything else is 22023. It stamps decided_at/decided_by, notifies the
---      resident (opening link-building), quotes the optional reason as
---      "Reason: …", and writes audit_log `resident_link.decided`.
---      Returns {ok:true, status, from} or {ok:false, error:'not_found'}.
+--      Anything else is 22023. Approving a resident who already holds an
+--      approved link to the same building returns {ok:false,
+--      error:'already_member'} instead of a raw unique-violation.
+--      It stamps decided_at/decided_by, notifies the resident (opening
+--      link-building), quotes the optional reason as "Reason: …", and writes
+--      audit_log `resident_link.decided`.
+--      Returns {ok:true, status, from} or {ok:false, error: not_found |
+--      already_member}.
 --
 -- WHAT IT DOES NOT TOUCH
 --
@@ -68,7 +77,7 @@ create or replace function public.manager_decide_registration(
 returns void
 language plpgsql
 security definer
-set search_path to 'public'
+set search_path = public, pg_temp
 as $function$
 declare
   v_pet  public.pets%rowtype;
@@ -99,11 +108,21 @@ begin
             hint    = 'Keep it to 2000 characters or fewer.';
   end if;
 
+  -- FOR UPDATE, then the state check: two taps (or two managers) cannot both
+  -- decide, and the second gets a sentence instead of a second notification.
   select * into v_pet from public.pets where id = p_pet for update;
+  if not coalesce(v_pet.registration_status = 'pending', false) then
+    -- The code rides in DETAIL; the message is the sentence the manager sees.
+    raise exception 'This registration has already been decided (it is %).',
+                    v_pet.registration_status
+      using errcode = '22023',
+            detail  = 'not_pending',
+            hint    = 'Only a pending registration can be approved or denied.';
+  end if;
 
   update public.pets
-     set registration_status = case when p_approve then 'approved'::registration_status
-                                     else 'denied'::registration_status end
+     set registration_status = case when p_approve then 'approved'::public.registration_status
+                                     else 'denied'::public.registration_status end
    where id = p_pet;
 
   insert into public.notifications (profile_id, kind, severity, title, body,
@@ -116,7 +135,7 @@ begin
          else v_pet.name || '''s registration was not approved' end,
     case when p_approve
          then 'Your building''s management approved ' || v_pet.name || '''s registration.'
-              || coalesce(' ' || v_note, '')
+              || coalesce(' Note: ' || v_note, '')
          else 'Your building''s management did not approve ' || v_pet.name || '''s registration. '
               || 'Reason: ' || v_note end,
     'Open ' || v_pet.name,
@@ -134,7 +153,7 @@ end;
 $function$;
 
 comment on function public.manager_decide_registration(uuid, boolean, text) is
-  'Manager (of the pet''s building) or admin approves or denies a pet''s registration (20261015000001). Deny REQUIRES p_note (trimmed, <= 2000 chars); approve takes an optional one. Notifies the owner (kind building, pet-detail:<pet>; a deny quotes "Reason: <note>") and audits pet.registration_decided. Raises 42501 forbidden, 22023 for a missing or over-long note.';
+  'Manager (of the pet''s building) or admin approves or denies a pet''s registration (20261015000001). Only a pending registration (else 22023 not_pending). Deny REQUIRES p_note (trimmed, <= 2000 chars); approve takes an optional one, quoted as "Note: <note>". Notifies the owner (kind building, pet-detail:<pet>; a deny quotes "Reason: <note>") and audits pet.registration_decided. Raises 42501 forbidden, 22023 for a missing or over-long note.';
 
 revoke all on function public.manager_decide_registration(uuid, boolean, text) from public, anon;
 grant execute on function public.manager_decide_registration(uuid, boolean, text) to authenticated;
@@ -183,6 +202,16 @@ begin
   -- The only moves that exist. Anything else — an unknown decision, a NULL
   -- one (`null = 'approve'` is NULL, so no branch matches), removing a link
   -- that was never approved, approving one twice — leaves v_to NULL.
+  if p_decision = 'approve' and v_link.status = 'pending' and exists (
+    select 1 from public.resident_links rl
+     where rl.profile_id = v_link.profile_id and rl.building_id = v_link.building_id
+       and rl.status = 'approved' and rl.id <> v_link.id
+  ) then
+    -- Approving would collide with resident_links_active_uniq (23505). Say
+    -- what is true instead: they are already in.
+    return jsonb_build_object('ok', false, 'error', 'already_member');
+  end if;
+
   v_to := case
     when p_decision = 'approve' and v_link.status = 'pending'  then 'approved'::public.resident_link_status
     when p_decision = 'deny'    and v_link.status = 'pending'  then 'denied'::public.resident_link_status
@@ -240,7 +269,7 @@ end;
 $$;
 
 comment on function public.manager_decide_link(uuid, text, text) is
-  'Manager (of the link''s building) or admin decides a resident link (20261015000001). approve: pending -> approved; deny: pending -> denied; remove: approved -> left (left_at). Anything else raises 22023; a non-manager raises 42501. Stamps decided_at/decided_by, notifies the resident (kind building, link-building) quoting the optional p_reason (<= 2000 chars) as "Reason: …", audits resident_link.decided. trg_sync_pets_on_link moves the pets. Returns {ok:true, status, from} or {ok:false, error:''not_found''}.';
+  'Manager (of the link''s building) or admin decides a resident link (20261015000001). approve: pending -> approved; deny: pending -> denied; remove: approved -> left (left_at). Anything else raises 22023; a non-manager raises 42501. Stamps decided_at/decided_by, notifies the resident (kind building, link-building) quoting the optional p_reason (<= 2000 chars) as "Reason: …", audits resident_link.decided. trg_sync_pets_on_link moves the pets. Returns {ok:true, status, from} or {ok:false, error: not_found | already_member}.';
 
 revoke all on function public.manager_decide_link(uuid, text, text) from public, anon;
 grant execute on function public.manager_decide_link(uuid, text, text) to authenticated;
