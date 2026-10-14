@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useId, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { OTHER_SPECIES, OTHER_BREED, breedsFor, addPet, setPetPhoto } from "@/lib/data"
 import type { Species } from "@/lib/data"
@@ -8,6 +8,8 @@ import { toast } from "sonner"
 import { isDirty } from "@/lib/unsaved"
 import { useUnsavedGuard } from "@/components/use-unsaved-guard"
 import { WeightInput, useWeightField } from "@/components/screens/pet/weight-input"
+import { RequiredTag } from "@/components/screens/pet/required-tag"
+import { Switch } from "@/components/ui/switch"
 import {
   SIZE_BANDS,
   MAX_HEIGHT_INCHES,
@@ -40,9 +42,61 @@ interface AddPetScreenProps {
   onNavigate?: (screen: string) => void
 }
 
+/** The success view lives out here and the form is keyed on `round`, so "Add
+    another pet" remounts it: every field, the weight hook and the unsaved-guard
+    baseline start over together, with nothing to remember to reset. */
 export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
   const { user } = useAuth()
-  const [submitted, setSubmitted] = useState(false)
+  const [round, setRound] = useState(0)
+  const [addedName, setAddedName] = useState<string | null>(null)
+
+  if (addedName !== null) {
+    const name = addedName
+    return (
+      <div className="flex min-h-dvh flex-col bg-background">
+        <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
+            <CheckCircle2 className="h-10 w-10 text-success" />
+          </div>
+          <h1 className="text-[24px] font-semibold text-foreground">{name} is all set! 🐾</h1>
+          <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground">
+            {user?.building
+              ? `Saved to your account — and shared with ${user.building} for approval. Let's set up their daily care.`
+              : `Saved to your account. Let's set up ${name}'s food, medicine and treats.`}
+          </p>
+          <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
+            <button
+              onClick={() => onNavigate?.("pet-care")}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[16px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+            >
+              <Utensils className="h-5 w-5" />{" "}
+              Set up food &amp; care
+            </button>
+            <button
+              onClick={() => {
+                setAddedName(null)
+                setRound((n) => n + 1)
+              }}
+              className="w-full rounded-xl border border-border py-3.5 text-[16px] font-semibold text-foreground transition-transform active:scale-[0.98]"
+            >
+              Add another pet
+            </button>
+            <button onClick={onBack} className="w-full py-2 text-[15px] font-semibold text-muted-foreground">
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return <AddPetForm key={round} onBack={onBack} onSaved={setAddedName} />
+}
+
+function AddPetForm({ onBack, onSaved }: { onBack: () => void; onSaved: (name: string) => void }) {
+  const { user } = useAuth()
+  const ids = useId()
+  const id = (field: string) => `${ids}-${field}`
   const [saving, setSaving] = useState(false)
   const [name, setName] = useState("")
   const [species, setSpecies] = useState<Species | null>(null)
@@ -68,9 +122,8 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
 
   /* Every field, against how the form opens. The shell asks before leaving
      while this is true (Cancel and Back call its guarded `onBack`); the
-     success view is not dirty, so its buttons leave freely. */
+     success view is a separate component, so its buttons leave freely. */
   const dirty =
-    !submitted &&
     isDirty(
       { neutered: false }, // every other field opens empty
       { name, species, breed, customBreed, sizeBand, heightIn, restraints, dob, gender, weight: weightField.text, color, microchip, neutered, photoFile },
@@ -112,48 +165,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
     }
     setSaving(false)
     toast.success(`${name} added`, { description: "Saved to your account." })
-    setSubmitted(true)
-  }
-
-  if (submitted) {
-    return (
-      <div className="flex min-h-dvh flex-col bg-background">
-        <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
-            <CheckCircle2 className="h-10 w-10 text-success" />
-          </div>
-          <h1 className="text-[24px] font-semibold text-foreground">{name} is all set! 🐾</h1>
-          <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground">
-            {user?.building
-              ? `Saved to your account — and shared with ${user.building} for approval. Let's set up their daily care.`
-              : `Saved to your account. Let's set up ${name}'s food, medicine and treats.`}
-          </p>
-          <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
-            <button
-              onClick={() => onNavigate?.("pet-care")}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[16px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
-            >
-              <Utensils className="h-5 w-5" />{" "}
-              Set up food &amp; care
-            </button>
-            <button
-              onClick={() => {
-                setSubmitted(false)
-                setName(""); setSpecies(null); setBreed(""); setCustomBreed(""); setDob(""); setGender(""); weightField.reset(); setColor(""); setMicrochip(""); setNeutered(false)
-                setSizeBand(""); setHeightIn(""); setRestraints([])
-                setPhotoFile(null); setPhotoPreview(null)
-              }}
-              className="w-full rounded-xl border border-border py-3.5 text-[16px] font-semibold text-foreground transition-transform active:scale-[0.98]"
-            >
-              Add another pet
-            </button>
-            <button onClick={onBack} className="w-full py-2 text-[15px] font-semibold text-muted-foreground">
-              Done
-            </button>
-          </div>
-        </div>
-      </div>
-    )
+    onSaved(name)
   }
 
   return (
@@ -165,13 +177,13 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
             <ArrowLeft className="h-5 w-5" />
             <span className="text-[17px]">Cancel</span>
           </button>
-          <h1 className="text-[17px] font-semibold text-foreground">Add Pet</h1>
+          <h1 className="text-[17px] font-semibold text-foreground">New pet</h1>
           <button
             onClick={handleSubmit}
             disabled={!canSubmit || saving}
             className={`text-[17px] font-semibold ${canSubmit && !saving ? "text-primary" : "text-muted-foreground/50"}`}
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : "Add pet"}
           </button>
         </div>
       </header>
@@ -205,14 +217,16 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
         />
 
         {/* Species */}
-        <Label>Species <Req /></Label>
-        <div className="mb-5 grid grid-cols-3 gap-2.5">
+        <Label>Species <RequiredTag /></Label>
+        <div role="group" aria-label="Species" className="mb-5 grid grid-cols-3 gap-2.5">
           {SPECIES.map((s) => {
             const Icon = s.icon
             const active = species === s.id
             return (
               <button
                 key={s.id}
+                type="button"
+                aria-pressed={active}
                 onClick={() => {
                   setSpecies(s.id)
                   // A Labrador is not an option for a cat.
@@ -230,15 +244,16 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
           })}
         </div>
 
-        <Field label="Name" required>
-          <Input value={name} onChange={setName} placeholder="e.g. Max" />
+        <Field label="Name" required htmlFor={id("name")}>
+          <Input id={id("name")} value={name} onChange={setName} placeholder="e.g. Max" />
         </Field>
         {/* Which kind of "other" — bird, reptile, and so on. The tiles stay at
             three so the common case is one tap, and the long tail lives behind
             the one tile that needs it. */}
         {species !== null && species !== "dog" && species !== "cat" && (
-          <Field label="Type of pet" required>
+          <Field label="Type of pet" required htmlFor={id("type")}>
             <Select
+              id={id("type")}
               value={species}
               onChange={(v) => {
                 setSpecies(v as Species)
@@ -253,10 +268,11 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
         {/* Breed from a list rather than free text: several buildings restrict
             by breed, and a rule cannot be applied to "lab", "Labrador" and
             "Lab X" all meaning the same dog. */}
-        <Field label="Breed">
+        <Field label="Breed" htmlFor={breedOptions.length > 0 ? id("breed") : id("breed-text")}>
           {breedOptions.length > 0 ? (
             <>
               <Select
+                id={id("breed")}
                 value={breed}
                 onChange={setBreed}
                 placeholder="Select a breed"
@@ -267,34 +283,45 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
               />
               {breed === OTHER_BREED && (
                 <div className="mt-2">
-                  <Input value={customBreed} onChange={setCustomBreed} placeholder="Tell us the breed" />
+                  <Input id={id("breed-text")} value={customBreed} onChange={setCustomBreed} placeholder="Tell us the breed" />
                 </div>
               )}
             </>
           ) : (
-            <Input value={customBreed} onChange={setCustomBreed} placeholder="e.g. Holland Lop" />
+            <Input id={id("breed-text")} value={customBreed} onChange={setCustomBreed} placeholder="e.g. Holland Lop" />
           )}
         </Field>
 
+        {/* Everything optional, closed by default. Native <details> keeps what was
+            typed when it is collapsed; nothing here auto-opens. */}
+        <details className="group mb-6 rounded-xl border border-border bg-card/50">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-[15px] font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+            More details (optional)
+            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="px-4 pt-2">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Date of birth">
+          <Field label="Date of birth" htmlFor={id("dob")}>
             <input
+              id={id("dob")}
               type="date"
               value={dob}
               onChange={(e) => setDob(e.target.value)}
               className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </Field>
-          <Field label="Weight">
-            <WeightInput field={weightField} />
+          <Field label="Weight" htmlFor={id("weight")}>
+            <WeightInput id={id("weight")} field={weightField} />
           </Field>
         </div>
 
         <Label>Gender</Label>
-        <div className="mb-5 grid grid-cols-2 gap-2.5">
+        <div role="group" aria-label="Gender" className="mb-5 grid grid-cols-2 gap-2.5">
           {(["Male", "Female"] as const).map((g) => (
             <button
               key={g}
+              type="button"
+              aria-pressed={gender === g}
               onClick={() => setGender(g)}
               className={`rounded-xl border-2 py-2.5 text-[14px] font-semibold transition-all active:scale-[0.98] ${
                 gender === g ? "border-primary bg-primary/5 text-primary" : "border-border bg-card text-foreground"
@@ -310,12 +337,12 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
             resident, not the pet: one person in one unit may have three pets,
             and asking three times invites three answers. It is on the profile
             now. */}
-        <Field label="Color / markings">
-          <Input value={color} onChange={setColor} placeholder="e.g. Golden" />
+        <Field label="Colour or markings" htmlFor={id("color")}>
+          <Input id={id("color")} value={color} onChange={setColor} placeholder="e.g. Golden" />
         </Field>
 
-        <Field label="Microchip number">
-          <Input value={microchip} onChange={setMicrochip} placeholder="Optional" />
+        <Field label="Microchip number" htmlFor={id("microchip")}>
+          <Input id={id("microchip")} value={microchip} onChange={setMicrochip} placeholder="Optional" />
         </Field>
 
         {/* Size only where it means something. Height at the shoulder is dog
@@ -328,11 +355,12 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
             resident whose large dog already lives there must still be able to
             register it or the register stops describing the building. */}
         <Field label="Size">
-          <div className="flex flex-wrap gap-1.5">
+          <div role="group" aria-label="Size" className="flex flex-wrap gap-1.5">
             {SIZE_BANDS.map((b) => (
               <button
                 key={b.id}
                 type="button"
+                aria-pressed={sizeBand === b.id}
                 onClick={() => setSizeBand(sizeBand === b.id ? "" : b.id)}
                 className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
                   sizeBand === b.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
@@ -372,9 +400,9 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
         </Field>
 
         {sizeChartAppliesTo(species) && (
-          <Field label="Height at shoulder">
+          <Field label="Height at shoulder" htmlFor={id("height")}>
             <div className="relative">
-              <Input value={heightIn} onChange={setHeightIn} placeholder="Optional, e.g. 20" />
+              <Input id={id("height")} value={heightIn} onChange={setHeightIn} placeholder="Optional, e.g. 20" />
               <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted-foreground">
                 inches
               </span>
@@ -384,9 +412,10 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
         </>
         )}
 
-        {/* Several apply at once — harnessed AND muzzled is a normal answer. */}
+        {/* Several apply at once — harnessed AND muzzled is a normal answer. The
+            hint is visible text, not a `title`: a tooltip never shows on touch. */}
         <Field label="In common areas">
-          <div className="flex flex-wrap gap-1.5">
+          <div role="group" aria-label="In common areas" className="flex flex-col gap-2">
             {restraintsFor(species).map((r) => {
               const on = restraints.includes(r.id)
               return (
@@ -397,34 +426,33 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
                   onClick={() =>
                     setRestraints(on ? restraints.filter((x) => x !== r.id) : [...restraints, r.id])
                   }
-                  title={r.hint}
-                  className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                    on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  className={`rounded-xl border-2 px-4 py-2.5 text-left transition-colors ${
+                    on ? "border-primary bg-primary/5" : "border-border bg-card"
                   }`}
                 >
-                  {r.label}
+                  <span className={`block text-[14px] font-semibold ${on ? "text-primary" : "text-foreground"}`}>
+                    {r.label}
+                  </span>
+                  <span className="block text-[12px] text-muted-foreground">{r.hint}</span>
                 </button>
               )
             })}
           </div>
         </Field>
 
-
-        {/* Neutered */}
-        <label className="mb-6 flex cursor-pointer items-center justify-between rounded-xl card-raised p-4">
+        {/* The whole row is the label, so tapping anywhere on it flips the switch. */}
+        <label
+          htmlFor={id("neutered")}
+          className="mb-2 flex cursor-pointer items-center justify-between gap-3 rounded-xl card-raised p-4"
+        >
           <div>
-            <p className="text-[15px] font-medium text-foreground">Spayed / Neutered</p>
-            <p className="text-[12px] text-muted-foreground">Helps with building compliance</p>
+            <p className="text-[15px] font-medium text-foreground">Spayed or neutered</p>
+            <p className="text-[12px] text-muted-foreground">Some buildings ask for this</p>
           </div>
-          <div
-            role="switch"
-            aria-checked={neutered}
-            onClick={() => setNeutered((v) => !v)}
-            className={`relative h-7 w-12 rounded-full transition-colors ${neutered ? "bg-success" : "bg-muted"}`}
-          >
-            <div className={`absolute top-0.5 h-6 w-6 rounded-full bg-card shadow transition-transform ${neutered ? "translate-x-5" : "translate-x-0.5"}`} />
-          </div>
+          <Switch id={id("neutered")} checked={neutered} onCheckedChange={setNeutered} />
         </label>
+          </div>
+        </details>
 
         <button
           onClick={handleSubmit}
@@ -434,11 +462,15 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
           }`}
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          {saving ? "Saving…" : "Register pet"}
+          {saving ? "Saving…" : "Add pet"}
         </button>
-        <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
-          Your pet will be submitted to building management for approval before appearing as registered.
-        </p>
+        {/* Only for someone with an approved building link; anyone else has no
+            management to review the pet, so the line would be untrue. */}
+        {user?.building && (
+          <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
+            Your building&apos;s management will review this pet.
+          </p>
+        )}
       </main>
     </div>
   )
@@ -448,25 +480,39 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
 function Label({ children }: { children: React.ReactNode }) {
   return <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>
 }
-function Req() {
-  return <span className="text-destructive">*</span>
-}
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+/** A real <label htmlFor> so tapping the words focuses the control and a screen reader names it. */
+function Field({
+  label,
+  required,
+  htmlFor,
+  children,
+}: {
+  label: string
+  required?: boolean
+  htmlFor?: string
+  children: React.ReactNode
+}) {
   return (
     <div className="mb-5">
-      <Label>
-        {label} {required && <Req />}
-      </Label>
+      <label
+        htmlFor={htmlFor}
+        className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground"
+      >
+        {label}
+        {required && <RequiredTag />}
+      </label>
       {children}
     </div>
   )
 }
 function Select({
+  id,
   value,
   onChange,
   options,
   placeholder,
 }: {
+  id?: string
   value: string
   onChange: (v: string) => void
   options: { value: string; label: string }[]
@@ -475,6 +521,7 @@ function Select({
   return (
     <div className="relative">
       <select
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full appearance-none rounded-xl border border-input bg-card px-4 py-3 pr-10 text-[15px] text-foreground outline-none focus:border-primary"
@@ -495,9 +542,10 @@ function Select({
   )
 }
 
-function Input({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+function Input({ id, value, onChange, placeholder }: { id?: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <input
+      id={id}
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}

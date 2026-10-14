@@ -1,5 +1,6 @@
 "use client"
 
+import { RequiredTag } from "@/components/screens/pet/required-tag"
 import { useRef, useState } from "react"
 import Image from "next/image"
 import { toast } from "sonner"
@@ -823,8 +824,7 @@ function Label({ children, required }: { children: React.ReactNode; required?: b
   return (
     <p className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
       {children}
-      {/* A word, not only an asterisk: the asterisk alone is easy to miss and says nothing to a screen reader. */}
-      {required && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-destructive">Required</span>}
+      {required && <RequiredTag />}
     </p>
   )
 }

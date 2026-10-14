@@ -37,9 +37,12 @@ export function useWeightField(initialKg: number | null) {
 export function WeightInput({
   field,
   compact,
+  id,
 }: {
   field: ReturnType<typeof useWeightField>
   compact?: boolean
+  /** Lets a visible <label htmlFor> name the input. */
+  id?: string
 }) {
   const errorId = useId()
   const { text: value, unit } = field
@@ -50,6 +53,7 @@ export function WeightInput({
     <div>
       <div className="flex items-stretch gap-2">
         <input
+          id={id}
           type="text"
           inputMode="decimal"
           value={value}
