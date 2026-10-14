@@ -170,6 +170,25 @@ export function sendManagerInviteEmail(opts: { to: string; inviteUrl: string; bu
 }
 
 /**
+ * An existing Pet10x account is made a co-manager. There is no invite link to
+ * accept (they already have a password), so this just tells them and points at
+ * the portal. The building name is typed by people, so it is escaped.
+ */
+export function sendManagerAddedEmail(opts: { to: string; buildingName: string }) {
+  return send({
+    to: opts.to,
+    subject: `You can now manage ${opts.buildingName}`,
+    html: emailHtml({
+      headline: "You can now manage a building",
+      body: `You've been added as a manager of ${escapeHtml(opts.buildingName)} on Pet10x. Sign in to open the strata portal.`,
+      ctaUrl: `${APP_URL}/strata-portal`,
+      ctaLabel: "Open the strata portal",
+      footnote: "If you weren't expecting this, you can ignore this email.",
+    }),
+  })
+}
+
+/**
  * A practice adds someone to its team (`/api/clinic/invite`). Every value is
  * escaped: the practice name and the inviter's name are typed by people, and
  * the role label is escaped too so the function holds without trusting its

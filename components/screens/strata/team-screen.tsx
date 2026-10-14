@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth-context"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { inviteResultMessage } from "@/lib/data/invite-result"
 import { usePortfolioTeam, inviteCoManager, removeCoManager, type CoManager } from "@/lib/data/portfolio"
 import { useStrata } from "./portal-context"
 import { SectionCard, Spinner, LoadError } from "./strata-ui"
@@ -89,6 +91,7 @@ export function BuildingTeam({
   const [name, setName] = useState("")
   const [busy, setBusy] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
+  const [pendingRemove, setPendingRemove] = useState<CoManager | null>(null)
 
   async function invite() {
     if (!email.trim()) return toast.error("Enter the manager's email.")
@@ -96,31 +99,34 @@ export function BuildingTeam({
     const res = await inviteCoManager({ buildingId, buildingName, email: email.trim(), fullName: name.trim() || undefined })
     setBusy(false)
     if (res.error) return toast.error("Invite failed", { description: res.error })
-    if (res.emailSent === false && res.inviteUrl) {
-      const url = res.inviteUrl
-      toast.success(res.emailFailed ? "Manager added — the email failed" : "Manager added — email not sent", {
-        description: res.emailFailed
-          ? "The invite email could not be sent. Copy the invite link to share it."
-          : "Email is disabled outside production. Copy the invite link to share it.",
-        duration: 15000,
-        action: { label: "Copy link", onClick: () => void navigator.clipboard.writeText(url) },
-      })
-    } else {
-      toast.success("Co-manager invited", { description: `Invite sent to ${email.trim()}` })
-    }
+    const msg = inviteResultMessage({
+      email: email.trim(),
+      building: buildingName,
+      existingAccount: res.existingAccount === true,
+      emailSent: res.emailSent === true,
+      inviteUrl: res.inviteUrl,
+      emailFailed: res.emailFailed,
+    })
+    const url = msg.inviteUrl
+    toast.success(msg.title, {
+      description: msg.description,
+      ...(url
+        ? { duration: 15000, action: { label: "Copy link", onClick: () => void navigator.clipboard.writeText(url) } }
+        : {}),
+    })
     setEmail("")
     setName("")
     onChange()
   }
 
-  async function remove(m: CoManager) {
-    if (!confirm(`Remove ${m.name} as a manager of ${buildingName}? Their account stays active.`)) return
+  async function remove(m: CoManager): Promise<{ error: string | null }> {
     setRemoving(m.linkId)
     const { error } = await removeCoManager(m.linkId)
     setRemoving(null)
-    if (error) return toast.error("Couldn't remove", { description: error })
+    if (error) return { error }
     toast.success("Manager removed from building")
     onChange()
+    return { error: null }
   }
 
   return (
@@ -160,7 +166,7 @@ export function BuildingTeam({
               </div>
               {canRemove ? (
                 <button
-                  onClick={() => remove(m)}
+                  onClick={() => setPendingRemove(m)}
                   disabled={removing === m.linkId}
                   className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-[12px] font-semibold text-muted-foreground disabled:opacity-50"
                 >
@@ -203,6 +209,15 @@ export function BuildingTeam({
           <ShieldCheck className="h-3.5 w-3.5" /> Only a primary manager of this building can change its team.
         </p>
       )}
+      <ConfirmDialog
+        open={pendingRemove !== null}
+        onOpenChange={(o) => !o && setPendingRemove(null)}
+        title="Remove from building?"
+        description={`${pendingRemove?.name ?? "They"} will no longer manage ${buildingName}. Their account stays active.`}
+        confirmLabel="Remove from building"
+        tone="danger"
+        onConfirm={async () => (pendingRemove ? remove(pendingRemove) : { error: null })}
+      />
     </SectionCard>
   )
 }

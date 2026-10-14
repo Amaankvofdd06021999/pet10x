@@ -262,6 +262,8 @@ export interface InviteResult {
   /** False when the email was suppressed (non-production) or failed — inviteUrl is then set. */
   emailSent?: boolean
   inviteUrl?: string
+  /** The address already had a Pet10x account (strata invite only). */
+  existingAccount?: boolean
   /** The email was attempted and refused, as opposed to suppressed. */
   emailFailed?: boolean
 }

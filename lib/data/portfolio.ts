@@ -390,11 +390,12 @@ export async function inviteCoManager(input: {
       ok?: boolean
       error?: string
       emailSent?: boolean
+      existingAccount?: boolean
       inviteUrl?: string
       emailFailed?: boolean
     }
     if (!res.ok || !json.ok) return { error: json.error ?? "Invite failed." }
-    return { error: null, emailSent: json.emailSent, inviteUrl: json.inviteUrl, emailFailed: json.emailFailed }
+    return { error: null, emailSent: json.emailSent, existingAccount: json.existingAccount, inviteUrl: json.inviteUrl, emailFailed: json.emailFailed }
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Invite failed." }
   }

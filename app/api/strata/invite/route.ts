@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
-import { sendManagerInviteEmail } from "@/lib/email"
+import { sendManagerAddedEmail, sendManagerInviteEmail } from "@/lib/email"
 
 /**
  * Manager-scoped delegation invite. Unlike /api/admin/invite (super-admin only),
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
   const email = body.email.trim().toLowerCase()
 
-  // Existing account → just elevate + link (no email round trip needed).
+  // Existing account → elevate + link, then tell them (no invite link exists).
   const { data: existing } = await admin.from("profiles").select("id, role").eq("email", email).maybeSingle()
   if (existing) {
     const { data: dup } = await admin
@@ -73,7 +73,14 @@ export async function POST(request: Request) {
       .from("building_managers")
       .insert({ building_id: body.buildingId, profile_id: existing.id, granted_by: user.id, is_primary: false })
     if (linkErr) return NextResponse.json({ error: linkErr.message }, { status: 500 })
-    return NextResponse.json({ ok: true, emailSent: false })
+    // The link is already made, so a failed or suppressed email must not fail
+    // the invite; `emailSent` is true only when Resend accepted the message.
+    // send() has already logged any failure.
+    const notified = await sendManagerAddedEmail({
+      to: email,
+      buildingName: body.buildingName?.trim() || "a building",
+    })
+    return NextResponse.json({ ok: true, existingAccount: true, emailSent: notified.ok })
   }
 
   // New user → generate an invite link, elevate, link, email.
