@@ -11,6 +11,7 @@ import { PetChips } from "@/components/screens/home/pet-chips"
 import { MissingInfoCard } from "@/components/screens/home/missing-info-card"
 import { CaseCard } from "@/components/screens/home/case-card"
 import { IOSNavBar } from "@/components/ios-nav-bar"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Bell,
   PawPrint,
@@ -64,9 +65,18 @@ const STATUS_CONFIG = {
  * its manager actually published — or an honest sentence when there are none.
  * No sentence about any building's pet policy is written anywhere in this file.
  */
-const QUICK_ACTIONS: { icon: typeof Building2; label: string; color: string; unbuilt?: true }[] = [
-  { icon: Building2, label: "Building Rules", color: "bg-info/10 text-info" },
-  { icon: AlertTriangle, label: "Report Incident", color: "bg-destructive/10 text-destructive" },
+/* No "Report Incident" tile: Report already lives in the nav bar, and two
+   * routes to the same screen made Home louder without making it more useful.
+   * `needsBuilding` hides a tile for someone with no approved link, because the
+   * screen it opens has nothing to show them. */
+const QUICK_ACTIONS: {
+  icon: typeof Building2
+  label: string
+  color: string
+  unbuilt?: true
+  needsBuilding?: true
+}[] = [
+  { icon: Building2, label: "Building Rules", color: "bg-info/10 text-info", needsBuilding: true },
   { icon: Calendar, label: "Pet Events", color: "bg-primary/10 text-primary" },
   { icon: ShoppingBag, label: "Shop", color: "bg-accent/10 text-accent" },
 ]
@@ -88,7 +98,7 @@ interface HomeScreenProps {
 
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const { user } = useAuth()
-  const { data: pets } = usePets()
+  const { data: pets, isLoading: petsLoading } = usePets()
   /* One read of the shared notification store feeds both the bell and Recent
      Activity. That block used to read `useHomeAlerts()`, a stub that returned
      [] — so it had never rendered for anybody. */
@@ -109,6 +119,13 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
      oldest animal, and in 71% of households it silently spoke for the others. */
   const { pet: selectedPet, select: selectPet } = useSelectedPet()
   const singlePet = pets.length === 1
+  const linked = buildingLink?.status === "approved"
+  const noPets = !petsLoading && pets.length === 0
+  /* A first-time owner gets one thing to do. Until pets have loaded (never
+   * "Add your first pet" for someone who has pets) and for an unlinked owner
+   * with none, Home is the greeting, the pet card and the link row — Today's
+   * Care, suggestions and activity have nothing to say yet. */
+  const calm = petsLoading || (noPets && !linked)
 
   // Re-evaluate the rules once the owner's pets are known. The runner is
   // idempotent by dedupe_key, so landing on Home repeatedly costs nothing.
@@ -144,7 +161,6 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const handleQuickAction = (label: string) => {
     // Was a "coming soon" toast while the screen existed above it.
     if (label.includes("Rules")) onNavigate?.("building-rules")
-    else if (label.includes("Report")) onNavigate?.("report")
     else if (label.includes("Shop")) onNavigate?.("shop")
     else if (label.includes("Events")) onNavigate?.("community", undefined, undefined, "events")
   }
@@ -230,36 +246,56 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             screen made reporting your neighbour the loudest thing in an app
             people open to log a walk. */}
         <div className="mb-6">
-          <CaseCard onNavigate={onNavigate} />
-          <MissingInfoCard onNavigate={onNavigate} />
+          {!calm && <CaseCard onNavigate={onNavigate} />}
+          {/* With no pet the banner's only row would repeat the card below. */}
+          {!calm && <MissingInfoCard onNavigate={onNavigate} />}
         </div>
 
         {/* My Pets — horizontal rail on compact, grid from md up */}
         <section className="mb-6">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-[17px] font-semibold text-foreground">My Pets</h3>
-            <button
-              className="flex items-center gap-1 text-[14px] font-medium text-primary"
-              onClick={() => onNavigate?.("add-pet")}
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </button>
-          </div>
+          {/* The header's Add would duplicate the card's button when there is no
+              pet, and mean nothing while pets are still loading. */}
+          {!petsLoading && !noPets && (
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-[17px] font-semibold text-foreground">My Pets</h3>
+              <button
+                className="flex items-center gap-1 text-[14px] font-medium text-primary"
+                onClick={() => onNavigate?.("add-pet")}
+              >
+                <Plus className="h-4 w-4" />
+                Add
+              </button>
+            </div>
+          )}
 
-          {pets.length === 0 ? (
-            <button
-              onClick={() => onNavigate?.("add-pet")}
-              className="flex w-full flex-col items-center gap-1.5 rounded-2xl border border-dashed border-primary/30 bg-primary/5 px-4 py-8 text-center transition-transform active:scale-[0.98]"
-            >
-              <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-[22px]">
+          {petsLoading ? (
+            /* Shaped like the one-pet card so the page does not jump when pets arrive. */
+            <div className="grid gap-4 md:grid-cols-2" role="status" aria-label="Loading your pets">
+              <div className="flex w-full items-center gap-4 rounded-2xl card-raised p-5">
+                <Skeleton className="h-24 w-24 flex-shrink-0 rounded-xl" />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-3 w-1/3" />
+                  <Skeleton className="h-4 w-16 rounded-full" />
+                </div>
+              </div>
+            </div>
+          ) : noPets ? (
+            <div className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-primary/30 bg-primary/5 px-5 py-10 text-center">
+              <span className="mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-[26px]">
                 🐶
               </span>
-              <span className="text-[14px] font-semibold text-foreground">Add your first pet</span>
-              <span className="text-[12px] text-muted-foreground">
+              <h3 className="text-[18px] font-semibold text-foreground">Add your first pet</h3>
+              <p className="mb-2 text-[13px] text-muted-foreground">
                 Register a furry friend to start tracking food, medicine &amp; treats.
-              </span>
-            </button>
+              </p>
+              <button
+                onClick={() => onNavigate?.("add-pet")}
+                className="w-full rounded-xl bg-primary px-4 py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] sm:w-auto sm:px-8"
+              >
+                Add your pet
+              </button>
+            </div>
           ) : (
             <>
               <div
@@ -333,6 +369,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         </section>
 
         {/* Today's Care — header row + the three-up status strip */}
+        {pets.length > 0 && (
         <section className="mb-6">
           <div className="rounded-2xl card-raised p-5">
             <button
@@ -416,8 +453,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             />
           </div>
         </section>
+        )}
 
         {/* Quick Actions — 2×2 on compact, 4-up from md */}
+        {!calm && (
         <section className="mb-6">
           {/* No "Customize". It toasted "Coming soon." and there is no
               preference store anywhere in the app to hold a customised set —
@@ -428,7 +467,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {QUICK_ACTIONS.map((action) => {
+            {QUICK_ACTIONS.filter((a) => !a.needsBuilding || linked).map((action) => {
               const Icon = action.icon
               return (
                 <button
@@ -453,8 +492,11 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             })}
           </div>
         </section>
+        )}
 
-        {/* Building membership — full-width banner */}
+        {/* Building membership — full-width banner. Hidden while pets load so
+            "Link your building" never flashes for someone already linked. */}
+        {!petsLoading && (
         <section className="mb-6">
           {buildingLink?.status === "approved" ? (
             <button
@@ -507,9 +549,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             </button>
           )}
         </section>
+        )}
 
         {/* Assistant nudges — deterministic rules, model-written wording */}
-        {suggestions.data.length > 0 && (
+        {!calm && suggestions.data.length > 0 && (
           <section className="mb-6">
             <div className="flex flex-col gap-3">
               {suggestions.data.slice(0, 4).map((suggestion) => (
@@ -525,7 +568,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         )}
 
         {/* Recent Activity */}
-        {alerts.length > 0 && (
+        {!calm && alerts.length > 0 && (
           <section className="mb-6">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-[17px] font-semibold text-foreground">Recent Activity</h3>
