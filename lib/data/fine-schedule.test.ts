@@ -10,6 +10,7 @@ import {
   MAX_FINE_CENTS,
   scheduledCents,
   fineNoteRequired,
+  defaultFineDueOn,
 } from "./fine-schedule"
 
 describe("readFineSchedule", () => {
@@ -252,5 +253,15 @@ describe("fineNoteRequired", () => {
 
   it("is not required yet while the amount is unreadable — the amount error comes first", () => {
     expect(fineNoteRequired(25000, null)).toBe(false)
+  })
+})
+
+describe("defaultFineDueOn", () => {
+  it("is 30 calendar days after today", () => {
+    expect(defaultFineDueOn(new Date(2026, 9, 14, 9, 0))).toBe("2026-11-13")
+  })
+
+  it("crosses a year end by the calendar", () => {
+    expect(defaultFineDueOn(new Date(2026, 11, 20, 23, 30))).toBe("2027-01-19")
   })
 })

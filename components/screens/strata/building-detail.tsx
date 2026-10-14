@@ -19,9 +19,10 @@ import {
   fineNoteRequired,
   formatCentsForInput,
   parseAmountToCents,
+  defaultFineDueOn,
 } from "@/lib/data/fine-schedule"
-import { STAGE_LABEL, controlsForCase, isFineStage, nextStage } from "@/lib/data/violations"
-import { addCalendarDays, shortDate, todayKey } from "@/lib/dates"
+import { STAGE_LABEL, closedCaseLabel, controlsForCase, isFineStage, nextStage } from "@/lib/data/violations"
+import { shortDate } from "@/lib/dates"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import type { ResidentLinkRow } from "@/lib/data"
 import type { ViolationStage } from "@/lib/data/types"
@@ -245,7 +246,7 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
                 <button
                   onClick={() => setConfirming({ kind: "remove", resident: r })}
                   disabled={busy === r.linkId}
-                  className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
+                  className="flex min-h-[44px] items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
                 >
                   {busy === r.linkId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserMinus className="h-3.5 w-3.5" />}
                   Remove from building
@@ -377,7 +378,7 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
       if (asking === id) return setAsking(null)
       setAmount(formatCentsForInput(bylawCentsFor(stage)))
       setFineNote("")
-      setDueOn(addCalendarDays(todayKey(), 30) ?? "")
+      setDueOn(defaultFineDueOn())
       setFineError(null)
       setAsking(id)
       return
@@ -690,18 +691,33 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
       />
 
       {scopedResolved.length > 0 && (
-        <SectionCard title={`Resolved (${scopedResolved.length})`}>
+        // "Closed", not "Resolved": dismissed cases are listed here too.
+        <SectionCard title={`Closed (${scopedResolved.length})`}>
           <div className="space-y-1.5">
-            {scopedResolved.map((v) => (
-              <div key={v.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-3 py-2">
-                <span className="truncate text-[12.5px] capitalize text-foreground">
-                  {v.type} · Unit {v.unit}
-                </span>
-                <span className="whitespace-nowrap text-[11.5px] text-muted-foreground">
-                  {v.outcome} · {v.resolved}
-                </span>
-              </div>
-            ))}
+            {scopedResolved.map((v) => {
+              // Named by the stage. The manager's reason is free text since
+              // 3.2, so it wraps under the row (two lines, full text on hover)
+              // instead of sitting in a no-wrap span that ran off a phone.
+              const { label, tone } = closedCaseLabel(v.stage)
+              return (
+                <div key={v.id} className="rounded-lg bg-muted/40 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 truncate text-[12.5px] capitalize text-foreground">
+                      {v.type} · Unit {v.unit}
+                    </span>
+                    <span className="flex-shrink-0 text-[11.5px] text-muted-foreground">
+                      <span className={tone === "good" ? "font-semibold text-success" : "font-semibold"}>{label}</span>
+                      {v.resolved ? ` · ${v.resolved}` : ""}
+                    </span>
+                  </div>
+                  {v.outcome && (
+                    <p title={v.outcome} className="mt-0.5 line-clamp-2 text-[11.5px] text-muted-foreground">
+                      {v.outcome}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </SectionCard>
       )}

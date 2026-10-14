@@ -701,6 +701,9 @@ export interface ResolvedViolation {
   unit: string
   type: string
   resolved: string
+  /** `dismissed` or `resolved` — what the list names the case by. */
+  stage: ViolationStage
+  /** The reason the manager wrote when closing it, which the resident reads. A sentence, not a label. */
   outcome: string
 }
 

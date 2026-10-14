@@ -493,7 +493,7 @@ export function useResolvedViolationsLive(): Result<ResolvedViolation[]> {
 
     const { data: rows, error: err } = await supabase
       .from("violations")
-      .select(`id, building_id, type, resolved_at, resolution_outcome, unit:units ( unit_number )`)
+      .select(`id, building_id, type, stage, resolved_at, resolution_outcome, unit:units ( unit_number )`)
       .not("resolved_at", "is", null)
       .order("resolved_at", { ascending: false })
 
@@ -508,6 +508,7 @@ export function useResolvedViolationsLive(): Result<ResolvedViolation[]> {
       id: string
       building_id: string | null
       type: string
+      stage: string
       resolved_at: string | null
       resolution_outcome: string | null
       unit: { unit_number: string } | { unit_number: string }[] | null
@@ -521,7 +522,10 @@ export function useResolvedViolationsLive(): Result<ResolvedViolation[]> {
         unit: first(r.unit)?.unit_number ?? "—",
         type: r.type.replace(/_/g, " "),
         resolved: shortDay(r.resolved_at),
-        outcome: r.resolution_outcome ?? "Resolved",
+        stage: toViolationStage(r.stage),
+        // The manager's reason, or nothing. It is no longer a label: the list
+        // names the case by `stage` (closedCaseLabel).
+        outcome: r.resolution_outcome ?? "",
       })),
     )
     setError(null)

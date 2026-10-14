@@ -15,9 +15,11 @@ import { useIncidents, setIncidentStatus, escalateIncident } from "@/lib/data/in
 import { useNoticeKinds, useViolationNotices, issueNotice } from "@/lib/data/clinic/notices"
 import { useCaseTimeline, stampOf, type CaseEvent } from "@/lib/data/case-timeline"
 import {
-  parseAmountToCents, readFineSchedule, formatCentsForInput, scheduledCents, fineNoteRequired, type FineSchedule,
+  parseAmountToCents, readFineSchedule, formatCentsForInput, scheduledCents, fineNoteRequired, defaultFineDueOn,
+  type FineSchedule,
 } from "@/lib/data/fine-schedule"
 import { settleableFines, fineDegreeToIssue } from "@/lib/data/fine-actions"
+import { closedCaseLabel } from "@/lib/data/violations"
 import type { CaseFine, Violation } from "@/lib/data/types"
 import { toCsv, downloadCsv } from "@/lib/csv"
 import { DataTable, type Column } from "@/components/screens/shared/data-table"
@@ -889,7 +891,8 @@ function MoneyActModal({
 
   const [note, setNote] = useState("")
   const [amount, setAmount] = useState(bylawCents !== null ? formatCentsForInput(bylawCents) : "")
-  const [dueOn, setDueOn] = useState("")
+  // Today + 30, the same default the strata portal's fine confirm starts with.
+  const [dueOn, setDueOn] = useState(() => (act.kind === "fine" ? defaultFineDueOn() : ""))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -1157,7 +1160,23 @@ function ClosedTable({ resolved }: { resolved: ReturnType<typeof useResolvedViol
   const columns: Column<Row>[] = [
     { key: "type", header: "Case", sortValue: (r) => r.type, render: (r) => <span className="font-semibold text-foreground">{r.type}</span> },
     { key: "unit", header: "Unit", sortValue: (r) => r.unit, width: "w-20", render: (r) => <span className="tabular-nums text-muted-foreground">{r.unit || "—"}</span> },
-    { key: "outcome", header: "Outcome", sortValue: (r) => r.outcome, render: (r) => <Pill tone={r.outcome?.toLowerCase().includes("dismiss") ? "neutral" : "good"}>{r.outcome || "Closed"}</Pill> },
+    {
+      key: "outcome", header: "Outcome", sortValue: (r) => closedCaseLabel(r.stage).label,
+      // The pill is the STAGE; the manager's reason sits under it, clamped to
+      // two lines with the whole text on hover. Reading the tone off the reason
+      // (`includes("dismiss")`) stopped working once the reason became free text.
+      render: (r) => {
+        const { label, tone } = closedCaseLabel(r.stage)
+        return (
+          <span className="flex min-w-0 flex-col items-start gap-0.5">
+            <Pill tone={tone}>{label}</Pill>
+            {r.outcome && (
+              <span title={r.outcome} className="line-clamp-2 text-[12px] text-muted-foreground">{r.outcome}</span>
+            )}
+          </span>
+        )
+      },
+    },
     { key: "resolved", header: "Closed", sortValue: (r) => r.resolved, secondary: true, render: (r) => <span className="text-muted-foreground">{r.resolved}</span> },
   ]
   if (resolved.isLoading) return <Spinner label="Loading closed cases" />
@@ -1229,7 +1248,11 @@ function AppealPanel({
   violation, onChoose,
 }: {
   violation: Violation
-  /** Opens the confirm, which asks for the reason and makes the call. */
+  /**
+   * Opens the confirm, which asks for the reason and makes the call. The
+   * buttons carry no busy state: the case modal (and this panel with it) is
+   * hidden while the confirm is up, so they are never visible mid-call.
+   */
   onChoose: (outcome: "upheld" | "overturned") => void
 }) {
   const filed = violation.openDispute?.filedAt
@@ -1255,7 +1278,7 @@ function AppealPanel({
         <button
           type="button"
           onClick={() => onChoose("upheld")}
-          className="rounded-xl border border-warning/50 bg-warning/10 p-3 text-left transition-colors hover:bg-warning/15 disabled:opacity-50"
+          className="rounded-xl border border-warning/50 bg-warning/10 p-3 text-left transition-colors hover:bg-warning/15"
         >
           <span className="block text-[13.5px] font-semibold text-warning-strong">
             Uphold
@@ -1267,7 +1290,7 @@ function AppealPanel({
         <button
           type="button"
           onClick={() => onChoose("overturned")}
-          className="rounded-xl border border-success/50 bg-success/10 p-3 text-left transition-colors hover:bg-success/15 disabled:opacity-50"
+          className="rounded-xl border border-success/50 bg-success/10 p-3 text-left transition-colors hover:bg-success/15"
         >
           <span className="block text-[13.5px] font-semibold text-success">
             Overturn

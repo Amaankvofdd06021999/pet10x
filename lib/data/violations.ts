@@ -94,6 +94,20 @@ export function isTerminal(stage: ViolationStage): boolean {
   return (TERMINAL_STAGES as readonly string[]).includes(stage)
 }
 
+/**
+ * How a closed case is named in a list, from its STAGE.
+ *
+ * It used to be read off `resolution_outcome`, which held a fixed string
+ * ("Dismissed by manager"). Since 3.2 that column holds the reason the manager
+ * typed — "Filed against the wrong unit" contains no "dismiss" and read as a
+ * green resolution. The stage is the fact; the reason is secondary text.
+ */
+export function closedCaseLabel(stage: ViolationStage): { label: "Dismissed" | "Resolved" | "Closed"; tone: "neutral" | "good" } {
+  if (stage === "dismissed") return { label: "Dismissed", tone: "neutral" }
+  if (stage === "resolved") return { label: "Resolved", tone: "good" }
+  return { label: "Closed", tone: "neutral" }
+}
+
 export function isFineStage(stage: ViolationStage): stage is FineStage {
   return (FINE_STAGES as readonly string[]).includes(stage)
 }

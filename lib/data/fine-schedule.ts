@@ -27,6 +27,8 @@
  * `manager_advance_violation` reads only `jsonb_typeof(...) = 'number'`.
  */
 
+import { addCalendarDays, todayKey } from "@/lib/dates"
+
 /**
  * What `buildings.pet_rules` says a fine of each degree should cost.
  *
@@ -86,6 +88,18 @@ export function scheduledCents(schedule: FineSchedule | null, degree: "fine_1" |
 export function fineNoteRequired(bylawCents: number | null, enteredCents: number | null): boolean {
   if (bylawCents === null) return true
   return enteredCents !== null && enteredCents !== bylawCents
+}
+
+/** Days from today a newly issued fine falls due, unless the manager changes it. */
+const FINE_DUE_DAYS = 30
+
+/**
+ * The due date a fine confirm starts with: today + 30 calendar days, as a
+ * `YYYY-MM-DD` in the viewer's zone. Shared by the manager's case sheet and the
+ * strata portal so the two fine screens offer the same default.
+ */
+export function defaultFineDueOn(now: Date = new Date()): string {
+  return addCalendarDays(todayKey(now), FINE_DUE_DAYS) ?? ""
 }
 
 /** The inclusive cent range `manager_set_fine_schedule` accepts: 1¢ to $10,000. */

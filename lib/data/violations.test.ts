@@ -29,6 +29,7 @@ import {
   TERMINAL_STAGES,
   VIOLATION_STAGES,
   canAdvance,
+  closedCaseLabel,
   describeLegalMoves,
   isChaseableFine,
   isFineStage,
@@ -358,5 +359,19 @@ describe("which fine statuses mean money is owed", () => {
     const waived = summariseFines([{ amount_cents: 100, status: "waived" }])
     expect(waived.fullyPaid).toBe(false)
     expect(waived.outstandingCents).toBe(0)
+  })
+})
+
+describe("closedCaseLabel", () => {
+  it("names a dismissed case by its stage, whatever reason was written", () => {
+    expect(closedCaseLabel("dismissed")).toEqual({ label: "Dismissed", tone: "neutral" })
+  })
+
+  it("names a resolved case by its stage", () => {
+    expect(closedCaseLabel("resolved")).toEqual({ label: "Resolved", tone: "good" })
+  })
+
+  it("says Closed for a stage that is not terminal", () => {
+    expect(closedCaseLabel("warning")).toEqual({ label: "Closed", tone: "neutral" })
   })
 })
