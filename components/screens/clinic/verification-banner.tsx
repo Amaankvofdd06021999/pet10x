@@ -100,7 +100,7 @@ export function VerificationBanner({ clinic, canRequest }: { clinic: ClinicMembe
           </Field>
           <div className="flex gap-1.5">
             <Button type="submit" size="sm" className="flex-1" busy={busy}>
-              Send request
+              {banner.state === "needs_info" ? "Resubmit" : "Send request"}
             </Button>
             <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => setOpen(false)}>
               Cancel

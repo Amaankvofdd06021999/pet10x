@@ -26,3 +26,35 @@ export function buildingHasHistory(total: number | undefined): boolean {
 export function buildingDeleteError(err: { code?: string; message: string }): string {
   return err.code === "23503" ? HAS_HISTORY_MESSAGE : err.message
 }
+
+export interface BuildingCounts {
+  residents: number
+  pets: number
+  managers: number
+  /** Null when the open-case count could not be read; the summary then omits it. */
+  openCases: number | null
+}
+
+const isCount = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0
+
+/**
+ * admin_building_history's `counts` jsonb (resident_links, pets,
+ * building_managers) plus the open-case count, which the RPC does not carry —
+ * it counts every report, closed ones too. Null unless the three are whole and
+ * non-negative: no numbers beats wrong ones in a confirmation.
+ */
+export function parseBuildingCounts(raw: unknown, openCases: number | null): BuildingCounts | null {
+  if (!raw || typeof raw !== "object") return null
+  const { resident_links, pets, building_managers } = raw as Record<string, unknown>
+  if (!isCount(resident_links) || !isCount(pets) || !isCount(building_managers)) return null
+  return { residents: resident_links, pets, managers: building_managers, openCases: openCases !== null && isCount(openCases) ? openCases : null }
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+/** "12 residents · 9 pets · 2 managers · 3 open cases" — the card line and the archive confirmation. */
+export function buildingSummary(c: BuildingCounts): string {
+  const parts = [plural(c.residents, "resident", "residents"), plural(c.pets, "pet", "pets"), plural(c.managers, "manager", "managers")]
+  if (c.openCases !== null) parts.push(plural(c.openCases, "open case", "open cases"))
+  return parts.join(" · ")
+}

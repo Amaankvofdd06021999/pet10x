@@ -37,7 +37,8 @@ import {
   type AdminBusiness,
   type PetRules,
 } from "@/lib/data/admin"
-import { BUSINESS_TIERS, awaitingReview, tierDescription, tierLabel, type BusinessTier } from "@/lib/data/business-tier"
+import { BUSINESS_TIERS, awaitingReview, isTierDowngrade, tierDescription, tierLabel, type BusinessTier } from "@/lib/data/business-tier"
+import { buildingSummary } from "@/lib/data/building-archive"
 import {
   canDeleteBusiness,
   footprintLines,
@@ -408,27 +409,24 @@ function BuildingCard({
     onChange()
   }
 
-  async function remove() {
-    if (!confirm(`Delete ${building.name}? Nothing references it — no units, residents, managers, pets or records — so only the building itself is removed. This cannot be undone.`)) return
-    setBusy(true)
+  // One dialog at a time: which question is being asked of this building.
+  const [asking, setAsking] = useState<"delete" | "archive" | "restore" | null>(null)
+  const summary = building.counts ? buildingSummary(building.counts) : null
+
+  async function remove(): Promise<{ error: string | null }> {
     const { error } = await deleteBuilding(building.id)
-    setBusy(false)
-    if (error) return toast.error("Couldn't delete", { description: error })
+    if (error) return { error }
     toast.success("Building deleted")
     onChange()
+    return { error: null }
   }
 
-  async function archive(archived: boolean) {
-    const question = archived
-      ? `Archive ${building.name}? Residents will no longer be able to join it or file reports with its code, and it disappears from search and from the strata portfolio. Its managers see it marked archived and can no longer change its settings. Its residents, pets, cases and fines are kept, and you can restore it.`
-      : `Restore ${building.name}? Its code works again for joining and reporting.`
-    if (!confirm(question)) return
-    setBusy(true)
+  async function archive(archived: boolean): Promise<{ error: string | null }> {
     const { error } = await setBuildingArchived(building.id, archived)
-    setBusy(false)
-    if (error) return toast.error(archived ? "Couldn't archive" : "Couldn't restore", { description: error })
+    if (error) return { error }
     toast.success(archived ? "Building archived" : "Building restored")
     onChange()
+    return { error: null }
   }
 
   return (
@@ -533,10 +531,11 @@ function BuildingCard({
           {/* Archive is the answer for any building with history; Delete exists
               only for one nobody has used — a used one would be refused by
               its foreign keys, and those rows are other people's records. */}
+          {summary && <p className="mt-4 text-[12.5px] text-muted-foreground">{summary}</p>}
           <button
-            onClick={() => archive(!building.archivedAt)}
+            onClick={() => setAsking(building.archivedAt ? "restore" : "archive")}
             disabled={busy}
-            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-muted py-2 text-[13px] font-semibold text-foreground disabled:opacity-60"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-muted py-2 text-[13px] font-semibold text-foreground disabled:opacity-60"
           >
             {building.archivedAt ? (
               <>
@@ -548,9 +547,14 @@ function BuildingCard({
               </>
             )}
           </button>
+          {building.historyFailed && (
+            <p role="alert" className="mt-2 text-[12.5px] text-destructive">
+              Couldn&apos;t load this building&apos;s history, so Delete isn&apos;t offered. Reload to try again.
+            </p>
+          )}
           {!building.hasHistory && (
             <button
-              onClick={remove}
+              onClick={() => setAsking("delete")}
               disabled={busy}
               className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-destructive/10 py-2 text-[13px] font-semibold text-destructive disabled:opacity-60"
             >
@@ -558,6 +562,36 @@ function BuildingCard({
             </button>
           )}
         </div>
+      )}
+      {asking && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setAsking(null)
+          }}
+          title={
+            asking === "delete" ? `Delete ${building.name}?` : asking === "archive" ? `Archive ${building.name}?` : `Restore ${building.name}?`
+          }
+          description={
+            asking === "delete" ? (
+              "Nothing references it — no units, residents, managers, pets or records — so only the building itself is removed. This can't be undone."
+            ) : asking === "archive" ? (
+              <span className="flex flex-col gap-2">
+                {summary && <span className="font-semibold text-foreground">It holds {summary}.</span>}
+                <span>
+                  Residents will no longer be able to join it or file reports with its code, and it disappears from search and from the strata portfolio.
+                  Its managers see it marked archived and can no longer change its settings. Its residents, pets, cases and fines are kept, and you can
+                  restore it.
+                </span>
+              </span>
+            ) : (
+              "Its code works again for joining and reporting."
+            )
+          }
+          confirmLabel={asking === "delete" ? "Delete building" : asking === "archive" ? "Archive building" : "Restore building"}
+          tone={asking === "restore" ? "default" : "danger"}
+          onConfirm={() => (asking === "delete" ? remove() : archive(asking === "archive"))}
+        />
       )}
     </div>
   )
@@ -578,25 +612,31 @@ function Managers() {
     .filter((m) => (city ? m.building.city === city : true))
     .filter((m) => (region ? m.building.region === region : true))
 
-  async function toggleSuspend(m: AdminManager) {
+  // Suspending takes the whole account, not just this row's building, so it
+  // asks first; unsuspending restores access and needs no question.
+  const [suspending, setSuspending] = useState<AdminManager | null>(null)
+  const [revoking, setRevoking] = useState<AdminManager | null>(null)
+
+  async function setSuspended(m: AdminManager): Promise<{ error: string | null }> {
     setBusy(m.linkId)
     const { error: err } = await setManagerSuspended(m.id, !m.isSuspended)
     setBusy(null)
-    if (err) return toast.error("Action failed", { description: err })
+    if (err) return { error: err }
     toast.success(m.isSuspended ? "Manager access restored" : "Manager suspended", {
       description: m.isSuspended ? `${m.name} can sign in again.` : `${m.name} is locked out of every building and dashboard.`,
     })
     refetch()
+    return { error: null }
   }
 
-  async function revoke(m: AdminManager) {
-    if (!confirm(`Remove ${m.name} as a manager of ${m.building.name}? Their account stays active.`)) return
+  async function revoke(m: AdminManager): Promise<{ error: string | null }> {
     setBusy(m.linkId)
     const { error: err } = await revokeManagerFromBuilding(m.linkId)
     setBusy(null)
-    if (err) return toast.error("Couldn't revoke", { description: err })
+    if (err) return { error: err }
     toast.success("Manager removed from building")
     refetch()
+    return { error: null }
   }
 
   return (
@@ -686,7 +726,11 @@ function Managers() {
               </div>
               <div className="flex flex-shrink-0 items-center gap-1.5">
                 <button
-                  onClick={() => toggleSuspend(m)}
+                  onClick={() => {
+                    if (m.isSuspended) {
+                      void setSuspended(m).then((r) => r.error && toast.error("Action failed", { description: r.error }))
+                    } else setSuspending(m)
+                  }}
                   disabled={busy === m.linkId}
                   className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60 ${
                     m.isSuspended ? "bg-muted text-foreground" : "bg-destructive/15 text-destructive"
@@ -699,10 +743,10 @@ function Managers() {
                   ) : (
                     <Ban className="h-3.5 w-3.5" />
                   )}
-                  {m.isSuspended ? "Restore" : "Freeze"}
+                  {m.isSuspended ? "Unsuspend" : "Suspend"}
                 </button>
                 <button
-                  onClick={() => revoke(m)}
+                  onClick={() => setRevoking(m)}
                   disabled={busy === m.linkId}
                   title="Remove from this building"
                   className="flex items-center rounded-lg bg-muted p-1.5 text-muted-foreground disabled:opacity-60"
@@ -713,6 +757,32 @@ function Managers() {
             </div>
           ))}
         </div>
+      )}
+      {suspending && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setSuspending(null)
+          }}
+          title={`Suspend ${suspending.name}?`}
+          description="They are signed out of every building, business and console — every building they manage, not only this one. You can unsuspend them later."
+          confirmLabel="Suspend"
+          tone="danger"
+          onConfirm={() => setSuspended(suspending)}
+        />
+      )}
+      {revoking && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setRevoking(null)
+          }}
+          title={`Remove ${revoking.name} from ${revoking.building.name}?`}
+          description="Their account stays active."
+          confirmLabel="Remove from building"
+          tone="danger"
+          onConfirm={() => revoke(revoking)}
+        />
       )}
     </div>
   )
@@ -730,28 +800,31 @@ function Businesses() {
   const [busy, setBusy] = useState<string | null>(null)
   const [filter, setFilter] = useState<"review" | "all">("review")
 
-  async function changeTier(b: AdminBusiness, tier: BusinessTier) {
-    if (tier === b.tier) return
+  // The card decides whether a note is owed (a downgrade) and what to show on
+  // failure; this only writes and reports.
+  async function changeTier(b: AdminBusiness, tier: BusinessTier, note?: string): Promise<{ error: string | null }> {
+    if (tier === b.tier) return { error: null }
     setBusy(b.id)
-    const { error: err } = await setBusinessTier(b.id, tier)
+    const { error: err } = await setBusinessTier(b.id, tier, note)
     setBusy(null)
-    if (err) return toast.error("Couldn't change the tier", { description: err })
+    if (err) return { error: err }
     toast.success(`${b.name} is now ${tierLabel(tier)}`)
     refetch()
+    return { error: null }
   }
 
-  async function review(b: AdminBusiness, approve: boolean, note?: string) {
-    if (!b.openRequest) return false
+  // Does not toast a failure: each caller shows it where the admin is looking
+  // (the Approve dialog's own error line, or a toast for Reject), so it is
+  // said once.
+  async function review(b: AdminBusiness, approve: boolean, note?: string): Promise<{ error: string | null }> {
+    if (!b.openRequest) return { error: "There is no open request to decide." }
     setBusy(b.id)
     const { error: err } = await reviewBusinessVerification(b.openRequest.id, approve, note)
     setBusy(null)
-    if (err) {
-      toast.error("Couldn't record the decision", { description: err })
-      return false
-    }
+    if (err) return { error: err }
     toast.success(approve ? `${b.name} is verified` : "Request rejected")
     refetch()
-    return true
+    return { error: null }
   }
 
   async function askForInfo(b: AdminBusiness, note: string | null): Promise<{ error: string | null }> {
@@ -853,7 +926,7 @@ function Businesses() {
           key={b.id}
           business={b}
           busy={busy === b.id}
-          onTier={(t) => changeTier(b, t)}
+          onTier={(t, note) => changeTier(b, t, note)}
           onReview={(approve, note) => review(b, approve, note)}
           onAsk={(note) => askForInfo(b, note)}
           onRemove={() => startDelete(b)}
@@ -944,8 +1017,8 @@ function BusinessCard({
 }: {
   business: AdminBusiness
   busy: boolean
-  onTier: (tier: BusinessTier) => void
-  onReview: (approve: boolean, note?: string) => Promise<boolean>
+  onTier: (tier: BusinessTier, note?: string) => Promise<{ error: string | null }>
+  onReview: (approve: boolean, note?: string) => Promise<{ error: string | null }>
   onAsk: (note: string | null) => Promise<{ error: string | null }>
   onRemove: () => void
 }) {
@@ -953,6 +1026,11 @@ function BusinessCard({
   const [approving, setApproving] = useState(false)
   const [asking, setAsking] = useState(false)
   const [note, setNote] = useState("")
+  // The select only stages a choice; "Apply" writes it, and a downgrade asks
+  // for the note the business will see first.
+  const [staged, setStaged] = useState<BusinessTier>(b.tier)
+  const [downgrading, setDowngrading] = useState(false)
+  useEffect(() => setStaged(b.tier), [b.tier])
   const req = b.openRequest
   // Verified unlocks shared medical records, so it needs something to verify.
   const hasLicence = Boolean(req?.licenceNumber?.trim())
@@ -977,9 +1055,9 @@ function BusinessCard({
           </label>
           <select
             id={`tier-${b.id}`}
-            value={b.tier}
+            value={staged}
             disabled={busy}
-            onChange={(e) => onTier(e.target.value as BusinessTier)}
+            onChange={(e) => setStaged(e.target.value as BusinessTier)}
             className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
           >
             {BUSINESS_TIERS.map((t) => (
@@ -988,6 +1066,19 @@ function BusinessCard({
               </option>
             ))}
           </select>
+          {staged !== b.tier && (
+            <button
+              onClick={async () => {
+                if (isTierDowngrade(b.tier, staged)) return setDowngrading(true)
+                const { error: err } = await onTier(staged)
+                if (err) toast.error("Couldn't change the tier", { description: err })
+              }}
+              disabled={busy}
+              className="rounded-lg bg-primary px-2.5 py-1.5 text-[12px] font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              Apply
+            </button>
+          )}
           <button
             onClick={onRemove}
             disabled={busy}
@@ -1033,10 +1124,10 @@ function BusinessCard({
               <div className="flex gap-1.5">
                 <button
                   onClick={async () => {
-                    if (await onReview(false, note)) {
-                      setRejecting(false)
-                      setNote("")
-                    }
+                    const { error: err } = await onReview(false, note)
+                    if (err) return toast.error("Couldn't record the decision", { description: err })
+                    setRejecting(false)
+                    setNote("")
                   }}
                   disabled={busy || !note.trim()}
                   className="rounded-lg bg-destructive px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
@@ -1094,10 +1185,24 @@ function BusinessCard({
           title={`Verify ${b.name}?`}
           description="Verified clinics can receive shared medical records and emergency access."
           confirmLabel="Verify"
-          onConfirm={async () => {
-            const done = await onReview(true)
-            return { error: done ? null : "Couldn't record the decision. Try again." }
+          onConfirm={() => onReview(true)}
+        />
+      )}
+      {downgrading && (
+        <ConfirmDialog
+          open
+          onOpenChange={(o) => {
+            setDowngrading(o)
+            // Cancelled: the select goes back to the real tier rather than
+            // sitting on a choice that was never applied.
+            if (!o) setStaged(b.tier)
           }}
+          title={`Change ${b.name} from ${tierLabel(b.tier)} to ${tierLabel(staged)}?`}
+          description={`Moving down takes away what ${tierLabel(b.tier)} unlocks. They are told, with your note.`}
+          confirmLabel="Change tier"
+          tone="danger"
+          reason={{ label: "Note (the business sees this)", required: true, placeholder: "Why is the tier changing?" }}
+          onConfirm={(reason) => onTier(staged, reason ?? undefined)}
         />
       )}
       {asking && (
@@ -1107,7 +1212,12 @@ function BusinessCard({
           title={`Ask ${b.name} for more information?`}
           description="They see your question on their verification banner."
           confirmLabel="Send question"
-          reason={{ label: "What do you need from them?", required: true, placeholder: "For example, the licence number on your certificate" }}
+          reason={{
+            label: "What do you need from them?",
+            required: true,
+            placeholder: "For example, the licence number on your certificate",
+            requiredMessage: "Add your question — the clinic will see it.",
+          }}
           onConfirm={onAsk}
         />
       )}
@@ -1325,15 +1435,16 @@ function UserCard({ user, isMe, onChange }: { user: AdminUser; isMe: boolean; on
   const [typed, setTyped] = useState("")
   const labels = personaLabels(user)
 
-  async function toggleSuspend() {
-    if (!user.isSuspended && !confirm(`Suspend ${user.name}? They are signed out of every building, business and console.`))
-      return
+  const [suspending, setSuspending] = useState(false)
+
+  async function toggleSuspend(): Promise<{ error: string | null }> {
     setBusy(true)
     const { error } = await setUserFlags(user.id, { suspended: !user.isSuspended })
     setBusy(false)
-    if (error) return toast.error("Couldn't change access", { description: error })
+    if (error) return { error }
     toast.success(user.isSuspended ? `${user.name} can sign in again` : `${user.name} is suspended`)
     onChange()
+    return { error: null }
   }
 
   async function toggleAdmin() {
@@ -1379,7 +1490,10 @@ function UserCard({ user, isMe, onChange }: { user: AdminUser; isMe: boolean; on
       {!isMe && (
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           <button
-            onClick={toggleSuspend}
+            onClick={() => {
+              if (!user.isSuspended) return setSuspending(true)
+              void toggleSuspend().then((r) => r.error && toast.error("Couldn't change access", { description: r.error }))
+            }}
             disabled={busy}
             className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
           >
@@ -1395,6 +1509,17 @@ function UserCard({ user, isMe, onChange }: { user: AdminUser; isMe: boolean; on
             {user.isSuperAdmin ? "Remove admin" : "Make admin"}
           </button>
         </div>
+      )}
+      {suspending && (
+        <ConfirmDialog
+          open
+          onOpenChange={setSuspending}
+          title={`Suspend ${user.name}?`}
+          description="They are signed out of every building, business and console. You can unsuspend them later."
+          confirmLabel="Suspend"
+          tone="danger"
+          onConfirm={toggleSuspend}
+        />
       )}
       {!isMe && confirming && (
         <div className="mt-2.5 rounded-lg border border-border p-3">

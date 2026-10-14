@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
-import { buildingDeleteError, buildingHasHistory } from "./building-archive"
+import { buildingDeleteError, buildingHasHistory, parseBuildingCounts, type BuildingCounts } from "./building-archive"
 import { businessTierError, isOpenRequest, type BusinessTier } from "./business-tier"
 import { deleteBusinessError, footprintError, parseFootprint, type BusinessFootprint } from "./business-delete"
 import { parsePlatformStats, userFlagsError, type AdminUser, type PlatformStats } from "./admin-users"
@@ -36,6 +36,8 @@ export interface PetRules {
   notes?: string
 }
 
+const OPEN_CASE_STATUSES: Database["public"]["Enums"]["incident_status"][] = ["submitted", "triaged", "investigating", "linked_to_violation"]
+
 export interface AdminBuilding {
   id: string
   name: string
@@ -56,6 +58,10 @@ export interface AdminBuilding {
    * guess.
    */
   hasHistory: boolean
+  /** What the building holds, for the card and the archive confirmation. Null when unreadable. */
+  counts: BuildingCounts | null
+  /** admin_building_history failed, so Delete is withheld and the card says why. */
+  historyFailed: boolean
 }
 
 export interface AdminBusiness {
@@ -87,7 +93,12 @@ export interface AdminVerificationRequest {
   createdAt: string
 }
 
-function mapBuilding(r: BuildingRow, hasHistory: boolean): AdminBuilding {
+function mapBuilding(
+  r: BuildingRow,
+  hasHistory: boolean,
+  counts: BuildingCounts | null,
+  historyFailed: boolean,
+): AdminBuilding {
   return {
     id: r.id,
     name: r.name,
@@ -100,6 +111,8 @@ function mapBuilding(r: BuildingRow, hasHistory: boolean): AdminBuilding {
     archivedAt: r.archived_at,
     municipalityId: r.municipality_id,
     hasHistory,
+    counts,
+    historyFailed,
   }
 }
 
@@ -113,16 +126,32 @@ export function useAdminBuildings() {
       setLoading(false)
       return
     }
-    const [{ data: rows, error: err }, { data: history }] = await Promise.all([
-      supabase.from("buildings").select("*").order("created_at", { ascending: false }),
-      supabase.rpc("admin_building_history"),
-    ])
+    const [{ data: rows, error: err }, { data: history, error: historyErr }, { data: open, error: openErr }] =
+      await Promise.all([
+        supabase.from("buildings").select("*").order("created_at", { ascending: false }),
+        supabase.rpc("admin_building_history"),
+        // The history RPC counts every report; "open" is every status but the
+        // two that end a case.
+        supabase.from("incident_reports").select("building_id").in("status", OPEN_CASE_STATUSES),
+      ])
     if (err) {
       setError(err.message)
       setData([])
     } else {
-      const counts = new Map((history ?? []).map((h) => [h.building_id, h]))
-      setData((rows ?? []).map((r) => mapBuilding(r, buildingHasHistory(counts.get(r.id)?.total))))
+      const byId = new Map((history ?? []).map((h) => [h.building_id, h]))
+      const openBy = new Map<string, number>()
+      for (const o of open ?? []) openBy.set(o.building_id, (openBy.get(o.building_id) ?? 0) + 1)
+      setData(
+        (rows ?? []).map((r) => {
+          const h = byId.get(r.id)
+          return mapBuilding(
+            r,
+            buildingHasHistory(h?.total),
+            h ? parseBuildingCounts(h.counts, openErr ? null : (openBy.get(r.id) ?? 0)) : null,
+            Boolean(historyErr),
+          )
+        }),
+      )
       setError(null)
     }
     setLoading(false)

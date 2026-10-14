@@ -27,6 +27,14 @@ const DESCRIPTION: Record<BusinessTier, string> = {
 export const tierLabel = (tier: BusinessTier) => LABEL[tier]
 export const tierDescription = (tier: BusinessTier) => DESCRIPTION[tier]
 
+/**
+ * Moving down a rung takes something away from the business (search listing,
+ * shared records), so the admin owes it a note. Upgrades and no-ops do not.
+ */
+export function isTierDowngrade(from: BusinessTier, to: BusinessTier): boolean {
+  return BUSINESS_TIERS.indexOf(to) < BUSINESS_TIERS.indexOf(from)
+}
+
 const OPEN = new Set(["submitted", "in_review", "needs_info"])
 
 export const isOpenRequest = (status: string) => OPEN.has(status)

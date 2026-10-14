@@ -3,6 +3,7 @@ import {
   BUSINESS_TIERS,
   awaitingReview,
   businessTierError,
+  isTierDowngrade,
   tierDescription,
   tierLabel,
   verificationBanner,
@@ -109,5 +110,20 @@ describe("businessTierError", () => {
       "Something went wrong. Try again.",
     )
     expect(businessTierError({ message: "Failed to fetch" })).toBe("Something went wrong. Try again.")
+  })
+})
+
+describe("isTierDowngrade", () => {
+  it("is true for every move down a rung", () => {
+    expect(isTierDowngrade("verified", "listed")).toBe(true)
+    expect(isTierDowngrade("verified", "registered")).toBe(true)
+    expect(isTierDowngrade("listed", "registered")).toBe(true)
+  })
+
+  it("is false for upgrades and for no change", () => {
+    expect(isTierDowngrade("registered", "listed")).toBe(false)
+    expect(isTierDowngrade("registered", "verified")).toBe(false)
+    expect(isTierDowngrade("listed", "verified")).toBe(false)
+    expect(isTierDowngrade("listed", "listed")).toBe(false)
   })
 })
