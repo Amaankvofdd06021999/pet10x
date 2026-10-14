@@ -419,8 +419,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const viewAs: Persona =
     activePersona ?? (user?.role === "building-manager" ? "building-manager" : "pet-owner")
 
+  /* Keyed on the account's id, not the user object: onAuthStateChange hands
+     over a NEW `session.user` on every TOKEN_REFRESHED (about hourly). Keyed
+     on the object, each refresh re-asked my_personas() and flipped the manager
+     lists to "loading" — blanking them and closing open dialogs mid-task. */
+  const authUserId = authUser?.id ?? null
+
   useEffect(() => {
-    if (!SUPABASE_ENABLED || !authUser) {
+    if (!SUPABASE_ENABLED || !authUserId) {
       setGrants(null)
       setActivePersonaState(null)
       setActiveBuildingState(null)
@@ -431,11 +437,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     let active = true
-    // Each run waits for its own answer.
+    // This effect only re-runs when the account changes, so this answer is a
+    // new account's and must be waited for. (A previous account's result is
+    // also ignored by `personasStatus`, which matches on the user id.)
     setPersonasResult(null)
     const supabase = getSupabaseBrowserClient()
     if (!supabase) {
-      setPersonasResult({ userId: authUser.id, ok: false })
+      setPersonasResult({ userId: authUserId, ok: false })
       return
     }
 
@@ -447,7 +455,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Nothing from a previous account may stand in for this one's grants.
         setGrants(null)
         setActiveBuildingState(null)
-        setPersonasResult({ userId: authUser.id, ok: false })
+        setPersonasResult({ userId: authUserId, ok: false })
         return
       }
       // jsonb comes back as the generated `Json` union; the shape is fixed by
@@ -473,29 +481,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const available = personasFor(g)
       // A remembered choice is only honoured if it is still granted — access
       // revoked elsewhere must not survive in this browser's localStorage.
-      const remembered = readStored(PERSONA_KEY(authUser.id)) as Persona | null
+      const remembered = readStored(PERSONA_KEY(authUserId)) as Persona | null
       setActivePersonaState(
         remembered && available.includes(remembered) ? remembered : defaultPersona(available, g.defaultRole),
       )
 
-      const rememberedBuilding = readStored(BUILDING_KEY(authUser.id))
+      const rememberedBuilding = readStored(BUILDING_KEY(authUserId))
       const ids = g.managedBuildings.map((b) => b.id)
       setActiveBuildingState(
         rememberedBuilding && ids.includes(rememberedBuilding) ? rememberedBuilding : (ids[0] ?? null),
       )
-      setPersonasResult({ userId: authUser.id, ok: true })
+      setPersonasResult({ userId: authUserId, ok: true })
     }).then(undefined, () => {
       // A rejected call (network, thrown client) must end in "error", never
       // leave the manager lists on "loading" for good.
       if (!active) return
       setGrants(null)
       setActiveBuildingState(null)
-      setPersonasResult({ userId: authUser.id, ok: false })
+      setPersonasResult({ userId: authUserId, ok: false })
     })
     return () => {
       active = false
     }
-  }, [authUser])
+  }, [authUserId])
 
   const setActivePersona = useCallback(
     (p: Persona) => {

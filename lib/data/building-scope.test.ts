@@ -113,6 +113,9 @@ describe("personasStatus", () => {
     ["an answer for a previous account is not this one's", { enabled: true, userId: "u2", result: { userId: "u1", ok: true } }, "loading"],
     ["answered", { enabled: true, userId: "u1", result: { userId: "u1", ok: true } }, "ready"],
     ["failed", { enabled: true, userId: "u1", result: { userId: "u1", ok: false } }, "error"],
+    // A token refresh hands over a new user object for the same id; the
+    // result already held for that id keeps the lists ready, not loading.
+    ["a token refresh for the same account stays ready", { enabled: true, userId: "u1", result: { userId: "u1", ok: true } }, "ready"],
   ]
   for (const [name, input, want] of cases) {
     it(name, () => expect(personasStatus(input)).toBe(want))
