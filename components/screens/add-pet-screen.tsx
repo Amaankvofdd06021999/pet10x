@@ -143,6 +143,21 @@ function AddPetForm({
     )
   useUnsavedGuard(dirty)
 
+  /* The weight lives inside the collapsed details, so a bad value must not hide
+     its own error. The first time it goes invalid the panel opens (render-time
+     state adjustment, once per transition); after that the user may collapse it,
+     and the "Check the weight" button below the form is what stays visible. */
+  const [wasValid, setWasValid] = useState(true)
+  if (wasValid !== weightField.valid) {
+    setWasValid(weightField.valid)
+    if (!weightField.valid) setDetailsOpen(true)
+  }
+  const showWeight = () => {
+    setDetailsOpen(true)
+    // The input is display:none until the panel has opened, so focus after paint.
+    setTimeout(() => document.getElementById(id("weight"))?.focus(), 0)
+  }
+
   const breedOptions = breedsFor(species)
   const parsedWeight = weightField.parsed
   const canSubmit = name.trim().length > 0 && species !== null && parsedWeight.ok
@@ -308,9 +323,7 @@ function AddPetForm({
         {/* Everything optional, closed by default. Native <details> keeps what was
             typed when it is collapsed; nothing here auto-opens. */}
         <details
-          // Forced open while the weight is invalid: it sits in here, and a
-          // disabled "Add pet" with the reason hidden would be a silent block.
-          open={detailsOpen || !weightField.valid}
+          open={detailsOpen}
           onToggle={(e) => setDetailsOpen(e.currentTarget.open)}
           className="group mb-6 rounded-xl border border-border bg-card/50"
         >
@@ -473,6 +486,15 @@ function AddPetForm({
           </div>
         </details>
 
+        {!weightField.valid && (
+          <button
+            type="button"
+            onClick={showWeight}
+            className="mb-3 w-full text-center text-[13px] font-semibold text-destructive underline"
+          >
+            Check the weight under More details
+          </button>
+        )}
         <button
           onClick={handleSubmit}
           disabled={!canSubmit || saving}
