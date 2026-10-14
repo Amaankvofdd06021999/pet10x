@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { IOSTabBar } from "@/components/ios-tab-bar"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -32,7 +32,18 @@ import { ManagerIncidentsScreen } from "@/components/screens/manager/incidents-s
 import { ManagerSettingsScreen } from "@/components/screens/manager/settings-screen"
 import { MyVetsScreen } from "@/components/screens/my-vets-screen"
 import { AccommodationRequestScreen } from "@/components/screens/accommodation-request-screen"
-import { isScreenKey, readTargetParam, resolveActionTarget, type ScreenKey } from "@/lib/navigation"
+import { isScreenKey, type ScreenKey, type Surface } from "@/lib/navigation"
+import {
+  backTarget,
+  defaultTab,
+  initialRoute,
+  readHistoryState,
+  replaceRouteParams,
+  sameRoute,
+  tabForRoute,
+  type AppHistoryState,
+  type AppRoute,
+} from "@/lib/app-route"
 import { Loader2, PawPrint } from "lucide-react"
 
 /**
@@ -119,7 +130,8 @@ function AppContent() {
    */
   const { isAuthenticated, isGuest, isLoading, user, viewAs, activePersona } = useAuth()
   const isManager = viewAs === "building-manager"
-  const [activeTab, setActiveTab] = useState("home")
+  const surface: Surface = isManager ? "manager" : "resident"
+  const [activeTab, setActiveTab] = useState<ScreenKey>("home")
   const [currentScreen, setCurrentScreen] = useState("home")
   const [selectedPetId, setSelectedPetId] = useState<string | undefined>(undefined)
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | undefined>(undefined)
@@ -139,12 +151,25 @@ function AppContent() {
      once never sticks to the next visit. */
   const [screenTab, setScreenTab] = useState<string | undefined>(undefined)
 
-  // Reset tabs when user/role changes (e.g. after sign-in)
-  useEffect(() => {
-    const tab = isManager ? "dashboard" : "home"
-    setActiveTab(tab)
-    setCurrentScreen(tab)
-  }, [isManager])
+  /* THE URL IS THE SCREEN (lib/app-route.ts).
+   *
+   * Every navigation writes a history entry `{ ...Next's keys, pet10x, route,
+   * activeTab, depth }`, so browser and phone Back step through screens
+   * instead of leaving the app, a refresh reopens the screen, and a screen can
+   * be linked to. Next's keys are spread in, never replaced: the App Router
+   * keeps its tree in `history.state` and reloads the page on a popstate whose
+   * entry lacks it.
+   *
+   * `depth` counts this shell's entries behind the current one. In-app Back
+   * pops history while there are any; at 0 (a cold load from a link) it goes
+   * to the tab root instead of out of the app (`backTarget`).
+   *
+   * Nothing writes to history until the first ready render has read the URL
+   * (`deepLinkDone`), so the reset below cannot wipe a `?screen=` the read has
+   * not seen yet. */
+  const depth = useRef(0)
+  const currentRoute = useRef<AppRoute | null>(null)
+  const deepLinkDone = useRef(false)
 
   /* `id` is polymorphic: a business id for the services flow, otherwise a pet id.
    *
@@ -157,9 +182,9 @@ function AppContent() {
    * `tab` is a fourth for the same reason: for `pet-detail` the id is the pet,
    * so the tab to open it on cannot ride there too.
    *
-   * Declared above the early returns so the deep-link effect below can call
-   * it; it holds nothing but setters. */
-  const handleNavigate = (screen: string, id?: string, petId?: string, tab?: string) => {
+   * The one place these setters live: a navigation, Back, a popstate and the
+   * first read of the URL all come through here. Setters only, so it is stable. */
+  const applyScreen = useCallback((screen: string, id?: string, petId?: string, tab?: string) => {
     setScreenTab(tab)
     if (screen === "business-detail") setSelectedBusinessId(id)
     // For the tracker the id is a care kind, not a pet — a Today's Care tile
@@ -175,23 +200,106 @@ function AppContent() {
     // pet left over from an earlier screen would silently scope the answer.
     else if (screen === "ai-chat") setSelectedPetId(undefined)
     setCurrentScreen(screen)
+  }, [])
+
+  const applyRoute = useCallback(
+    (route: AppRoute, tab: ScreenKey) => {
+      applyScreen(route.screen, route.id, route.petId, route.tab)
+      setActiveTab(tab)
+      currentRoute.current = route
+    },
+    [applyScreen],
+  )
+
+  /** Write `route` into history: a new entry, or (`replace`) the current one. */
+  const writeHistory = (route: AppRoute, tab: ScreenKey, entryDepth: number, replace: boolean) => {
+    const state: AppHistoryState = { pet10x: true, route, activeTab: tab, depth: entryDepth }
+    const url = "/app" + replaceRouteParams(replace ? window.location.search : "", route) + (replace ? window.location.hash : "")
+    /* Next's keys are kept, all but `__NA`: Next's patched pushState and
+     * replaceState skip their own bookkeeping for data carrying it, and that
+     * bookkeeping is what copies the router tree into the entry AND tells the
+     * router the URL changed — without it a later router update rewrites the
+     * bar back to the URL it last knew. Without `__NA` it re-adds both. */
+    const data: Record<string, unknown> = { ...(window.history.state ?? {}), ...state }
+    delete data.__NA
+    if (replace) window.history.replaceState(data, "", url)
+    else window.history.pushState(data, "", url)
+    depth.current = entryDepth
   }
 
-  /* `/app?target=<action_target>` — the link a notification email or a push
-   * notification opens (`targetHref` in lib/navigation.ts). It goes through
+  /** Open `route`, pushing an entry only when it differs from the one showing. */
+  const navigateTo = (route: AppRoute, tab: ScreenKey, entryDepth: number) => {
+    const unchanged = sameRoute(currentRoute.current, route) && tab === activeTab
+    applyRoute(route, tab)
+    if (deepLinkDone.current && !unchanged) writeHistory(route, tab, entryDepth, false)
+  }
+
+  /* Declared above the early returns so the deep-link effect below can call
+   * it. A screen name the router does not know still renders (blank, as it
+   * always has) but is never written to the URL. */
+  const handleNavigate = (screen: string, id?: string, petId?: string, tab?: string) => {
+    if (!isScreenKey(screen)) {
+      applyScreen(screen, id, petId, tab)
+      return
+    }
+    navigateTo({ screen, id, petId, tab }, activeTab, depth.current + 1)
+  }
+
+  /* Reset tabs when user/role changes (e.g. after sign-in, or a persona
+   * switch). Before the first read of the URL it touches only React state —
+   * the read below runs after it in the same commit and decides the screen.
+   * After it, the entry the viewer is on belongs to the other surface, so it
+   * is replaced with the new tab root and the history behind it disowned. */
+  useEffect(() => {
+    const tab = isManager ? "dashboard" : "home"
+    if (!deepLinkDone.current) {
+      setActiveTab(tab)
+      setCurrentScreen(tab)
+      currentRoute.current = null
+      return
+    }
+    applyRoute({ screen: tab }, tab)
+    writeHistory({ screen: tab }, tab, 0, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the persona alone, as it always was
+  }, [isManager])
+
+  /* Browser / phone Back and Forward. An entry this shell wrote restores its
+   * route, tab and depth; anything else (Next's initial entry, an entry from
+   * the other persona) shows the tab root. Nothing is pushed here. */
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      if (!deepLinkDone.current) return
+      const restored = readHistoryState(event.state, surface)
+      if (restored) {
+        applyRoute(restored.route, restored.activeTab)
+        depth.current = restored.depth
+      } else {
+        const tab = defaultTab(surface)
+        applyRoute({ screen: tab }, tab)
+        depth.current = 0
+      }
+    }
+    window.addEventListener("popstate", onPopState)
+    return () => window.removeEventListener("popstate", onPopState)
+  }, [surface, applyRoute])
+
+  /* The first read of the URL: `?screen=` (a refresh, a shared link), else
+   * `/app?target=<action_target>` — the link a notification email or a push
+   * notification opens (`targetHref` in lib/navigation.ts), which goes through
    * `resolveActionTarget` exactly as an Alerts button does, for the persona
    * being WORN, so a manager-only target opened while viewing as a resident
    * does nothing rather than rendering a blank screen. Read once, after the
-   * session and persona have resolved (and after the reset above has run),
-   * then removed from the address bar so a reload does not re-open it. A
-   * resident still onboarding keeps it until onboarding finishes.
+   * session and persona have resolved (and after the reset above has run).
+   * The entry is then rewritten to the route's own `?screen=` — `target=` is
+   * dropped, so the bar never holds both and a reload does not re-open it as
+   * a notification. A resident still onboarding keeps it until onboarding
+   * finishes.
    *
    * "Persona resolved" means `my_personas()` has answered: until then `viewAs`
    * is the role-column fallback, and the reset above runs again when the real
    * persona lands — which would throw the deep link away. If that RPC never
    * answers, the fallback is the persona the screen is showing anyway, so the
    * link is honoured against it after a short wait rather than never. */
-  const deepLinkDone = useRef(false)
   const [personaWaitOver, setPersonaWaitOver] = useState(false)
   useEffect(() => {
     const t = window.setTimeout(() => setPersonaWaitOver(true), 3000)
@@ -202,13 +310,19 @@ function AppContent() {
   useEffect(() => {
     if (deepLinkDone.current || !userReady || onboardingPending) return
     deepLinkDone.current = true
-    const target = readTargetParam(window.location.search)
-    if (!target) return
-    const url = new URL(window.location.href)
-    url.searchParams.delete("target")
-    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash)
-    const route = resolveActionTarget(target, isManager ? "manager" : "resident")
-    if (route) handleNavigate(route.screen, route.id, undefined, route.tab)
+    const initial = initialRoute(window.location.search, window.history.state, surface)
+    if (initial) {
+      applyRoute(initial.route, initial.activeTab)
+      writeHistory(initial.route, initial.activeTab, initial.depth, true)
+    } else {
+      // No route in the URL: stamp the entry with what is showing — the tab
+      // root, or a screen tapped while the persona was still resolving — so
+      // Back to it restores it and the bar drops any unusable `target=`.
+      const route = currentRoute.current ?? { screen: defaultTab(surface) }
+      const tab = tabForRoute(route, activeTab, surface)
+      applyRoute(route, tab)
+      writeHistory(route, tab, 0, true)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, when the session is ready
   }, [userReady, onboardingPending, isManager])
 
@@ -266,16 +380,24 @@ function AppContent() {
       handleNavigate("ai-chat")
       return
     }
-    // A tab asked for by an earlier navigation (Pet Events → Events) must not
-    // follow the viewer onto a tab they chose themselves.
-    setScreenTab(undefined)
-    setActiveTab(tab)
-    setCurrentScreen(tab)
+    if (!isScreenKey(tab)) return
+    // `{ screen: tab }` carries no `tab`: a tab asked for by an earlier
+    // navigation (Pet Events → Events) must not follow the viewer onto a tab
+    // they chose themselves. A tab starts a new stack one entry deep.
+    navigateTo({ screen: tab }, tab, 1)
   }
 
+  /* Back to the screen the viewer came from — history, while this shell has
+   * pushed any; otherwise (opened cold from a link) the tab root, in place,
+   * never out of the app. */
   const handleBack = () => {
-    setScreenTab(undefined)
-    setCurrentScreen(activeTab)
+    const target = backTarget(depth.current, activeTab)
+    if (target === "history") {
+      window.history.back()
+      return
+    }
+    applyRoute(target, activeTab)
+    writeHistory(target, activeTab, 0, true)
   }
 
   const contentMax = isScreenKey(currentScreen) ? CONTENT_MAX[currentScreen] : "max-w-2xl"

@@ -122,3 +122,99 @@ export function fromLegacyTarget(search: string, surface: Surface): AppRoute | n
 export function backTarget(depth: number, activeTab: ScreenKey): "history" | AppRoute {
   return depth > 0 ? "history" : { screen: activeTab }
 }
+
+/* ------------------------------------------------------------------ */
+/* History state — what the shell writes into each entry it pushes.    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Stored beside Next's own keys in `history.state` on every entry the shell
+ * writes. `route` is the route exactly as `handleNavigate` received it (an id
+ * on a screen the URL cannot carry still restores on Back), `activeTab` is the
+ * tab bar's selection at the time, and `depth` is how many app entries sit
+ * behind this one — stored rather than counted, so Forward restores it too.
+ */
+export type AppHistoryState = { pet10x: true; route: AppRoute; activeTab: ScreenKey; depth: number }
+
+export function defaultTab(surface: Surface): ScreenKey {
+  return surface === "manager" ? "dashboard" : "home"
+}
+
+function isOnSurface(screen: unknown, surface: Surface): screen is ScreenKey {
+  return typeof screen === "string" && isScreenKey(screen) && SCREEN_SURFACES[screen].includes(surface)
+}
+
+/**
+ * The tab bar selection for a restored route: a tab root selects itself;
+ * any other screen keeps the tab it was opened from, or the surface's
+ * default tab when that is unknown (a cold load) or not on this surface.
+ */
+export function tabForRoute(route: AppRoute, storedTab: unknown, surface: Surface): ScreenKey {
+  if (TAB_ROOTS.has(route.screen)) return route.screen
+  if (isOnSurface(storedTab, surface)) return storedTab
+  return defaultTab(surface)
+}
+
+/** The route as the URL can carry it: params `searchToRoute` would refuse are dropped. */
+export function canonicalRoute(r: AppRoute): AppRoute {
+  const out: AppRoute = { screen: r.screen }
+  if (r.id !== undefined && ID_BEARING.includes(r.screen) && idMatches(r.screen, r.id)) out.id = r.id
+  if (r.petId !== undefined && r.screen === "pet-care" && ID_RE.test(r.petId)) out.petId = r.petId
+  if (r.tab !== undefined && TAB_RE.test(r.tab) && SCREEN_TABS[r.screen]?.includes(r.tab)) out.tab = r.tab
+  return out
+}
+
+export function sameRoute(a: AppRoute | null, b: AppRoute | null): boolean {
+  if (a === null || b === null) return a === b
+  return a.screen === b.screen && a.id === b.id && a.petId === b.petId && a.tab === b.tab
+}
+
+const optString = (v: unknown): v is string | undefined => v === undefined || typeof v === "string"
+
+/** An entry this shell wrote, for this surface; null for anything else (Next's own entries, the other persona's). */
+export function readHistoryState(state: unknown, surface: Surface): Omit<AppHistoryState, "pet10x"> | null {
+  if (typeof state !== "object" || state === null) return null
+  const s = state as Record<string, unknown>
+  if (s.pet10x !== true || typeof s.route !== "object" || s.route === null) return null
+  const r = s.route as Record<string, unknown>
+  if (!isOnSurface(r.screen, surface) || !optString(r.id) || !optString(r.petId) || !optString(r.tab)) return null
+  const route: AppRoute = { screen: r.screen }
+  if (r.id !== undefined) route.id = r.id
+  if (r.petId !== undefined) route.petId = r.petId
+  if (r.tab !== undefined) route.tab = r.tab
+  const depth = typeof s.depth === "number" && Number.isInteger(s.depth) && s.depth > 0 ? s.depth : 0
+  return { route, activeTab: tabForRoute(route, s.activeTab, surface), depth }
+}
+
+/**
+ * What the shell opens on its first ready render.
+ *
+ * A reload keeps `history.state`, so an entry this shell wrote whose route
+ * still matches the address bar wins: it carries the tab and the depth (Back
+ * keeps working after a refresh) and, for a tab root, which root — every tab
+ * root is the bare `/app`. Otherwise the URL decides: `?screen=`, then a
+ * legacy `?target=`. Null means "the tab root", with no history behind it.
+ */
+export function initialRoute(
+  search: string,
+  state: unknown,
+  surface: Surface,
+): Omit<AppHistoryState, "pet10x"> | null {
+  const stored = readHistoryState(state, surface)
+  if (stored && routeToSearch(canonicalRoute(stored.route)) === search) return stored
+  const route = searchToRoute(search, surface) ?? fromLegacyTarget(search, surface)
+  if (!route) return null
+  return { route, activeTab: tabForRoute(route, undefined, surface), depth: 0 }
+}
+
+const ROUTE_PARAMS = ["target", "screen", "id", "pet", "tab"]
+
+/** `search` with every route param replaced by `route`'s — never both `target=` and `screen=`; other params kept. */
+export function replaceRouteParams(search: string, route: AppRoute): string {
+  const p = new URLSearchParams(search)
+  for (const k of ROUTE_PARAMS) p.delete(k)
+  const own = new URLSearchParams(routeToSearch(canonicalRoute(route)))
+  for (const [k, v] of own) p.append(k, v)
+  const s = p.toString()
+  return s ? `?${s}` : ""
+}

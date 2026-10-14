@@ -9,7 +9,6 @@ import { IOSNavBar } from "@/components/ios-nav-bar"
 import { PersonaSwitcher } from "@/components/persona-switcher"
 import { PERSONA_LABEL } from "@/lib/rbac"
 import { AddressCard } from "@/components/screens/profile/address-card"
-import { NavBackButton } from "@/components/nav-back-button"
 import { HelpLegalSection } from "@/components/legal/help-legal-section"
 import {
   Accessibility,
@@ -258,7 +257,6 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
       <IOSNavBar
         title="Profile"
         largeTitle={false}
-        leftAction={<NavBackButton onClick={() => onNavigate?.("home")} />}
         rightAction={
           <button
             onClick={() => onNavigate?.("alerts")}
