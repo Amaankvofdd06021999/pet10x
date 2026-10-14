@@ -17,9 +17,9 @@ export const metadata: Metadata = {
 
 const link = "font-medium text-primary underline underline-offset-2"
 
-function Faq({ q, children }: { q: string; children: ReactNode }) {
+function Faq({ q, id, children }: { q: string; id?: string; children: ReactNode }) {
   return (
-    <details className="group rounded-xl border border-border bg-card px-4 py-3 open:pb-4">
+    <details id={id} className="group scroll-mt-24 rounded-xl border border-border bg-card px-4 py-3 open:pb-4">
       <summary className="cursor-pointer list-none text-[15px] font-semibold text-foreground marker:hidden">
         <span className="flex items-start justify-between gap-3">
           {q}
@@ -120,7 +120,7 @@ export default function HelpPage() {
           allows a direct fine (Settings &rsaquo; Pet Bylaws &amp; Policies). Residents can contest within the
           deadline; you record settlement in the case view.
         </Faq>
-        <Faq q="Where do I set rules and the emergency QR code?">
+        <Faq id="emergency-access" q="Where do I set rules and the emergency QR code?">
           Settings has Pet Bylaws &amp; Policies (the requirements compliance is checked against), House Rules
           (written notices), and Emergency QR Code, where you issue and revoke the code first responders scan.
         </Faq>

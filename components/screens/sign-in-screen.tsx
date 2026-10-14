@@ -28,13 +28,13 @@ const ROLE_CARDS: { role: DemoRole; icon: typeof Dog; iconColor: string; iconBg:
 type SignInView = "main" | "verify-email"
 type AuthMode = "signin" | "signup"
 
-export function SignInScreen() {
+export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMode }) {
   const { signIn, signInWithPassword, startSignup, verifySignup, resetPassword, supabaseEnabled } =
     useAuth()
   const [view, setView] = useState<SignInView>("main")
 
   // real-auth form state
-  const [mode, setMode] = useState<AuthMode>("signin")
+  const [mode, setMode] = useState<AuthMode>(initialMode)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [fullName, setFullName] = useState("")

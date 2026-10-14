@@ -63,7 +63,7 @@ export function SiteFooter() {
               Pet governance, risk &amp; community for multi-unit residential buildings.
             </p>
             <Link
-              href="/app"
+              href="/login?mode=signup"
               className="group mt-6 inline-flex items-center gap-2 rounded-lg bg-background px-5 py-2.5 text-[14px] font-semibold text-foreground transition-opacity hover:opacity-90"
             >
               Get started free

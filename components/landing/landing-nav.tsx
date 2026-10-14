@@ -70,7 +70,7 @@ export function LandingNav() {
             Sign in
           </Link>
           <Link
-            href="/app"
+            href="/login?mode=signup"
             className="rounded-lg bg-primary px-4 py-2 text-[14px] font-semibold text-primary-foreground shadow-sm shadow-primary/30 transition-all hover:scale-[1.03] hover:bg-primary/90 active:scale-[0.98]"
           >
             Get started
@@ -117,7 +117,7 @@ export function LandingNav() {
                 Sign in
               </Link>
               <Link
-                href="/app"
+                href="/login?mode=signup"
                 className="rounded-lg bg-primary px-4 py-2.5 text-center text-[15px] font-semibold text-primary-foreground"
               >
                 Get started

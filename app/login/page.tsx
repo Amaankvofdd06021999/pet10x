@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { SignInScreen } from "@/components/screens/sign-in-screen"
 import { GuestReportScreen } from "@/components/screens/guest-report-screen"
 import { getHomeRouteForRole, canAccessRoute } from "@/lib/rbac"
+import { readLoginMode } from "@/lib/auth/login-mode"
 import { safeNextPath } from "@/lib/safe-next"
 import { Loader2, PawPrint, Ban } from "lucide-react"
 
@@ -47,7 +48,9 @@ function LoginContent() {
 
   // Hold the spinner while the session resolves, and while an authenticated user
   // is being bounced to their own home — otherwise the sign-in form flashes.
-  if (isLoading || (isAuthenticated && user && !suspended)) {
+  // `params === null` holds the spinner one frame so the form mounts knowing
+  // which tab (?mode=signup) to open on — its mode is seeded once, at mount.
+  if (isLoading || !params || (isAuthenticated && user && !suspended)) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
@@ -78,7 +81,7 @@ function LoginContent() {
           <span>Your account has been suspended. Contact your Pet10x administrator for help.</span>
         </div>
       )}
-      <SignInScreen />
+      <SignInScreen initialMode={readLoginMode(params.toString())} />
     </div>
   )
 }

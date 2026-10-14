@@ -24,6 +24,7 @@ import {
   Syringe,
   ListChecks,
   Siren,
+  Stethoscope,
 } from "lucide-react"
 import { LandingNav } from "@/components/landing/landing-nav"
 import { Reveal } from "@/components/landing/reveal"
@@ -130,6 +131,7 @@ const PERSONAS = [
     body: "Register your pets, stay in good standing, connect with neighbours, and find trusted services.",
     points: ["Pet profiles & reminders", "Building rules, made clear", "Community & marketplace"],
     cta: "Get the app",
+    href: "/login?mode=signup",
   },
   {
     icon: Building2,
@@ -137,6 +139,7 @@ const PERSONAS = [
     body: "Run pet operations from one dashboard — enforcement, approvals, accommodation, and risk.",
     points: ["Compliance dashboard", "Approvals & violations", "Risk & CRT export"],
     cta: "Book a demo",
+    href: "/help#contact",
     featured: true,
   },
   {
@@ -145,6 +148,15 @@ const PERSONAS = [
     body: "List your services, reach pet owners in nearby buildings, and take bookings.",
     points: ["Business profiles", "Location-based reach", "Reviews & bookings"],
     cta: "List your business",
+    href: "/businessaccess",
+  },
+  {
+    icon: Stethoscope,
+    title: "For vet clinics",
+    body: "Run appointments, records and reminders, and share records with owners.",
+    points: ["Appointments & reminders", "Medical records & sharing", "Billing & estimates"],
+    cta: "Set up your clinic",
+    href: "/clinic",
   },
 ]
 
@@ -156,6 +168,7 @@ const PRICING = [
     tagline: "For casual pet owners getting started.",
     features: ["Up to 2 pets", "Building rules & contacts", "Lost & found (view)", "Community (read-only)", "Service directory"],
     cta: "Get started",
+    href: "/login?mode=signup",
     featured: false,
   },
   {
@@ -165,6 +178,7 @@ const PRICING = [
     tagline: "Everything an active pet owner needs.",
     features: ["Unlimited pets & full profiles", "Vaccination & license reminders", "Post, comment & message", "Report incidents with evidence", "Ad-free experience"],
     cta: "Start free trial",
+    href: "/login?mode=signup",
     featured: true,
   },
   {
@@ -174,6 +188,7 @@ const PRICING = [
     tagline: "Governance & risk for the whole building.",
     features: ["Admin dashboard & audit trails", "Enforcement & accommodation", "Risk scoring & insurance docs", "Resident communication", "CRT evidence export"],
     cta: "Book a demo",
+    href: "/help#contact",
     featured: false,
   },
 ]
@@ -217,22 +232,22 @@ export default function LandingPage() {
             </Reveal>
             <Reveal delay={160}>
               <p className="mt-6 max-w-xl text-pretty text-[17px] leading-relaxed text-muted-foreground sm:text-[19px]">
-                One app for pet owners to track care, store vaccinations, and connect with their
-                community — and for buildings to handle bylaw enforcement, accommodation, and risk.
-                So pets stay healthy, owners stay in good standing, and councils cut liability.
+                Keep your pet&apos;s care, records and building in one place — and give buildings one
+                place to handle bylaw enforcement, accommodation, and risk. So pets stay healthy,
+                owners stay in good standing, and councils cut liability.
               </p>
             </Reveal>
             <Reveal delay={240}>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link
-                  href="/app"
+                  href="/login?mode=signup"
                   className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   Get started free
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </Link>
                 <Link
-                  href="/app"
+                  href="/help#contact"
                   className="inline-flex items-center justify-center gap-2 rounded-lg card-interactive px-6 py-3 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
                 >
                   Book a demo
@@ -310,7 +325,7 @@ export default function LandingPage() {
                   Set up your pet&apos;s profile in minutes — upgrade only when you&apos;re ready.
                 </p>
                 <Link
-                  href="/app"
+                  href="/login?mode=signup"
                   className="group mt-5 inline-flex items-center gap-2 text-[14px] font-semibold text-primary"
                 >
                   Get the app
@@ -405,7 +420,7 @@ export default function LandingPage() {
                 </p>
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <Link
-                    href="/app"
+                    href="/help#emergency-access"
                     className="group inline-flex items-center justify-center gap-2 rounded-lg bg-background px-6 py-3 text-[15px] font-semibold text-foreground transition-opacity hover:opacity-90"
                   >
                     See how it works
@@ -447,7 +462,7 @@ export default function LandingPage() {
             <p className={EYEBROW}>One platform, every role</p>
             <h2 className={`mt-3 ${H2}`}>Built for everyone in the building.</h2>
           </Reveal>
-          <div className="mt-12 grid gap-4 lg:grid-cols-3">
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PERSONAS.map((p, i) => (
               <Reveal key={p.title} delay={i * 80}>
                 <div
@@ -469,7 +484,7 @@ export default function LandingPage() {
                     ))}
                   </ul>
                   <Link
-                    href="/app"
+                    href={p.href}
                     className={`mt-7 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
                       p.featured
                         ? "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -530,7 +545,7 @@ export default function LandingPage() {
                     ))}
                   </ul>
                   <Link
-                    href="/app"
+                    href={tier.href}
                     className={`mt-8 inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
                       tier.featured
                         ? "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -588,14 +603,14 @@ export default function LandingPage() {
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link
-                  href="/app"
+                  href="/login?mode=signup"
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-7 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   Get started free
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
-                  href="/app"
+                  href="/help#contact"
                   className="inline-flex items-center justify-center rounded-lg card-interactive px-7 py-3 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
                 >
                   Book a demo
