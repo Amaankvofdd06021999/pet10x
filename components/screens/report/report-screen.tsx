@@ -52,32 +52,14 @@ export function ReportScreen({ onBack }: { onBack: () => void }) {
      would put two bars and two back arrows on one screen, meaning different
      things. So the composer takes over the screen for the building path.
 
-     Taking the viewport means taking responsibility for the tab bar. `IOSTabBar`
-     is `fixed bottom-0 z-50 h-16` and `app/app/page.tsx` renders it for every
-     authenticated screen, this one included.
-
-     The padding sits on this wrapper, not on the composer's `<main>`, because
-     the document is what scrolls here. `main` carries `ios-scroll`, which is
-     `overflow-y: auto`, so it reads like the scroll container — but `min-h-dvh`
-     below is a minimum, not a definite height, so the flex line just grows past
-     the viewport to fit its content and never constrains `flex-1`. Measuring in
-     Task 4 gave `main` an overflow of 0 and put the whole scroll on the
-     document. At full scroll the last element — on the pet step, the only
-     Continue/Skip button — would otherwise sit under the bar.
-
-     Padding `main` would clear it just as well, since the document grows to
-     fit. The clearance sits here instead because `main` belongs to the shared
-     composer, and the guest shell that also renders it has no tab bar to
-     clear — `/report` is standalone and the guest branch returns before
-     `IOSTabBar`. Padding `main` would leak 64px of dead space into every
-     guest report.
-
-     The clearance itself is stated the way `ai-chat-screen.tsx` states it: the
-     bar's own 64px plus the home indicator, dropped at the `md` breakpoint
-     where the bar is hidden. A/B measurement confirmed the amount. */
+     The tab bar is not rendered here: `report` is one of `FORM_SCREENS`
+     (lib/app-route.ts), and the shell hides the mobile bar on forms so a stray
+     tap cannot leave a half-filled report. That is why this wrapper no longer
+     pads `4rem + safe area` to clear it. The composer registers itself with
+     the unsaved guard, so every way out asks first while it is dirty. */
   if (view === "building" && building) {
     return (
-      <div className="flex min-h-dvh flex-col bg-background pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+      <div className="flex min-h-dvh flex-col bg-background pb-safe">
         <IncidentComposer
           building={building}
           /* Anonymous by default, as the form this replaced was.

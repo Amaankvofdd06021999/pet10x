@@ -34,6 +34,7 @@ import { MyVetsScreen } from "@/components/screens/my-vets-screen"
 import { AccommodationRequestScreen } from "@/components/screens/accommodation-request-screen"
 import { isScreenKey, type ScreenKey, type Surface } from "@/lib/navigation"
 import {
+  FORM_SCREENS,
   backTarget,
   coldLoadEntries,
   defaultTab,
@@ -45,6 +46,7 @@ import {
   type AppHistoryState,
   type AppRoute,
 } from "@/lib/app-route"
+import { UnsavedGuardProvider, useUnsavedShellGuard } from "@/components/use-unsaved-guard"
 import { Loader2, PawPrint } from "lucide-react"
 
 /**
@@ -171,6 +173,29 @@ function AppContent() {
   const depth = useRef(0)
   const currentRoute = useRef<AppRoute | null>(null)
   const deepLinkDone = useRef(false)
+  // For the popstate listener, which is not re-bound on every tab change.
+  const activeTabRef = useRef(activeTab)
+  useEffect(() => {
+    activeTabRef.current = activeTab
+  }, [activeTab])
+
+  /* DON'T LOSE A HALF-FILLED FORM (components/use-unsaved-guard.tsx).
+   *
+   * A form on one of `FORM_SCREENS` registers whether it is dirty. Every way
+   * this shell leaves a screen — `onNavigate`, `onBack`, a tab or sidebar tap,
+   * browser Back — goes through `leaving`, which asks "Discard this form?"
+   * first while one is, and does nothing on "Keep editing". Synchronous when
+   * nothing is dirty, so ordinary navigation is unchanged. */
+  const guard = useUnsavedShellGuard()
+  const leaving = (go: () => void) => {
+    if (!guard.isDirty()) {
+      go()
+      return
+    }
+    void guard.confirmLeave().then((ok) => {
+      if (ok) go()
+    })
+  }
 
   /* `id` is polymorphic: a business id for the services flow, otherwise a pet id.
    *
@@ -212,8 +237,8 @@ function AppContent() {
     [applyScreen],
   )
 
-  /** Write `route` into history: a new entry, or (`replace`) the current one. */
-  const writeHistory = (route: AppRoute, tab: ScreenKey, entryDepth: number, replace: boolean) => {
+  /** Write `route` into history: a new entry, or (`replace`) the current one. Refs only, so stable. */
+  const writeHistory = useCallback((route: AppRoute, tab: ScreenKey, entryDepth: number, replace: boolean) => {
     const state: AppHistoryState = { pet10x: true, route, activeTab: tab, depth: entryDepth }
     const url = "/app" + replaceRouteParams(replace ? window.location.search : "", route) + (replace ? window.location.hash : "")
     /* Next's keys are kept, all but `__NA`: Next's patched pushState and
@@ -226,7 +251,7 @@ function AppContent() {
     if (replace) window.history.replaceState(data, "", url)
     else window.history.pushState(data, "", url)
     depth.current = entryDepth
-  }
+  }, [])
 
   /** Open `route`, pushing an entry only when it differs from the one showing. */
   const navigateTo = (route: AppRoute, tab: ScreenKey, entryDepth: number) => {
@@ -238,7 +263,7 @@ function AppContent() {
   /* Declared above the early returns so the deep-link effect below can call
    * it. A screen name the router does not know still renders (blank, as it
    * always has) but is never written to the URL. */
-  const handleNavigate = (screen: string, id?: string, petId?: string, tab?: string) => {
+  const navigateNow = (screen: string, id?: string, petId?: string, tab?: string) => {
     if (!isScreenKey(screen)) {
       applyScreen(screen, id, petId, tab)
       return
@@ -248,6 +273,8 @@ function AppContent() {
     const route: AppRoute = { screen, id, petId, tab }
     navigateTo(route, tabForRoute(route, activeTab, surface), depth.current + 1)
   }
+  const handleNavigate = (screen: string, id?: string, petId?: string, tab?: string) =>
+    leaving(() => navigateNow(screen, id, petId, tab))
 
   /* Reset tabs when user/role changes (e.g. after sign-in, or a persona
    * switch). Before the first read of the URL it touches only React state —
@@ -273,6 +300,19 @@ function AppContent() {
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
       if (!deepLinkDone.current) return
+      /* Browser Back off a dirty form. The browser has already moved, so the
+       * form's entry is pushed back (same route, tab and depth) and the form
+       * stays on screen while the dialog asks. Discard then goes back for real;
+       * the guard is clear by then, so that popstate restores normally.
+       * Forward off a form is treated the same way, and its forward entries
+       * are lost to the re-push — Discard lands on the entry before the form. */
+      if (guard.isDirty() && currentRoute.current) {
+        writeHistory(currentRoute.current, activeTabRef.current, depth.current, false)
+        void guard.confirmLeave().then((ok) => {
+          if (ok) window.history.back()
+        })
+        return
+      }
       const restored = readHistoryState(event.state, surface)
       if (restored) {
         applyRoute(restored.route, restored.activeTab)
@@ -285,7 +325,7 @@ function AppContent() {
     }
     window.addEventListener("popstate", onPopState)
     return () => window.removeEventListener("popstate", onPopState)
-  }, [surface, applyRoute])
+  }, [surface, applyRoute, guard, writeHistory])
 
   /* The first read of the URL: `?screen=` (a refresh, a shared link), else
    * `/app?target=<action_target>` — the link a notification email or a push
@@ -376,34 +416,39 @@ function AppContent() {
     )
   }
 
-  const handleTabChange = (tab: string) => {
-    // The assistant is a screen, not a tab — routing it through navigate keeps
-    // the previous tab as the back destination.
-    if (tab === "ai-chat") {
-      handleNavigate("ai-chat")
-      return
-    }
-    if (!isScreenKey(tab)) return
-    // `{ screen: tab }` carries no `tab`: a tab asked for by an earlier
-    // navigation (Pet Events → Events) must not follow the viewer onto a tab
-    // they chose themselves. A tab starts a new stack one entry deep.
-    navigateTo({ screen: tab }, tab, 1)
-  }
+  const handleTabChange = (tab: string) =>
+    leaving(() => {
+      // The assistant is a screen, not a tab — routing it through navigate keeps
+      // the previous tab as the back destination.
+      if (tab === "ai-chat") {
+        navigateNow("ai-chat")
+        return
+      }
+      if (!isScreenKey(tab)) return
+      // `{ screen: tab }` carries no `tab`: a tab asked for by an earlier
+      // navigation (Pet Events → Events) must not follow the viewer onto a tab
+      // they chose themselves. A tab starts a new stack one entry deep.
+      navigateTo({ screen: tab }, tab, 1)
+    })
 
   /* Back to the screen the viewer came from — history, while this shell has
    * pushed any; otherwise (opened cold from a link) the tab root, in place,
    * never out of the app. */
-  const handleBack = () => {
-    const target = backTarget(depth.current, activeTab)
-    if (target === "history") {
-      window.history.back()
-      return
-    }
-    applyRoute(target, activeTab)
-    writeHistory(target, activeTab, 0, true)
-  }
+  const handleBack = () =>
+    leaving(() => {
+      const target = backTarget(depth.current, activeTab)
+      if (target === "history") {
+        window.history.back()
+        return
+      }
+      applyRoute(target, activeTab)
+      writeHistory(target, activeTab, 0, true)
+    })
 
   const contentMax = isScreenKey(currentScreen) ? CONTENT_MAX[currentScreen] : "max-w-2xl"
+  // A form takes the whole phone screen: no tab bar to tap away from it by
+  // accident. The desktop sidebar stays (and is guarded like everything else).
+  const onForm = isScreenKey(currentScreen) && FORM_SCREENS.has(currentScreen)
 
   return (
     <div className="bg-background md:flex md:min-h-dvh">
@@ -492,7 +537,7 @@ function AppContent() {
         </div>
       </div>
 
-      <IOSTabBar activeTab={activeTab} onTabChange={handleTabChange} />
+      {!onForm && <IOSTabBar activeTab={activeTab} onTabChange={handleTabChange} />}
     </div>
   )
 }
@@ -500,7 +545,9 @@ function AppContent() {
 export default function Pet10xApp() {
   return (
     <AuthProvider>
-      <AppContent />
+      <UnsavedGuardProvider>
+        <AppContent />
+      </UnsavedGuardProvider>
       <Toaster position="top-center" />
     </AuthProvider>
   )

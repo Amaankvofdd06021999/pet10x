@@ -5,6 +5,8 @@ import { useAuth } from "@/lib/auth-context"
 import { OTHER_SPECIES, OTHER_BREED, breedsFor, addPet, setPetPhoto } from "@/lib/data"
 import type { Species } from "@/lib/data"
 import { toast } from "sonner"
+import { isDirty } from "@/lib/unsaved"
+import { useUnsavedGuard } from "@/components/use-unsaved-guard"
 import {
   SIZE_BANDS,
   MAX_HEIGHT_INCHES,
@@ -61,6 +63,17 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const photoInput = useRef<HTMLInputElement>(null)
+
+  /* Every field, against how the form opens. The shell asks before leaving
+     while this is true (Cancel and Back call its guarded `onBack`); the
+     success view is not dirty, so its buttons leave freely. */
+  const dirty =
+    !submitted &&
+    isDirty(
+      { neutered: false }, // every other field opens empty
+      { name, species, breed, customBreed, sizeBand, heightIn, restraints, dob, gender, weight, color, microchip, neutered, photoFile },
+    )
+  useUnsavedGuard(dirty)
 
   const breedOptions = breedsFor(species)
   const canSubmit = name.trim().length > 0 && species !== null
@@ -124,6 +137,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
               onClick={() => {
                 setSubmitted(false)
                 setName(""); setSpecies(null); setBreed(""); setCustomBreed(""); setDob(""); setGender(""); setWeight(""); setColor(""); setMicrochip(""); setNeutered(false)
+                setSizeBand(""); setHeightIn(""); setRestraints([])
                 setPhotoFile(null); setPhotoPreview(null)
               }}
               className="w-full rounded-xl border border-border py-3.5 text-[16px] font-semibold text-foreground transition-transform active:scale-[0.98]"

@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import { isDirty } from "@/lib/unsaved"
+import { useUnsavedGuard } from "@/components/use-unsaved-guard"
 import Image from "next/image"
 import { DonateSpcaLink } from "@/components/donate-spca"
 import { PICKER_ACCEPT, prepareChatImage } from "@/lib/ai/image"
@@ -178,6 +180,17 @@ export function IncidentComposer({
   const [reference, setReference] = useState<string | null>(null)
   /** What was actually sent, against what was attached. Set at submit time. */
   const [sent, setSent] = useState<{ photos: number; attached: number } | null>(null)
+
+  /* Anything the reporter chose or typed, until the report is filed. Inside
+     the app the shell asks before leaving while this is true; on the guest
+     page only `beforeunload` does. */
+  const dirty =
+    reference === null &&
+    isDirty(
+      { isAnonymous: defaultAnonymous },
+      { selectedType, description, location, petId, photos, isAnonymous },
+    )
+  const confirmLeave = useUnsavedGuard(dirty)
 
   /**
    * The report has no id until it is submitted, so evidence is uploaded under
@@ -401,7 +414,10 @@ export function IncidentComposer({
   const goBack = () => {
     const i = ORDER.indexOf(step)
     if (i <= 0) {
-      onBack()
+      // Leaves the composer in place (back to the chooser), which the shell never sees.
+      void confirmLeave().then((ok) => {
+        if (ok) onBack()
+      })
       return
     }
     setStep(ORDER[i - 1])

@@ -26,6 +26,8 @@ type ConfirmDialogProps = {
   title: string
   description: React.ReactNode
   confirmLabel: string
+  /** The button that closes without confirming. Defaults to "Cancel". */
+  cancelLabel?: string
   tone?: 'danger' | 'default'
   reason?: { label: string; required: boolean; placeholder?: string }
   /** Resolves with an error message to keep the dialog open, or null to close it. */
@@ -38,6 +40,7 @@ function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  cancelLabel = 'Cancel',
   tone = 'default',
   reason,
   onConfirm,
@@ -112,7 +115,7 @@ function ConfirmDialog({
           </p>
         )}
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={busy}>{cancelLabel}</AlertDialogCancel>
           {/* A plain Button, not AlertDialogAction: that one closes on click, before onConfirm resolves. */}
           <Button
             variant={tone === 'danger' ? 'destructive' : 'default'}

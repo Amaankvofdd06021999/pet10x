@@ -220,8 +220,15 @@ export function replaceRouteParams(search: string, route: AppRoute): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* The first entries of a cold load.                                   */
+/* Forms, and the first entries of a cold load.                        */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Screens that hold a half-filled form. The shell hides the mobile tab bar on
+ * them and asks before any navigation away while the form is dirty
+ * (`components/use-unsaved-guard.tsx`). The desktop sidebar stays.
+ */
+export const FORM_SCREENS: ReadonlySet<ScreenKey> = new Set<ScreenKey>(["add-pet", "report", "accommodations"])
 
 export type HistoryWrite = { route: AppRoute; activeTab: ScreenKey; depth: number; replace: boolean }
 

@@ -24,6 +24,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { isDirty } from "@/lib/unsaved"
+import { useUnsavedGuard } from "@/components/use-unsaved-guard"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
 import { toast } from "sonner"
@@ -284,6 +286,9 @@ function RequestEditor({
   const [petId, setPetId] = useState<string | null>(request.petId)
   const [busy, setBusy] = useState(false)
   const savedRef = useRef({ desc: request.animalDesc ?? "", petId: request.petId })
+  /* The same value as state, so `dirty` re-renders when a save lands. The ref
+     stays: the debounced save and `submit` read it without waiting a render. */
+  const [saved, setSaved] = useState({ desc: request.animalDesc ?? "", petId: request.petId })
 
   const editable = request.status === "draft" || request.status === "info_requested"
   const items = useMemo(
@@ -291,6 +296,13 @@ function RequestEditor({
     [request.type, desc, documents],
   )
   const missing = missingRequired(items)
+
+  /* An edit the 700ms autosave below has not written yet. Leaving the screen
+     then would drop it, so the shell asks first (its `onBack` is guarded), and
+     so does "All requests" here, which the shell never sees. Sending or
+     withdrawing flushes first and closes without asking. */
+  const dirty = editable && isDirty(saved, { desc, petId })
+  const confirmLeave = useUnsavedGuard(dirty)
 
   // Persist the text field on the way out of it, not on every keystroke.
   useEffect(() => {
@@ -303,6 +315,7 @@ function RequestEditor({
         return
       }
       savedRef.current = { desc, petId }
+      setSaved({ desc, petId })
     }, 700)
     return () => clearTimeout(t)
   }, [desc, petId, editable, request.id])
@@ -320,6 +333,7 @@ function RequestEditor({
         return
       }
       savedRef.current = { desc, petId }
+      setSaved({ desc, petId })
     }
     const res = await submitAccommodationRequest(request.id)
     setBusy(false)
@@ -353,7 +367,14 @@ function RequestEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <button onClick={onClose} className="self-start text-[14px] font-semibold text-primary">
+      <button
+        onClick={() => {
+          void confirmLeave().then((ok) => {
+            if (ok) onClose()
+          })
+        }}
+        className="self-start text-[14px] font-semibold text-primary"
+      >
         All requests
       </button>
 

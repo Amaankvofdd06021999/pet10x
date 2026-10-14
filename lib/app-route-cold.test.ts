@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { coldLoadEntries } from "./app-route"
+import { FORM_SCREENS, coldLoadEntries } from "./app-route"
 
 const PET = "3f2b8c1e-1a2b-4c3d-8e9f-0a1b2c3d4e5f"
+
+describe("FORM_SCREENS", () => {
+  it("names the three forms the unsaved guard covers", () => {
+    expect([...FORM_SCREENS].sort()).toEqual(["accommodations", "add-pet", "report"])
+  })
+})
 
 describe("coldLoadEntries", () => {
   it("puts the tab root beneath a non-root screen opened cold, so Back stays in the app", () => {
