@@ -14,6 +14,7 @@ import { canAccessRoute } from "@/lib/rbac"
 import { readTargetParam, resolveConsoleTarget } from "@/lib/navigation"
 import { Toaster } from "@/components/ui/sonner"
 import { useMyBusiness } from "@/lib/data/business"
+import { feePercentLabel } from "@/lib/data/fees"
 import { DashboardTab } from "@/components/screens/business/dashboard-tab"
 import { BookingsTab } from "@/components/screens/business/bookings-tab"
 import { StorefrontTab } from "@/components/screens/business/storefront-tab"
@@ -320,6 +321,12 @@ function BusinessAuth() {
         <p className="mt-5 text-center text-[12px] text-muted-foreground sm:mt-6">
           New businesses are reviewed before appearing in the directory.
         </p>
+        {/* The fee is stated before anyone signs up, not discovered in Earnings. */}
+        {mode === "signup" && (
+          <p className="mt-1 text-center text-[12px] text-muted-foreground">
+            Pet10x keeps {feePercentLabel()} of each completed booking.
+          </p>
+        )}
         {mode === "signup" && <ConsentLine className="mt-2" />}
       </div>
     </div>

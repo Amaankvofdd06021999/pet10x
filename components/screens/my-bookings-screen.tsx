@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { Portal } from "@/components/ui/portal"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
   useMyBookings,
@@ -29,7 +30,7 @@ const STATUS_HINT: Partial<Record<BookingStatus, string>> = {
   requested: "Waiting for the business to confirm",
   confirmed: "Confirmed — see you then",
   in_progress: "Happening now",
-  completed: "All done — payment pending",
+  completed: "All done — pay the business directly",
   paid: "Paid",
 }
 
@@ -37,15 +38,18 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
   const { data: bookings, isLoading, refetch } = useMyBookings()
   const [busy, setBusy] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState<CustomerBooking | null>(null)
+  const [cancelling, setCancelling] = useState<CustomerBooking | null>(null)
 
-  async function cancel(b: CustomerBooking) {
-    if (!confirm(`Cancel your ${b.serviceName ?? "booking"} with ${b.businessName}?`)) return
+  /* The dialog shows a failure in place and stays open, so the toast is only
+     for success. */
+  async function cancel(b: CustomerBooking): Promise<{ error: string | null }> {
     setBusy(b.id)
     const { error } = await cancelBooking(b.id)
     setBusy(null)
-    if (error) return toast.error("Couldn't cancel", { description: error })
+    if (error) return { error }
     toast.success("Booking cancelled")
     refetch()
+    return { error: null }
   }
 
   return (
@@ -115,7 +119,7 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
                 <div className="mt-2.5 flex flex-wrap gap-1.5">
                   {(b.status === "requested" || b.status === "confirmed") && (
                     <button
-                      onClick={() => cancel(b)}
+                      onClick={() => setCancelling(b)}
                       disabled={busy === b.id}
                       className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12.5px] font-semibold text-foreground disabled:opacity-50"
                     >
@@ -142,6 +146,21 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
           </div>
         )}
       </main>
+
+      <ConfirmDialog
+        open={cancelling !== null}
+        onOpenChange={(open) => !open && setCancelling(null)}
+        title="Cancel this booking?"
+        description={
+          cancelling
+            ? `Your ${cancelling.serviceName ?? "booking"} with ${cancelling.businessName} is cancelled and the business is told.`
+            : ""
+        }
+        confirmLabel="Cancel booking"
+        cancelLabel="Keep booking"
+        tone="danger"
+        onConfirm={() => (cancelling ? cancel(cancelling) : Promise.resolve({ error: null }))}
+      />
 
       {reviewing?.businessId && (
         <ReviewSheet

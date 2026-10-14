@@ -343,7 +343,7 @@ function BookSheet({
                 </button>
               </div>
               <p className="text-center text-[11.5px] text-muted-foreground">
-                You&apos;ll only be charged after the job is completed.
+                You pay {business} directly after the service.
               </p>
             </div>
           </>

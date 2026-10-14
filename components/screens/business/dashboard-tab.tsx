@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { profileCompleteness, type MyBusiness } from "@/lib/data/business"
+import { profileCompleteness, formatPrice, type MyBusiness } from "@/lib/data/business"
 import { useOwnerBookings, useBusinessServices, useBusinessReviews, computeEarnings } from "@/lib/data/bookings"
 import { StatTile, SectionCard, Spinner, Stars } from "./business-ui"
 import { BadgeCheck, AlertTriangle, Inbox, CalendarDays, DollarSign, MessageSquare, ChevronRight, Clock } from "lucide-react"
@@ -31,6 +31,8 @@ export function DashboardTab({
     .filter((b) => new Date(b.createdAt).getTime() > Date.now() - 30 * 86_400_000 && b.status !== "declined" && b.status !== "cancelled")
     .reduce((s, b) => s + b.amount, 0)
   const awaitingPayment = bookings.filter((b) => b.status === "completed")
+  // A business prices in one currency; CAD is the column default.
+  const currency = bookings[0]?.currency ?? "cad"
   const unreplied = reviews.filter((r) => !r.ownerReply)
 
   if (isLoading) return <Spinner />
@@ -92,7 +94,12 @@ export function DashboardTab({
           }
         />
         <button onClick={() => onOpenTab("earnings")} className="text-left">
-          <StatTile label="Booked (30d)" value={`$${booked30d.toFixed(0)}`} sub={`$${earnings.netPaid.toFixed(0)} net paid out`} tone="accent" />
+          <StatTile
+            label="Booked (30d)"
+            value={formatPrice(Math.round(booked30d * 100), currency)}
+            sub={`${formatPrice(Math.round(earnings.netPaid * 100), currency)} earned after Pet10x fee`}
+            tone="accent"
+          />
         </button>
         <button onClick={() => onOpenTab("reviews")} className="text-left">
           <StatTile
@@ -129,7 +136,7 @@ export function DashboardTab({
                 key={b.id}
                 tone="warning"
                 icon={<DollarSign className="h-4 w-4" />}
-                title={`Completed — collect $${b.amount.toFixed(2)}`}
+                title={`Completed — collect ${formatPrice(b.amountCents, b.currency)}`}
                 sub={`${b.serviceName ?? "Service"} for ${b.customerName}`}
                 meta="Mark paid"
                 onClick={() => onOpenTab("bookings")}

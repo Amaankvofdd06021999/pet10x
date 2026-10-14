@@ -10,6 +10,7 @@ import {
   type MyBusiness,
   type BusinessHours,
   formatPrice,
+  currencySymbol,
 } from "@/lib/data/business"
 import {
   useBusinessServices,
@@ -18,8 +19,17 @@ import {
   deleteService,
   type ServiceItem,
 } from "@/lib/data/bookings"
+import {
+  feePercentLabel,
+  parsePriceCents,
+  validateServiceInput,
+  youReceiveCents,
+  type ServiceErrors,
+  type ServiceInput,
+} from "@/lib/data/fees"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SectionCard, TextInput, Field, Spinner, Stars } from "./business-ui"
-import { Loader2, Navigation, Plus, Trash2, Store, MapPin, Star, Eye } from "lucide-react"
+import { Loader2, Navigation, Plus, Trash2, Store, MapPin, Star, Eye, Pencil } from "lucide-react"
 
 const CATEGORIES = ["Veterinary", "Grooming", "Boarding", "Dog walking", "Training", "Pet store", "Other"]
 
@@ -298,23 +308,30 @@ function ServiceCatalog({
 }) {
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [n, setN] = useState({ name: "", price: "", duration: "", description: "" })
+  const [n, setN] = useState<ServiceInput>({ name: "", price: "", duration: "" })
+  const [description, setDescription] = useState("")
+  const [errors, setErrors] = useState<ServiceErrors>({})
+  const [editing, setEditing] = useState<ServiceItem | null>(null)
+  // New services take the column default; existing ones show their own.
+  const currency = services[0]?.currency ?? "cad"
 
   async function add() {
-    const price = parseFloat(n.price)
-    if (!n.name.trim() || Number.isNaN(price)) return toast.error("Name and price are required.")
+    const checked = validateServiceInput(n)
+    if (!checked.ok) return setErrors(checked.errors)
+    setErrors({})
     setBusy(true)
     const { error } = await createService(businessId, {
-      name: n.name.trim(),
-      description: n.description.trim() || undefined,
-      priceCents: Math.round(price * 100),
-      durationMin: n.duration ? parseInt(n.duration, 10) : null,
+      name: checked.value.name,
+      description: description.trim() || undefined,
+      priceCents: checked.value.priceCents,
+      durationMin: checked.value.durationMin,
       sortOrder: services.length + 1,
     })
     setBusy(false)
     if (error) return toast.error("Couldn't add service", { description: error })
     toast.success("Service added")
-    setN({ name: "", price: "", duration: "", description: "" })
+    setN({ name: "", price: "", duration: "" })
+    setDescription("")
     setAdding(false)
     refetch()
   }
@@ -346,17 +363,14 @@ function ServiceCatalog({
       }
     >
       <p className="mb-3 text-[12.5px] text-muted-foreground">
-        This is the list residents browse and book from. A booking always references one of these.
+        This is the list residents browse and book from. A booking always references one of these. Customers pay you
+        directly; Pet10x keeps {feePercentLabel()} of each completed booking.
       </p>
 
       {adding && (
         <div className="mb-3 flex flex-col gap-2 rounded-xl border border-border bg-background p-3">
-          <TextInput value={n.name} onChange={(v) => setN((p) => ({ ...p, name: v }))} placeholder="Service name" />
-          <div className="grid grid-cols-2 gap-2">
-            <TextInput value={n.price} onChange={(v) => setN((p) => ({ ...p, price: v }))} placeholder="Price (e.g. 85)" />
-            <TextInput value={n.duration} onChange={(v) => setN((p) => ({ ...p, duration: v }))} placeholder="Minutes (e.g. 90)" />
-          </div>
-          <TextInput value={n.description} onChange={(v) => setN((p) => ({ ...p, description: v }))} placeholder="Short description" />
+          <ServiceFields value={n} onChange={setN} errors={errors} currency={currency} />
+          <TextInput value={description} onChange={setDescription} placeholder="Short description" />
           <button
             onClick={add}
             disabled={busy}
@@ -393,6 +407,13 @@ function ServiceCatalog({
               >
                 {s.active ? "Live" : "Hidden"}
               </button>
+              <button
+                onClick={() => setEditing(s)}
+                aria-label={`Edit ${s.name}`}
+                className="rounded-lg bg-muted p-2 text-muted-foreground hover:text-foreground"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
               <button onClick={() => remove(s)} className="rounded-lg bg-muted p-2 text-muted-foreground hover:text-destructive">
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -400,6 +421,179 @@ function ServiceCatalog({
           ))}
         </div>
       )}
+
+      <EditServiceDialog
+        service={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null)
+          refetch()
+        }}
+      />
     </SectionCard>
+  )
+}
+
+/** Name, price and minutes — shared by the add form and the edit dialog. */
+function ServiceFields({
+  value,
+  onChange,
+  errors,
+  currency,
+}: {
+  value: ServiceInput
+  onChange: (next: ServiceInput) => void
+  errors: ServiceErrors
+  currency: string
+}) {
+  return (
+    <>
+      <div>
+        <TextInput value={value.name} onChange={(v) => onChange({ ...value, name: v })} placeholder="Service name" />
+        <FieldError message={errors.name} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <PriceInput value={value.price} onChange={(v) => onChange({ ...value, price: v })} currency={currency} error={errors.price} />
+        <div>
+          <TextInput value={value.duration} onChange={(v) => onChange({ ...value, duration: v })} placeholder="Minutes (e.g. 90)" />
+          <FieldError message={errors.duration} />
+        </div>
+      </div>
+    </>
+  )
+}
+
+/**
+ * A price with its currency mark in front and, as you type, what you keep
+ * after the Pet10x fee — so the fee is never a surprise in Earnings.
+ */
+function PriceInput({
+  value,
+  onChange,
+  currency,
+  error,
+}: {
+  value: string
+  onChange: (v: string) => void
+  currency: string
+  error?: string
+}) {
+  const parsed = parsePriceCents(value)
+  return (
+    <div>
+      <div className="flex items-center rounded-xl border border-border bg-background focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
+        <span className="pl-3.5 text-[14px] text-muted-foreground">{currencySymbol(currency)}</span>
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          inputMode="decimal"
+          aria-label="Price"
+          placeholder="85"
+          className="w-full min-w-0 bg-transparent py-2.5 pl-1.5 pr-3.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+        />
+      </div>
+      {error ? (
+        <FieldError message={error} />
+      ) : (
+        <p className="mt-1 text-[11.5px] text-muted-foreground">
+          {parsed.ok
+            ? `You receive ${formatPrice(youReceiveCents(parsed.cents), currency)}`
+            : `You receive the price minus the ${feePercentLabel()} Pet10x fee`}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return (
+    <p role="alert" className="mt-1 text-[11.5px] text-destructive">
+      {message}
+    </p>
+  )
+}
+
+/**
+ * Change a service's name, price or minutes. Past bookings keep the price
+ * they were made at (amount_cents is stored on the booking), so editing the
+ * price only affects new requests.
+ */
+function EditServiceDialog({
+  service,
+  onClose,
+  onSaved,
+}: {
+  service: ServiceItem | null
+  onClose: () => void
+  onSaved: () => void
+}) {
+  return (
+    <Dialog open={service !== null} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        {/* Keyed so each service opens with its own values, not the last one's edits. */}
+        {service && <EditServiceForm key={service.id} service={service} onCancel={onClose} onSaved={onSaved} />}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function EditServiceForm({
+  service,
+  onCancel,
+  onSaved,
+}: {
+  service: ServiceItem
+  onCancel: () => void
+  onSaved: () => void
+}) {
+  const [v, setV] = useState<ServiceInput>({
+    name: service.name,
+    price: (service.priceCents / 100).toFixed(2),
+    duration: service.durationMin != null ? String(service.durationMin) : "",
+  })
+  const [errors, setErrors] = useState<ServiceErrors>({})
+  const [busy, setBusy] = useState(false)
+
+  async function save() {
+    const checked = validateServiceInput(v)
+    if (!checked.ok) return setErrors(checked.errors)
+    setErrors({})
+    setBusy(true)
+    const { error } = await updateService(service.id, {
+      name: checked.value.name,
+      priceCents: checked.value.priceCents,
+      durationMin: checked.value.durationMin,
+    })
+    setBusy(false)
+    if (error) return toast.error("Couldn't save the service", { description: error })
+    toast.success("Service updated")
+    onSaved()
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="text-left">Edit service</DialogTitle>
+        <DialogDescription className="text-left">
+          New requests use these details. Bookings already made keep the price they were made at.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="flex flex-col gap-2">
+        <ServiceFields value={v} onChange={setV} errors={errors} currency={service.currency} />
+      </div>
+      <div className="flex gap-2">
+        <button onClick={onCancel} disabled={busy} className="flex-1 rounded-xl bg-muted py-2.5 text-[13px] font-semibold text-foreground">
+          Cancel
+        </button>
+        <button
+          onClick={save}
+          disabled={busy}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-[13px] font-semibold text-white disabled:opacity-60"
+        >
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />} Save
+        </button>
+      </div>
+    </>
   )
 }

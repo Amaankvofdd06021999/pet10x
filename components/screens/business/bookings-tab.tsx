@@ -186,14 +186,16 @@ function BookingCard({
           )}
         </div>
 
-        {/* Net-of-fee, always visible before accepting */}
+        {/* The customer pays this price to you; Pet10x bills its fee separately.
+            What you keep is always visible before accepting. */}
         <div className="text-right">
-          <p className="text-[16px] font-bold text-foreground">{formatPrice(b.amount * 100, b.currency)}</p>
+          <p className="text-[16px] font-bold text-foreground">{formatPrice(b.amountCents, b.currency)}</p>
           <p className="text-[11px] text-muted-foreground">
-            −{formatPrice(b.commission * 100, b.currency)}{" "}
-            fee
+            −{formatPrice(b.commissionCents, b.currency)} Pet10x fee
           </p>
-          <p className="text-[12px] font-semibold text-success">{formatPrice(b.net * 100, b.currency)} net</p>
+          <p className="text-[12px] font-semibold text-success">
+            {formatPrice(b.amountCents - b.commissionCents, b.currency)} you keep
+          </p>
         </div>
       </div>
 
@@ -247,8 +249,14 @@ function BookingCard({
               onClick={() => onAct(b.id, "Job completed", () => setBookingStatus(b.id, "completed"))} />
           )}
           {b.status === "completed" && (
-            <Action busy={busy} tone="money" icon={<DollarSign className="h-3.5 w-3.5" />} label="Mark paid"
-              onClick={() => onAct(b.id, "Payment recorded", () => markBookingPaid(b.id))} />
+            <>
+              {/* The customer pays you directly; marking it paid is your record that they did. */}
+              <p className="w-full text-[12.5px] font-semibold text-foreground">
+                Completed — collect {formatPrice(b.amountCents, b.currency)}
+              </p>
+              <Action busy={busy} tone="money" icon={<DollarSign className="h-3.5 w-3.5" />} label="Mark paid"
+                onClick={() => onAct(b.id, "Payment recorded", () => markBookingPaid(b.id))} />
+            </>
           )}
         </div>
       )}

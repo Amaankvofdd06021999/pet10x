@@ -78,6 +78,22 @@ export function formatPrice(cents: number, currency?: string | null): string {
   }
 }
 
+/**
+ * The symbol a price field is prefixed with, from the same formatter as
+ * formatPrice so the field and the listing show the same mark ("$", "CA$").
+ */
+export function currencySymbol(currency?: string | null): string {
+  const code = (currency || "cad").toUpperCase()
+  try {
+    const part = new Intl.NumberFormat(undefined, { style: "currency", currency: code })
+      .formatToParts(0)
+      .find((p) => p.type === "currency")
+    return part?.value ?? code
+  } catch {
+    return code
+  }
+}
+
 /** One-line street address, or null when nothing has been filled in. */
 export function formatAddress(b: {
   address?: string | null

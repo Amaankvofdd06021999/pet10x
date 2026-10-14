@@ -153,6 +153,9 @@ export interface OwnerBooking {
   amount: number
   commission: number
   net: number
+  /** The stored minor-unit figures, for sums that must not drift through floats. */
+  amountCents: number
+  commissionCents: number
   currency: string
   customerName: string
   petName: string | null
@@ -224,6 +227,8 @@ export function useOwnerBookings(businessId?: string): LiveResult<OwnerBooking[]
           amount,
           commission,
           net: amount - commission,
+          amountCents: r.amount_cents ?? 0,
+          commissionCents: r.commission_cents ?? 0,
           currency: r.currency,
           // A null customer_id is a customer who deleted their account.
           customerName: r.customer_id ? (first(r.customer)?.full_name ?? "Customer") : "Former customer",
