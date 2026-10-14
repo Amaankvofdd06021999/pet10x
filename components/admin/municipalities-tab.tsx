@@ -99,7 +99,16 @@ export function MunicipalitiesTab() {
     const { error } = f.id
       ? await supabase.from("municipalities").update(payload).eq("id", f.id)
       : await supabase.from("municipalities").insert(payload)
-    if (error) return { error: error.message }
+    if (error) {
+      console.error("[admin-municipalities] save failed", error)
+      // lower(name), lower(region) is unique.
+      return {
+        error:
+          error.code === "23505"
+            ? "A municipality with this name and region already exists."
+            : "Couldn't save the municipality. Try again.",
+      }
+    }
     await load()
     setForm(null)
     toast.success(f.id ? "Municipality saved" : "Municipality added")

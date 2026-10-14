@@ -90,10 +90,20 @@ describe("auditAreaFilter", () => {
 })
 
 describe("admin actions", () => {
-  it("reads platform actions as sentences", () => {
-    const d = (action: string, metadata: unknown = {}) => describeAuditEntry({ action, entityType: null, metadata })
-    expect(d("user.suspended")).toBe("suspended an account")
-    expect(d("business.tier_set", { from: "free", to: "pro" })).toBe("changed a business's tier from free to pro")
-    expect(d("business.deleted")).toBe("deleted a business")
+  const d = (action: string, metadata: unknown = {}) => describeAuditEntry({ action, entityType: null, metadata })
+  it.each([
+    ["user.suspended", {}, "suspended an account"],
+    ["user.unsuspended", {}, "unsuspended an account"],
+    ["user.admin_granted", {}, "made someone a Pet10x admin"],
+    ["user.admin_revoked", {}, "removed someone's Pet10x admin access"],
+    ["business.tier_set", { from: "free", to: "pro" }, "changed a business's tier from free to pro"],
+    ["business.tier_set", {}, "changed a business's tier"],
+    ["business.verification_approved", {}, "approved a business's verification"],
+    ["business.verification_rejected", {}, "rejected a business's verification"],
+    ["business.verification_info_requested", {}, "asked a business for more verification information"],
+    ["business.verification_resubmitted", {}, "resubmitted a business for verification"],
+    ["business.deleted", {}, "deleted a business"],
+  ])("%s reads as a sentence", (action, metadata, expected) => {
+    expect(d(action, metadata)).toBe(expected)
   })
 })
