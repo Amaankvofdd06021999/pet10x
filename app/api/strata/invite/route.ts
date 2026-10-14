@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
+import { roleForNewManager } from "@/lib/data/admin-invite"
 import { findProfileByEmail } from "@/lib/server/profile-by-email"
 import { sendManagerAddedEmail, sendManagerInviteEmail } from "@/lib/email"
 
@@ -61,7 +62,8 @@ export async function POST(request: Request) {
   const buildingName = bldg?.name?.trim() || "your building"
 
   // Existing account → elevate + link, then tell them (no invite link exists).
-  const existing = await findProfileByEmail(admin, email)
+  const { profile: existing, error: lookupErr } = await findProfileByEmail(admin, email)
+  if (lookupErr) return NextResponse.json({ error: "Couldn't check that email. Try again." }, { status: 500 })
   if (existing) {
     const { data: dup } = await admin
       .from("building_managers")
@@ -71,8 +73,9 @@ export async function POST(request: Request) {
       .maybeSingle()
     if (dup) return NextResponse.json({ error: "That person already manages this building." }, { status: 409 })
 
-    if (existing.role !== "building_manager") {
-      const { error: roleErr } = await admin.from("profiles").update({ role: "building_manager" }).eq("id", existing.id)
+    const newRole = roleForNewManager(existing.role)
+    if (newRole) {
+      const { error: roleErr } = await admin.from("profiles").update({ role: newRole }).eq("id", existing.id)
       if (roleErr) return NextResponse.json({ error: `Couldn't set manager role: ${roleErr.message}` }, { status: 500 })
     }
     const { error: linkErr } = await admin

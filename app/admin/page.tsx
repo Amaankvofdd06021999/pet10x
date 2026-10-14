@@ -375,6 +375,7 @@ function BuildingCard({
       emailSent: res.emailSent === true,
       inviteUrl: res.inviteUrl,
       emailFailed: res.emailFailed,
+      noun: "manager",
     })
     const url = msg.inviteUrl
     toast.success(msg.title, {

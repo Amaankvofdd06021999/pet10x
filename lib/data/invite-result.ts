@@ -17,10 +17,14 @@ export function inviteResultMessage(opts: {
   emailSent: boolean
   inviteUrl?: string
   emailFailed?: boolean
+  /** Strata adds co-managers; the admin console adds managers. */
+  noun?: "manager" | "co-manager"
 }): InviteMessage {
+  const noun = opts.noun ?? "co-manager"
+  const Noun = noun === "manager" ? "Manager" : "Co-manager"
   if (opts.existingAccount) {
     return {
-      title: "Co-manager added",
+      title: `${Noun} added`,
       description:
         `${opts.email} already had a Pet10x account and can now manage ${opts.building}.` +
         (opts.emailSent ? " We emailed them." : ""),
@@ -39,5 +43,5 @@ export function inviteResultMessage(opts: {
           inviteUrl: opts.inviteUrl,
         }
   }
-  return { title: "Co-manager invited", description: `Invite sent to ${opts.email}` }
+  return { title: `${Noun} invited`, description: `Invite sent to ${opts.email}` }
 }

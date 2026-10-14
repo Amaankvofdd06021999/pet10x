@@ -1,15 +1,14 @@
 import { isEmailShaped } from "@/lib/auth/email-shape"
 
-/** Roles that already open the manager surface, or outrank it. Adding a manager link must not change them. */
-const KEEP_ROLES = ["building_manager", "super_admin"] as const
-
 /**
- * The role an existing account needs once it manages a building: a resident
- * (or anyone below manager) becomes a building manager so the manager screens
- * open; a manager stays one and an admin is never demoted. null = leave as is.
+ * The role an existing account needs once it manages a building. Only a plain
+ * resident (or a profile with no role) becomes a building manager so the
+ * manager screens open. Every other role is kept: rewriting a business owner's
+ * role could lock them out of their own console, and an admin must never be
+ * demoted. They still get the building_managers link. null = leave as is.
  */
 export function roleForNewManager(current: string | null | undefined): "building_manager" | null {
-  return (KEEP_ROLES as readonly string[]).includes(current ?? "") ? null : "building_manager"
+  return current == null || current === "pet_owner" ? "building_manager" : null
 }
 
 /** Checked before anything is sent; returns the trimmed, lower-cased address or an error to show. */

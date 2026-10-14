@@ -2,14 +2,12 @@ import { describe, expect, it } from "vitest"
 import { checkInviteEmail, inviteFailureMessage, roleForNewManager } from "./admin-invite"
 
 describe("roleForNewManager", () => {
-  it("elevates residents and other roles", () => {
+  it("elevates only a plain resident", () => {
     expect(roleForNewManager("pet_owner")).toBe("building_manager")
-    expect(roleForNewManager("business")).toBe("building_manager")
     expect(roleForNewManager(null)).toBe("building_manager")
   })
-  it("leaves managers and admins alone", () => {
-    expect(roleForNewManager("building_manager")).toBeNull()
-    expect(roleForNewManager("super_admin")).toBeNull()
+  it("keeps every other role", () => {
+    for (const r of ["building_manager", "super_admin", "business", "something_new"]) expect(roleForNewManager(r)).toBeNull()
   })
 })
 

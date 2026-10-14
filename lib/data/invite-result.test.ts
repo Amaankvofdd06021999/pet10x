@@ -31,3 +31,14 @@ describe("inviteResultMessage", () => {
     expect(m.title).toBe("Manager added — the email failed")
   })
 })
+
+describe("inviteResultMessage noun", () => {
+  it("admin console says Manager", () => {
+    expect(inviteResultMessage({ ...base, existingAccount: true, emailSent: true, noun: "manager" }).title).toBe("Manager added")
+    expect(inviteResultMessage({ ...base, existingAccount: false, emailSent: true, noun: "manager" }).title).toBe("Manager invited")
+  })
+  it("defaults to Co-manager", () => {
+    expect(inviteResultMessage({ ...base, existingAccount: true, emailSent: true }).title).toBe("Co-manager added")
+    expect(inviteResultMessage({ ...base, existingAccount: false, emailSent: true, noun: "co-manager" }).title).toBe("Co-manager invited")
+  })
+})

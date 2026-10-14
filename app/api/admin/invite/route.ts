@@ -51,10 +51,11 @@ export async function POST(request: Request) {
   // building manager that's the normal way to add someone to a second building,
   // so link them instead. The link insert is idempotent, which also makes a
   // retry after a partial failure succeed.
-  const existing = await findProfileByEmail(admin, email)
+  const { profile: existing, error: lookupErr } = await findProfileByEmail(admin, email)
+  if (lookupErr) return NextResponse.json({ error: inviteFailureMessage(email) }, { status: 500 })
   if (existing) {
     if (role !== "building_manager" || !body.buildingId) {
-      return NextResponse.json({ error: `${email} already has a Pet10x account.` }, { status: 409 })
+      return NextResponse.json({ error: `${email} already has a Pet10x account. Only residents and managers can be added to a building.` }, { status: 409 })
     }
     const newRole = roleForNewManager(existing.role)
     if (newRole) {
