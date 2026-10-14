@@ -10,6 +10,7 @@ import { SETTLEABLE_IN_CASE } from "@/lib/data/fine-actions"
 import type { FineStatus } from "@/lib/data/violations"
 import { useWorkQueue, type QueueItem, type Urgency } from "@/lib/data/work-queue"
 import { PetDocumentReviewControls } from "@/components/screens/manager/pet-document-review"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useStrata } from "./portal-context"
 import { LoadError, Spinner, EmptyState, BuildingTag } from "./strata-ui"
 import {
@@ -45,9 +46,19 @@ const KIND_ICON = {
 interface RowAction {
   label: string
   tone: "approve" | "deny" | "neutral" | "escalate"
-  run: () => Promise<{ error: string | null }>
-  /** Asked before running. Money acts cannot be undone from here. */
-  confirm?: string
+  /** `reason` is what the confirm dialog collected, or null when it asked for none. */
+  run: (reason: string | null) => Promise<{ error: string | null }>
+  /**
+   * Asked before running, in a ConfirmDialog. Money acts cannot be undone from
+   * here, and a deny tells someone no — each says what happens first.
+   */
+  confirm?: {
+    title: string
+    description: string
+    confirmLabel: string
+    danger?: boolean
+    reason?: { label: string; required: boolean }
+  }
 }
 
 function actionsFor(item: QueueItem): RowAction[] {
@@ -55,12 +66,36 @@ function actionsFor(item: QueueItem): RowAction[] {
     case "registration":
       return [
         { label: "Approve", tone: "approve", run: () => decideRegistration(item.refId, true) },
-        { label: "Deny", tone: "deny", run: () => decideRegistration(item.refId, false) },
+        // The function refuses a deny without a note (20261015000001), and the
+        // owner reads it, so the row asks for one rather than firing on tap.
+        {
+          label: "Deny",
+          tone: "deny",
+          confirm: {
+            title: "Deny this registration?",
+            description: "The owner is told it wasn't approved, with your reason, and can apply again.",
+            confirmLabel: "Deny registration",
+            danger: true,
+            reason: { label: "Reason (the owner reads this)", required: true },
+          },
+          run: (reason) => decideRegistration(item.refId, false, reason ?? undefined),
+        },
       ]
     case "link":
       return [
         { label: "Approve", tone: "approve", run: () => approveResidentLink(item.refId) },
-        { label: "Deny", tone: "deny", run: () => denyResidentLink(item.refId) },
+        {
+          label: "Deny",
+          tone: "deny",
+          confirm: {
+            title: "Deny this request to join?",
+            description: "They're told the request wasn't approved, and can ask again.",
+            confirmLabel: "Deny request",
+            danger: true,
+            reason: { label: "Reason (the resident reads this)", required: false },
+          },
+          run: (reason) => denyResidentLink(item.refId, reason ?? undefined),
+        },
       ]
     case "incident":
       return [
@@ -100,13 +135,22 @@ function actionsFor(item: QueueItem): RowAction[] {
         {
           label: "Mark paid",
           tone: "approve",
-          confirm: `Record this fine as paid? Only do this for money already received — nothing is charged, and the resident is told.`,
+          confirm: {
+            title: "Record this fine as paid?",
+            description: "Only do this for money already received — nothing is charged, and the resident is told.",
+            confirmLabel: "Mark paid",
+          },
           run: () => setFineStatus(item.refId, "paid"),
         },
         {
           label: "Waive",
           tone: "neutral",
-          confirm: `Waive this fine? The resident will owe nothing on it and is told.`,
+          confirm: {
+            title: "Waive this fine?",
+            description: "The resident will owe nothing on it and is told.",
+            confirmLabel: "Waive fine",
+            danger: true,
+          },
           run: () => setFineStatus(item.refId, "waived"),
         },
       ]
@@ -129,6 +173,8 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
   const { selectedBuildingId, nameFor } = useStrata()
   const [busy, setBusy] = useState<string | null>(null)
   const [bulkBusy, setBulkBusy] = useState(false)
+  // The row action whose confirm dialog is open.
+  const [confirming, setConfirming] = useState<{ item: QueueItem; action: RowAction } | null>(null)
 
   // A scopeOverride (from a building drill-down) wins over the global switcher.
   const effectiveScope = scopeOverride ?? selectedBuildingId
@@ -137,13 +183,26 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
   const safe = scoped.filter((i) => i.safeToBulk)
 
   async function runAction(item: QueueItem, action: RowAction) {
-    if (action.confirm && !window.confirm(action.confirm)) return
+    if (action.confirm) return setConfirming({ item, action })
     setBusy(item.key)
-    const { error: e } = await action.run()
+    const { error: e } = await action.run(null)
     setBusy(null)
     if (e) return toast.error(`${action.label} failed`, { description: e })
     toast.success(`${action.label} · ${item.title}`)
     refetchAll()
+  }
+
+  /** The confirmed half of runAction: a failure stays in the dialog, beside the reason. */
+  async function runConfirmed(reason: string | null) {
+    if (!confirming) return { error: null }
+    const { item, action } = confirming
+    setBusy(item.key)
+    const { error: e } = await action.run(reason)
+    setBusy(null)
+    if (e) return { error: e }
+    toast.success(`${action.label} · ${item.title}`)
+    refetchAll()
+    return { error: null }
   }
 
   async function bulkApprove() {
@@ -240,6 +299,19 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirming !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirming(null)
+        }}
+        title={confirming?.action.confirm?.title ?? ""}
+        description={confirming?.action.confirm?.description ?? ""}
+        confirmLabel={confirming?.action.confirm?.confirmLabel ?? "Confirm"}
+        tone={confirming?.action.confirm?.danger ? "danger" : "default"}
+        reason={confirming?.action.confirm?.reason}
+        onConfirm={runConfirmed}
+      />
     </div>
   )
 }

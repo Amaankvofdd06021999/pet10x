@@ -62,6 +62,32 @@ export function readFineSchedule(rules: unknown): FineSchedule {
   }
 }
 
+/**
+ * What the schedule prices a fine of this degree at, in cents, or null.
+ *
+ * One function because two surfaces issue fines — the manager's case sheet and
+ * the strata portal's Advance — and each had its own `degree === "fine_1" ?
+ * fine_1 : fine_2`. The figure a manager is shown as the default has to be the
+ * figure `manager_advance_violation` would apply, on both.
+ */
+export function scheduledCents(schedule: FineSchedule | null, degree: "fine_1" | "fine_2"): number | null {
+  if (!schedule) return null
+  return degree === "fine_1" ? schedule.fine_1 : schedule.fine_2
+}
+
+/**
+ * Whether issuing this fine needs a note saying what the amount is based on.
+ *
+ * A fine nobody's bylaw prices, or one priced differently from it, is a
+ * decision the record has to explain. Keeping the bylaw figure needs no
+ * explanation. While the typed amount is unreadable (`enteredCents` null) a
+ * priced fine does not yet ask — the amount's own error is the one to show.
+ */
+export function fineNoteRequired(bylawCents: number | null, enteredCents: number | null): boolean {
+  if (bylawCents === null) return true
+  return enteredCents !== null && enteredCents !== bylawCents
+}
+
 /** The inclusive cent range `manager_set_fine_schedule` accepts: 1¢ to $10,000. */
 export const MIN_FINE_CENTS = 1
 export const MAX_FINE_CENTS = 1_000_000

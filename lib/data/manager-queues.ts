@@ -39,6 +39,7 @@ import {
   type FineStage,
   type FineStatus,
 } from "./violations"
+import { decisionError } from "./decision-errors"
 import { petDocumentReviewError } from "./pet-document-review"
 
 interface Result<T> {
@@ -174,7 +175,8 @@ export function useRegistrationsLive(): Result<Registration[]> {
  *
  * A deny needs a `note` (20261015000001): the owner is notified either way,
  * and a deny's notification quotes it as "Reason: …". The function refuses a
- * deny with a blank note (22023) and says why in its message and hint.
+ * deny with a blank note (22023), so callers ask for it in a required-reason
+ * ConfirmDialog before calling.
  */
 export async function decideRegistration(
   petId: string,
@@ -191,7 +193,9 @@ export async function decideRegistration(
     p_approve: approve,
     p_note: note?.trim() ? note.trim() : undefined,
   })
-  return { error: transportError(error) }
+  // 22023 not_pending (a colleague decided it first) and 42501 read as
+  // sentences rather than the function's own wording; see ./decision-errors.
+  return { error: decisionError(error) }
 }
 
 /* Accommodation requests moved OUT of this file in Phase 7.

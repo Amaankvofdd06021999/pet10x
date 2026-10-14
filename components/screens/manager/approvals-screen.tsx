@@ -25,10 +25,10 @@ import { shortDate } from "@/lib/dates"
 import { useIncidents, isOpenIncident } from "@/lib/data/incidents"
 import { IncidentCard } from "@/components/screens/manager/incident-card"
 import { PetDocumentReviewControls } from "@/components/screens/manager/pet-document-review"
+import { SpeciesIcon } from "@/components/screens/shared/ui"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { toast } from "sonner"
 import {
-  Dog,
-  Cat,
   CheckCircle2,
   XCircle,
   Clock,
@@ -66,6 +66,20 @@ export function ManagerApprovalsScreen() {
   const { data: accommodations, refetch: refetchAcc } = useAccommodationsLive()
   const { data: documentsReview, refetch: refetchDocs } = useDocumentsReview()
   const { data: incidents, isLoading: incidentsLoading, refetch: refetchIncidents } = useIncidents()
+  // The registration whose decision is in flight, so its buttons cannot be
+  // pressed twice — a second press would only earn "already decided".
+  const [regBusy, setRegBusy] = useState<string | null>(null)
+  // The registration the deny dialog is open for.
+  const [denying, setDenying] = useState<{ id: string; name: string } | null>(null)
+
+  async function approveRegistration(id: string, name: string) {
+    setRegBusy(id)
+    const { error } = await decideRegistration(id, true)
+    setRegBusy(null)
+    if (error) return toast.error("Couldn't approve", { description: error })
+    toast.success(`${name} approved`)
+    refetchRegs()
+  }
 
   const openIncidents = incidents.filter((i) => isOpenIncident(i.status))
   // Every count is derived. These were hardcoded 3 / 2 / 4 while the lists
@@ -141,7 +155,6 @@ export function ManagerApprovalsScreen() {
             )}
             {registrations.map((reg) => {
               const isOpen = expandedReg === reg.id
-              const SpeciesIcon = reg.species === "dog" ? Dog : Cat
               return (
                 <div key={reg.id} className="rounded-xl card-raised overflow-hidden">
                   <button
@@ -149,7 +162,7 @@ export function ManagerApprovalsScreen() {
                     className="flex w-full items-center gap-3 p-3 text-left active:bg-muted/50"
                   >
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                      <SpeciesIcon className="h-5 w-5 text-primary" />
+                      <SpeciesIcon species={reg.species} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-semibold text-foreground">{reg.name} — Unit {reg.unit}</p>
@@ -192,23 +205,18 @@ export function ManagerApprovalsScreen() {
                       {/* Actions */}
                       <div className="flex gap-2">
                         <button
-                          onClick={async () => {
-                            const { error } = await decideRegistration(reg.id, true)
-                            if (error) return toast.error("Couldn't approve", { description: error })
-                            toast.success(`${reg.name} approved`)
-                            refetchRegs()
-                          }}
-                          className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform">
+                          onClick={() => approveRegistration(reg.id, reg.name)}
+                          disabled={regBusy === reg.id}
+                          className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform disabled:opacity-60">
                           Approve
                         </button>
+                        {/* A deny needs a reason the owner reads — the function
+                            refuses one without (20261015000001) — so it asks
+                            first instead of firing on the tap. */}
                         <button
-                          onClick={async () => {
-                            const { error } = await decideRegistration(reg.id, false)
-                            if (error) return toast.error("Couldn't deny", { description: error })
-                            toast(`${reg.name} denied`)
-                            refetchRegs()
-                          }}
-                          className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform">
+                          onClick={() => setDenying({ id: reg.id, name: reg.name })}
+                          disabled={regBusy === reg.id}
+                          className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform disabled:opacity-60">
                           Deny
                         </button>
                         {/* No "Request Info" here.
@@ -240,6 +248,29 @@ export function ManagerApprovalsScreen() {
             })}
           </div>
         )}
+
+        <ConfirmDialog
+          open={denying !== null}
+          onOpenChange={(open) => {
+            if (!open) setDenying(null)
+          }}
+          title={`Deny ${denying?.name ?? "this pet"}'s registration?`}
+          description="The owner is told it wasn't approved, with your reason, and can apply again."
+          confirmLabel="Deny registration"
+          tone="danger"
+          reason={{ label: "Reason (the owner reads this)", required: true }}
+          onConfirm={async (reason) => {
+            if (!denying) return { error: null }
+            const { id, name } = denying
+            setRegBusy(id)
+            const { error } = await decideRegistration(id, false, reason ?? undefined)
+            setRegBusy(null)
+            if (error) return { error }
+            toast(`${name} denied`)
+            refetchRegs()
+            return { error: null }
+          }}
+        />
 
         {/* Accommodations Tab — every control reaches the database, and every
             state shown is derived from a row that exists. See AccommodationsTab. */}

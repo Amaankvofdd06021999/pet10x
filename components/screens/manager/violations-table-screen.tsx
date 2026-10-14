@@ -14,11 +14,14 @@ import { useBuildingPetRules } from "@/lib/data/building-rules-live"
 import { useIncidents, setIncidentStatus, escalateIncident } from "@/lib/data/incidents"
 import { useNoticeKinds, useViolationNotices, issueNotice } from "@/lib/data/clinic/notices"
 import { useCaseTimeline, stampOf, type CaseEvent } from "@/lib/data/case-timeline"
-import { parseAmountToCents, readFineSchedule, formatCentsForInput, type FineSchedule } from "@/lib/data/fine-schedule"
+import {
+  parseAmountToCents, readFineSchedule, formatCentsForInput, scheduledCents, fineNoteRequired, type FineSchedule,
+} from "@/lib/data/fine-schedule"
 import { settleableFines, fineDegreeToIssue } from "@/lib/data/fine-actions"
 import type { CaseFine, Violation } from "@/lib/data/types"
 import { toCsv, downloadCsv } from "@/lib/csv"
 import { DataTable, type Column } from "@/components/screens/shared/data-table"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal, Field,
   TextInput, TextArea, Select, SegmentedTabs, Toolbar, StatTile,
@@ -190,10 +193,10 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
           <Button size="sm" variant="secondary"
             onClick={async () => {
               const res = await fetchCaseLedger()
-              if (res.error) return window.alert(res.error)
+              if (res.error) return toast.error("Couldn't export", { description: res.error })
               const rows = (res.rows ?? []) as unknown as Record<string, unknown>[]
               const cols = Object.keys(rows[0] ?? {}).map((k) => ({ key: k, label: k }))
-              if (cols.length === 0) return window.alert("Nothing to export yet.")
+              if (cols.length === 0) return toast("Nothing to export yet.")
               downloadCsv("bylaw-cases.csv", toCsv(rows, cols))
             }}>
             <Download className="h-4 w-4" aria-hidden="true" /> Export
@@ -346,13 +349,13 @@ function IncidentsTable({
               onClick={async (e) => {
                 e.stopPropagation()
                 if (!i.petId) {
-                  window.alert("Identify the pet on this report before escalating it — a case needs a subject.")
+                  toast.error("Identify the pet on this report before escalating it — a case needs a subject.")
                   return
                 }
                 setBusy(i.id)
                 const res = await escalateIncident(i.id)
                 setBusy(null)
-                if (res.error) window.alert(res.error)
+                if (res.error) toast.error("Couldn't escalate", { description: res.error })
                 else onEscalated()
               }}
             >
@@ -588,6 +591,54 @@ function Stepper({ step }: { step: 1 | 2 }) {
 
 /* ------------------------------- case view ------------------------------- */
 
+/**
+ * The acts that close a case or decide its appeal, each behind a ConfirmDialog
+ * that asks for the reason the resident reads. That reason replaced the fixed
+ * "Dismissed by manager" / "Resolved by manager", which told the resident
+ * nothing about why.
+ */
+type CloseAct = "dismiss" | "resolve" | "upheld" | "overturned"
+
+const CLOSE_COPY: Record<
+  CloseAct,
+  { title: string; description: string; confirmLabel: string; danger: boolean; required: boolean; done: string }
+> = {
+  dismiss: {
+    title: "Dismiss this case?",
+    description: "The case closes as filed in error. This can't be undone.",
+    confirmLabel: "Dismiss case",
+    danger: true,
+    required: true,
+    done: "Case dismissed",
+  },
+  resolve: {
+    title: "Mark this case resolved?",
+    description: "The case closes as remedied. This can't be undone.",
+    confirmLabel: "Mark resolved",
+    danger: false,
+    required: true,
+    done: "Case resolved",
+  },
+  upheld: {
+    title: "Uphold this notice?",
+    description:
+      "The appeal fails. The case stays where it is and any disputed fine goes back to owed. This can't be undone.",
+    confirmLabel: "Uphold",
+    danger: true,
+    required: true,
+    done: "Appeal upheld",
+  },
+  overturned: {
+    title: "Overturn this notice?",
+    description: "The appeal succeeds. The case is dismissed and its fines are waived. This can't be undone.",
+    confirmLabel: "Overturn",
+    danger: false,
+    // A finding for the resident needs no defence; upholding against them does.
+    required: false,
+    done: "Appeal overturned",
+  },
+}
+
 /** The money acts a case offers, each behind its own confirm. */
 type MoneyAct =
   | { kind: "paid" | "waived"; fine: CaseFine }
@@ -610,7 +661,7 @@ function CaseModal({
   const schedule = rules.data ? readFineSchedule(rules.data) : null
   const [issuing, setIssuing] = useState(false)
   const [money, setMoney] = useState<MoneyAct | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [closing, setClosing] = useState<CloseAct | null>(null)
   const openedId = violation?.id ?? null
 
   // Re-read the case list when a case is opened. The modal renders from a row
@@ -628,10 +679,46 @@ function CaseModal({
   const owed = violation.openDispute ? [] : settleableFines(violation.fines)
   const degree = fineDegreeToIssue(violation.stage, violation.openDispute !== null)
 
+  /** The confirmed close or appeal decision. A failure stays in the dialog, beside the reason. */
+  async function confirmClose(act: CloseAct, reason: string | null): Promise<{ error: string | null }> {
+    if (!violation) return { error: null }
+    const res =
+      act === "dismiss"
+        ? await dismissViolation(violation.id, reason ?? "")
+        : act === "resolve"
+          ? await resolveViolation(violation.id, reason ?? "")
+          : await resolveDispute(violation.id, act, reason ?? undefined)
+    if (res.error) {
+      // These all mean the same thing: this screen is looking at an older
+      // version of the case than the database is. A red message on a dead
+      // dialog is the wrong answer — close, reload and say why.
+      if (
+        (act === "upheld" || act === "overturned") &&
+        /no appeal waiting|already been recorded|no_open_dispute|dispute_open|not a move/i.test(res.error)
+      ) {
+        onChanged()
+        onClose()
+        toast.error("This case has already moved — the appeal was decided somewhere else, or in another tab. Reloaded.")
+        return { error: null }
+      }
+      return { error: res.error }
+    }
+    toast.success(CLOSE_COPY[act].done)
+    if (act === "upheld" || act === "overturned") {
+      timeline.refetch()
+      notices.refetch()
+    }
+    onChanged()
+    onClose()
+    return { error: null }
+  }
+
   return (
     <>
       <Modal
-        open={violation !== null && !issuing && money === null}
+        // Closed while a confirm is up: this Modal sits above the dialog layer
+        // and takes Escape at the document, so the two cannot share the screen.
+        open={violation !== null && !issuing && money === null && closing === null}
         onClose={onClose}
         title={`${violation.pet || "Case"} · ${violation.stageLabel}`}
         description={`${violation.resident || "Resident"} · Unit ${violation.unit || "—"} · ${violation.type}`}
@@ -643,22 +730,8 @@ function CaseModal({
             </p>
           ) : (
             <>
-              <Button variant="ghost" busy={busy}
-                onClick={async () => {
-                  setBusy(true)
-                  const res = await dismissViolation(violation.id, "Dismissed by manager")
-                  setBusy(false)
-                  if (res.error) window.alert(res.error)
-                  else { onChanged(); onClose() }
-                }}>Dismiss</Button>
-              <Button variant="secondary" busy={busy}
-                onClick={async () => {
-                  setBusy(true)
-                  const res = await resolveViolation(violation.id, "Resolved by manager")
-                  setBusy(false)
-                  if (res.error) window.alert(res.error)
-                  else { onChanged(); onClose() }
-                }}>Mark resolved</Button>
+              <Button variant="ghost" onClick={() => setClosing("dismiss")}>Dismiss</Button>
+              <Button variant="secondary" onClick={() => setClosing("resolve")}>Mark resolved</Button>
               {degree && (
                 <Button variant="danger" onClick={() => setMoney({ kind: "fine", degree })}>
                   {degree === "fine_1" ? "Issue fine" : "Issue second fine"}
@@ -679,20 +752,7 @@ function CaseModal({
           </div>
 
           {violation.openDispute && (
-            <AppealPanel
-              violation={violation}
-              onDecided={() => {
-                timeline.refetch()
-                notices.refetch()
-                onChanged()
-                onClose()
-              }}
-              onStale={(why) => {
-                onChanged()
-                onClose()
-                window.setTimeout(() => window.alert(why), 0)
-              }}
-            />
+            <AppealPanel violation={violation} onChoose={setClosing} />
           )}
 
           {owed.length > 0 && (
@@ -766,6 +826,19 @@ function CaseModal({
         />
       </Modal>
 
+      <ConfirmDialog
+        open={closing !== null}
+        onOpenChange={(open) => {
+          if (!open) setClosing(null)
+        }}
+        title={closing ? CLOSE_COPY[closing].title : ""}
+        description={closing ? CLOSE_COPY[closing].description : ""}
+        confirmLabel={closing ? CLOSE_COPY[closing].confirmLabel : "Confirm"}
+        tone={closing && CLOSE_COPY[closing].danger ? "danger" : "default"}
+        reason={{ label: "Reason (the resident reads this)", required: closing ? CLOSE_COPY[closing].required : true }}
+        onConfirm={(reason) => (closing ? confirmClose(closing, reason) : Promise.resolve({ error: null }))}
+      />
+
       {money && (
         <MoneyActModal
           act={money}
@@ -812,7 +885,7 @@ function MoneyActModal({
 }) {
   const degree = act.kind === "fine" ? act.degree : "fine_1"
   /** What the bylaw says this degree costs, in cents, or null when unset. */
-  const bylawCents = schedule ? (degree === "fine_1" ? schedule.fine_1 : schedule.fine_2) : null
+  const bylawCents = scheduledCents(schedule, degree)
 
   const [note, setNote] = useState("")
   const [amount, setAmount] = useState(bylawCents !== null ? formatCentsForInput(bylawCents) : "")
@@ -826,7 +899,7 @@ function MoneyActModal({
   const deviates = act.kind === "fine" && bylawCents !== null && enteredCents !== null && enteredCents !== bylawCents
   // The only place a note is compulsory: a fine nobody's bylaw prices, or one
   // priced differently from it, is a decision the record has to explain.
-  const noteRequired = noSchedule || deviates
+  const noteRequired = act.kind === "fine" && fineNoteRequired(bylawCents, enteredCents)
 
   async function submit() {
     setError(null)
@@ -1153,35 +1226,12 @@ function Timeline({ events }: { events: CaseEvent[] }) {
  *   overturned — the case is dismissed and its fines are waived
  */
 function AppealPanel({
-  violation, onDecided, onStale,
+  violation, onChoose,
 }: {
   violation: Violation
-  onDecided: () => void
-  /** The case moved under us — reload rather than arguing with the server. */
-  onStale: (why: string) => void
+  /** Opens the confirm, which asks for the reason and makes the call. */
+  onChoose: (outcome: "upheld" | "overturned") => void
 }) {
-  const [note, setNote] = useState("")
-  const [busy, setBusy] = useState<"upheld" | "overturned" | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  async function decide(outcome: "upheld" | "overturned") {
-    setBusy(outcome)
-    setError(null)
-    const res = await resolveDispute(violation.id, outcome, note)
-    setBusy(null)
-    if (!res.error) return onDecided()
-    // These three all mean the same thing: this screen is looking at an older
-    // version of the case than the database is. A red message on a dead panel
-    // is the wrong answer — reload and say why.
-    if (/no appeal waiting|already been recorded|no_open_dispute|dispute_open|not a move/i.test(res.error)) {
-      onStale(
-        "This case has already moved — the appeal was decided somewhere else, or in another tab. Reloaded.",
-      )
-      return
-    }
-    setError(res.error)
-  }
-
   const filed = violation.openDispute?.filedAt
   return (
     <div className="rounded-xl border-2 border-info/40 bg-info/5 p-4">
@@ -1198,33 +1248,17 @@ function AppealPanel({
 
       <p className="mt-3 text-[12px] text-muted-foreground">
         Nothing else can happen on this case until you answer — the ladder refuses every other move, and no
-        fine reminder is sent.
+        fine reminder is sent. You give your reasoning in the next step; the resident reads it exactly as written.
       </p>
-
-      <div className="mt-3">
-        <Field label="Your reasoning" hint="The resident reads this exactly as written.">
-          {(p) => (
-            <TextArea
-              {...p}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="We reviewed the photographs and the report from 12 August…"
-            />
-          )}
-        </Field>
-      </div>
-
-      {error && <p className="mt-2 text-[12.5px] font-medium text-destructive">{error}</p>}
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <button
           type="button"
-          disabled={busy !== null}
-          onClick={() => void decide("upheld")}
+          onClick={() => onChoose("upheld")}
           className="rounded-xl border border-warning/50 bg-warning/10 p-3 text-left transition-colors hover:bg-warning/15 disabled:opacity-50"
         >
           <span className="block text-[13.5px] font-semibold text-warning-strong">
-            {busy === "upheld" ? "Upholding…" : "Uphold the notice"}
+            Uphold
           </span>
           <span className="mt-0.5 block text-[11.5px] text-muted-foreground">
             The appeal fails. The case stays where it is and any disputed fine goes back to owed.
@@ -1232,12 +1266,11 @@ function AppealPanel({
         </button>
         <button
           type="button"
-          disabled={busy !== null}
-          onClick={() => void decide("overturned")}
+          onClick={() => onChoose("overturned")}
           className="rounded-xl border border-success/50 bg-success/10 p-3 text-left transition-colors hover:bg-success/15 disabled:opacity-50"
         >
           <span className="block text-[13.5px] font-semibold text-success">
-            {busy === "overturned" ? "Overturning…" : "Find for the resident"}
+            Overturn
           </span>
           <span className="mt-0.5 block text-[11.5px] text-muted-foreground">
             The appeal succeeds. The case is dismissed and its fines are waived.

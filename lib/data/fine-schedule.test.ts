@@ -8,6 +8,8 @@ import {
   formatFineAmount,
   MIN_FINE_CENTS,
   MAX_FINE_CENTS,
+  scheduledCents,
+  fineNoteRequired,
 } from "./fine-schedule"
 
 describe("readFineSchedule", () => {
@@ -215,5 +217,40 @@ describe("stripFineSchedule", () => {
 
   it("names the same three keys manager_set_fine_schedule writes", () => {
     expect([...FINE_SCHEDULE_KEYS]).toEqual(["fine_1_cents", "fine_2_cents", "fine_currency"])
+  })
+})
+
+describe("scheduledCents", () => {
+  const schedule = { fine_1: 25000, fine_2: null, currency: "CAD" }
+
+  it("is what the schedule prices this degree at", () => {
+    expect(scheduledCents(schedule, "fine_1")).toBe(25000)
+  })
+
+  it("is null for a degree the schedule leaves unpriced", () => {
+    expect(scheduledCents(schedule, "fine_2")).toBeNull()
+  })
+
+  it("is null with no schedule at all", () => {
+    expect(scheduledCents(null, "fine_1")).toBeNull()
+  })
+})
+
+describe("fineNoteRequired", () => {
+  it("is not required when the manager keeps the bylaw figure", () => {
+    expect(fineNoteRequired(25000, 25000)).toBe(false)
+  })
+
+  it("is required when the amount differs from the bylaw figure", () => {
+    expect(fineNoteRequired(25000, 30000)).toBe(true)
+  })
+
+  it("is required when no bylaw prices this fine", () => {
+    expect(fineNoteRequired(null, 30000)).toBe(true)
+    expect(fineNoteRequired(null, null)).toBe(true)
+  })
+
+  it("is not required yet while the amount is unreadable — the amount error comes first", () => {
+    expect(fineNoteRequired(25000, null)).toBe(false)
   })
 })

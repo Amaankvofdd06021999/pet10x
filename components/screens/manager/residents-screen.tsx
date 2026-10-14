@@ -14,6 +14,8 @@ import { useComplianceInputs } from "@/lib/data/portfolio"
 import { useManagerBuilding } from "@/lib/data/manager"
 import { useAuth } from "@/lib/auth-context"
 import { RequestInfoButton } from "@/components/screens/manager/request-info-button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { shortDate } from "@/lib/dates"
 import type { ResidentLinkRow, ManagerPet } from "@/lib/data"
 import { toast } from "sonner"
 import { Search, Check, X, Clock, UserMinus, Loader2, Users, Dog, Cat, ChevronDown, Shield } from "lucide-react"
@@ -26,6 +28,9 @@ export function ManagerResidentsScreen() {
   const { activeBuildingId } = useAuth()
   const { data: building } = useManagerBuilding(activeBuildingId)
   const [busy, setBusy] = useState<string | null>(null)
+  // Deny and remove each tell a person no, so each asks first (with room for
+  // the reason they will read) instead of firing on the tap.
+  const [confirming, setConfirming] = useState<{ kind: "deny" | "remove"; resident: ResidentLinkRow } | null>(null)
 
   /**
    * What each resident still owes, from the same function their own card
@@ -62,13 +67,27 @@ export function ManagerResidentsScreen() {
   const pending = residents.filter((r) => r.status === "pending" && match(r))
   const members = residents.filter((r) => r.status === "approved" && match(r))
 
-  async function act(linkId: string, fn: (id: string) => Promise<{ error: string | null }>, ok: string) {
+  async function approve(linkId: string) {
     setBusy(linkId)
-    const { error } = await fn(linkId)
+    const { error } = await approveResidentLink(linkId)
     setBusy(null)
-    if (error) return toast.error("Action failed", { description: error })
-    toast.success(ok)
+    if (error) return toast.error("Couldn't approve", { description: error })
+    toast.success("Resident approved")
     refetch()
+  }
+
+  /** The confirmed deny or remove. A failure stays in the dialog, beside the reason. */
+  async function decide(reason: string | null): Promise<{ error: string | null }> {
+    if (!confirming) return { error: null }
+    const { kind, resident } = confirming
+    setBusy(resident.linkId)
+    const fn = kind === "deny" ? denyResidentLink : removeResident
+    const { error } = await fn(resident.linkId, reason ?? undefined)
+    setBusy(null)
+    if (error) return { error }
+    toast.success(kind === "deny" ? "Request denied" : "Removed from building")
+    refetch()
+    return { error: null }
   }
 
   return (
@@ -117,6 +136,9 @@ export function ManagerResidentsScreen() {
                     <div key={r.linkId} className="rounded-xl border border-warning/30 bg-[#FFFBEF] p-3.5">
                       <p className="text-[15px] font-semibold text-foreground">{r.residentName}</p>
                       <p className="text-[12px] text-muted-foreground">{r.residentEmail || "—"}</p>
+                      <p className="text-[12px] text-muted-foreground">
+                        Unit {r.unit ?? "not given"} · requested {shortDate(r.requestedAt)}
+                      </p>
 
                       {/* What this request is still missing, so the decision to
                           approve is made with the gaps visible rather than
@@ -152,14 +174,14 @@ export function ManagerResidentsScreen() {
 
                       <div className="mt-3 flex gap-2">
                         <button
-                          onClick={() => act(r.linkId, approveResidentLink, "Resident approved")}
+                          onClick={() => approve(r.linkId)}
                           disabled={busy === r.linkId}
                           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-success py-2 text-[13px] font-semibold text-success-foreground transition-transform active:scale-[0.97] disabled:opacity-60"
                         >
                           {busy === r.linkId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Approve
                         </button>
                         <button
-                          onClick={() => act(r.linkId, denyResidentLink, "Request denied")}
+                          onClick={() => setConfirming({ kind: "deny", resident: r })}
                           disabled={busy === r.linkId}
                           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg card-interactive py-2 text-[13px] font-semibold text-foreground transition-transform active:scale-[0.97] disabled:opacity-60"
                         >
@@ -192,7 +214,7 @@ export function ManagerResidentsScreen() {
                       member={r}
                       pets={buildingPets.filter((p) => p.ownerId === r.profileId)}
                       busy={busy === r.linkId}
-                      onRemove={() => act(r.linkId, removeResident, "Resident removed")}
+                      onRemove={() => setConfirming({ kind: "remove", resident: r })}
                     />
                   ))}
                 </div>
@@ -201,8 +223,32 @@ export function ManagerResidentsScreen() {
           </>
         )}
       </main>
+
+      <ConfirmDialog
+        open={confirming !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirming(null)
+        }}
+        title={confirming ? confirmTitle(confirming.kind, confirming.resident, building?.name) : ""}
+        description={
+          confirming?.kind === "remove"
+            ? "They lose access and must ask to rejoin."
+            : "They're told the request wasn't approved, and can ask again."
+        }
+        confirmLabel={confirming?.kind === "remove" ? "Remove from building" : "Deny request"}
+        tone="danger"
+        reason={{ label: "Reason (the resident reads this)", required: false }}
+        onConfirm={decide}
+      />
     </div>
   )
+}
+
+/** "Remove Ana (Unit 4B) from Maple Court?" — who, where, so the wrong row is caught here. */
+function confirmTitle(kind: "deny" | "remove", r: ResidentLinkRow, buildingName: string | undefined) {
+  const who = r.unit ? `${r.residentName} (Unit ${r.unit})` : r.residentName
+  if (kind === "deny") return `Deny ${who}'s request to join?`
+  return `Remove ${who} from ${buildingName ?? "this building"}?`
 }
 
 function MemberCard({
@@ -233,14 +279,6 @@ function MemberCard({
           </p>
         </button>
         <ChevronDown className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-        <button
-          onClick={onRemove}
-          disabled={busy}
-          aria-label="Remove resident"
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-destructive transition-colors active:bg-destructive/10 disabled:opacity-60"
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}
-        </button>
       </div>
       {open && (
         <div className="border-t border-border p-3">
@@ -271,6 +309,16 @@ function MemberCard({
               })}
             </div>
           )}
+          {/* In the expanded panel, labelled, rather than an icon beside the
+              chevron where a tap meant for "open" could land on it. */}
+          <button
+            onClick={onRemove}
+            disabled={busy}
+            className="mt-3 flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-destructive transition-colors active:bg-destructive/10 disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}
+            Remove from building
+          </button>
         </div>
       )}
     </div>

@@ -11,11 +11,19 @@ import {
   useViolations,
   useResolvedViolations,
 } from "@/lib/data"
-import { advanceViolation, resolveDispute, resolveViolation } from "@/lib/data/manager-queues"
+import { advanceViolation, resolveDispute, resolveViolation, type AdvanceOptions } from "@/lib/data/manager-queues"
 // Phase 6: moved to a pure, tested module. See `lib/data/fine-schedule.ts`.
-import { readFineSchedule } from "@/lib/data/fine-schedule"
+import {
+  readFineSchedule,
+  scheduledCents,
+  fineNoteRequired,
+  formatCentsForInput,
+  parseAmountToCents,
+} from "@/lib/data/fine-schedule"
 import { STAGE_LABEL, controlsForCase, isFineStage, nextStage } from "@/lib/data/violations"
-import { shortDate } from "@/lib/dates"
+import { addCalendarDays, shortDate, todayKey } from "@/lib/dates"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import type { ResidentLinkRow } from "@/lib/data"
 import type { ViolationStage } from "@/lib/data/types"
 import {
   useEmergencyTokens,
@@ -144,19 +152,40 @@ function BackBtn({ onBack }: { onBack: () => void }) {
 
 function ResidentsPanel({ buildingId }: { buildingId: string }) {
   const { data, isLoading, refetch } = useBuildingResidents()
+  const { buildings } = useStrata()
+  const buildingName = buildings.find((b) => b.id === buildingId)?.name ?? "this building"
   const [busy, setBusy] = useState<string | null>(null)
+  // Deny and remove each tell a person no, so each asks first — the same
+  // dialog, words and optional reason as the manager's Residents screen.
+  const [confirming, setConfirming] = useState<{ kind: "deny" | "remove"; resident: ResidentLinkRow } | null>(null)
   const scoped = data.filter((r) => r.buildingId === buildingId)
   const pending = scoped.filter((r) => r.status === "pending")
   const members = scoped.filter((r) => r.status === "approved")
 
-  async function act(linkId: string, fn: (id: string) => Promise<{ error: string | null }>, label: string) {
+  async function approve(linkId: string) {
     setBusy(linkId)
-    const { error } = await fn(linkId)
+    const { error } = await approveResidentLink(linkId)
     setBusy(null)
-    if (error) return toast.error(`${label} failed`, { description: error })
-    toast.success(label)
+    if (error) return toast.error("Couldn't approve", { description: error })
+    toast.success("Approved")
     refetch()
   }
+
+  /** The confirmed deny or remove. A failure stays in the dialog, beside the reason. */
+  async function decide(reason: string | null): Promise<{ error: string | null }> {
+    if (!confirming) return { error: null }
+    const { kind, resident } = confirming
+    setBusy(resident.linkId)
+    const fn = kind === "deny" ? denyResidentLink : removeResident
+    const { error } = await fn(resident.linkId, reason ?? undefined)
+    setBusy(null)
+    if (error) return { error }
+    toast.success(kind === "deny" ? "Request denied" : "Removed from building")
+    refetch()
+    return { error: null }
+  }
+
+  const who = (r: ResidentLinkRow) => (r.unit ? `${r.residentName} (Unit ${r.unit})` : r.residentName)
 
   if (isLoading) return <Spinner />
 
@@ -170,9 +199,12 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13.5px] font-semibold text-foreground">{r.residentName}</p>
                   <p className="truncate text-[12px] text-muted-foreground">{r.residentEmail ?? "—"}</p>
+                  <p className="truncate text-[12px] text-muted-foreground">
+                    Unit {r.unit ?? "not given"} · requested {shortDate(r.requestedAt)}
+                  </p>
                 </div>
                 <button
-                  onClick={() => act(r.linkId, approveResidentLink, "Approved")}
+                  onClick={() => approve(r.linkId)}
                   disabled={busy === r.linkId}
                   className="flex items-center gap-1 rounded-lg bg-success/15 px-3 py-1.5 text-[12px] font-semibold text-success disabled:opacity-50"
                 >
@@ -180,7 +212,7 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
                   Approve
                 </button>
                 <button
-                  onClick={() => act(r.linkId, denyResidentLink, "Denied")}
+                  onClick={() => setConfirming({ kind: "deny", resident: r })}
                   disabled={busy === r.linkId}
                   className="flex items-center gap-1 rounded-lg bg-destructive/10 px-3 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
                 >
@@ -209,19 +241,43 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
                     {r.residentEmail ?? "—"}
                   </p>
                 </div>
+                {/* Labelled, not a bare icon: what it does is on the button. */}
                 <button
-                  onClick={() => act(r.linkId, removeResident, "Resident removed")}
+                  onClick={() => setConfirming({ kind: "remove", resident: r })}
                   disabled={busy === r.linkId}
-                  title="Remove from building"
-                  className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-[12px] font-semibold text-muted-foreground disabled:opacity-50"
+                  className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
                 >
                   {busy === r.linkId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserMinus className="h-3.5 w-3.5" />}
+                  Remove from building
                 </button>
               </div>
             ))}
           </div>
         )}
       </SectionCard>
+
+      <ConfirmDialog
+        open={confirming !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirming(null)
+        }}
+        title={
+          !confirming
+            ? ""
+            : confirming.kind === "deny"
+              ? `Deny ${who(confirming.resident)}'s request to join?`
+              : `Remove ${who(confirming.resident)} from ${buildingName}?`
+        }
+        description={
+          confirming?.kind === "remove"
+            ? "They lose access and must ask to rejoin."
+            : "They're told the request wasn't approved, and can ask again."
+        }
+        confirmLabel={confirming?.kind === "remove" ? "Remove from building" : "Deny request"}
+        tone="danger"
+        reason={{ label: "Reason (the resident reads this)", required: false }}
+        onConfirm={decide}
+      />
     </div>
   )
 }
@@ -256,12 +312,18 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
   const { data: resolved, refetch: refetchResolved } = useResolvedViolations()
   const { buildings } = useStrata()
   const [busy, setBusy] = useState<string | null>(null)
-  /** The case whose fine amount is being asked for, and the figure so far. */
+  /**
+   * The case a fine is being confirmed for, and the confirm's fields: the
+   * amount (pre-filled from the bylaws when they price it), the note the
+   * resident reads, and the due date.
+   */
   const [asking, setAsking] = useState<string | null>(null)
   const [amount, setAmount] = useState("")
-  /** The appeal being decided, and the note the strata is writing on it. */
-  const [deciding, setDeciding] = useState<{ id: string; upheld: boolean } | null>(null)
-  const [decisionNote, setDecisionNote] = useState("")
+  const [fineNote, setFineNote] = useState("")
+  const [dueOn, setDueOn] = useState("")
+  const [fineError, setFineError] = useState<string | null>(null)
+  /** The close or appeal decision whose ConfirmDialog is open. */
+  const [closing, setClosing] = useState<{ id: string; act: "resolve" | "upheld" | "overturned" } | null>(null)
 
   const scopedOpen = open.filter((v) => v.buildingId === buildingId)
   const scopedResolved = resolved.filter((v) => v.buildingId === buildingId)
@@ -278,49 +340,78 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
    */
   const schedule = readFineSchedule(buildings.find((b) => b.id === buildingId)?.rules)
 
+  /** What the bylaws price the fine this case would advance into, or null. */
   function bylawCentsFor(stage: ViolationStage): number | null {
     const next = nextStage(stage)
     if (!next || !isFineStage(next)) return null
-    return next === "fine_1" ? schedule.fine_1 : schedule.fine_2
+    // The same reader the manager's case sheet uses, so both surfaces offer
+    // the figure `manager_advance_violation` would apply.
+    return scheduledCents(schedule, next)
   }
 
-  /** True when advancing this case mints a fine the bylaws do not price. */
-  function needsAmount(stage: ViolationStage): boolean {
+  /** Advance one rung. Returns the failure, so the fine confirm can show it in place. */
+  async function advance(id: string, stage: ViolationStage, options: AdvanceOptions = {}): Promise<string | null> {
     const next = nextStage(stage)
-    return !!next && isFineStage(next) && bylawCentsFor(stage) === null
-  }
-
-  async function advance(id: string, stage: ViolationStage, amountCents?: number) {
-    const next = nextStage(stage)
-    if (!next) return
+    if (!next) return null
     setBusy(id)
-    // With a bylaw schedule, no amount is passed and the DATABASE applies the
-    // schedule (AD-5) rather than the client echoing a figure back at it.
-    const { error, notified } = await advanceViolation(id, next, { amountCents })
+    const { error, notified } = await advanceViolation(id, next, options)
     setBusy(null)
-    if (error) return toast.error("Couldn't advance", { description: error })
+    if (error) return error
     setAsking(null)
-    setAmount("")
     toast.success(`Advanced to ${STAGE_LABEL[next]}`, {
       description: notified ? undefined : "No resident is assigned, so nobody was notified.",
     })
     refetch()
+    return null
   }
 
+  /**
+   * A fine stage asks first — every time, not only when the bylaws are silent.
+   * It used to issue a scheduled fine on one tap, with no note and no due date;
+   * money the resident is told they owe is worth one look. Every other rung
+   * (open → warning) still moves on the tap, as before.
+   */
   function startAdvance(id: string, stage: ViolationStage) {
-    if (needsAmount(stage)) {
-      setAmount("")
-      setAsking(asking === id ? null : id)
+    const next = nextStage(stage)
+    if (next && isFineStage(next)) {
+      if (asking === id) return setAsking(null)
+      setAmount(formatCentsForInput(bylawCentsFor(stage)))
+      setFineNote("")
+      setDueOn(addCalendarDays(todayKey(), 30) ?? "")
+      setFineError(null)
+      setAsking(id)
       return
     }
-    void advance(id, stage)
+    void advance(id, stage).then((error) => {
+      if (error) toast.error("Couldn't advance", { description: error })
+    })
   }
 
-  async function resolve(id: string) {
+  /** The confirmed fine: the same amount and note rules as the case sheet's. */
+  async function issue(id: string, stage: ViolationStage) {
+    const bylaw = bylawCentsFor(stage)
+    const parsed = parseAmountToCents(amount)
+    const cents = typeof parsed === "number" ? parsed : null
+    if (cents === null) return setFineError("Enter an amount like 250 or 1,000.")
+    if (fineNoteRequired(bylaw, cents) && !fineNote.trim()) return setFineError("Say what this amount is based on.")
+    setFineError(null)
+    const error = await advance(id, stage, {
+      // Left off when the bylaw figure is kept, so the DATABASE applies the
+      // schedule (AD-5) rather than the client echoing a figure back at it.
+      amountCents: cents !== bylaw ? cents : undefined,
+      note: fineNote.trim() || undefined,
+      dueOn: dueOn || undefined,
+    })
+    if (error) setFineError(error)
+  }
+
+  async function resolve(id: string, reason: string): Promise<{ error: string | null }> {
     setBusy(id)
-    const { error, notified } = await resolveViolation(id, "Remedied — closed by manager")
+    // The reason replaced "Remedied — closed by manager": it becomes the
+    // case's resolution_outcome, which the resident reads.
+    const { error, notified } = await resolveViolation(id, reason)
     setBusy(null)
-    if (error) return toast.error("Couldn't resolve", { description: error })
+    if (error) return { error }
     // `notified` was dropped here while `advance` two functions up surfaced it,
     // so resolving an unassigned case implied a letter had gone out.
     toast.success("Violation resolved", {
@@ -328,6 +419,7 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
     })
     refetch()
     refetchResolved()
+    return { error: null }
   }
 
   /**
@@ -343,13 +435,11 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
    * overturning dismisses the case, so it leaves the open list. Both refetches
    * run, because either outcome changes which list the case belongs on.
    */
-  async function decide(id: string, upheld: boolean) {
+  async function decide(id: string, upheld: boolean, note: string | null): Promise<{ error: string | null }> {
     setBusy(id)
-    const r = await resolveDispute(id, upheld ? "upheld" : "overturned", decisionNote.trim() || undefined)
+    const r = await resolveDispute(id, upheld ? "upheld" : "overturned", note ?? undefined)
     setBusy(null)
-    if (r.error) return toast.error("Couldn't decide the appeal", { description: r.error })
-    setDeciding(null)
-    setDecisionNote("")
+    if (r.error) return { error: r.error }
     // Whole clauses, assembled — the same sentences the manager's Violations
     // screen reports, because it is the same decision.
     const n = r.finesSettled ?? 0
@@ -364,7 +454,29 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
     })
     refetch()
     refetchResolved()
+    return { error: null }
   }
+
+  /**
+   * The consequence, with the real number, BEFORE the press. Kept from the
+   * inline block this replaced: the wording is the part that has to match the
+   * manager's Violations screen, and it does.
+   */
+  function appealConsequence(v: (typeof scopedOpen)[number], upheld: boolean): string {
+    const head = upheld ? `The case stays at ${v.stageLabel.toLowerCase()}` : "The case is dismissed and closed"
+    const money =
+      v.disputed > 0
+        ? upheld
+          ? `, and the $${v.disputed.toFixed(2)} under appeal becomes payable again — reminders resume.`
+          : `, and the $${v.disputed.toFixed(2)} under appeal is waived.`
+        : ". No fine is attached, so no money changes."
+    const tail = upheld
+      ? " This can't be undone — the resident can only dispute a later stage, not this one again."
+      : " This can't be undone — a dismissed case cannot be reopened; a further breach would be a new case."
+    return `${head}${money} The resident is notified either way.${tail}`
+  }
+
+  const closingCase = closing ? scopedOpen.find((v) => v.id === closing.id) : undefined
 
   if (isLoading) return <Spinner />
 
@@ -438,28 +550,18 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                     {controls.kind === "decide-appeal" ? (
                       <>
                         <button
-                          onClick={() => {
-                            setDecisionNote("")
-                            setDeciding(
-                              deciding?.id === v.id && deciding.upheld ? null : { id: v.id, upheld: true },
-                            )
-                          }}
+                          onClick={() => setClosing({ id: v.id, act: "upheld" })}
                           disabled={busy === v.id}
                           className="flex items-center gap-1 rounded-lg bg-warning/15 px-2.5 py-1.5 text-[12px] font-semibold text-warning disabled:opacity-50"
                         >
-                          <Gavel className="h-3.5 w-3.5" /> Uphold the finding
+                          <Gavel className="h-3.5 w-3.5" /> Uphold
                         </button>
                         <button
-                          onClick={() => {
-                            setDecisionNote("")
-                            setDeciding(
-                              deciding?.id === v.id && !deciding.upheld ? null : { id: v.id, upheld: false },
-                            )
-                          }}
+                          onClick={() => setClosing({ id: v.id, act: "overturned" })}
                           disabled={busy === v.id}
                           className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success disabled:opacity-50"
                         >
-                          <ShieldCheck className="h-3.5 w-3.5" /> Overturn it
+                          <ShieldCheck className="h-3.5 w-3.5" /> Overturn
                         </button>
                       </>
                     ) : (
@@ -476,7 +578,7 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                         )}
                         {controls.moves.includes("resolved") && (
                           <button
-                            onClick={() => resolve(v.id)}
+                            onClick={() => setClosing({ id: v.id, act: "resolve" })}
                             disabled={busy === v.id}
                             className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success disabled:opacity-50"
                           >
@@ -486,91 +588,58 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                       </>
                     )}
                   </div>
-                  {/*
-                    The consequence, with the real number, BEFORE the press —
-                    and the note, which the resident reads. Inline rather than
-                    in a sheet because this panel has no sheet machinery and
-                    borrowing the manager screen's would mean lifting a whole
-                    modal for two buttons; the wording is the part that has to
-                    match, and it does.
-                  */}
-                  {deciding?.id === v.id && v.openDispute && (
-                    <div
-                      className={`mt-2 rounded-lg border p-2.5 ${
-                        deciding.upheld ? "border-warning/40 bg-warning/5" : "border-success/40 bg-success/5"
-                      }`}
-                    >
-                      <p className="text-[11.5px] leading-relaxed text-foreground">
-                        <span className="font-semibold">
-                          {deciding.upheld
-                            ? `The case stays at ${v.stageLabel.toLowerCase()}`
-                            : "The case is dismissed and closed"}
-                        </span>
-                        {v.disputed > 0
-                          ? deciding.upheld
-                            ? `, and the $${v.disputed.toFixed(2)} under appeal becomes payable again — reminders resume.`
-                            : `, and the $${v.disputed.toFixed(2)} under appeal is waived.`
-                          : ". No fine is attached, so no money changes."}
-                        {" The resident is notified either way. "}
-                        <span className="font-semibold">This cannot be undone</span>
-                        {deciding.upheld
-                          ? " — the resident can only dispute a later stage, not this one again."
-                          : " — a dismissed case cannot be reopened; a further breach would be a new case."}
-                      </p>
-                      <textarea
-                        value={decisionNote}
-                        onChange={(e) => setDecisionNote(e.target.value)}
-                        rows={2}
-                        maxLength={2000}
-                        placeholder="Reasons for the decision (optional) — the resident reads this."
-                        className="mt-2 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-[12.5px] text-foreground focus:border-primary focus:outline-none"
-                      />
-                      <div className="mt-2 flex items-center gap-1.5">
-                        <button
-                          onClick={() => void decide(v.id, deciding.upheld)}
-                          disabled={busy === v.id}
-                          className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold disabled:opacity-50 ${
-                            deciding.upheld ? "bg-warning/15 text-warning" : "bg-success/15 text-success"
-                          }`}
-                        >
-                          {busy === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                          {deciding.upheld ? "Confirm — uphold" : "Confirm — overturn"}
-                        </button>
-                        <button
-                          onClick={() => setDeciding(null)}
-                          className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-muted-foreground"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {asking === v.id && next && (
+                  {asking === v.id && next && isFineStage(next) && (
                     <div className="mt-2 rounded-lg border border-warning/40 bg-warning/5 p-2.5">
                       <p className="text-[11.5px] leading-relaxed text-foreground">
-                        This building has no fine schedule in its bylaws, so there is no amount to apply. Enter what
-                        this {STAGE_LABEL[next].toLowerCase()}{" "}
-                        should be.
+                        {bylawCentsFor(v.stage) === null
+                          ? `This building has no fine schedule in its bylaws, so there is no amount to apply. Enter what this ${STAGE_LABEL[next].toLowerCase()} should be, and what it is based on.`
+                          : `This issues a ${STAGE_LABEL[next].toLowerCase()} at the amount the bylaws set, and tells the resident. Change the amount only with a note saying why.`}
                       </p>
-                      <div className="mt-2 flex items-center gap-1.5">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={amount}
-                          placeholder="0.00"
-                          onChange={(e) => setAmount(e.target.value)}
-                          className="w-28 rounded-lg border border-border bg-background px-2 py-1.5 text-[12.5px] text-foreground focus:border-primary focus:outline-none"
+                      <div className="mt-2 flex flex-wrap items-end gap-1.5">
+                        <label className="flex flex-col gap-0.5 text-[11px] font-semibold text-muted-foreground">
+                          Amount
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={amount}
+                            placeholder="0.00"
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="w-28 rounded-lg border border-border bg-background px-2 py-1.5 text-[12.5px] font-normal text-foreground focus:border-primary focus:outline-none"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-0.5 text-[11px] font-semibold text-muted-foreground">
+                          Due by
+                          <input
+                            type="date"
+                            value={dueOn}
+                            onChange={(e) => setDueOn(e.target.value)}
+                            className="rounded-lg border border-border bg-background px-2 py-1.5 text-[12.5px] font-normal text-foreground focus:border-primary focus:outline-none"
+                          />
+                        </label>
+                      </div>
+                      <label className="mt-2 flex flex-col gap-0.5 text-[11px] font-semibold text-muted-foreground">
+                        Note (the resident reads this)
+                        <textarea
+                          value={fineNote}
+                          onChange={(e) => setFineNote(e.target.value)}
+                          rows={2}
+                          maxLength={2000}
+                          className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-[12.5px] font-normal text-foreground focus:border-primary focus:outline-none"
                         />
+                      </label>
+                      {fineError && (
+                        <p role="alert" className="mt-1.5 text-[12px] font-medium text-destructive">
+                          {fineError}
+                        </p>
+                      )}
+                      <div className="mt-2 flex items-center gap-1.5">
                         <button
-                          onClick={() => {
-                            const n = Number(amount.replace(/[^0-9.]/g, ""))
-                            if (!Number.isFinite(n) || n <= 0) return toast.error("Enter an amount above $0.")
-                            void advance(v.id, v.stage, Math.round(n * 100))
-                          }}
+                          onClick={() => void issue(v.id, v.stage)}
                           disabled={busy === v.id}
-                          className="rounded-lg bg-destructive/15 px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
+                          className="flex items-center gap-1 rounded-lg bg-destructive/15 px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
                         >
-                          Issue fine
+                          {busy === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                          Issue {STAGE_LABEL[next].toLowerCase()}
                         </button>
                         <button
                           onClick={() => setAsking(null)}
@@ -587,6 +656,38 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
           </div>
         )}
       </SectionCard>
+
+      <ConfirmDialog
+        open={closing !== null}
+        onOpenChange={(open) => {
+          if (!open) setClosing(null)
+        }}
+        title={
+          closing?.act === "resolve"
+            ? "Mark this case resolved?"
+            : closing?.act === "upheld"
+              ? "Uphold this notice?"
+              : "Overturn this notice?"
+        }
+        description={
+          !closing || !closingCase
+            ? ""
+            : closing.act === "resolve"
+              ? "The case closes as remedied. This can't be undone."
+              : appealConsequence(closingCase, closing.act === "upheld")
+        }
+        confirmLabel={closing?.act === "resolve" ? "Mark resolved" : closing?.act === "upheld" ? "Uphold" : "Overturn"}
+        tone={closing?.act === "upheld" ? "danger" : "default"}
+        // Required to resolve or uphold — the resident is told why the case
+        // closed, or why their appeal failed. Optional to overturn: a finding
+        // for the resident needs no defence.
+        reason={{ label: "Reason (the resident reads this)", required: closing?.act !== "overturned" }}
+        onConfirm={async (reason) => {
+          if (!closing) return { error: null }
+          if (closing.act === "resolve") return resolve(closing.id, reason ?? "")
+          return decide(closing.id, closing.act === "upheld", reason)
+        }}
+      />
 
       {scopedResolved.length > 0 && (
         <SectionCard title={`Resolved (${scopedResolved.length})`}>

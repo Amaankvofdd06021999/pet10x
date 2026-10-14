@@ -25,7 +25,7 @@ import { uploadCommunityImage } from "./community-media"
 import { createNotificationStore, type NotificationLoad } from "./notification-store"
 import { computeCompliance, type BuildingRules } from "./compliance"
 import { archiveErrorSentence, memorialYears, type ArchiveReason } from "./pet-archive"
-import { linkDecisionError, type LinkDecisionResult } from "./link-decision"
+import { decisionError, decisionResultError, type DecisionResult } from "./decision-errors"
 import type {
   AppNotification,
   BuildingLink,
@@ -1196,9 +1196,11 @@ async function decideLink(
     p_decision: decision,
     p_reason: reason?.trim() ? reason.trim() : undefined,
   })
-  // A raise carries a sentence and a hint written for the manager; show both.
-  if (error) return { error: error.hint?.trim() ? `${error.message} ${error.hint.trim()}` : error.message }
-  return { error: linkDecisionError(data as unknown as LinkDecisionResult) }
+  // Both kinds of refusal — a raise (42501, 22023) and an `{ok:false}` answer
+  // (not_found, already_member) — become a sentence in ./decision-errors, so
+  // a manager never reads a Postgres message or a bare code.
+  if (error) return { error: decisionError(error) }
+  return { error: decisionResultError(data as unknown as DecisionResult) }
 }
 
 export function approveResidentLink(linkId: string) {
