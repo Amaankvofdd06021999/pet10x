@@ -9,7 +9,7 @@ import {
 } from "@/lib/data/clinic/shop"
 import {
   invoiceStatusLabel, INVOICE_STATUS_TONE, invoiceActions, invoicesForView, billingViewFor,
-  invoicedVisitIds, takenTodayCents, validatePayment, PAYMENT_METHODS,
+  liveInvoiceByVisit, convertedTotalNote, takenTodayCents, validatePayment, PAYMENT_METHODS,
   type BillingView, type InvoiceAction, type PaymentErrors, type PaymentMethod, type InvoiceStatus,
 } from "@/lib/data/clinic/billing"
 import { formatMoney, formatDateShort } from "@/lib/data/clinic/time"
@@ -49,6 +49,9 @@ export function ClinicBillingScreen({
   const [paying, setPaying] = useState<Invoice | null>(null)
   const [reviewing, setReviewing] = useState<{ bill: Invoice; paidCents: number; method: PaymentMethod } | null>(null)
   const [voiding, setVoiding] = useState<Invoice | null>(null)
+  // The draft a Convert to invoice just made, and the approved estimate's
+  // total to compare it with before it is sent.
+  const [converted, setConverted] = useState<{ invoiceId: string; estimateTotalCents: number } | null>(null)
   // A bill to open as soon as it appears in the list — one just created here,
   // or handed over by the shell (this screen mounts fresh on every visit, so
   // the prop is read once). The list only holds a new bill after its refetch
@@ -66,7 +69,7 @@ export function ClinicBillingScreen({
     }
   }
 
-  const invoiced = useMemo(() => invoicedVisitIds(invoices.data), [invoices.data])
+  const invoiced = useMemo(() => liveInvoiceByVisit(invoices.data), [invoices.data])
   const rows = invoicesForView(invoices.data, view)
   const outstanding = invoices.data
     .filter((i) => i.kind === "invoice" && (i.status === "sent" || i.status === "approved"))
@@ -98,6 +101,7 @@ export function ClinicBillingScreen({
     if (res.error && !res.invoiceId) return toast.error(res.error)
     if (res.error) toast.error(res.error)
     else toast.success("Invoice created from the estimate")
+    if (res.invoiceId) setConverted({ invoiceId: res.invoiceId, estimateTotalCents: bill.totalCents })
     setOpenId(null)
     setWant(res.invoiceId ?? null)
     invoices.refetch()
@@ -205,6 +209,17 @@ export function ClinicBillingScreen({
                 {openBill.ownerApprovedAt && <Pill tone="good">Owner approved</Pill>}
                 {openBill.issuedOn ? `Sent ${formatDateShort(openBill.issuedOn)}` : `Created ${formatDateShort(openBill.createdAt)}`}
               </p>
+              {(() => {
+                const note =
+                  converted?.invoiceId === openBill.id && openBill.status === "draft"
+                    ? convertedTotalNote(converted.estimateTotalCents, openBill.totalCents, openBill.currency)
+                    : null
+                return note ? (
+                  <p role="status" className="rounded-lg bg-warning/10 px-2.5 py-1.5 text-[12.5px] font-medium text-warning-strong">
+                    {note}
+                  </p>
+                ) : null
+              })()}
               {openBill.lines.length === 0 ? (
                 <p className="text-[12.5px] text-muted-foreground">No lines on this bill.</p>
               ) : (
@@ -291,7 +306,9 @@ export function ClinicBillingScreen({
           const res = await setInvoiceStatus(r.bill.id, "paid", r.paidCents, r.method)
           invoices.refetch()
           if (res.error) return { error: res.error }
-          toast.success("Payment recorded")
+          // The payment stands even if its method note didn't save.
+          if (res.warning) toast.warning(res.warning)
+          else toast.success("Payment recorded")
           return { error: null }
         }}
       />
@@ -407,7 +424,7 @@ function NewInvoiceModal({
   businessId, invoiced, onClose, onCreated,
 }: {
   businessId: string
-  invoiced: Set<string>
+  invoiced: Map<string, string>
   onClose: () => void
   onCreated: (invoiceId: string) => void
 }) {

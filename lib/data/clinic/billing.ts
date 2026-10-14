@@ -84,13 +84,44 @@ export function invoicesForView<T extends { kind: string; status: string }>(rows
   })
 }
 
-/** Visits that already carry a live (not voided) invoice. */
-export function invoicedVisitIds(rows: Array<{ kind: string; status: string; visitId: string | null }>): Set<string> {
-  const out = new Set<string>()
+/**
+ * Each visit's live (not voided) invoice. The one source for "is this visit
+ * already billed?" — Billing's New invoice picker, Convert to invoice, and the
+ * visit cards' "Open invoice" all read it, so none of them bills twice.
+ */
+export function liveInvoiceByVisit(
+  rows: Array<{ id: string; kind: string; status: string; visitId: string | null }>,
+): Map<string, string> {
+  const out = new Map<string, string>()
   for (const r of rows) {
-    if (r.kind === "invoice" && r.status !== "void" && r.visitId) out.add(r.visitId)
+    if (r.kind === "invoice" && r.status !== "void" && r.visitId && !out.has(r.visitId)) out.set(r.visitId, r.id)
   }
   return out
+}
+
+/**
+ * Today's check-out completes the appointment only when an invoice was just
+ * created for that appointment's own visit. Opening an existing invoice,
+ * writing an estimate, or billing another visit on the chart just opens
+ * Billing; reception can still "Check out without an invoice".
+ */
+export function checkoutCompletes(e: {
+  checkoutVisitId: string
+  visitId: string
+  kind: "invoice" | "estimate"
+  created: boolean
+}): boolean {
+  return e.created && e.kind === "invoice" && e.visitId === e.checkoutVisitId
+}
+
+/**
+ * Convert to invoice rebuilds from the visit's current services, which may
+ * have changed since the owner approved the estimate. When the totals differ
+ * the practice is told before it sends.
+ */
+export function convertedTotalNote(estimateTotalCents: number, invoiceTotalCents: number, currency = "cad"): string | null {
+  if (estimateTotalCents === invoiceTotalCents) return null
+  return `This invoice is ${formatMoney(invoiceTotalCents, currency)}; the approved estimate was ${formatMoney(estimateTotalCents, currency)}.`
 }
 
 /* ----------------------------- taken today ------------------------------ */

@@ -237,14 +237,14 @@ export async function invoiceFromVisit(
  * method is appended to invoices.note afterwards (invoices_staff lets staff
  * write it), keeping whatever is already there — an owner's decline note, a
  * practice's own words. If only that second write fails the payment still
- * stands, and the error says so.
+ * stands: that comes back as a `warning`, not an `error`.
  */
 export async function setInvoiceStatus(
   invoiceId: string,
   status: string,
   paidCents?: number,
   method?: PaymentMethod,
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; warning?: string }> {
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { data, error } = await db.rpc("clinic_set_invoice_status", {
@@ -259,9 +259,29 @@ export async function setInvoiceStatus(
     const { data: row } = await db.from("invoices").select("note").eq("id", invoiceId).single()
     const note = [row?.note, `Paid by ${method}.`].filter(Boolean).join("\n")
     const { error: nErr } = await db.from("invoices").update({ note }).eq("id", invoiceId)
-    if (nErr) return { error: `The payment is recorded, but the method wasn't saved. ${nErr.message}` }
+    if (nErr) return { error: null, warning: "Payment recorded. The method note didn't save." }
   }
   return { error: null }
+}
+
+/**
+ * The bills on one patient's chart — just enough for the visit cards to know
+ * which visits already have a live invoice (liveInvoiceByVisit).
+ */
+export function usePatientInvoices(
+  patientId: string | null,
+): LiveResult<Array<{ id: string; kind: string; status: string; visitId: string | null }>> {
+  return useLive<Array<{ id: string; kind: string; status: string; visitId: string | null }>>(
+    [],
+    async (db) => {
+      const rows = must(
+        await db.from("invoices").select("id, kind, status, visit_id").eq("patient_id", patientId as string),
+      ) as Array<{ id: string; kind: string; status: string; visit_id: string | null }>
+      return rows.map((r) => ({ id: r.id, kind: r.kind, status: r.status, visitId: r.visit_id }))
+    },
+    [patientId],
+    Boolean(patientId),
+  )
 }
 
 export interface BillableVisit {

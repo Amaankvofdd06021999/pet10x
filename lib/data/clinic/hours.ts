@@ -53,6 +53,20 @@ export function validateHours(rows: HoursRow[]): { ok: true } | { ok: false; err
   return { ok: true }
 }
 
+/**
+ * What "Add hours" adds to a day: 09:00–17:00 on an empty day, otherwise a
+ * session starting where the latest one ends. null when there is no valid
+ * next session — the day already runs to 23:59, or a time is half-typed —
+ * so the button never creates a row that cannot be saved.
+ */
+export function nextSession(weekday: number, sessions: HoursRow[]): HoursRow | null {
+  if (sessions.length === 0) return { weekday, start: "09:00", end: "17:00" }
+  if (sessions.some((r) => !HHMM.test(r.end))) return null
+  const last = sessions.reduce((a, b) => (b.end > a.end ? b : a)).end
+  if (last >= "23:59") return null
+  return { weekday, start: last, end: last < "17:00" ? "17:00" : "23:59" }
+}
+
 /** Postgres returns a `time` as "09:00:00"; the editor works in HH:MM. */
 export function fromDbTime(value: string): string {
   return value.slice(0, 5)

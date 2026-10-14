@@ -25,7 +25,7 @@ describe("clinicSetupChecklist", () => {
     expect(out.complete).toBe(true)
   })
 
-  it("leaves services open while any active one has no price, or none are active", () => {
+  it("marks services done once one is offered, still mentioning any without a price", () => {
     const unpriced = clinicSetupChecklist({
       ...complete,
       types: [
@@ -34,7 +34,7 @@ describe("clinicSetupChecklist", () => {
         { isActive: false, priceCents: 0 },
       ],
     }).items[0]
-    expect(unpriced.done).toBe(false)
+    expect(unpriced.done).toBe(true)
     expect(unpriced.detail).toBe("1 service shows Price on request. Set a price, or leave it if that's what you want.")
     expect(clinicSetupChecklist({ ...complete, types: [{ isActive: false, priceCents: 100 }] }).items[0]).toMatchObject({
       done: false,
@@ -58,8 +58,14 @@ describe("clinicSetupChecklist", () => {
     })
   })
 
-  it("asks a practice of one to invite its team", () => {
-    expect(clinicSetupChecklist({ ...complete, staff: [vet] }).items[2]).toMatchObject({ done: false })
+  it("counts a practice of one as a team, still suggesting an invite", () => {
+    expect(clinicSetupChecklist({ ...complete, staff: [vet] }).items[2]).toMatchObject({
+      done: true,
+      detail: "Invite the people who work with you, so each signs in as themselves.",
+    })
+    expect(clinicSetupChecklist({ ...complete, staff: [{ id: "s9", isActive: false, isBookable: false }] }).items[2]).toMatchObject({
+      done: false,
+    })
   })
 
   it("follows verification through request, question and decision", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { validateHours, fromDbTime, collapseHours, WEEKDAY_ORDER, WEEKDAY_LABEL } from "./hours"
+import { validateHours, fromDbTime, collapseHours, nextSession, WEEKDAY_ORDER, WEEKDAY_LABEL } from "./hours"
 
 describe("validateHours", () => {
   it("accepts no rows at all — a clinician with no hours simply has no slots", () => {
@@ -106,5 +106,26 @@ describe("weekday labels", () => {
     expect(WEEKDAY_ORDER).toEqual([1, 2, 3, 4, 5, 6, 0])
     expect(WEEKDAY_LABEL[0]).toBe("Sunday")
     expect(WEEKDAY_LABEL[1]).toBe("Monday")
+  })
+})
+
+describe("nextSession", () => {
+  it("starts an empty day at 09:00–17:00", () => {
+    expect(nextSession(3, [])).toEqual({ weekday: 3, start: "09:00", end: "17:00" })
+  })
+
+  it("starts where the latest session ends", () => {
+    expect(nextSession(1, [{ weekday: 1, start: "09:00", end: "12:00" }])).toEqual({ weekday: 1, start: "12:00", end: "17:00" })
+    expect(
+      nextSession(1, [
+        { weekday: 1, start: "13:00", end: "18:00" },
+        { weekday: 1, start: "09:00", end: "12:00" },
+      ]),
+    ).toEqual({ weekday: 1, start: "18:00", end: "23:59" })
+  })
+
+  it("offers nothing once the day is used up, or while a time is half-typed", () => {
+    expect(nextSession(1, [{ weekday: 1, start: "18:00", end: "23:59" }])).toBeNull()
+    expect(nextSession(1, [{ weekday: 1, start: "09:00", end: "" }])).toBeNull()
   })
 })

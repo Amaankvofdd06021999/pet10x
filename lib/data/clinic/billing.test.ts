@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest"
 import {
   invoiceStatusLabel, INVOICE_STATUS_LABEL, PAYMENT_METHODS, validatePayment,
-  invoiceActions, takenTodayCents, billingViewFor, invoicesForView, invoicedVisitIds,
+  invoiceActions, takenTodayCents, billingViewFor, invoicesForView, liveInvoiceByVisit,
+  checkoutCompletes, convertedTotalNote,
 } from "./billing"
 
 describe("invoiceStatusLabel", () => {
@@ -137,14 +138,39 @@ describe("billing views", () => {
   })
 })
 
-describe("invoicedVisitIds", () => {
-  it("lists visits that already have a live invoice — not an estimate, not a voided one", () => {
-    const ids = invoicedVisitIds([
-      { kind: "invoice", status: "draft", visitId: "v1" },
-      { kind: "invoice", status: "void", visitId: "v2" },
-      { kind: "estimate", status: "approved", visitId: "v3" },
-      { kind: "invoice", status: "paid", visitId: null },
+describe("liveInvoiceByVisit", () => {
+  it("maps each visit to its live invoice — not an estimate, not a voided one", () => {
+    const map = liveInvoiceByVisit([
+      { id: "i1", kind: "invoice", status: "draft", visitId: "v1" },
+      { id: "i2", kind: "invoice", status: "void", visitId: "v2" },
+      { id: "i3", kind: "estimate", status: "approved", visitId: "v3" },
+      { id: "i4", kind: "invoice", status: "paid", visitId: null },
+      { id: "i5", kind: "invoice", status: "paid", visitId: "v5" },
     ])
-    expect([...ids]).toEqual(["v1"])
+    expect([...map.entries()]).toEqual([
+      ["v1", "i1"],
+      ["v5", "i5"],
+    ])
+  })
+})
+
+describe("checkoutCompletes", () => {
+  it("completes the appointment only when an invoice was just created for its own visit", () => {
+    const base = { checkoutVisitId: "v1", visitId: "v1", kind: "invoice" as const, created: true }
+    expect(checkoutCompletes(base)).toBe(true)
+    expect(checkoutCompletes({ ...base, kind: "estimate" })).toBe(false)
+    expect(checkoutCompletes({ ...base, visitId: "v2" })).toBe(false)
+    expect(checkoutCompletes({ ...base, created: false })).toBe(false)
+  })
+})
+
+describe("convertedTotalNote", () => {
+  it("says nothing when the invoice matches the approved estimate", () => {
+    expect(convertedTotalNote(12000, 12000)).toBeNull()
+  })
+
+  it("names both totals when they differ", () => {
+    expect(convertedTotalNote(12000, 14550)).toBe("This invoice is $145.50; the approved estimate was $120.00.")
+    expect(convertedTotalNote(12000, 9000, "usd")).toBe("This invoice is US$90.00; the approved estimate was US$120.00.")
   })
 })

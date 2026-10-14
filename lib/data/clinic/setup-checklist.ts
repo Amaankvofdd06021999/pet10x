@@ -49,7 +49,8 @@ export function clinicSetupChecklist(input: SetupInput): {
         : unpriced > 0
           ? `${plural(unpriced, "service shows", "services show")} Price on request. Set a price, or leave it if that's what you want.`
           : "Durations drive the calendar; prices show to owners.",
-    done: active.length > 0 && unpriced === 0,
+    // Price on request is a legitimate choice, so prices are a nudge, not a gate.
+    done: active.length > 0,
     target: { tab: "shop", view: "services" },
     actionLabel: "Edit services",
   }
@@ -79,7 +80,8 @@ export function clinicSetupChecklist(input: SetupInput): {
       activeStaff > 1
         ? `${plural(activeStaff, "person", "people")} on the team.`
         : "Invite the people who work with you, so each signs in as themselves.",
-    done: activeStaff > 1,
+    // A practice of one is a whole team; the invite stays as a suggestion.
+    done: activeStaff >= 1,
     target: { tab: "team" },
     actionLabel: "Invite staff",
   }

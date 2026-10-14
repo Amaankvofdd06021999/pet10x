@@ -12,7 +12,7 @@ import {
 } from "@/lib/data/clinic/staff-invite"
 import { formatDateShort } from "@/lib/data/clinic/time"
 import { useStaffHours, replaceStaffHours } from "@/lib/data/clinic/schedule"
-import { validateHours, WEEKDAY_LABEL, WEEKDAY_ORDER, type HoursRow } from "@/lib/data/clinic/hours"
+import { validateHours, nextSession, WEEKDAY_LABEL, WEEKDAY_ORDER, type HoursRow } from "@/lib/data/clinic/hours"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Select, Field, Modal, TextInput,
@@ -41,6 +41,11 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
           ) : undefined
         }
       >
+        {hours.error && (
+          <div className="mb-3">
+            <LoadError message={`Couldn't load weekly hours. ${hours.error}`} onRetry={hours.refetch} />
+          </div>
+        )}
         {staff.isLoading ? (
           <Spinner />
         ) : staff.error ? (
@@ -67,7 +72,7 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                       {s.licenceNumber ? ` · ${s.licenceNumber}` : ""}
                       {s.licenceExpiresOn ? ` · expires ${formatDateShort(s.licenceExpiresOn)}` : ""}
                     </p>
-                    {s.isBookable && s.isActive && !hours.isLoading && (
+                    {s.isBookable && s.isActive && !hours.isLoading && !hours.error && (
                       <p className="mt-0.5 text-[12px] text-muted-foreground">
                         {hoursSummary(hours.data[s.id] ?? [])}
                       </p>
@@ -111,7 +116,14 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                       <Pill tone="neutral">{ROLE_LABEL[s.role]}</Pill>
                     )}
                     {caps.manageSchedule && s.isBookable && s.isActive && (
-                      <Button size="sm" variant="secondary" onClick={() => setHoursFor(s)}>
+                      // Never opened on hours that haven't loaded: saving an
+                      // empty editor would replace the real rows with nothing.
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={hours.isLoading || Boolean(hours.error)}
+                        onClick={() => setHoursFor(s)}
+                      >
                         Weekly hours
                       </Button>
                     )}
@@ -185,10 +197,6 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
           onClose={() => setHoursFor(null)}
           onSaved={() => {
             toast.success(`Saved ${hoursFor.name}'s hours`)
-            setHoursFor(null)
-            hours.refetch()
-          }}
-          onCleared={() => {
             setHoursFor(null)
             hours.refetch()
           }}
@@ -373,15 +381,13 @@ function hoursSummary(rows: HoursRow[]): string {
  * exactly these sessions (clinic_available_slots).
  */
 function HoursModal({
-  businessId, member, initial, onClose, onSaved, onCleared,
+  businessId, member, initial, onClose, onSaved,
 }: {
   businessId: string
   member: ClinicStaffMember
   initial: HoursRow[]
   onClose: () => void
   onSaved: () => void
-  /** The old hours were deleted but the new ones failed to save. */
-  onCleared: () => void
 }) {
   const [rows, setRows] = useState<HoursRow[]>(initial)
   const [error, setError] = useState<string | null>(null)
@@ -397,12 +403,6 @@ function HoursModal({
     setBusy(true)
     const res = await replaceStaffHours(businessId, member.id, rows)
     setBusy(false)
-    if (res.cleared) {
-      toast.error(
-        `${member.name}'s old hours were removed but the new ones didn't save, so nobody can book them right now. Open Weekly hours and save again. ${res.error ?? ""}`.trim(),
-      )
-      return onCleared()
-    }
     if (res.error) return setError(res.error)
     onSaved()
   }
@@ -423,6 +423,7 @@ function HoursModal({
       <div className="flex flex-col gap-3">
         {WEEKDAY_ORDER.map((day) => {
           const sessions = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.weekday === day)
+          const next = nextSession(day, sessions.map(({ r }) => r))
           return (
             <fieldset key={day} className="rounded-xl border border-border p-2.5">
               <legend className="px-1 text-[12.5px] font-semibold text-foreground">{WEEKDAY_LABEL[day]}</legend>
@@ -464,12 +465,10 @@ function HoursModal({
                 size="sm"
                 variant="ghost"
                 className="mt-1"
+                // No room left in the day (or a time half-typed): nothing valid to add.
+                disabled={next === null}
                 onClick={() => {
-                  // A second session starts where the last one ended.
-                  const last = sessions[sessions.length - 1]?.r
-                  const start = last ? last.end : "09:00"
-                  const end = last ? (last.end < "17:00" ? "17:00" : "23:59") : "17:00"
-                  setRows((rs) => [...rs, { weekday: day, start, end }])
+                  if (next) setRows((rs) => [...rs, next])
                 }}
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add hours

@@ -12,7 +12,8 @@ import {
   publishRecord, createVisit, updateVisit, addVisitService,
 } from "@/lib/data/clinic/visits"
 import { usePatientAppointments } from "@/lib/data/clinic/schedule"
-import { invoiceFromVisit } from "@/lib/data/clinic/shop"
+import { invoiceFromVisit, usePatientInvoices } from "@/lib/data/clinic/shop"
+import { liveInvoiceByVisit } from "@/lib/data/clinic/billing"
 import { validateServiceInput, type ServiceErrors } from "@/lib/data/fees"
 import { formatDateShort, ageFrom, dueLabel, formatMoney } from "@/lib/data/clinic/time"
 import {
@@ -21,6 +22,9 @@ import {
 } from "@/components/screens/shared/ui"
 
 export type PatientTab = "overview" | "visits" | "vaccines" | "shared"
+
+/** What a visit card did: created a bill, or opened the one it already had. */
+export type BillOpened = { visitId: string; kind: "invoice" | "estimate"; created: boolean }
 
 export function PatientPanel({
   patientId,
@@ -33,8 +37,8 @@ export function PatientPanel({
   patientId: string
   clinic: ClinicMembership
   staffId: string | null
-  /** Called with a bill just created from a visit card; the caller opens it in Billing. */
-  onOpenInvoice?: (invoiceId: string) => void
+  /** Called with a bill created (or already held) by a visit card; the caller opens it in Billing. */
+  onOpenInvoice?: (invoiceId: string, info: BillOpened) => void
   initialTab?: PatientTab
   /** Today's check-out: the visit to highlight, with its editor open. */
   focusVisitId?: string | null
@@ -228,7 +232,7 @@ function VisitsTab({
   isLinked: boolean
   visits: ReturnType<typeof usePatientVisits>
   caps: ReturnType<typeof capabilities>
-  onOpenInvoice?: (invoiceId: string) => void
+  onOpenInvoice?: (invoiceId: string, info: BillOpened) => void
   focusVisitId: string | null
 }) {
   const [busy, setBusy] = useState<string | null>(null)
@@ -237,6 +241,10 @@ function VisitsTab({
   // Billing is where a bill is sent and paid, so the buttons only show when
   // this person can get there (takePayment gates the Billing tab).
   const canBill = caps.takePayment && Boolean(onOpenInvoice)
+  // Which visits already have a live invoice — the same rule Billing uses
+  // (liveInvoiceByVisit), so a visit is never invoiced twice from here.
+  const bills = usePatientInvoices(canBill ? patientId : null)
+  const invoiceFor = liveInvoiceByVisit(bills.data)
 
   // Arriving from Today's check-out: open the visit's editor once it has
   // loaded, so a service can be added before billing.
@@ -256,7 +264,8 @@ function VisitsTab({
     // The bill exists even if a line failed; Billing shows what it holds.
     if (res.error) toast.error(res.error)
     else toast.success(kind === "estimate" ? "Estimate created" : "Invoice created")
-    onOpenInvoice?.(res.invoiceId)
+    bills.refetch()
+    onOpenInvoice?.(res.invoiceId, { visitId, kind, created: true })
   }
 
   async function startVisit() {
@@ -365,14 +374,26 @@ function VisitsTab({
                   >
                     Create estimate
                   </Button>
-                  <Button
-                    size="sm"
-                    busy={busy === `invoice-${v.id}`}
-                    disabled={busy !== null}
-                    onClick={() => void bill(v.id, "invoice")}
-                  >
-                    Create invoice
-                  </Button>
+                  {invoiceFor.has(v.id) ? (
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        onOpenInvoice?.(invoiceFor.get(v.id) as string, { visitId: v.id, kind: "invoice", created: false })
+                      }
+                    >
+                      Open invoice
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      busy={busy === `invoice-${v.id}`}
+                      // Until the chart's bills have loaded, "already invoiced" is unknown.
+                      disabled={busy !== null || bills.isLoading || Boolean(bills.error)}
+                      onClick={() => void bill(v.id, "invoice")}
+                    >
+                      Create invoice
+                    </Button>
+                  )}
                 </div>
               )}
               {canBill && v.services.length === 0 && v.id === focusVisitId && (

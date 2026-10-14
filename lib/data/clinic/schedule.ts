@@ -399,39 +399,46 @@ export function useStaffHours(businessId: string | null): LiveResult<Record<stri
 }
 
 /**
- * Replace one clinician's weekly hours: delete their rows, then insert the
- * new set (location_id null — every location). Two calls, not a transaction,
- * so the second can fail after the first worked; `cleared` tells the screen
- * the clinician now has no hours at all, so it can say so and refetch rather
- * than show hours that are no longer there. Dated rows (valid_from/valid_to)
- * go too — nothing in the console writes them.
+ * Replace one clinician's weekly hours. The new rows are inserted FIRST
+ * (location_id null — every location), and only then are the old rows deleted
+ * by id. Two calls, not a transaction: if the delete fails the clinician has
+ * both sets for a while — duplicates, which collapseHours merges for display —
+ * but never zero hours. Dated rows (valid_from/valid_to) are replaced too;
+ * nothing in the console writes them.
  */
 export async function replaceStaffHours(
   businessId: string,
   staffId: string,
   rows: HoursRow[],
-): Promise<{ error: string | null; cleared?: boolean }> {
+): Promise<{ error: string | null }> {
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const checked = validateHours(rows)
   if (!checked.ok) return { error: checked.error }
-  const { error: delErr } = await db
+  const { data: old, error: readErr } = await db
     .from("staff_availability")
-    .delete()
+    .select("id")
     .eq("business_id", businessId)
     .eq("staff_id", staffId)
-  if (delErr) return { error: delErr.message }
-  if (rows.length === 0) return { error: null }
-  const { error: insErr } = await db.from("staff_availability").insert(
-    rows.map((r) => ({
-      business_id: businessId,
-      staff_id: staffId,
-      location_id: null,
-      weekday: r.weekday,
-      start_time: r.start,
-      end_time: r.end,
-    })),
-  )
-  if (insErr) return { error: insErr.message, cleared: true }
+  if (readErr) return { error: readErr.message }
+  if (rows.length > 0) {
+    const { error: insErr } = await db.from("staff_availability").insert(
+      rows.map((r) => ({
+        business_id: businessId,
+        staff_id: staffId,
+        location_id: null,
+        weekday: r.weekday,
+        start_time: r.start,
+        end_time: r.end,
+      })),
+    )
+    if (insErr) return { error: insErr.message }
+  }
+  const oldIds = (old ?? []).map((r) => r.id)
+  if (oldIds.length === 0) return { error: null }
+  const { error: delErr } = await db.from("staff_availability").delete().in("id", oldIds)
+  if (delErr) {
+    return { error: `The new hours are saved, but the old ones couldn't be removed, so both apply for now. Save again. ${delErr.message}` }
+  }
   return { error: null }
 }

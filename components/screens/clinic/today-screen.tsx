@@ -13,7 +13,8 @@ import {
 import { useLatestVerification } from "@/lib/data/clinic/verification"
 import { verificationBanner } from "@/lib/data/business-tier"
 import { clinicSetupChecklist, type SetupTarget } from "@/lib/data/clinic/setup-checklist"
-import { PatientPanel } from "./patient-panel"
+import { PatientPanel, type BillOpened } from "./patient-panel"
+import { checkoutCompletes } from "@/lib/data/clinic/billing"
 import { useReminderQueue, useClinicTasks, completeTask, addTask } from "@/lib/data/clinic/reminders"
 import { useEmergencyArrivals } from "@/lib/data/clinic/emergency"
 import { formatTime, todayISO, dueLabel, daysUntil } from "@/lib/data/clinic/time"
@@ -79,7 +80,8 @@ export function ClinicTodayScreen({
    * "Check out" opens the appointment's visit (creating it if this is the
    * first time — clinic_open_visit) on the patient's chart, where its services
    * are added and "Create invoice" bills them. The appointment completes when
-   * the invoice is created, or when reception checks out without one.
+   * an invoice is created for this visit (checkoutCompletes), or when
+   * reception checks out without one; anything else just opens Billing.
    */
   async function startCheckout(a: Appointment) {
     setBusyId(a.id)
@@ -87,6 +89,14 @@ export function ClinicTodayScreen({
     setBusyId(null)
     if (res.error || !res.visitId) return toast.error(res.error ?? "Couldn't open the visit. Try again.")
     setCheckout({ appt: a, visitId: res.visitId })
+  }
+
+  /** A visit card in the check-out chart created or opened a bill. */
+  function billFromCheckout(invoiceId: string, info: BillOpened) {
+    const c = checkout
+    if (c && checkoutCompletes({ checkoutVisitId: c.visitId, ...info })) return void finishCheckout(invoiceId)
+    setCheckout(null)
+    onOpenInvoice(invoiceId)
   }
 
   async function finishCheckout(invoiceId: string | null) {
@@ -345,7 +355,7 @@ export function ClinicTodayScreen({
               staffId={clinic.staffId}
               initialTab="visits"
               focusVisitId={checkout.visitId}
-              onOpenInvoice={caps.takePayment ? (id) => void finishCheckout(id) : undefined}
+              onOpenInvoice={caps.takePayment ? billFromCheckout : undefined}
             />
           ) : (
             <p className="text-[13px] text-muted-foreground">
