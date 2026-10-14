@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useRegistrations, useDocumentsReview } from "@/lib/data"
 import { useRegistrationsLive, decideRegistration } from "@/lib/data/manager-queues"
@@ -25,7 +25,8 @@ import { shortDate } from "@/lib/dates"
 import { useIncidents, isOpenIncident } from "@/lib/data/incidents"
 import { IncidentCard } from "@/components/screens/manager/incident-card"
 import { PetDocumentReviewControls } from "@/components/screens/manager/pet-document-review"
-import { SpeciesIcon } from "@/components/screens/shared/ui"
+import { SpeciesIcon, Spinner, LoadError, EmptyState } from "@/components/screens/shared/ui"
+import { approvalsState, defaultApprovalsTab, type ApprovalsTabId } from "@/lib/data/approvals-view"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { toast } from "sonner"
 import {
@@ -37,35 +38,63 @@ import {
   Heart,
   ChevronDown,
   ChevronUp,
-  AlertTriangle,
-  Inbox,
   Loader2,
+  AlertTriangle,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Portal } from "@/components/ui/portal"
 
-type ApprovalTab = "incidents" | "registrations" | "accommodations" | "documents"
+type ApprovalTab = ApprovalsTabId
 
-function ApprovalsEmptyState({ title, subtext }: { title: string; subtext: string }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-        <Inbox className="h-6 w-6 text-primary" />
-      </div>
-      <h3 className="mt-4 text-[15px] font-semibold text-foreground">{title}</h3>
-      <p className="mx-auto mt-1 max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground">{subtext}</p>
-    </div>
-  )
+/**
+ * One tab's body: a spinner while loading, an error with Try again when the
+ * query failed, the empty state only after a clean empty load, else the rows.
+ * "Nothing pending" used to show in all three of the first states.
+ */
+function TabBody<T>({
+  q,
+  onRetry,
+  empty,
+  children,
+}: {
+  q: { data: T[]; isLoading: boolean; error: string | null }
+  onRetry: () => void
+  empty: ReactNode
+  children: (rows: T[]) => ReactNode
+}) {
+  switch (approvalsState(q)) {
+    case "loading":
+      return <Spinner />
+    case "error":
+      return <LoadError message={q.error ?? "Something went wrong."} onRetry={onRetry} />
+    case "empty":
+      return <>{empty}</>
+    case "ready":
+      return <>{children(q.data)}</>
+  }
 }
 
-export function ManagerApprovalsScreen() {
-  const [activeTab, setActiveTab] = useState<ApprovalTab>("incidents")
+export function ManagerApprovalsScreen({
+  onNavigate,
+  initialTab,
+}: {
+  onNavigate?: (screen: string) => void
+  /** Opens on this tab instead of the one that needs a decision first. */
+  initialTab?: ApprovalTab
+} = {}) {
+  // null until the manager taps a tab: until then the screen opens on whatever
+  // needs a decision, once every list has loaded to say what that is.
+  const [pickedTab, setPickedTab] = useState<ApprovalTab | null>(null)
   const [expandedReg, setExpandedReg] = useState<string | null>(null)
   const [expandedAcc, setExpandedAcc] = useState<string | null>(null)
-  const { data: registrations, refetch: refetchRegs } = useRegistrationsLive()
-  const { data: accommodations, refetch: refetchAcc } = useAccommodationsLive()
-  const { data: documentsReview, refetch: refetchDocs } = useDocumentsReview()
-  const { data: incidents, isLoading: incidentsLoading, refetch: refetchIncidents } = useIncidents()
+  const regsQ = useRegistrationsLive()
+  const accQ = useAccommodationsLive()
+  const docsQ = useDocumentsReview()
+  const incQ = useIncidents()
+  const { data: registrations, refetch: refetchRegs } = regsQ
+  const { data: accommodations, refetch: refetchAcc } = accQ
+  const { data: documentsReview, refetch: refetchDocs } = docsQ
+  const { data: incidents, refetch: refetchIncidents } = incQ
   // The registration whose decision is in flight, so its buttons cannot be
   // pressed twice — a second press would only earn "already decided".
   const [regBusy, setRegBusy] = useState<string | null>(null)
@@ -81,16 +110,40 @@ export function ManagerApprovalsScreen() {
     refetchRegs()
   }
 
+  // The Incidents tab is the open ones — what needs a decision — so its count
+  // and its list are the same rows. History lives in Incident reports.
   const openIncidents = incidents.filter((i) => isOpenIncident(i.status))
+  const incidentsView = { ...incQ, data: openIncidents }
+  const allLoaded = !(regsQ.isLoading || accQ.isLoading || docsQ.isLoading || incQ.isLoading)
+  const activeTab: ApprovalTab =
+    pickedTab ??
+    initialTab ??
+    (allLoaded
+      ? defaultApprovalsTab({
+          registrations: registrations.length,
+          documents: documentsReview.length,
+          accommodations: accommodations.length,
+          incidents: openIncidents.length,
+        })
+      : "registrations")
+  const setActiveTab = setPickedTab
   // Every count is derived. These were hardcoded 3 / 2 / 4 while the lists
   // beneath them came from live queries, so a tab could advertise rows that
   // did not exist — and did, on every empty building.
   const TABS: { id: ApprovalTab; label: string; count: number }[] = [
-    { id: "incidents", label: "Incidents", count: openIncidents.length },
     { id: "registrations", label: "Registrations", count: registrations.length },
-    { id: "accommodations", label: "Accommodations", count: accommodations.length },
     { id: "documents", label: "Documents", count: documentsReview.length },
+    { id: "accommodations", label: "Accommodations", count: accommodations.length },
+    { id: "incidents", label: "Incidents", count: openIncidents.length },
   ]
+  // A count is only a count once its list has loaded; "(0)" beside a tab that
+  // is still loading, or failed, would say there is nothing there.
+  const tabReady: Record<ApprovalTab, boolean> = {
+    registrations: !regsQ.isLoading && !regsQ.error,
+    documents: !docsQ.isLoading && !docsQ.error,
+    accommodations: !accQ.isLoading && !accQ.error,
+    incidents: !incQ.isLoading && !incQ.error,
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -113,7 +166,7 @@ export function ManagerApprovalsScreen() {
               }`}
             >
               {tab.label}
-              <span className="ml-1 opacity-70">({tab.count})</span>
+              <span className="ml-1 opacity-70">({tabReady[tab.id] ? tab.count : "…"})</span>
             </button>
           ))}
         </div>
@@ -122,38 +175,51 @@ export function ManagerApprovalsScreen() {
       <main className="ios-scroll flex-1 px-4 pb-24">
         {/* Incidents — where guest and resident reports land for triage. */}
         {activeTab === "incidents" && (
-          <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
-            {incidentsLoading ? (
-              <div className="flex justify-center py-10 lg:col-span-2">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <TabBody
+            q={incidentsView}
+            onRetry={refetchIncidents}
+            empty={
+              <EmptyState
+                title="No open incidents"
+                detail="History is in Incident reports."
+                action={
+                  onNavigate && (
+                    <button
+                      onClick={() => onNavigate("incidents")}
+                      className="text-[13px] font-semibold text-primary underline-offset-2 hover:underline"
+                    >
+                      Incident reports
+                    </button>
+                  )
+                }
+              />
+            }
+          >
+            {(rows) => (
+              <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
+                {rows.map((incident) => (
+                  <IncidentCard key={incident.id} incident={incident} onChange={refetchIncidents} />
+                ))}
               </div>
-            ) : incidents.length === 0 ? (
-              <div className="lg:col-span-2">
-                <ApprovalsEmptyState
-                  title="No incidents reported"
-                  subtext="Reports filed by residents or guests using your building code will appear here for triage."
-                />
-              </div>
-            ) : (
-              incidents.map((incident) => (
-                <IncidentCard key={incident.id} incident={incident} onChange={refetchIncidents} />
-              ))
             )}
-          </div>
+          </TabBody>
         )}
 
         {/* Registrations Tab */}
         {activeTab === "registrations" && (
+          <TabBody
+            q={regsQ}
+            onRetry={refetchRegs}
+            empty={
+              <EmptyState
+                title="No registrations waiting"
+                detail="New pet registrations from residents will appear here."
+              />
+            }
+          >
+            {(rows) => (
           <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
-            {registrations.length === 0 && (
-              <div className="lg:col-span-2">
-                <ApprovalsEmptyState
-                  title="Nothing pending"
-                  subtext="No new pet registrations are waiting for review. Submissions from residents will appear here."
-                />
-              </div>
-            )}
-            {registrations.map((reg) => {
+            {rows.map((reg) => {
               const isOpen = expandedReg === reg.id
               return (
                 <div key={reg.id} className="rounded-xl card-raised overflow-hidden">
@@ -247,6 +313,8 @@ export function ManagerApprovalsScreen() {
               )
             })}
           </div>
+            )}
+          </TabBody>
         )}
 
         <ConfirmDialog
@@ -274,10 +342,21 @@ export function ManagerApprovalsScreen() {
 
         {/* Accommodations Tab — every control reaches the database, and every
             state shown is derived from a row that exists. See AccommodationsTab. */}
-        {activeTab === "accommodations" && <AccommodationsTab requests={accommodations} refetch={refetchAcc} />}
+        {activeTab === "accommodations" && <AccommodationsTab q={accQ} refetch={refetchAcc} />}
 
         {/* Documents Tab */}
         {activeTab === "documents" && (
+          <TabBody
+            q={docsQ}
+            onRetry={refetchDocs}
+            empty={
+              <EmptyState
+                title="No documents waiting"
+                detail="New uploads and expiring records will show up here."
+              />
+            }
+          >
+            {(rows) => (
           <div className="flex flex-col gap-2.5">
             {/* Expiring Soon Header */}
             <div className="mb-1">
@@ -285,13 +364,7 @@ export function ManagerApprovalsScreen() {
                 Documents awaiting your verdict — approved or rejected ones leave this list
               </p>
             </div>
-            {documentsReview.length === 0 && (
-              <ApprovalsEmptyState
-                title="Nothing pending"
-                subtext="Every document has been approved or sent back. New uploads and expiring records will show up here."
-              />
-            )}
-            {documentsReview.map((doc) => (
+            {rows.map((doc) => (
               <div key={doc.id} className="flex flex-col gap-2.5 rounded-xl card-raised p-3">
                 <div className="flex items-center gap-3">
                   <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
@@ -322,6 +395,8 @@ export function ManagerApprovalsScreen() {
               </div>
             ))}
           </div>
+            )}
+          </TabBody>
         )}
       </main>
     </div>
@@ -353,37 +428,39 @@ export function ManagerApprovalsScreen() {
  * "private" would be this screen making a false statement about the database.
  */
 function AccommodationsTab({
-  requests,
+  q,
   refetch,
 }: {
-  requests: AccommodationRequestView[]
+  q: { data: AccommodationRequestView[]; isLoading: boolean; error: string | null }
   refetch: () => void
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  if (requests.length === 0) {
-    return (
-      <div className="lg:col-span-2">
-        <ApprovalsEmptyState
-          title="Nothing pending"
-          subtext="No ESA or service animal accommodation requests are awaiting review."
-        />
-      </div>
-    )
-  }
-
   return (
-    <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
-      {requests.map((req) => (
-        <AccommodationCard
-          key={req.id}
-          request={req}
-          isOpen={expanded === req.id}
-          onToggle={() => setExpanded(expanded === req.id ? null : req.id)}
-          refetch={refetch}
+    <TabBody
+      q={q}
+      onRetry={refetch}
+      empty={
+        <EmptyState
+          title="No accommodation requests waiting"
+          detail="ESA and service animal requests will appear here for review."
         />
-      ))}
-    </div>
+      }
+    >
+      {(requests) => (
+        <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
+          {requests.map((req) => (
+            <AccommodationCard
+              key={req.id}
+              request={req}
+              isOpen={expanded === req.id}
+              onToggle={() => setExpanded(expanded === req.id ? null : req.id)}
+              refetch={refetch}
+            />
+          ))}
+        </div>
+      )}
+    </TabBody>
   )
 }
 

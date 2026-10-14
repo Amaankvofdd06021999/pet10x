@@ -513,7 +513,7 @@ function AppContent() {
               {currentScreen === "dashboard" && <ManagerDashboardScreen onNavigate={handleNavigate} />}
               {currentScreen === "residents" && <ManagerResidentsScreen />}
               {currentScreen === "violations" && <ManagerViolationsScreen onNavigate={handleNavigate} />}
-              {currentScreen === "approvals" && <ManagerApprovalsScreen />}
+              {currentScreen === "approvals" && <ManagerApprovalsScreen onNavigate={handleNavigate} />}
               {currentScreen === "incidents" && <ManagerIncidentsScreen />}
               {currentScreen === "settings" && <ManagerSettingsScreen onNavigate={handleNavigate} />}
               {/* Managers have no Alerts tab, but the dashboard bell routes
