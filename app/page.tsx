@@ -164,9 +164,9 @@ const PRICING = [
   {
     name: "Pet Basic",
     price: "$0",
-    cadence: "forever",
-    tagline: "For casual pet owners getting started.",
-    features: ["Up to 2 pets", "Building rules & contacts", "Lost & found (view)", "Community (read-only)", "Service directory"],
+    cadence: "today",
+    tagline: "Free for every pet owner today.",
+    features: ["Building rules & contacts", "Lost & found (view)", "Community (read-only)", "Service directory"],
     cta: "Get started",
     href: "/login?mode=signup",
     featured: false,
@@ -176,8 +176,8 @@ const PRICING = [
     price: "$4.99",
     cadence: "/ month",
     tagline: "Everything an active pet owner needs.",
-    features: ["Unlimited pets & full profiles", "Vaccination & license reminders", "Post, comment & message", "Report incidents with evidence", "Ad-free experience"],
-    cta: "Start free trial",
+    features: ["Unlimited pets & full profiles", "Vaccination & license reminders", "Post, comment & message", "Ad-free experience"],
+    cta: "Get started free",
     href: "/login?mode=signup",
     featured: true,
   },
@@ -219,25 +219,25 @@ export default function LandingPage() {
 
         <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-12">
           <div className="max-w-2xl">
-            <Reveal>
+            <Reveal immediate>
               <span className="inline-flex items-center gap-2 rounded-md card-raised px-3 py-1 text-[12px] font-medium text-muted-foreground">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
                 For pet owners &amp; the buildings they live in
               </span>
             </Reveal>
-            <Reveal delay={80}>
+            <Reveal immediate delay={80}>
               <h1 className="mt-6 text-balance text-[38px] font-semibold leading-[1.04] tracking-tight sm:text-[50px] lg:text-[56px]">
                 Pet governance for modern buildings.
               </h1>
             </Reveal>
-            <Reveal delay={160}>
+            <Reveal immediate delay={160}>
               <p className="mt-6 max-w-xl text-pretty text-[17px] leading-relaxed text-muted-foreground sm:text-[19px]">
                 Keep your pet&apos;s care, records and building in one place — and give buildings one
                 place to handle bylaw enforcement, accommodation, and risk. So pets stay healthy,
                 owners stay in good standing, and councils cut liability.
               </p>
             </Reveal>
-            <Reveal delay={240}>
+            <Reveal immediate delay={240}>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link
                   href="/login?mode=signup"
@@ -254,7 +254,7 @@ export default function LandingPage() {
                 </Link>
               </div>
             </Reveal>
-            <Reveal delay={320}>
+            <Reveal immediate delay={320}>
               <div className="mt-7 flex items-center gap-2 text-[13px] text-muted-foreground">
                 <ShieldCheck className="h-4 w-4 text-accent" />
                 Governance &amp; risk platform — not legal advice or a life-safety system.
@@ -262,7 +262,7 @@ export default function LandingPage() {
             </Reveal>
 
             {/* Evidence sits with the claim, not a section below it. */}
-            <Reveal delay={400}>
+            <Reveal immediate delay={400}>
               <dl className="mt-9 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-border/60 pt-7 sm:grid-cols-4 sm:gap-x-4">
                 {STATS.map((s) => (
                   <div key={s.label} className="flex items-start gap-2.5">
@@ -281,7 +281,7 @@ export default function LandingPage() {
             </Reveal>
           </div>
 
-          <Reveal delay={200} className="relative">
+          <Reveal immediate delay={200} className="relative">
             <Image
               src="/hero-image.jpg"
               alt="Pet10x — pet governance app preview"
@@ -506,8 +506,8 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl">
           <Reveal className="mx-auto max-w-2xl text-center">
             <p className={EYEBROW}>Pricing</p>
-            <h2 className={`mt-3 ${H2}`}>Simple, fair pricing.</h2>
-            <p className={`mt-4 ${LEAD}`}>Free to start. Upgrade when you&apos;re ready — or let your building cover it.</p>
+            <h2 className={`mt-3 ${H2}`}>Pricing (coming soon)</h2>
+            <p className={`mt-4 ${LEAD}`}>Pet Basic is free for every pet owner today. Paid plans are coming.</p>
           </Reveal>
 
           {/* `items-center`, not `items-stretch`: the featured tier is taller,
@@ -527,7 +527,7 @@ export default function LandingPage() {
                       the card it competed with the plan name for the same row. */}
                   {tier.featured && (
                     <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
-                      Most popular
+                      Coming soon
                     </span>
                   )}
                   <h3 className="text-[17px] font-semibold tracking-tight">{tier.name}</h3>
@@ -563,7 +563,7 @@ export default function LandingPage() {
             <div className="mt-6 flex max-w-3xl items-start gap-3 rounded-xl border border-accent/25 bg-accent/[0.05] p-5">
               <Building2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent" />
               <p className="text-[14px] leading-relaxed text-foreground">
-                <span className="font-semibold">Linked to a participating building?</span> Your premium is on the
+                <span className="font-semibold">Planned.</span> <span className="font-semibold">Linked to a participating building?</span> Your premium is on the
                 house — the building sponsors Pet Plus for every approved resident, at a bulk rate below the
                 individual price.
               </p>
