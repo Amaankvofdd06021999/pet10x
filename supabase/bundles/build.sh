@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Rebuilds dry-run.sql and apply.sql from migrations/ (>= 20261007) and tests/.
+# Rebuilds dry-run.sql and apply.sql from migrations/ (>= 20261015) and tests/.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 M=()
-while IFS= read -r f; do M+=("$f"); done < <(ls migrations | awk '$0>="20261007"')
+while IFS= read -r f; do M+=("$f"); done < <(ls migrations | awk '$0>="20261015"')
 D=$(date +%F)
 {
-  echo "-- DRY RUN — generated $D from branch pet10x-gaps by bundles/build.sh."
-  echo "-- Applies every migration from 20261007000001 on, runs supabase/tests/part-*.sql,"
+  echo "-- DRY RUN — generated $D from branch ux-required-fixes by bundles/build.sh."
+  echo "-- Applies every migration from 20261015000001 on, runs supabase/tests/part-*.sql,"
   echo "-- then RAISES ON PURPOSE so the whole transaction rolls back. Nothing is saved."
   echo "-- SUCCESS looks like the error:  DRY RUN OK — ..."
   echo "-- Any other error is the first thing that broke; fix it before running apply.sql."
   echo "begin;"
   for f in "${M[@]}"; do printf '\n-- ===== migration %s =====\n' "$f"; cat "migrations/$f"; echo; done
-  for t in part-a-archive part-b part-c part-e part-d part-f; do
+  for t in part-g; do
     printf '\n-- ===== checks %s =====\n' "$t"
     sed -E 's/^begin;[[:space:]]*$/savepoint checks;/; s/^rollback;[[:space:]]*$/rollback to savepoint checks; reset role;/' "tests/$t.sql"
     echo
@@ -22,7 +22,7 @@ D=$(date +%F)
   echo "do \$\$ begin raise exception 'DRY RUN OK — all migrations applied and every check passed; rolled back, nothing saved'; end \$\$;"
 } > bundles/dry-run.sql
 {
-  echo "-- APPLY — generated $D from branch pet10x-gaps by bundles/build.sh. Run dry-run.sql first."
+  echo "-- APPLY — generated $D from branch ux-required-fixes by bundles/build.sh. Run dry-run.sql first."
   echo "-- One transaction: either every migration lands or none does."
   echo "begin;"
   for f in "${M[@]}"; do printf '\n-- ===== migration %s =====\n' "$f"; cat "migrations/$f"; echo; done

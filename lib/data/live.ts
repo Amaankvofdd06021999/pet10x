@@ -25,6 +25,7 @@ import { uploadCommunityImage } from "./community-media"
 import { createNotificationStore, type NotificationLoad } from "./notification-store"
 import { computeCompliance, type BuildingRules } from "./compliance"
 import { archiveErrorSentence, memorialYears, type ArchiveReason } from "./pet-archive"
+import { linkDecisionError, type LinkDecisionResult } from "./link-decision"
 import type {
   AppNotification,
   BuildingLink,
@@ -1173,30 +1174,43 @@ export function useBuildingResidents(): LiveResult<ResidentLinkRow[]> {
   return { data, isLoading, error, refetch }
 }
 
-async function decideLink(linkId: string, status: ResidentLinkStatus, left: boolean): Promise<{ error: string | null }> {
+/**
+ * Decide a resident's link through `manager_decide_link` (20261015000001).
+ *
+ * This used to be a direct `.update()` of resident_links: nobody was told,
+ * nothing was audited, and any status could follow any other. The function
+ * allows only approve (pending), deny (pending) and remove (approved), stamps
+ * decided_at/decided_by itself, notifies the resident — quoting the reason
+ * when one is given — and audits. The pets follow the link through
+ * trg_sync_pets_on_link, as before.
+ */
+async function decideLink(
+  linkId: string,
+  decision: "approve" | "deny" | "remove",
+  reason?: string,
+): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  const patch: Database["public"]["Tables"]["resident_links"]["Update"] = {
-    status,
-    decided_at: new Date().toISOString(),
-    decided_by: user?.id ?? null,
-  }
-  if (left) patch.left_at = new Date().toISOString()
-  const { error } = await supabase.from("resident_links").update(patch).eq("id", linkId)
-  return { error: error?.message ?? null }
+  const { data, error } = await supabase.rpc("manager_decide_link", {
+    p_link: linkId,
+    p_decision: decision,
+    p_reason: reason?.trim() ? reason.trim() : undefined,
+  })
+  // A raise carries a sentence and a hint written for the manager; show both.
+  if (error) return { error: error.hint?.trim() ? `${error.message} ${error.hint.trim()}` : error.message }
+  return { error: linkDecisionError(data as unknown as LinkDecisionResult) }
 }
 
 export function approveResidentLink(linkId: string) {
-  return decideLink(linkId, "approved", false)
+  return decideLink(linkId, "approve")
 }
-export function denyResidentLink(linkId: string) {
-  return decideLink(linkId, "denied", false)
+/** `reason` is optional; when given, the resident reads it in their notification. */
+export function denyResidentLink(linkId: string, reason?: string) {
+  return decideLink(linkId, "deny", reason)
 }
-export function removeResident(linkId: string) {
-  return decideLink(linkId, "left", true)
+/** `reason` is optional; when given, the resident reads it in their notification. */
+export function removeResident(linkId: string, reason?: string) {
+  return decideLink(linkId, "remove", reason)
 }
 
 /* ----------------------------- notifications ------------------------------ */

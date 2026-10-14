@@ -130,6 +130,17 @@ export function describeAuditEntry(row: AuditRow): string {
       return "rejected a pet document"
     case "pet.archived":
       return "removed a pet from the building's register"
+    // 20261015000001. The note and the reason stay in the metadata; only the
+    // outcome is said here, like every other row.
+    case "pet.registration_decided":
+      if (m.to === "approved") return "approved a pet's registration"
+      if (m.to === "denied") return "denied a pet's registration"
+      return "decided a pet's registration"
+    case "resident_link.decided":
+      if (m.decision === "approve") return "approved a resident's request to join"
+      if (m.decision === "deny") return "denied a resident's request to join"
+      if (m.decision === "remove") return "removed a resident from the building"
+      return "decided a resident's request to join"
     case "municipal_report.submitted":
       return "sent a report to the city"
   }

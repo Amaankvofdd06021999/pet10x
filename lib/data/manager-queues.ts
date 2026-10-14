@@ -169,18 +169,29 @@ export function useRegistrationsLive(): Result<Registration[]> {
   return { data, isLoading, error, refetch }
 }
 
-/** Approve or deny a pet's building registration. */
+/**
+ * Approve or deny a pet's building registration.
+ *
+ * A deny needs a `note` (20261015000001): the owner is notified either way,
+ * and a deny's notification quotes it as "Reason: …". The function refuses a
+ * deny with a blank note (22023) and says why in its message and hint.
+ */
 export async function decideRegistration(
   petId: string,
   approve: boolean,
+  note?: string,
 ): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   // Managers have no RLS UPDATE on pets — go through the SECURITY DEFINER RPC,
   // which authorises via manages_building() and performs the write. A plain
   // .update() here would silently match zero rows for a non-admin manager.
-  const { error } = await supabase.rpc("manager_decide_registration", { p_pet: petId, p_approve: approve })
-  return { error: error?.message ?? null }
+  const { error } = await supabase.rpc("manager_decide_registration", {
+    p_pet: petId,
+    p_approve: approve,
+    p_note: note?.trim() ? note.trim() : undefined,
+  })
+  return { error: transportError(error) }
 }
 
 /* Accommodation requests moved OUT of this file in Phase 7.

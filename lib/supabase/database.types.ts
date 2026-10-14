@@ -6856,8 +6856,12 @@ export type Database = {
         }
         Returns: Json
       }
+      manager_decide_link: {
+        Args: { p_decision: string; p_link: string; p_reason?: string }
+        Returns: Json
+      }
       manager_decide_registration: {
-        Args: { p_approve: boolean; p_pet: string }
+        Args: { p_approve: boolean; p_note?: string; p_pet: string }
         Returns: undefined
       }
       manager_issue_notice: {

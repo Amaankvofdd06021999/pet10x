@@ -30,6 +30,16 @@ describe("describeAuditEntry", () => {
     expect(d("pet_document.rejected")).toBe("rejected a pet document")
   })
 
+  it("names registration and link decisions (20261015000001)", () => {
+    expect(d("pet.registration_decided", { to: "approved" })).toBe("approved a pet's registration")
+    expect(d("pet.registration_decided", { to: "denied", note: "secret" })).toBe("denied a pet's registration")
+    expect(d("pet.registration_decided")).toBe("decided a pet's registration")
+    expect(d("resident_link.decided", { decision: "approve" })).toBe("approved a resident's request to join")
+    expect(d("resident_link.decided", { decision: "deny", reason: "secret" })).toBe("denied a resident's request to join")
+    expect(d("resident_link.decided", { decision: "remove" })).toBe("removed a resident from the building")
+    expect(d("resident_link.decided")).toBe("decided a resident's request to join")
+  })
+
   it("never renders the metadata, even for an action it has not met", () => {
     const out = d("parking.permit_issued", { secret: "ip-hash-like-value" })
     expect(out).toBe("changed the building's parking records")
