@@ -13,6 +13,7 @@ import {
   Info,
   Loader2,
   Ban,
+  WifiOff,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -21,6 +22,7 @@ import {
   type EmergencyDirectory,
   type EmergencyPet,
 } from "@/lib/data/emergency"
+import { nextEmergencyState, type EmergencyViewState } from "@/lib/data/emergency-state"
 
 /** How often to re-check the token, so a revoked link dies while it's open. */
 const RECHECK_MS = 60_000
@@ -28,37 +30,43 @@ const RECHECK_MS = 60_000
 export default function EmergencyPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params)
 
-  const [state, setState] = useState<"loading" | "ok" | "denied">("loading")
-  const [data, setData] = useState<EmergencyDirectory | null>(null)
+  const [view, setView] = useState<EmergencyViewState<EmergencyDirectory>>({
+    data: null,
+    stale: false,
+    denied: false,
+    lastOk: null,
+  })
+  // False until the first check settles, so "Couldn't connect" never flashes before it.
+  const [checked, setChecked] = useState(false)
+  const [retrying, setRetrying] = useState(false)
   const [remaining, setRemaining] = useState(0)
   const [openFloor, setOpenFloor] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     const res = await fetchEmergencyDirectory(code)
-    if (!res.valid) {
-      setData(null)
-      setState("denied")
-      return
+    setView((prev) => nextEmergencyState(prev, res, Date.now()))
+    if (res.kind === "valid") {
+      setRemaining(Math.max(0, Math.floor((new Date(res.data.expiresAt).getTime() - Date.now()) / 1000)))
     }
-    setData(res)
-    setRemaining(Math.max(0, Math.floor((new Date(res.expiresAt).getTime() - Date.now()) / 1000)))
-    setState("ok")
+    setChecked(true)
   }, [code])
 
   useEffect(() => {
     void load()
   }, [load])
 
+  const { data, stale, denied, lastOk } = view
+  const hasData = data !== null
+
   // The countdown is derived from the token's real expires_at, not a fixed
   // client-side 4-hour timer. Re-validating on an interval means a manager who
   // revokes the token cuts off a session that's already open.
   useEffect(() => {
-    if (state !== "ok") return
+    if (!hasData) return
     const tick = setInterval(() => {
       setRemaining((s) => {
         if (s <= 1) {
-          setState("denied")
-          setData(null)
+          setView({ data: null, stale: false, denied: true, lastOk: null })
           return 0
         }
         return s - 1
@@ -69,9 +77,15 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
       clearInterval(tick)
       clearInterval(recheck)
     }
-  }, [state, load])
+  }, [hasData, load])
 
-  if (state === "loading") {
+  async function retry() {
+    setRetrying(true)
+    await load()
+    setRetrying(false)
+  }
+
+  if (!checked) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -79,7 +93,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
     )
   }
 
-  if (state === "denied" || !data) {
+  if (denied) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background p-6">
         <div className="w-full max-w-sm text-center">
@@ -91,6 +105,30 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
             This emergency link has expired or been revoked. Scan the placard again, or contact building management for
             a new one.
           </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-background p-6">
+        <div className="w-full max-w-sm text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+            <WifiOff className="h-6 w-6 text-muted-foreground" />
+          </span>
+          <h1 className="mt-4 text-[20px] font-bold text-foreground">Couldn&apos;t connect</h1>
+          <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
+            Check your signal and try again. This link may still be good.
+          </p>
+          <button
+            onClick={() => void retry()}
+            disabled={retrying}
+            className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+          >
+            {retrying && <Loader2 className="h-4 w-4 animate-spin" />}
+            Retry
+          </button>
         </div>
       </div>
     )
@@ -130,6 +168,21 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
         </div>
       </header>
 
+      {stale && lastOk !== null && (
+        <div role="status" className="flex items-center justify-between gap-3 bg-warning/15 px-4 py-2">
+          <p className="text-[13px] text-foreground">
+            Couldn&apos;t refresh. Showing data from {new Date(lastOk).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.
+          </p>
+          <button
+            onClick={() => void retry()}
+            disabled={retrying}
+            className="min-h-9 flex-shrink-0 rounded-md px-3 text-[13px] font-semibold text-foreground underline disabled:opacity-60"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       <main className="px-4 pb-10">
         <section className="mt-4 mb-4">
           <div className="rounded-xl card-raised p-3">
@@ -151,7 +204,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
         <section className="mb-4">
           <div className="flex gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
             <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
-            <p className="text-[11px] leading-relaxed text-foreground">
+            <p className="text-[12px] leading-relaxed text-foreground">
               Supplementary information only. Not a life-safety system. Pet presence is based on last known status and
               may not reflect reality. Always follow standard fire and rescue protocols.
             </p>
@@ -189,13 +242,13 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
                       </span>
                       <span className="flex-1">
                         <span className="block text-[14px] font-semibold text-foreground">Floor {floor.floor}</span>
-                        <span className="block text-[11px] text-muted-foreground">
+                        <span className="block text-[12px] text-muted-foreground">
                           {pets.length} pet{pets.length !== 1 ? "s" : ""} &middot; {floor.units.length} unit
                           {floor.units.length !== 1 ? "s" : ""}
                         </span>
                       </span>
                       {hasCaution && (
-                        <Badge className="border-0 bg-destructive/15 text-[9px] text-destructive">CAUTION</Badge>
+                        <Badge className="border-0 bg-destructive/15 text-[12px] text-destructive">CAUTION</Badge>
                       )}
                       {isOpen ? (
                         <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -208,7 +261,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
                       <div className="border-t border-border px-3 pb-3 pt-2">
                         {floor.units.map((unit) => (
                           <div key={unit.unit} className="mb-2 last:mb-0">
-                            <p className="mb-1.5 text-[11px] font-semibold text-muted-foreground">UNIT {unit.unit}</p>
+                            <p className="mb-1.5 text-[12px] font-semibold text-muted-foreground">UNIT {unit.unit}</p>
                             {unit.pets.map((pet) => (
                               <PetRow key={`${unit.unit}-${pet.name}`} pet={pet} />
                             ))}
@@ -223,7 +276,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
           )}
         </section>
 
-        <p className="mt-6 text-center text-[10px] text-muted-foreground">
+        <p className="mt-6 text-center text-[12px] text-muted-foreground">
           Pet10x Emergency Access &middot; Park10x Services Inc.
         </p>
       </main>
@@ -238,7 +291,7 @@ function Tally({ value, label, icon }: { value: number; label: string; icon?: Re
         {icon}
         <p className="text-[22px] font-bold tabular-nums text-foreground">{value}</p>
       </div>
-      <p className="text-[10px] font-medium text-muted-foreground">{label}</p>
+      <p className="text-[12px] font-medium text-muted-foreground">{label}</p>
     </div>
   )
 }
@@ -256,17 +309,17 @@ function PetRow({ pet }: { pet: EmergencyPet }) {
       <div className="mb-1 flex flex-wrap items-center gap-2">
         <Icon className={`h-4 w-4 ${pet.species === "dog" ? "text-primary" : "text-info"}`} />
         <span className="text-[13px] font-semibold text-foreground">{pet.name}</span>
-        {caution && <Badge className="border-0 bg-destructive text-[9px] text-white">CAUTION</Badge>}
+        {caution && <Badge className="border-0 bg-destructive text-[12px] text-white">CAUTION</Badge>}
         {/* Presence, per the pet's own status — an away pet may not be in the unit. */}
         {!pet.present && (
-          <Badge className="border-0 bg-background text-[9px] text-muted-foreground">
+          <Badge className="border-0 bg-background text-[12px] text-muted-foreground">
             {pet.status === "at_vet" ? "AT VET" : pet.status === "vacation" ? "AWAY" : "NOT HOME"}
           </Badge>
         )}
       </div>
 
       {pet.notes && (
-        <p className={`text-[11px] leading-relaxed ${caution ? "text-foreground" : "text-muted-foreground"}`}>
+        <p className={`text-[12px] leading-relaxed ${caution ? "text-foreground" : "text-muted-foreground"}`}>
           {pet.notes}
         </p>
       )}
@@ -274,7 +327,7 @@ function PetRow({ pet }: { pet: EmergencyPet }) {
       {pet.emergency && (
         <a
           href={`tel:${pet.emergency}`}
-          className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium text-info"
+          className="mt-1.5 inline-flex items-center gap-1.5 text-[12px] font-medium text-info"
         >
           <Phone className="h-3 w-3" />
           {pet.emergency}

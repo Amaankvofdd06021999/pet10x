@@ -1,6 +1,7 @@
 "use client"
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import type { EmergencyCheck } from "@/lib/data/emergency-state"
 
 /**
  * Emergency directory — the token-gated, read-only slice a first responder sees.
@@ -40,8 +41,6 @@ export interface EmergencyDirectory {
   floors: EmergencyFloor[]
 }
 
-export type EmergencyResult = EmergencyDirectory | { valid: false }
-
 interface RawDirectory {
   valid: boolean
   expires_at?: string
@@ -57,25 +56,37 @@ export function isCaution(notes: string | null): boolean {
 }
 
 /**
- * Fetch the directory for a token. Returns `{ valid: false }` for a token that
- * is unknown, expired, or revoked — the caller renders the same dead end for
- * all three, so a bad token reveals nothing about why.
+ * Fetch the directory for a token. Only the server's own answer that the token
+ * is unknown, expired or revoked (`valid: false`) is "denied" — the caller
+ * renders the same dead end for all three, so a bad token reveals nothing about
+ * why. Any transport or RPC failure is "network": the link may be perfectly
+ * good, so the caller keeps what it has and offers a retry.
  */
-export async function fetchEmergencyDirectory(token: string): Promise<EmergencyResult> {
+export async function fetchEmergencyDirectory(token: string): Promise<EmergencyCheck<EmergencyDirectory>> {
   const supabase = getSupabaseBrowserClient()
-  if (!supabase) return { valid: false }
+  if (!supabase) return { kind: "network" }
 
-  const { data, error } = await supabase.rpc("emergency_directory", { p_token: token })
-  if (error || !data) return { valid: false }
+  let res
+  try {
+    res = await supabase.rpc("emergency_directory", { p_token: token })
+  } catch {
+    return { kind: "network" }
+  }
+  if (res.error || !res.data) return { kind: "network" }
 
-  const raw = data as unknown as RawDirectory
-  if (!raw.valid || !raw.expires_at || !raw.building) return { valid: false }
+  const raw = res.data as unknown as RawDirectory
+  if (raw.valid === false) return { kind: "denied" }
+  // Positive grammar: data counts only when it says valid and carries the fields we render.
+  if (raw.valid !== true || !raw.expires_at || !raw.building) return { kind: "network" }
 
   return {
-    valid: true,
-    expiresAt: raw.expires_at,
-    building: raw.building,
-    totals: raw.totals ?? { total: 0, dogs: 0, cats: 0, other: 0 },
-    floors: raw.floors ?? [],
+    kind: "valid",
+    data: {
+      valid: true,
+      expiresAt: raw.expires_at,
+      building: raw.building,
+      totals: raw.totals ?? { total: 0, dogs: 0, cats: 0, other: 0 },
+      floors: raw.floors ?? [],
+    },
   }
 }
