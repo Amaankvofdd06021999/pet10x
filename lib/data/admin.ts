@@ -277,6 +277,7 @@ export async function getBusinessFootprint(
 export async function deleteBusinessGuarded(
   id: string,
   confirmName: string,
+  tier?: BusinessTier,
 ): Promise<{ error: string | null; footprint?: BusinessFootprint }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
@@ -287,7 +288,7 @@ export async function deleteBusinessGuarded(
   if (error) return { error: deleteBusinessError(error) }
   const res = (data ?? {}) as { ok?: boolean; error?: string; footprint?: unknown }
   if (res.ok === true) return { error: null }
-  return { error: deleteBusinessError({ error: res.error }), footprint: parseFootprint(res.footprint) ?? undefined }
+  return { error: deleteBusinessError({ error: res.error }, tier), footprint: parseFootprint(res.footprint) ?? undefined }
 }
 
 export interface InviteResult {

@@ -41,7 +41,7 @@ import {
   canDeleteBusiness,
   footprintLines,
   nameMatches,
-  HAS_RECORDS_MESSAGE,
+  hasRecordsMessage,
   NAME_MISMATCH_MESSAGE,
   type BusinessFootprint,
 } from "@/lib/data/business-delete"
@@ -780,7 +780,7 @@ function Businesses() {
   async function confirmDelete(b: AdminBusiness, typed: string | null): Promise<{ error: string | null }> {
     // The database checks the name too; this saves a round trip for a typo.
     if (!nameMatches(typed ?? "", b.name)) return { error: NAME_MISMATCH_MESSAGE }
-    const { error: err, footprint: latest } = await deleteBusinessGuarded(b.id, typed ?? "")
+    const { error: err, footprint: latest } = await deleteBusinessGuarded(b.id, typed ?? "", b.tier)
     if (err) {
       // has_records carries the counts as they are now — show those.
       if (latest) setFootprint({ state: "ready", data: latest })
@@ -794,7 +794,9 @@ function Businesses() {
   async function registerInstead(b: AdminBusiness) {
     setDeleting(null)
     setBusy(b.id)
-    const { error: err } = await setBusinessTier(b.id, "registered", "Set to Registered instead of deleting")
+    // No note: admin_set_business_tier appends it to the owner's notification,
+    // and the owner has no reason to learn a delete was considered.
+    const { error: err } = await setBusinessTier(b.id, "registered")
     setBusy(null)
     if (err) return toast.error("Couldn't change the tier", { description: err })
     toast.success(`${b.name} is now Registered`)
@@ -853,7 +855,9 @@ function Businesses() {
             if (!open) setDeleting(null)
           }}
           title={`Delete ${deleting.name}?`}
-          description={<DeleteFootprint footprint={footprint} onRetry={() => loadFootprint(deleting.id)} />}
+          description={
+            <DeleteFootprint footprint={footprint} tier={deleting.tier} onRetry={() => loadFootprint(deleting.id)} />
+          }
           confirmLabel="Delete business"
           tone="danger"
           confirmDisabled={footprint.state !== "ready" || !canDeleteBusiness(footprint.data)}
@@ -881,9 +885,11 @@ function Businesses() {
  */
 function DeleteFootprint({
   footprint,
+  tier,
   onRetry,
 }: {
   footprint: { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: BusinessFootprint }
+  tier: BusinessTier
   onRetry: () => void
 }) {
   if (footprint.state === "loading") {
@@ -912,7 +918,7 @@ function DeleteFootprint({
           <span key={line}>· {line}</span>
         ))}
       </span>
-      {!canDeleteBusiness(fp) && <span className="font-semibold text-destructive">{HAS_RECORDS_MESSAGE}</span>}
+      {!canDeleteBusiness(fp) && <span className="font-semibold text-destructive">{hasRecordsMessage(tier)}</span>}
     </span>
   )
 }

@@ -4,6 +4,7 @@ import {
   deleteBusinessError,
   footprintError,
   footprintLines,
+  hasRecordsMessage,
   nameMatches,
   parseFootprint,
   HAS_RECORDS_MESSAGE,
@@ -112,5 +113,23 @@ describe("footprintError", () => {
     expect(footprintError({ code: "42501", message: "x" })).toBe("Only a Pet10x admin can delete a business.")
     expect(footprintError({ code: "P0002", message: "x" })).toBe("That business no longer exists.")
     expect(footprintError({ message: "fetch failed" })).toBe("Couldn't load what this business holds. Try again.")
+  })
+})
+
+describe("hasRecordsMessage", () => {
+  it("points at Registered when the business is listed or verified", () => {
+    expect(hasRecordsMessage("listed")).toBe(HAS_RECORDS_MESSAGE)
+    expect(hasRecordsMessage("verified")).toBe(HAS_RECORDS_MESSAGE)
+  })
+
+  it("does not suggest Registered to a business that already is", () => {
+    expect(hasRecordsMessage("registered")).toBe(
+      "This business has clinic records, so it can't be deleted. It's already Registered.",
+    )
+  })
+
+  it("is what deleteBusinessError says for has_records, given the tier", () => {
+    expect(deleteBusinessError({ error: "has_records" }, "registered")).toBe(hasRecordsMessage("registered"))
+    expect(deleteBusinessError({ error: "has_records" }, "verified")).toBe(HAS_RECORDS_MESSAGE)
   })
 })

@@ -1,3 +1,5 @@
+import type { BusinessTier } from "./business-tier"
+
 /**
  * Pet10x — deleting a business from the admin console, the pure half.
  *
@@ -26,6 +28,7 @@ export interface BusinessFootprint {
 
 export const NAME_MISMATCH_MESSAGE = "That name doesn't match."
 export const HAS_RECORDS_MESSAGE = "This business has clinic records. Set its tier to Registered instead."
+const HAS_RECORDS_REGISTERED_MESSAGE = "This business has clinic records, so it can't be deleted. It's already Registered."
 const NOT_FOUND_MESSAGE = "That business no longer exists."
 const NOT_ADMIN_MESSAGE = "Only a Pet10x admin can delete a business."
 const GENERIC_MESSAGE = "Something went wrong. Try again."
@@ -82,15 +85,26 @@ export function footprintLines(fp: BusinessFootprint): string[] {
 }
 
 /**
+ * Why a business with records can't go. "Set its tier to Registered" is advice
+ * only while it isn't — a Registered business has nowhere further to step down.
+ */
+export function hasRecordsMessage(tier: BusinessTier | undefined): string {
+  return tier === "registered" ? HAS_RECORDS_REGISTERED_MESSAGE : HAS_RECORDS_MESSAGE
+}
+
+/**
  * A sentence for a refused delete: either the RPC's `{error}` answer, or a
  * raised error (`{code, message}`). Nothing unknown is shown raw.
  */
-export function deleteBusinessError(err: { error?: string; code?: string; message?: string }): string {
+export function deleteBusinessError(
+  err: { error?: string; code?: string; message?: string },
+  tier?: BusinessTier,
+): string {
   switch (err.error) {
     case "name_mismatch":
       return NAME_MISMATCH_MESSAGE
     case "has_records":
-      return HAS_RECORDS_MESSAGE
+      return hasRecordsMessage(tier)
     case "not_found":
       return NOT_FOUND_MESSAGE
   }
