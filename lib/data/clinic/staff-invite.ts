@@ -6,6 +6,8 @@
  * (20260901000000) is the floor beneath it.
  */
 
+import { EMAIL_SHAPE } from "@/lib/auth/email-shape"
+
 export type StaffRole = "owner" | "manager" | "veterinarian" | "nurse" | "reception"
 
 export const STAFF_ROLE_LABEL: Record<StaffRole, string> = {
@@ -28,7 +30,6 @@ export interface ClinicInvite {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function parseClinicInvite(
   body: unknown,
@@ -42,7 +43,7 @@ export function parseClinicInvite(
   if (!fullName) return { ok: false, error: "Enter their name." }
   if (fullName.length > 120) return { ok: false, error: "That name is too long." }
   const email = str(b.email).toLowerCase()
-  if (!EMAIL.test(email) || email.length > 254) return { ok: false, error: "Enter a valid email address." }
+  if (!EMAIL_SHAPE.test(email) || email.length > 254) return { ok: false, error: "Enter a valid email address." }
   const role = str(b.role)
   if (!(INVITABLE_ROLES as readonly string[]).includes(role)) {
     return { ok: false, error: "Choose a role: veterinarian, nurse, reception or manager." }

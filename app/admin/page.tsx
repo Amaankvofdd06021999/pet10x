@@ -7,6 +7,8 @@ import { PersonaSwitcher } from "@/components/persona-switcher"
 import { canAccessRoute } from "@/lib/rbac"
 import { Toaster } from "@/components/ui/sonner"
 import { toast } from "sonner"
+import { checkInviteEmail } from "@/lib/data/admin-invite"
+import { inviteResultMessage } from "@/lib/data/invite-result"
 import {
   useAdminBuildings,
   createBuilding,
@@ -350,34 +352,37 @@ function BuildingCard({
   const [busy, setBusy] = useState(false)
 
   async function invite() {
-    if (!email.trim()) {
-      toast.error("Enter the manager's email.")
+    const checked = checkInviteEmail(email)
+    if (!checked.ok) {
+      toast.error(checked.error)
       return
     }
     setBusy(true)
     const res = await inviteManager({
       buildingId: building.id,
       buildingName: building.name,
-      email: email.trim(),
+      email: checked.email,
       fullName: name.trim() || undefined,
     })
     setBusy(false)
-    if (res.error) return toast.error("Invite failed", { description: res.error })
+    // The route and client already turn raw errors into the "Couldn't invite" line.
+    if (res.error) return toast.error(res.error)
 
-    if (res.emailSent === false && res.inviteUrl) {
-      // Suppressed outside production, or refused by the mail provider —
-      // either way, don't claim we sent one.
-      const url = res.inviteUrl
-      toast.success(res.emailFailed ? "Manager added — the email failed" : "Manager added — email not sent", {
-        description: res.emailFailed
-          ? "The invite email could not be sent. Copy the invite link to share it."
-          : "Email is disabled outside production. Copy the invite link to share it.",
-        duration: 15000,
-        action: { label: "Copy link", onClick: () => void navigator.clipboard.writeText(url) },
-      })
-    } else {
-      toast.success("Manager invited", { description: `Invite sent to ${email.trim()}` })
-    }
+    const msg = inviteResultMessage({
+      email: checked.email,
+      building: building.name,
+      existingAccount: res.existingAccount === true,
+      emailSent: res.emailSent === true,
+      inviteUrl: res.inviteUrl,
+      emailFailed: res.emailFailed,
+    })
+    const url = msg.inviteUrl
+    toast.success(msg.title, {
+      description: msg.description,
+      ...(url
+        ? { duration: 15000, action: { label: "Copy link", onClick: () => void navigator.clipboard.writeText(url) } }
+        : {}),
+    })
     setEmail("")
     setName("")
     onChange()

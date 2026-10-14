@@ -10,6 +10,8 @@
  * throws on access, which every function here absorbs.
  */
 
+import { EMAIL_SHAPE } from "@/lib/auth/email-shape"
+
 export const SIGNUP_DRAFT_KEY = "pet10x.signup"
 
 /** Longer than the 15-minute code, so a late return still sees "expired" and a resend. */
@@ -18,7 +20,6 @@ export const DRAFT_TTL_MS = 30 * 60 * 1000
 export type DraftView = "form" | "verify"
 export type Draft = { email: string; name: string; view: DraftView; savedAt: number }
 
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MAX_NAME = 80
 
 export function saveDraft(

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
+import { findProfileByEmail } from "@/lib/server/profile-by-email"
 import { sendManagerAddedEmail, sendManagerInviteEmail } from "@/lib/email"
 
 /**
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
   const buildingName = bldg?.name?.trim() || "your building"
 
   // Existing account → elevate + link, then tell them (no invite link exists).
-  const { data: existing } = await admin.from("profiles").select("id, role").eq("email", email).maybeSingle()
+  const existing = await findProfileByEmail(admin, email)
   if (existing) {
     const { data: dup } = await admin
       .from("building_managers")

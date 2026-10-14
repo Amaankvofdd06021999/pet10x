@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { buildingDeleteError, buildingHasHistory, parseBuildingActivity, parseBuildingCounts, type BuildingCounts } from "./building-archive"
+import { inviteFailureMessage } from "./admin-invite"
 import { businessTierError, isOpenRequest, type BusinessTier } from "./business-tier"
 import { deleteBusinessError, footprintError, parseFootprint, type BusinessFootprint } from "./business-delete"
 import { parsePlatformStats, userFlagsError, type AdminUser, type PlatformStats } from "./admin-users"
@@ -334,7 +335,7 @@ export interface InviteResult {
   /** False when the email was suppressed (non-production) or failed — inviteUrl is then set. */
   emailSent?: boolean
   inviteUrl?: string
-  /** The address already had a Pet10x account (strata invite only). */
+  /** The address already had a Pet10x account, so it was linked rather than invited. */
   existingAccount?: boolean
   /** The email was attempted and refused, as opposed to suppressed. */
   emailFailed?: boolean
@@ -364,11 +365,18 @@ export async function inviteManager(input: {
       emailSent?: boolean
       inviteUrl?: string
       emailFailed?: boolean
+      existingAccount?: boolean
     }
-    if (!res.ok || !json.ok) return { error: json.error ?? "Invite failed." }
-    return { error: null, emailSent: json.emailSent, inviteUrl: json.inviteUrl, emailFailed: json.emailFailed }
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "Invite failed." }
+    if (!res.ok || !json.ok) return { error: json.error ?? inviteFailureMessage(input.email) }
+    return {
+      error: null,
+      emailSent: json.emailSent,
+      inviteUrl: json.inviteUrl,
+      emailFailed: json.emailFailed,
+      existingAccount: json.existingAccount,
+    }
+  } catch {
+    return { error: inviteFailureMessage(input.email) }
   }
 }
 

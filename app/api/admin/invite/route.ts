@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
-import { sendManagerInviteEmail } from "@/lib/email"
+import { sendManagerAddedEmail, sendManagerInviteEmail } from "@/lib/email"
+import { checkInviteEmail, inviteFailureMessage, roleForNewManager } from "@/lib/data/admin-invite"
+import { findProfileByEmail } from "@/lib/server/profile-by-email"
 
 type InviteRole = "building_manager" | "business" | "super_admin"
 
@@ -37,22 +39,52 @@ export async function POST(request: Request) {
     buildingId?: string
     buildingName?: string
   }
-  if (!body.email) return NextResponse.json({ error: "email is required" }, { status: 400 })
+  const checked = checkInviteEmail(body.email ?? "")
+  if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 400 })
+  const email = checked.email
 
   const role: InviteRole = body.role ?? "building_manager"
   const origin = process.env.NEXT_PUBLIC_BASE_URL ?? new URL(request.url).origin
   const admin = getSupabaseAdmin()
 
+  // An email that already has an account can't be invited again. For a
+  // building manager that's the normal way to add someone to a second building,
+  // so link them instead. The link insert is idempotent, which also makes a
+  // retry after a partial failure succeed.
+  const existing = await findProfileByEmail(admin, email)
+  if (existing) {
+    if (role !== "building_manager" || !body.buildingId) {
+      return NextResponse.json({ error: `${email} already has a Pet10x account.` }, { status: 409 })
+    }
+    const newRole = roleForNewManager(existing.role)
+    if (newRole) {
+      const { error: roleErr } = await admin.from("profiles").update({ role: newRole }).eq("id", existing.id)
+      if (roleErr) return NextResponse.json({ error: inviteFailureMessage(email) }, { status: 500 })
+    }
+    const { error: linkErr } = await admin
+      .from("building_managers")
+      .upsert(
+        { building_id: body.buildingId, profile_id: existing.id, granted_by: user.id },
+        { onConflict: "building_id,profile_id", ignoreDuplicates: true },
+      )
+    if (linkErr) return NextResponse.json({ error: inviteFailureMessage(email) }, { status: 500 })
+
+    // Email content comes from the database, not the request body.
+    const { data: bldg } = await admin.from("buildings").select("name").eq("id", body.buildingId).maybeSingle()
+    const notified = await sendManagerAddedEmail({ to: email, buildingName: bldg?.name?.trim() || "your building" })
+    return NextResponse.json({ ok: true, existingAccount: true, emailSent: notified.ok })
+  }
+
   const { data: link, error } = await admin.auth.admin.generateLink({
     type: "invite",
-    email: body.email,
+    email,
     options: {
       redirectTo: `${origin}/auth/set-password`,
       data: { full_name: body.fullName, invited_role: role },
     },
   })
   if (error || !link?.properties?.action_link) {
-    return NextResponse.json({ error: error?.message ?? "Failed to generate invite" }, { status: 400 })
+    return NextResponse.json({ error: inviteFailureMessage(email) }, { status: 400 })
   }
 
   // Elevate the freshly-created profile (the auth trigger created it as
@@ -65,16 +97,19 @@ export async function POST(request: Request) {
       .update({ role, full_name: body.fullName ?? null })
       .eq("id", invitedId)
     if (roleErr) {
-      return NextResponse.json({ error: `Invited, but role assignment failed: ${roleErr.message}` }, { status: 500 })
+      return NextResponse.json({ error: inviteFailureMessage(email) }, { status: 500 })
     }
 
     if (role === "building_manager" && body.buildingId) {
       const { error: linkErr } = await admin
         .from("building_managers")
-        .insert({ building_id: body.buildingId, profile_id: invitedId, granted_by: user.id })
+        .upsert(
+          { building_id: body.buildingId, profile_id: invitedId, granted_by: user.id },
+          { onConflict: "building_id,profile_id", ignoreDuplicates: true },
+        )
       if (linkErr) {
         return NextResponse.json(
-          { error: `Invited, but linking to the building failed: ${linkErr.message}` },
+          { error: inviteFailureMessage(email) },
           { status: 500 },
         )
       }
@@ -82,7 +117,7 @@ export async function POST(request: Request) {
   }
 
   const sent = await sendManagerInviteEmail({
-    to: body.email,
+    to: email,
     inviteUrl: link.properties.action_link,
     buildingName: body.buildingName,
     inviterName: me.full_name ?? "A Pet10x admin",
