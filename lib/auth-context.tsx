@@ -424,9 +424,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setGrants(null)
       setActivePersonaState(null)
       setActiveBuildingState(null)
+      // Forgotten on sign-out: the same account signing back in without a
+      // reload must wait for a fresh answer, not inherit "ready" with no
+      // active building (every building's rows, unlabelled).
+      setPersonasResult(null)
       return
     }
     let active = true
+    // Each run waits for its own answer.
+    setPersonasResult(null)
     const supabase = getSupabaseBrowserClient()
     if (!supabase) {
       setPersonasResult({ userId: authUser.id, ok: false })
@@ -478,6 +484,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         rememberedBuilding && ids.includes(rememberedBuilding) ? rememberedBuilding : (ids[0] ?? null),
       )
       setPersonasResult({ userId: authUser.id, ok: true })
+    }).then(undefined, () => {
+      // A rejected call (network, thrown client) must end in "error", never
+      // leave the manager lists on "loading" for good.
+      if (!active) return
+      setGrants(null)
+      setActiveBuildingState(null)
+      setPersonasResult({ userId: authUser.id, ok: false })
     })
     return () => {
       active = false

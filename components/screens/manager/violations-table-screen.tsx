@@ -90,7 +90,8 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   // so every count, tile and table below is of the same rows.
   // Until the buildings are known each list reads as loading, so no table
   // offers Escalate or Dismiss on another building's rows in the meantime.
-  const { scope, loading: scopeLoading, showBuilding, activeName, notice, buildingName } = useBuildingScope()
+  const { activeBuildingId, scope, loading: scopeLoading, showBuilding, activeName, notice, buildingName } =
+    useBuildingScope()
   const activeRaw = useViolationsLive()
   const resolvedRaw = useResolvedViolationsLive()
   const incidentsRaw = useIncidents()
@@ -103,6 +104,14 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   const incidents = { ...incidentsRaw, data: incidentRows, isLoading: incidentsRaw.isLoading || scopeLoading }
   const [logOpen, setLogOpen] = useState(false)
   const [selected, setSelected] = useState<Violation | null>(null)
+  // A case (with its fine and close actions) or a half-logged violation from
+  // one building must not stay open after switching to another.
+  const [scopedFor, setScopedFor] = useState(activeBuildingId)
+  if (scopedFor !== activeBuildingId) {
+    setScopedFor(activeBuildingId)
+    setSelected(null)
+    setLogOpen(false)
+  }
 
   const rows = activeRows
   const source = active
@@ -312,6 +321,9 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
       )}
 
       <LogViolationModal
+        // Remounted per building, so a subject picked in one is never carried
+        // into the next opening.
+        key={activeBuildingId ?? "all"}
         scope={scope}
         scopeLoading={scopeLoading}
         open={logOpen}
