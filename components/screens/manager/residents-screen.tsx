@@ -12,6 +12,7 @@ import {
 } from "@/lib/data"
 import { useComplianceInputs } from "@/lib/data/portfolio"
 import { useManagerBuilding } from "@/lib/data/manager"
+import { useBuildingScope } from "@/lib/data/use-building-scope"
 import { useAuth } from "@/lib/auth-context"
 import { RequestInfoButton } from "@/components/screens/manager/request-info-button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -22,10 +23,16 @@ import { Search, Check, X, Clock, UserMinus, Loader2, Users, Dog, Cat, ChevronDo
 
 export function ManagerResidentsScreen() {
   const [search, setSearch] = useState("")
-  const { data: residents, isLoading, refetch } = useBuildingResidents()
-  const { data: buildingPets } = useBuildingPets()
-  const { data: complianceInputs } = useComplianceInputs()
+  const { data: allResidents, isLoading, refetch } = useBuildingResidents()
+  const { data: allPets } = useBuildingPets()
+  const { data: allInputs } = useComplianceInputs()
   const { activeBuildingId } = useAuth()
+  // Only the active building's people, and only their pets in it: someone who
+  // lives in two of this manager's buildings is two rows, one per building.
+  const { scope, showBuilding, activeName, buildingName } = useBuildingScope()
+  const residents = scope(allResidents)
+  const buildingPets = scope(allPets)
+  const complianceInputs = scope(allInputs)
   const { data: building } = useManagerBuilding(activeBuildingId)
   const [busy, setBusy] = useState<string | null>(null)
   // Deny and remove each tell a person no, so each asks first (with room for
@@ -94,6 +101,7 @@ export function ManagerResidentsScreen() {
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Residents"
+        subtitle={showBuilding ? activeName : null}
         largeTitle={false}
       />
 
@@ -135,6 +143,9 @@ export function ManagerResidentsScreen() {
                     return (
                     <div key={r.linkId} className="rounded-xl border border-warning/30 bg-[#FFFBEF] p-3.5">
                       <p className="text-[15px] font-semibold text-foreground">{r.residentName}</p>
+                      {showBuilding && buildingName(r.buildingId) && (
+                        <p className="text-[11px] font-semibold text-muted-foreground">{buildingName(r.buildingId)}</p>
+                      )}
                       <p className="text-[12px] text-muted-foreground">{r.residentEmail || "—"}</p>
                       <p className="text-[12px] text-muted-foreground">
                         Unit {r.unit ?? "not given"} · requested {shortDate(r.requestedAt)}
@@ -213,6 +224,7 @@ export function ManagerResidentsScreen() {
                       key={r.linkId}
                       member={r}
                       pets={buildingPets.filter((p) => p.ownerId === r.profileId)}
+                      buildingName={showBuilding ? buildingName(r.buildingId) : null}
                       busy={busy === r.linkId}
                       onRemove={() => setConfirming({ kind: "remove", resident: r })}
                     />
@@ -256,9 +268,12 @@ function MemberCard({
   pets,
   busy,
   onRemove,
+  buildingName,
 }: {
   member: ResidentLinkRow
   pets: ManagerPet[]
+  /** Set only for a manager of more than one building. */
+  buildingName: string | null
   busy: boolean
   onRemove: () => void
 }) {
@@ -277,6 +292,7 @@ function MemberCard({
           <p className="truncate text-[12px] text-muted-foreground">
             {pets.length} pet{pets.length === 1 ? "" : "s"} · {member.residentEmail || "—"}
           </p>
+          {buildingName && <p className="truncate text-[11px] font-semibold text-muted-foreground">{buildingName}</p>}
         </button>
         <ChevronDown className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </div>

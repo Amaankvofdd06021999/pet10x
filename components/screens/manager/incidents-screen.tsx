@@ -8,6 +8,7 @@ import { IncidentCard } from "@/components/screens/manager/incident-card"
 import { MunicipalReportsList } from "@/components/screens/manager/municipal-reports-list"
 import { useAuth } from "@/lib/auth-context"
 import { useManagerBuilding } from "@/lib/data/manager"
+import { useBuildingScope } from "@/lib/data/use-building-scope"
 
 /**
  * Incident reports, in full.
@@ -39,8 +40,11 @@ const FILTERS: { id: Filter; label: string }[] = [
 ]
 
 export function ManagerIncidentsScreen() {
-  const { data: incidents, isLoading, refetch } = useIncidents()
+  const { data: allIncidents, isLoading, refetch } = useIncidents()
   const { activeBuildingId } = useAuth()
+  // The active building's reports only; the counts below are of these rows.
+  const { scope, showBuilding, activeName } = useBuildingScope()
+  const incidents = useMemo(() => scope(allIncidents), [scope, allIncidents])
   const { data: building } = useManagerBuilding(activeBuildingId)
   const [source, setSource] = useState<"building" | "municipal">("building")
   const [filter, setFilter] = useState<Filter>("open")
@@ -81,6 +85,7 @@ export function ManagerIncidentsScreen() {
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Incident reports"
+        subtitle={showBuilding ? activeName : null}
         largeTitle={false}
       />
 
@@ -163,7 +168,7 @@ export function ManagerIncidentsScreen() {
         ) : (
           <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
             {visible.map((incident) => (
-              <IncidentCard key={incident.id} incident={incident} onChange={refetch} />
+              <IncidentCard key={incident.id} incident={incident} onChange={refetch} showBuilding={showBuilding} />
             ))}
           </div>
         )}

@@ -23,6 +23,7 @@ import { closedCaseLabel } from "@/lib/data/violations"
 import type { CaseFine, Violation } from "@/lib/data/types"
 import { toCsv, downloadCsv } from "@/lib/csv"
 import { DataTable, type Column } from "@/components/screens/shared/data-table"
+import { useBuildingScope } from "@/lib/data/use-building-scope"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal, Field,
@@ -58,6 +59,23 @@ function fromCents(cents: number): string {
 }
 
 /**
+ * A Building column for a manager of more than one building, so a row is never
+ * just "Unit 402". Secondary: on a phone the line above the tabs names the
+ * building instead, and the table keeps its width for the case itself.
+ */
+function buildingColumn<T extends { buildingId: string | null }>(
+  buildingName: (id: string | null) => string | null,
+): Column<T> {
+  return {
+    key: "building",
+    header: "Building",
+    secondary: true,
+    sortValue: (r) => buildingName(r.buildingId) ?? "",
+    render: (r) => <span className="text-muted-foreground">{buildingName(r.buildingId) ?? "—"}</span>,
+  }
+}
+
+/**
  * The manager's bylaw desk.
  *
  * A record list wants a table: sortable by who owes the most, filterable down
@@ -68,13 +86,23 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
   const [tab, setTab] = useState<Tab>("cases")
   const [search, setSearch] = useState("")
   const [stageFilter, setStageFilter] = useState<string>("all")
-  const active = useViolationsLive()
-  const resolved = useResolvedViolationsLive()
-  const incidents = useIncidents()
+  // The active building's cases, closed cases and reports. Scoped here, once,
+  // so every count, tile and table below is of the same rows.
+  const { scope, showBuilding, activeName, buildingName } = useBuildingScope()
+  const activeRaw = useViolationsLive()
+  const resolvedRaw = useResolvedViolationsLive()
+  const incidentsRaw = useIncidents()
+  // Memoised so `filtered` below recomputes on new rows, not on every render.
+  const activeRows = useMemo(() => scope(activeRaw.data), [scope, activeRaw.data])
+  const resolvedRows = useMemo(() => scope(resolvedRaw.data), [scope, resolvedRaw.data])
+  const incidentRows = useMemo(() => scope(incidentsRaw.data), [scope, incidentsRaw.data])
+  const active = { ...activeRaw, data: activeRows }
+  const resolved = { ...resolvedRaw, data: resolvedRows }
+  const incidents = { ...incidentsRaw, data: incidentRows }
   const [logOpen, setLogOpen] = useState(false)
   const [selected, setSelected] = useState<Violation | null>(null)
 
-  const rows = active.data
+  const rows = activeRows
   const source = active
 
   const filtered = useMemo(() => {
@@ -155,6 +183,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
       width: "w-28",
       render: (v) => <span className="text-muted-foreground">{v.date}</span>,
     },
+    ...(showBuilding ? [buildingColumn<Violation>(buildingName)] : []),
   ]
 
   const counts = {
@@ -165,6 +194,9 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
 
   return (
     <div className="flex min-w-0 flex-col gap-4 px-4 pb-8 pt-4">
+      {showBuilding && activeName && (
+        <p className="text-[13px] font-semibold text-muted-foreground">{activeName}</p>
+      )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Open cases" value={active.data.length} />
         <StatTile label="Fines owed" value={fromDollars(active.data.reduce((s, v) => s + v.outstanding, 0))}
@@ -236,9 +268,13 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
       )}
 
       {tab === "incidents" ? (
-        <IncidentsTable incidents={incidents} onEscalated={() => { incidents.refetch(); active.refetch() }} />
+        <IncidentsTable
+          incidents={incidents}
+          onEscalated={() => { incidents.refetch(); active.refetch() }}
+          buildingName={showBuilding ? buildingName : null}
+        />
       ) : tab === "resolved" ? (
-        <ClosedTable resolved={resolved} />
+        <ClosedTable resolved={resolved} buildingName={showBuilding ? buildingName : null} />
       ) : source.isLoading ? (
         <Spinner label="Loading cases" />
       ) : source.error ? (
@@ -267,6 +303,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
       )}
 
       <LogViolationModal
+        scope={scope}
         open={logOpen}
         onClose={() => setLogOpen(false)}
         onLogged={(id) => {
@@ -296,9 +333,12 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
 function IncidentsTable({
   incidents,
   onEscalated,
+  buildingName,
 }: {
   incidents: ReturnType<typeof useIncidents>
   onEscalated: () => void
+  /** Set only for a manager of more than one building. */
+  buildingName: ((id: string | null) => string | null) | null
 }) {
   const [busy, setBusy] = useState<string | null>(null)
   type Row = (typeof incidents.data)[number]
@@ -336,6 +376,7 @@ function IncidentsTable({
       sortValue: (i) => i.evidenceCount ?? 0,
       render: (i) => <span className="text-muted-foreground tabular-nums">{i.evidenceCount ?? 0}</span>,
     },
+    ...(buildingName ? [buildingColumn<Row>(buildingName)] : []),
     {
       key: "act",
       header: "",
@@ -411,13 +452,17 @@ function IncidentsTable({
  * may legitimately sit open while it is looked into.
  */
 function LogViolationModal({
-  open, onClose, onLogged,
+  scope, open, onClose, onLogged,
 }: {
+  /** The active building's scope: a case is logged against someone in the building being worked. */
+  scope: <T extends { buildingId: string | null }>(rows: T[]) => T[]
   open: boolean
   onClose: () => void
   onLogged: (id: string) => void
 }) {
-  const subjects = useViolationSubjects()
+  const subjectsRaw = useViolationSubjects()
+  const subjectRows = useMemo(() => scope(subjectsRaw.data), [scope, subjectsRaw.data])
+  const subjects = { ...subjectsRaw, data: subjectRows }
   const [step, setStep] = useState<1 | 2>(1)
   const [createdId, setCreatedId] = useState<string | null>(null)
   const [search, setSearch] = useState("")
@@ -1155,7 +1200,14 @@ function NoticeForm({
   )
 }
 
-function ClosedTable({ resolved }: { resolved: ReturnType<typeof useResolvedViolationsLive> }) {
+function ClosedTable({
+  resolved,
+  buildingName,
+}: {
+  resolved: ReturnType<typeof useResolvedViolationsLive>
+  /** Set only for a manager of more than one building. */
+  buildingName: ((id: string | null) => string | null) | null
+}) {
   type Row = (typeof resolved.data)[number]
   const columns: Column<Row>[] = [
     { key: "type", header: "Case", sortValue: (r) => r.type, render: (r) => <span className="font-semibold text-foreground">{r.type}</span> },
@@ -1178,6 +1230,7 @@ function ClosedTable({ resolved }: { resolved: ReturnType<typeof useResolvedViol
       },
     },
     { key: "resolved", header: "Closed", sortValue: (r) => r.resolved, secondary: true, render: (r) => <span className="text-muted-foreground">{r.resolved}</span> },
+    ...(buildingName ? [buildingColumn<Row>(buildingName)] : []),
   ]
   if (resolved.isLoading) return <Spinner label="Loading closed cases" />
   if (resolved.error) return <LoadError message={resolved.error} onRetry={resolved.refetch} />

@@ -15,6 +15,13 @@ interface IOSNavBarProps {
   inlineTitle?: boolean
   leftAction?: ReactNode
   rightAction?: ReactNode
+  /**
+   * A small line under the title, compact bar only — the active building's
+   * name on a manager screen. The title block is absolutely positioned, so
+   * this does not change the bar's height and the `sticky top-16` sub-headers
+   * beneath it stay where they are.
+   */
+  subtitle?: ReactNode
 }
 
 export function IOSNavBar({
@@ -23,6 +30,7 @@ export function IOSNavBar({
   inlineTitle = false,
   leftAction,
   rightAction,
+  subtitle,
 }: IOSNavBarProps) {
   return (
     /* The hairline is a warm tint of the brand rather than neutral grey —
@@ -64,9 +72,10 @@ export function IOSNavBar({
           {/* 20px bold, not the stock 17px semibold: this is the page's
               heading, not a label on a toolbar. It sits one step below the
               22px wordmark on Home, so the brand still outranks it. */}
-          <h1 className="pointer-events-none absolute inset-x-0 truncate px-24 text-center text-[20px] font-bold leading-tight tracking-tight text-foreground">
-            {title}
-          </h1>
+          <div className="pointer-events-none absolute inset-x-0 px-24 text-center">
+            <h1 className="truncate text-[20px] font-bold leading-tight tracking-tight text-foreground">{title}</h1>
+            {subtitle && <p className="truncate text-[12px] leading-4 text-muted-foreground">{subtitle}</p>}
+          </div>
           <div className="z-10 flex flex-shrink-0 items-center gap-1">{rightAction}</div>
         </div>
       ) : (

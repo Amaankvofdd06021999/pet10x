@@ -67,7 +67,16 @@ const INCIDENT_STATUS_STYLE: Record<IncidentStatus, string> = {
   resolved: "bg-success/10 text-success",
 }
 
-export function IncidentCard({ incident, onChange }: { incident: ManagerIncident; onChange: () => void }) {
+export function IncidentCard({
+  incident,
+  onChange,
+  showBuilding = false,
+}: {
+  incident: ManagerIncident
+  onChange: () => void
+  /** Names the report's building — for a manager of more than one, where "Unit 402" alone is ambiguous. */
+  showBuilding?: boolean
+}) {
   const [busy, setBusy] = useState(false)
   const open = isOpenIncident(incident.status)
 
@@ -108,6 +117,9 @@ export function IncidentCard({ incident, onChange }: { incident: ManagerIncident
               </span>
             )}
           </div>
+          {showBuilding && incident.buildingName && (
+            <p className="mt-1 text-[11px] font-semibold text-muted-foreground">{incident.buildingName}</p>
+          )}
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{incident.description}</p>
 
           {/* What the reporter photographed. Most reports carry nothing, so this

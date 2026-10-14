@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { scopeToResolvedBuilding } from "@/lib/data/building-scope"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useBuildingResidents, useBuildingPets, useUnreadNotificationCount, useViolations } from "@/lib/data"
 import { useComplianceInputs } from "@/lib/data/portfolio"
@@ -66,7 +67,7 @@ interface DashboardScreenProps {
 export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
   const { user, activeBuildingId } = useAuth()
   const { data: building, isLoading: bLoading } = useManagerBuilding(activeBuildingId)
-  const { data: residents, isLoading: rLoading } = useBuildingResidents()
+  const { data: allResidents, isLoading: rLoading } = useBuildingResidents()
   const { data: allPets, isLoading: pLoading } = useBuildingPets()
   const { data: allInputs } = useComplianceInputs()
   const { data: allViolations } = useViolations()
@@ -79,10 +80,11 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
   // While the building is still resolving, show nothing rather than a flash of
   // every building's rows. If it resolves to null the manager has no building,
   // so RLS-scoped rows are the honest fallback rather than a blank screen.
-  const inBuilding = <T extends { buildingId: string | null }>(rows: T[]) => {
-    if (building) return rows.filter((r) => r.buildingId === building.id)
-    return bLoading ? [] : rows
-  }
+  // `scopeToResolvedBuilding` is that rule, built on the same `scopeToBuilding`
+  // every other manager list uses, so there is one definition of "this building".
+  const inBuilding = <T extends { buildingId: string | null }>(rows: T[]) =>
+    scopeToResolvedBuilding(rows, building?.id ?? null, bLoading)
+  const residents = inBuilding(allResidents)
   const pets = inBuilding(allPets)
   const violations = inBuilding(allViolations)
   const inputs = inBuilding(allInputs)

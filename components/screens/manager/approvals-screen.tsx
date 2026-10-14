@@ -28,6 +28,7 @@ import { PetDocumentReviewControls } from "@/components/screens/manager/pet-docu
 import { SpeciesIcon, Spinner, LoadError, EmptyState } from "@/components/screens/shared/ui"
 import { approvalsState, defaultApprovalsTab, refreshFailed, type ApprovalsTabId } from "@/lib/data/approvals-view"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { useBuildingScope } from "@/lib/data/use-building-scope"
 import { toast } from "sonner"
 import {
   CheckCircle2,
@@ -45,6 +46,12 @@ import { Badge } from "@/components/ui/badge"
 import { Portal } from "@/components/ui/portal"
 
 type ApprovalTab = ApprovalsTabId
+
+/** A row's building, as a small line under its title; only for a manager of more than one. */
+function BuildingLine({ name }: { name: string | null }) {
+  if (!name) return null
+  return <p className="truncate text-[11px] font-semibold text-muted-foreground">{name}</p>
+}
 
 /**
  * One tab's body: a spinner while loading, an error with Try again when the
@@ -96,10 +103,18 @@ export function ManagerApprovalsScreen({
   const [pickedTab, setPickedTab] = useState<ApprovalTab | null>(null)
   const [expandedReg, setExpandedReg] = useState<string | null>(null)
   const [expandedAcc, setExpandedAcc] = useState<string | null>(null)
-  const regsQ = useRegistrationsLive()
-  const accQ = useAccommodationsLive()
-  const docsQ = useDocumentsReview()
-  const incQ = useIncidents()
+  // Every list is the active building's, scoped BEFORE anything is counted,
+  // so a tab's count and the list under it are always the same rows.
+  const { activeBuildingId, scope, showBuilding, activeName, buildingName } = useBuildingScope()
+  const labelFor = (id: string | null) => (showBuilding ? buildingName(id) : null)
+  const regsRaw = useRegistrationsLive()
+  const accRaw = useAccommodationsLive()
+  const docsRaw = useDocumentsReview()
+  const incRaw = useIncidents()
+  const regsQ = { ...regsRaw, data: scope(regsRaw.data) }
+  const accQ = { ...accRaw, data: scope(accRaw.data) }
+  const docsQ = { ...docsRaw, data: scope(docsRaw.data) }
+  const incQ = { ...incRaw, data: scope(incRaw.data) }
   const { data: registrations, refetch: refetchRegs } = regsQ
   const { data: accommodations, refetch: refetchAcc } = accQ
   const { data: documentsReview, refetch: refetchDocs } = docsQ
@@ -128,17 +143,22 @@ export function ManagerApprovalsScreen({
   // render would move the manager off the tab they are working in whenever a
   // refetch changes which list is first non-empty (approving the last
   // registration, say).
-  const [latchedTab, setLatchedTab] = useState<ApprovalTab | null>(null)
-  if (allLoaded && latchedTab === null) {
-    setLatchedTab(
-      defaultApprovalsTab({
+  //
+  // Latched per building: switching the active building is a different set of
+  // lists, so the choice is made again from that building's counts.
+  const [latched, setLatched] = useState<{ buildingId: string | null; tab: ApprovalTab } | null>(null)
+  if (allLoaded && (latched === null || latched.buildingId !== activeBuildingId)) {
+    setLatched({
+      buildingId: activeBuildingId,
+      tab: defaultApprovalsTab({
         registrations: registrations.length,
         documents: documentsReview.length,
         accommodations: accommodations.length,
         incidents: openIncidents.length,
       }),
-    )
+    })
   }
+  const latchedTab = latched?.buildingId === activeBuildingId ? latched.tab : null
   const activeTab: ApprovalTab = pickedTab ?? initialTab ?? latchedTab ?? "registrations"
   const setActiveTab = setPickedTab
   // Every count is derived. These were hardcoded 3 / 2 / 4 while the lists
@@ -163,6 +183,7 @@ export function ManagerApprovalsScreen({
     <div className="flex min-h-screen flex-col bg-background">
       <IOSNavBar
         title="Approvals"
+        subtitle={showBuilding ? activeName : null}
         largeTitle={false}
       />
 
@@ -212,7 +233,12 @@ export function ManagerApprovalsScreen({
             {(rows) => (
               <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
                 {rows.map((incident) => (
-                  <IncidentCard key={incident.id} incident={incident} onChange={refetchIncidents} />
+                  <IncidentCard
+                    key={incident.id}
+                    incident={incident}
+                    onChange={refetchIncidents}
+                    showBuilding={showBuilding}
+                  />
                 ))}
               </div>
             )}
@@ -246,6 +272,7 @@ export function ManagerApprovalsScreen({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-semibold text-foreground">{reg.name} — Unit {reg.unit}</p>
+                      <BuildingLine name={labelFor(reg.buildingId)} />
                       <p className="text-[11px] text-muted-foreground">{reg.breed} &middot; {reg.weight} &middot; {reg.age}</p>
                     </div>
                     {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -356,7 +383,7 @@ export function ManagerApprovalsScreen({
 
         {/* Accommodations Tab — every control reaches the database, and every
             state shown is derived from a row that exists. See AccommodationsTab. */}
-        {activeTab === "accommodations" && <AccommodationsTab q={accQ} refetch={refetchAcc} />}
+        {activeTab === "accommodations" && <AccommodationsTab q={accQ} refetch={refetchAcc} labelFor={labelFor} />}
 
         {/* Documents Tab */}
         {activeTab === "documents" && (
@@ -393,6 +420,7 @@ export function ManagerApprovalsScreen({
                   <div className="flex-1 min-w-0">
                     <p className="truncate text-[13px] font-semibold text-foreground">{doc.type}</p>
                     <p className="text-[11px] text-muted-foreground">{doc.pet} &middot; Unit {doc.unit}</p>
+                    <BuildingLine name={labelFor(doc.buildingId)} />
                   </div>
                   <div className="text-right flex-shrink-0">
                     <Badge className={`border-0 text-[9px] ${
@@ -444,9 +472,11 @@ export function ManagerApprovalsScreen({
 function AccommodationsTab({
   q,
   refetch,
+  labelFor,
 }: {
   q: { data: AccommodationRequestView[]; isLoading: boolean; error: string | null }
   refetch: () => void
+  labelFor: (buildingId: string | null) => string | null
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
 
@@ -470,6 +500,7 @@ function AccommodationsTab({
               isOpen={expanded === req.id}
               onToggle={() => setExpanded(expanded === req.id ? null : req.id)}
               refetch={refetch}
+              buildingName={labelFor(req.buildingId)}
             />
           ))}
         </div>
@@ -506,11 +537,13 @@ function AccommodationCard({
   isOpen,
   onToggle,
   refetch,
+  buildingName,
 }: {
   request: AccommodationRequestView
   isOpen: boolean
   onToggle: () => void
   refetch: () => void
+  buildingName: string | null
 }) {
   /* The documents are fetched only for the card that is open. A manager's queue
      can hold dozens of requests, and a doctor's letter is not something to
@@ -579,6 +612,7 @@ function AccommodationCard({
             {request.petName ?? (request.petId ? "Names a pet you can't open" : "No pet named")} &middot; Unit{" "}
             {request.unit}
           </p>
+          <BuildingLine name={buildingName} />
         </div>
         {isOpen ? (
           <ChevronUp className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
