@@ -6,6 +6,8 @@
  * without pulling in the Supabase client. ./live.ts re-exports both names.
  */
 
+import { canonicalVaccineKey } from "./vaccines"
+
 export interface BuildingRules {
   require_rabies?: boolean
   require_core_vaccines?: boolean
@@ -27,7 +29,7 @@ export function computeCompliance(
   const checks: { ok: boolean; label: string }[] = []
   const badVax = ["expired", "missing", "rejected"]
   if (rules.require_rabies)
-    checks.push({ ok: pet.vax.some((v) => /rabies/i.test(v.name) && !badVax.includes(v.status)), label: "Rabies" })
+    checks.push({ ok: pet.vax.some((v) => canonicalVaccineKey(v.name) === "rabies" && !badVax.includes(v.status)), label: "Rabies" })
   if (rules.require_core_vaccines)
     checks.push({ ok: pet.vax.some((v) => !badVax.includes(v.status)), label: "Core vaccines" })
   if (rules.require_license) checks.push({ ok: pet.docs.some((d) => d.kind === "municipal_license"), label: "License" })

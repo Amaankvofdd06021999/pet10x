@@ -47,6 +47,7 @@ import {
   type PetStatus,
 } from "@/lib/data"
 import { petFileSignedUrl } from "@/lib/supabase/storage"
+import { VACCINES, vaccineSpecies } from "@/lib/data/vaccines"
 
 type DetailTab = "overview" | "care" | "vaccinations" | "documents" | "contacts"
 
@@ -254,7 +255,7 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
           {activeTab === "care" && <CareTracker pet={pet} />}
           {activeTab === "vaccinations" && (
             <>
-              <VaccinationsTab petId={pet.id} />
+              <VaccinationsTab petId={pet.id} species={pet.species} />
               <VetRecords petId={pet.id} />
             </>
           )}
@@ -517,23 +518,26 @@ function EditForm({
 
 /* ----------------------------- Vaccinations ----------------------------- */
 
-function VaccinationsTab({ petId }: { petId: string }) {
+function VaccinationsTab({ petId, species }: { petId: string; species: string | null }) {
   const { data: vax, isLoading, refetch } = usePetVaccinations(petId)
   const [adding, setAdding] = useState(false)
-  const [f, setF] = useState({ name: "", givenOn: "", expiresOn: "" })
+  // `choice` is a list key, or OTHER to reveal the free-text name. The stored
+  // name is the list label, so existing rows and the matcher keep working.
+  const OTHER = "__other"
+  const options = VACCINES[vaccineSpecies(species)]
+  const [f, setF] = useState({ choice: "", custom: "", givenOn: "", expiresOn: "" })
   const [saving, setSaving] = useState(false)
+  const vaccineName = f.choice === OTHER ? f.custom.trim() : (options.find((o) => o.key === f.choice)?.label ?? "")
+  const valid = vaccineName !== "" && f.givenOn !== "" && f.expiresOn !== ""
 
   async function add() {
-    if (!f.name.trim()) {
-      toast.error("Vaccine name is required.")
-      return
-    }
+    if (!valid) return
     setSaving(true)
-    const { error } = await addPetVaccination({ petId, name: f.name.trim(), givenOn: f.givenOn || null, expiresOn: f.expiresOn || null })
+    const { error } = await addPetVaccination({ petId, name: vaccineName, givenOn: f.givenOn, expiresOn: f.expiresOn })
     setSaving(false)
     if (error) return toast.error("Couldn't save", { description: error })
     toast.success("Vaccination added")
-    setF({ name: "", givenOn: "", expiresOn: "" })
+    setF({ choice: "", custom: "", givenOn: "", expiresOn: "" })
     setAdding(false)
     refetch()
   }
@@ -550,12 +554,32 @@ function VaccinationsTab({ petId }: { petId: string }) {
       <SectionHeader title="Vaccinations" onAdd={() => setAdding((v) => !v)} adding={adding} />
       {adding && (
         <div className="flex flex-col gap-2.5 rounded-2xl card-raised p-3.5">
-          <TextField label="Vaccine" value={f.name} onChange={(v) => setF((p) => ({ ...p, name: v }))} placeholder="Rabies, DHPP…" />
-          <div className="grid grid-cols-2 gap-3">
-            <DateField label="Given" value={f.givenOn} onChange={(v) => setF((p) => ({ ...p, givenOn: v }))} />
-            <DateField label="Expires" value={f.expiresOn} onChange={(v) => setF((p) => ({ ...p, expiresOn: v }))} />
+          <div>
+            <Label required>Vaccine</Label>
+            <div className="flex flex-wrap gap-2">
+              {[...options, { key: OTHER, label: "Other…" }].map((o) => (
+                <button
+                  key={o.key}
+                  type="button"
+                  onClick={() => setF((p) => ({ ...p, choice: o.key }))}
+                  aria-pressed={f.choice === o.key}
+                  className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                    f.choice === o.key ? "border-primary bg-primary/5 text-primary" : "border-border bg-card text-foreground"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <SaveRow saving={saving} onSave={add} onCancel={() => setAdding(false)} />
+          {f.choice === OTHER && (
+            <TextField label="Vaccine name" required value={f.custom} onChange={(v) => setF((p) => ({ ...p, custom: v }))} placeholder="Heartworm, Giardia…" />
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <DateField label="Given on" required value={f.givenOn} onChange={(v) => setF((p) => ({ ...p, givenOn: v }))} />
+            <DateField label="Expires" required value={f.expiresOn} onChange={(v) => setF((p) => ({ ...p, expiresOn: v }))} />
+          </div>
+          <SaveRow saving={saving} disabled={!valid} onSave={add} onCancel={() => setAdding(false)} />
         </div>
       )}
       {isLoading ? (
@@ -598,13 +622,18 @@ function DocumentsTab({ petId }: { petId: string }) {
   const [saving, setSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Type always has a value (it defaults), but it is still marked required;
+  // the file is what makes a document worth keeping.
+  const valid = f.file !== null
+
   async function add() {
+    if (!f.file) return
     setSaving(true)
     const { error } = await addPetDocument({
       petId,
       kind: f.kind,
       name: f.name.trim() || DOC_KINDS.find((d) => d.value === f.kind)?.label,
-      file: f.file ?? undefined,
+      file: f.file,
       expiresOn: f.expiresOn || null,
     })
     setSaving(false)
@@ -635,7 +664,7 @@ function DocumentsTab({ petId }: { petId: string }) {
       {adding && (
         <div className="flex flex-col gap-2.5 rounded-2xl card-raised p-3.5">
           <div>
-            <Label>Type</Label>
+            <Label required>Type</Label>
             <div className="flex flex-wrap gap-2">
               {DOC_KINDS.map((d) => (
                 <button
@@ -653,8 +682,9 @@ function DocumentsTab({ petId }: { petId: string }) {
           <TextField label="Name" value={f.name} onChange={(v) => setF((p) => ({ ...p, name: v }))} placeholder="Optional label" />
           <DateField label="Expires (optional)" value={f.expiresOn} onChange={(v) => setF((p) => ({ ...p, expiresOn: v }))} />
           <div>
-            <Label>File</Label>
+            <Label required>File</Label>
             <button
+              type="button"
               onClick={() => fileRef.current?.click()}
               className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border bg-background px-3.5 py-2.5 text-[13px] text-muted-foreground"
             >
@@ -669,7 +699,7 @@ function DocumentsTab({ petId }: { petId: string }) {
               className="hidden"
             />
           </div>
-          <SaveRow saving={saving} onSave={add} onCancel={() => setAdding(false)} />
+          <SaveRow saving={saving} disabled={!valid} onSave={add} onCancel={() => setAdding(false)} />
         </div>
       )}
       {isLoading ? (
@@ -711,12 +741,10 @@ function ContactsTab({ petId }: { petId: string }) {
   const [adding, setAdding] = useState(false)
   const [f, setF] = useState({ role: "", name: "", phone: "" })
   const [saving, setSaving] = useState(false)
+  const valid = f.name.trim() !== "" && f.phone.trim() !== ""
 
   async function add() {
-    if (!f.name.trim() || !f.phone.trim()) {
-      toast.error("Name and phone are required.")
-      return
-    }
+    if (!valid) return
     setSaving(true)
     const { error } = await addPetContact({ petId, role: f.role.trim() || "Contact", name: f.name.trim(), phone: f.phone.trim() })
     setSaving(false)
@@ -740,9 +768,9 @@ function ContactsTab({ petId }: { petId: string }) {
       {adding && (
         <div className="flex flex-col gap-2.5 rounded-2xl card-raised p-3.5">
           <TextField label="Role" value={f.role} onChange={(v) => setF((p) => ({ ...p, role: v }))} placeholder="Vet, sitter, owner…" />
-          <TextField label="Name" value={f.name} onChange={(v) => setF((p) => ({ ...p, name: v }))} />
-          <TextField label="Phone" value={f.phone} onChange={(v) => setF((p) => ({ ...p, phone: v }))} type="tel" />
-          <SaveRow saving={saving} onSave={add} onCancel={() => setAdding(false)} />
+          <TextField label="Name" required value={f.name} onChange={(v) => setF((p) => ({ ...p, name: v }))} />
+          <TextField label="Phone" required value={f.phone} onChange={(v) => setF((p) => ({ ...p, phone: v }))} type="tel" />
+          <SaveRow saving={saving} disabled={!valid} onSave={add} onCancel={() => setAdding(false)} />
         </div>
       )}
       {isLoading ? (
@@ -791,8 +819,14 @@ function Shell({ children, onBack, action }: { children: React.ReactNode; onBack
   )
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>
+function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <p className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+      {children}
+      {/* A word, not only an asterisk: the asterisk alone is easy to miss and says nothing to a screen reader. */}
+      {required && <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-destructive">Required</span>}
+    </p>
+  )
 }
 
 function TextField({
@@ -801,8 +835,10 @@ function TextField({
   onChange,
   placeholder,
   type = "text",
+  required,
 }: {
   label: string
+  required?: boolean
   value: string
   onChange: (v: string) => void
   placeholder?: string
@@ -810,9 +846,10 @@ function TextField({
 }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <Label required={required}>{label}</Label>
       <input
         type={type}
+        required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -822,12 +859,13 @@ function TextField({
   )
 }
 
-function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function DateField({ label, value, onChange, required }: { label: string; value: string; onChange: (v: string) => void; required?: boolean }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <Label required={required}>{label}</Label>
       <input
         type="date"
+        required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -847,7 +885,7 @@ function SectionHeader({ title, onAdd, adding }: { title: string; onAdd: () => v
   )
 }
 
-function SaveRow({ saving, onSave, onCancel }: { saving: boolean; onSave: () => void; onCancel: () => void }) {
+function SaveRow({ saving, disabled, onSave, onCancel }: { saving: boolean; disabled?: boolean; onSave: () => void; onCancel: () => void }) {
   return (
     <div className="flex gap-2">
       <button onClick={onCancel} className="flex-1 rounded-xl card-interactive py-2.5 text-[14px] font-semibold text-foreground">
@@ -855,7 +893,7 @@ function SaveRow({ saving, onSave, onCancel }: { saving: boolean; onSave: () => 
       </button>
       <button
         onClick={onSave}
-        disabled={saving}
+        disabled={saving || disabled}
         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save

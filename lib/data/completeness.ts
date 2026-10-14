@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { hasRabies } from "./vaccines"
 
 /** The five flags a building may enforce, from `buildings.pet_rules`. */
 export interface BuildingPetRules {
@@ -107,10 +108,9 @@ export function computeGaps(input: CompletenessInput): Gap[] {
   const r = input.rules
   for (const pet of input.pets) {
     const has = (kind: string) => pet.documentKinds.includes(kind)
-    const vaxOk = (match: RegExp) =>
-      pet.vaccinations.some((v) => match.test(v.name) && !BAD_VAX.includes(v.status))
+    const rabiesOk = hasRabies(pet.vaccinations.filter((v) => !BAD_VAX.includes(v.status)).map((v) => v.name))
 
-    if (r.require_rabies && !vaxOk(/rabies/i)) {
+    if (r.require_rabies && !rabiesOk) {
       gaps.push({ id: "rabies", label: "Rabies vaccination", petId: pet.id, petName: pet.name, target: "pet-detail", severity: "required" })
     }
     if (r.require_core_vaccines && pet.vaccinations.filter((v) => !BAD_VAX.includes(v.status)).length === 0) {
