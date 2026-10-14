@@ -5,7 +5,7 @@ import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
   useBuildingResidents,
   useBuildingPets,
-  computeGaps,
+  computeComplianceGaps,
   approveResidentLink,
   denyResidentLink,
   removeResident,
@@ -34,7 +34,7 @@ export function ManagerResidentsScreen() {
    */
   const gapsFor = (r: ResidentLinkRow) => {
     const theirPets = complianceInputs.filter((p) => p.ownerId === r.profileId)
-    return computeGaps({
+    return computeComplianceGaps({
       phone: r.residentPhone,
       unitId: r.unit,
       hasBuilding: true,

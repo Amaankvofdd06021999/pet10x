@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { hasRabies } from "./vaccines"
+import type { ScreenKey } from "@/lib/navigation"
 
 /** The five flags a building may enforce, from `buildings.pet_rules`. */
 export interface BuildingPetRules {
@@ -37,7 +38,7 @@ export type GapId =
   | "spay_neuter"
   | "emergency_contact"
 
-export interface Gap {
+export interface ComplianceGap {
   id: GapId
   /** Shown to both the resident and the manager. */
   label: string
@@ -71,13 +72,14 @@ export interface CompletenessInput {
 const BAD_VAX = ["expired", "missing", "rejected"]
 
 /**
- * The single source of truth for "what is outstanding".
+ * What a building's manager sees outstanding for a resident.
  *
- * Pure and synchronous so it can be unit-tested and so the manager's list can
- * be computed from rows it already has, without a second round trip.
+ * Pure and synchronous so the manager's list can be computed from rows it
+ * already has, without a second round trip. The resident's own banner reads
+ * computeGaps below, which words the same facts for the person who has to act.
  */
-export function computeGaps(input: CompletenessInput): Gap[] {
-  const gaps: Gap[] = []
+export function computeComplianceGaps(input: CompletenessInput): ComplianceGap[] {
+  const gaps: ComplianceGap[] = []
 
   // Phone is deliberately NOT asked for. Managers reach residents by email —
   // profiles.email is populated from the auth account for everyone, so the
@@ -136,7 +138,112 @@ export function computeGaps(input: CompletenessInput): Gap[] {
   return gaps
 }
 
+/** One thing the resident can fix, and the exact place to fix it. */
+export interface Gap {
+  key: string
+  label: string
+  target: { screen: ScreenKey; id?: string; tab?: "overview" | "vaccinations" | "documents" | "contacts" }
+}
+
+/** Document kinds a building can require, as the resident reads them mid-sentence. */
+const DOC_REQUIREMENTS: { requirement: string; kind: string; noun: string }[] = [
+  { requirement: "municipal_license", kind: "municipal_license", noun: "license" },
+  { requirement: "liability_insurance", kind: "liability_insurance", noun: "liability insurance" },
+]
+
+export interface SetupInput {
+  /** The viewer has an approved resident link. A pending request is not a building yet. */
+  linked: boolean
+  hasUnit: boolean
+  hasAddress: boolean
+  pets: {
+    id: string
+    name: string
+    documentKinds: string[]
+    /** Names of vaccinations that count (not expired, missing or rejected). */
+    vaccinationNames: string[]
+    contacts: number
+    /** Only read when `requirements` includes "spay_neuter". */
+    neutered?: boolean | null
+  }[]
+  /** Building rules in force: rabies, core_vaccines, municipal_license, liability_insurance, spay_neuter. */
+  requirements: string[]
+}
+
+/**
+ * What Home's banner asks the signed-in owner for, worded for their situation.
+ *
+ * Ordered by importance — unit, pet contacts, vaccinations, documents,
+ * address — so a caller wanting "one next step" can take the first.
+ */
+export function computeGaps(input: SetupInput): { heading: string; gaps: Gap[] } {
+  const gaps: Gap[] = []
+  const wants = (r: string) => input.requirements.includes(r)
+
+  if (input.linked && !input.hasUnit) {
+    // The profile, not link-building: that screen only offers to cancel the request.
+    gaps.push({ key: "unit", label: "Add your unit number", target: { screen: "profile" } })
+  }
+
+  if (input.pets.length === 0) {
+    // Nothing pet-specific can be missing when there is no pet.
+    gaps.push({ key: "pet", label: "Add your pet", target: { screen: "add-pet" } })
+  }
+
+  const petGaps = (pick: (pet: SetupInput["pets"][number]) => Gap[]) => input.pets.flatMap(pick)
+  const at = (id: string, tab: NonNullable<Gap["target"]["tab"]>) => ({ screen: "pet-detail" as const, id, tab })
+
+  // Required regardless of building: the public emergency page a stranger
+  // scans is blank without a contact.
+  gaps.push(
+    ...petGaps((p) =>
+      p.contacts > 0 ? [] : [{ key: `contact:${p.id}`, label: `Add ${p.name}'s emergency contact`, target: at(p.id, "contacts") }],
+    ),
+  )
+
+  gaps.push(
+    ...petGaps((p) => {
+      const out: Gap[] = []
+      if (wants("rabies") && !hasRabies(p.vaccinationNames)) {
+        out.push({ key: `rabies:${p.id}`, label: `Add ${p.name}'s rabies vaccination`, target: at(p.id, "vaccinations") })
+      }
+      if (wants("core_vaccines") && p.vaccinationNames.length === 0) {
+        out.push({ key: `core_vaccines:${p.id}`, label: `Add ${p.name}'s vaccinations`, target: at(p.id, "vaccinations") })
+      }
+      return out
+    }),
+  )
+
+  gaps.push(
+    ...petGaps((p) => {
+      const out: Gap[] = []
+      for (const d of DOC_REQUIREMENTS) {
+        if (wants(d.requirement) && !p.documentKinds.includes(d.kind)) {
+          out.push({ key: `${d.requirement}:${p.id}`, label: `Upload ${p.name}'s ${d.noun}`, target: at(p.id, "documents") })
+        }
+      }
+      // Set on the pet's own page, not as an upload.
+      if (wants("spay_neuter") && !p.neutered) {
+        out.push({ key: `spay_neuter:${p.id}`, label: `Confirm ${p.name} is spayed or neutered`, target: at(p.id, "overview") })
+      }
+      return out
+    }),
+  )
+
+  // Linked residents' address is the building's address plus their unit; an
+  // unlinked owner has no building to ask it for.
+  if (input.linked && !input.hasAddress) {
+    gaps.push({ key: "address", label: "Add your home address", target: { screen: "profile" } })
+  }
+
+  return {
+    heading: input.linked ? "Your building needs a few things" : "Finish your pet's profile",
+    gaps,
+  }
+}
+
 export interface CompletenessResult {
+  heading: string
   gaps: Gap[]
   isLoading: boolean
   refetch: () => void
@@ -144,7 +251,7 @@ export interface CompletenessResult {
 
 /** The signed-in resident's own outstanding items. */
 export function useMyCompleteness(): CompletenessResult {
-  const [gaps, setGaps] = useState<Gap[]>([])
+  const [result, setResult] = useState<{ heading: string; gaps: Gap[] }>({ heading: "", gaps: [] })
   const [isLoading, setLoading] = useState(true)
 
   const refetch = useCallback(async () => {
@@ -157,7 +264,7 @@ export function useMyCompleteness(): CompletenessResult {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) {
-      setGaps([])
+      setResult({ heading: "", gaps: [] })
       setLoading(false)
       return
     }
@@ -199,20 +306,32 @@ export function useMyCompleteness(): CompletenessResult {
       pet_emergency_contacts: { id: string }[] | null
     }
 
-    setGaps(
+    // Rule flags the building enforces, as the names computeGaps reads.
+    const requirements = (
+      [
+        ["require_rabies", "rabies"],
+        ["require_core_vaccines", "core_vaccines"],
+        ["require_license", "municipal_license"],
+        ["require_insurance", "liability_insurance"],
+        ["require_spay_neuter", "spay_neuter"],
+      ] as const
+    )
+      .filter(([flag]) => rules[flag])
+      .map(([, name]) => name)
+
+    setResult(
       computeGaps({
-        phone: profile?.phone ?? null,
-        unitId: link?.unit_id ?? null,
-        hasBuilding: Boolean(link?.building_id),
+        linked: link?.status === "approved",
+        hasUnit: Boolean(link?.unit_id),
         hasAddress: Boolean(profile?.street_address?.trim() || profile?.postal_code?.trim()),
-        rules,
+        requirements,
         pets: ((pets ?? []) as PetRow[]).map((p) => ({
           id: p.id,
           name: p.name,
           neutered: p.neutered,
-          vaccinations: p.pet_vaccinations ?? [],
+          vaccinationNames: (p.pet_vaccinations ?? []).filter((v) => !BAD_VAX.includes(v.status)).map((v) => v.name),
           documentKinds: (p.pet_documents ?? []).map((d) => d.kind),
-          hasEmergencyContact: (p.pet_emergency_contacts ?? []).length > 0,
+          contacts: (p.pet_emergency_contacts ?? []).length,
         })),
       }),
     )
@@ -223,11 +342,11 @@ export function useMyCompleteness(): CompletenessResult {
     void refetch()
   }, [refetch])
 
-  return { gaps, isLoading, refetch }
+  return { heading: result.heading, gaps: result.gaps, isLoading, refetch }
 }
 
 /** "Phone number, Unit number and 2 more" — for a one-line summary. */
-export function summariseGaps(gaps: Gap[]): string {
+export function summariseGaps(gaps: ComplianceGap[]): string {
   if (gaps.length === 0) return "All set"
   const labels = gaps.map((g) => (g.petName ? `${g.label} (${g.petName})` : g.label))
   if (labels.length <= 2) return labels.join(" and ")
