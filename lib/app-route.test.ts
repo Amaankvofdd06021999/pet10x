@@ -9,8 +9,11 @@ describe("app routes", () => {
     expect(s).toBe(`?screen=pet-detail&id=${PET}&tab=documents`)
     expect(searchToRoute(s, "resident")).toEqual({ screen: "pet-detail", id: PET, tab: "documents" })
   })
-  it("a tab root is the bare path", () => {
+  it("only the default tab is the bare path; another tab root names itself", () => {
     expect(routeToSearch({ screen: "home" })).toBe("")
+    expect(routeToSearch({ screen: "dashboard" })).toBe("")
+    expect(routeToSearch({ screen: "profile" })).toBe("?screen=profile")
+    expect(searchToRoute("?screen=profile", "resident")).toEqual({ screen: "profile" })
   })
   it("only a tab root is bare; any other screen keeps ?screen=", () => {
     expect(routeToSearch({ screen: "add-pet" })).toBe("?screen=add-pet")

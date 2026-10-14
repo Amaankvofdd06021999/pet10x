@@ -9,6 +9,7 @@ import { isDirty } from "@/lib/unsaved"
 import { useUnsavedGuard } from "@/components/use-unsaved-guard"
 import { WeightInput, useWeightField } from "@/components/screens/pet/weight-input"
 import { RequiredTag } from "@/components/screens/pet/required-tag"
+import { SpeciesTiles } from "@/components/screens/pet/species-tiles"
 import { Switch } from "@/components/ui/switch"
 import {
   SIZE_BANDS,
@@ -21,21 +22,11 @@ import {
 import {
   ArrowLeft,
   ImagePlus,
-  Dog,
-  Cat,
-  PawPrint,
   CheckCircle2,
   Loader2,
   Utensils,
   ChevronDown,
 } from "lucide-react"
-
-/** Three tiles for the common case; "Other" opens the full pet_species list. */
-const SPECIES: { id: Species; label: string; icon: typeof Dog }[] = [
-  { id: "dog", label: "Dog", icon: Dog },
-  { id: "cat", label: "Cat", icon: Cat },
-  { id: "other", label: "Other", icon: PawPrint },
-]
 
 interface AddPetScreenProps {
   onBack: () => void
@@ -246,31 +237,15 @@ function AddPetForm({
 
         {/* Species */}
         <Label>Species <RequiredTag /></Label>
-        <div role="group" aria-label="Species" className="mb-5 grid grid-cols-3 gap-2.5">
-          {SPECIES.map((s) => {
-            const Icon = s.icon
-            const active = species === s.id
-            return (
-              <button
-                key={s.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => {
-                  setSpecies(s.id)
-                  // A Labrador is not an option for a cat.
-                  setBreed("")
-                  setCustomBreed("")
-                }}
-                className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all active:scale-[0.97] ${
-                  active ? "border-primary bg-primary/5" : "border-border bg-card"
-                }`}
-              >
-                <Icon className={`h-6 w-6 ${active ? "text-primary" : "text-muted-foreground"}`} />
-                <span className={`text-[13px] font-semibold ${active ? "text-primary" : "text-foreground"}`}>{s.label}</span>
-              </button>
-            )
-          })}
-        </div>
+        <SpeciesTiles
+          value={species}
+          onChange={(s) => {
+            setSpecies(s)
+            // A Labrador is not an option for a cat.
+            setBreed("")
+            setCustomBreed("")
+          }}
+        />
 
         <Field label="Name" required htmlFor={id("name")}>
           <Input id={id("name")} value={name} onChange={setName} placeholder="e.g. Max" />

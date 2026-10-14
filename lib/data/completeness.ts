@@ -236,10 +236,33 @@ export function computeGaps(input: SetupInput): { heading: string; gaps: Gap[] }
     gaps.push({ key: "address", label: "Add your home address", target: { screen: "profile" } })
   }
 
+  /* The heading names who is asking. A gap raised by a building rule is the
+   * building's ask — even while the link is still pending, since the rules
+   * already apply to the pets being registered there. Unit, contacts and
+   * address alone are the owner's own setup. */
+  const buildingAsks = gaps.some((g) => BUILDING_GAP_KINDS.has(g.key.split(":")[0]))
   return {
-    heading: input.linked ? "Your building needs a few things" : "Finish your pet's profile",
+    heading: buildingAsks ? "Your building needs a few things" : "Finish your pet's profile",
     gaps,
   }
+}
+
+/** Gap kinds that exist only because a building rule requires them. */
+const BUILDING_GAP_KINDS: ReadonlySet<string> = new Set([
+  "rabies",
+  "core_vaccines",
+  ...DOC_REQUIREMENTS.map((d) => d.requirement),
+  "spay_neuter",
+])
+
+/**
+ * The one next step onboarding offers once the owner's pet exists.
+ *
+ * The first gap, in computeGaps' order of importance — skipping "pet", which
+ * a read that raced the insert could still report for the pet just added.
+ */
+export function nextStepAfterPet(gaps: Gap[]): Gap | null {
+  return gaps.find((g) => g.key !== "pet") ?? null
 }
 
 export interface CompletenessResult {

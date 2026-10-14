@@ -37,7 +37,7 @@ export const TAB_RE = /^[a-z][a-z-]{0,31}$/
 /** The `pet-care` id is a care kind ("food"), not a uuid. */
 export const CARE_KIND_RE = /^[a-z_]{1,24}$/
 
-/** Screens that are a tab's landing page: with no other params they are the bare `/app`. */
+/** Screens that are a tab's landing page. */
 export const TAB_ROOTS: ReadonlySet<ScreenKey> = new Set<ScreenKey>([
   "home",
   "community",
@@ -67,8 +67,17 @@ function idMatches(screen: ScreenKey, id: string): boolean {
   return (screen === "pet-care" ? CARE_KIND_RE : ID_RE).test(id)
 }
 
+/**
+ * The screens a bare `/app` opens on — each surface's `defaultTab`.
+ *
+ * Only these may serialise to the empty query string. Every other tab root
+ * used to as well, which made the URL for Profile indistinguishable from Home:
+ * a link to Profile (onboarding's "Do it now" for a missing unit) opened Home.
+ */
+const BARE_SCREENS: ReadonlySet<ScreenKey> = new Set<ScreenKey>(["home", "dashboard"])
+
 export function routeToSearch(r: AppRoute): string {
-  if (TAB_ROOTS.has(r.screen) && !r.id && !r.petId && !r.tab) return ""
+  if (BARE_SCREENS.has(r.screen) && !r.id && !r.petId && !r.tab) return ""
   const p = new URLSearchParams({ screen: r.screen })
   if (r.id) p.set("id", r.id)
   if (r.petId) p.set("pet", r.petId)

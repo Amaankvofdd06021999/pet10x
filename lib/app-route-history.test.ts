@@ -94,8 +94,11 @@ describe("initialRoute", () => {
       depth: 2,
     })
   })
-  it("refresh on a tab root restores which root (they are all bare /app)", () => {
-    expect(initialRoute("", entry({ screen: "profile" }, "profile", 1), "resident")?.route).toEqual({ screen: "profile" })
+  it("refresh on a tab root restores which root: only the default tab is bare /app", () => {
+    expect(initialRoute("?screen=profile", entry({ screen: "profile" }, "profile", 1), "resident")?.route).toEqual({ screen: "profile" })
+    // A link with no history entry names Profile too, rather than opening Home.
+    expect(initialRoute("?screen=profile", null, "resident")).toEqual({ route: { screen: "profile" }, activeTab: "profile", depth: 0 })
+    expect(initialRoute("", entry({ screen: "home" }, "home", 1), "resident")?.route).toEqual({ screen: "home" })
   })
   it("a stale entry that disagrees with the URL loses to the URL", () => {
     const st = entry({ screen: "profile" }, "profile", 1)
