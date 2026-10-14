@@ -149,6 +149,10 @@ function AppContent() {
    * screen opened next — the exact hazard `lib/navigation.ts`'s ID_BEARING
    * note records against `add-pet`. */
   const [selectedCaseId, setSelectedCaseId] = useState<string | undefined>(undefined)
+  /* Which practice My vets opens its booking picker on, when a vet's page in
+   * Services sends "Book an appointment" (`my-vets` + a business id). Its own
+   * state for the same reason as `selectedCaseId`. */
+  const [selectedPracticeId, setSelectedPracticeId] = useState<string | undefined>(undefined)
   /* Which tab a tabbed screen opens on — `pet-detail` arriving from Documents
      & Records lands on Documents. Set on EVERY navigation, so a tab asked for
      once never sticks to the next visit. */
@@ -221,6 +225,9 @@ function AppContent() {
     }
     // A violation id, not a pet id.
     else if (screen === "my-cases") setSelectedCaseId(id)
+    // A practice (business) id, not a pet id. Cleared when absent, so the
+    // picker never reopens on a practice from an earlier visit.
+    else if (screen === "my-vets") setSelectedPracticeId(id)
     else if (id !== undefined) setSelectedPetId(id)
     // Entering the assistant from the tab bar or the sidebar carries no pet, and a
     // pet left over from an earlier screen would silently scope the answer.
@@ -496,7 +503,7 @@ function AppContent() {
           ) : currentScreen === "link-building" ? (
             <LinkBuildingScreen onBack={handleBack} />
           ) : currentScreen === "business-detail" ? (
-            <BusinessDetailScreen businessId={selectedBusinessId} onBack={handleBack} />
+            <BusinessDetailScreen businessId={selectedBusinessId} onBack={handleBack} onNavigate={handleNavigate} />
           ) : currentScreen === "report" ? (
             <ReportScreen onBack={handleBack} />
           ) : currentScreen === "shop" ? (
@@ -512,7 +519,7 @@ function AppContent() {
             /* Above the persona split: a manager who also owns a pet reaches
                the same screen, and every writer of this target addresses the
                pet's owner. */
-            <MyVetsScreen onBack={handleBack} initialTab={screenTab} />
+            <MyVetsScreen onBack={handleBack} initialTab={screenTab} practiceId={selectedPracticeId} />
           ) : currentScreen === "building-rules" ? (
             /* Above the persona split, beside `report` and `shop`: a manager
                opens the same screen their residents do, and sees the same

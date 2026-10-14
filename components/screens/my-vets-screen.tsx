@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, type ReactNode } from "react"
+import { toast } from "sonner"
 import {
   ArrowLeft, ShieldCheck, ShieldOff, KeyRound, Stethoscope, Check, X,
   CalendarPlus, Copy, Receipt, ChevronDown,
@@ -10,8 +11,13 @@ import {
   useMyVetShares, useVetDirectory, usePendingLinkRequests, usePendingShareRequests,
   useClinicRecords, useMyVetAppointments, useMyInvoices, grantShare, revokeShare, createDeskCode,
   decideLinkRequest, decideShareRequest, bookVetAppointment, approveEstimate,
+  ownerCancelAppointment, ownerDeclineEstimate,
   SCOPE_LABELS, DEFAULT_SCOPES,
+  type VetShare, type OwnerAppointment,
 } from "@/lib/data/owner-vets"
+import { appointmentLabel, appointmentTone, canOwnerCancel } from "@/lib/data/appointment-labels"
+import type { Slot } from "@/lib/data/clinic/schedule"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   groupBills, billLabel, billStatusLabel, billStatusTone, isUnpaid, lineTotalCents,
   type OwnerBill,
@@ -32,10 +38,22 @@ type View = MyVetsTab
  *
  * `initialTab` is how a `my-vets:bills` notification lands on Bills
  * (`lib/navigation.ts`); anything else opens on Sharing.
+ *
+ * `practiceId` is a vet's page in Services asking to book there ("Book an
+ * appointment"): the screen opens on Appointments with the booking picker
+ * already on that practice.
  */
-export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; initialTab?: string }) {
+export function MyVetsScreen({
+  onBack,
+  initialTab,
+  practiceId,
+}: {
+  onBack?: () => void
+  initialTab?: string
+  practiceId?: string
+}) {
   const [view, setView] = useState<View>(
-    MY_VETS_TABS.includes(initialTab as View) ? (initialTab as View) : "sharing",
+    MY_VETS_TABS.includes(initialTab as View) ? (initialTab as View) : practiceId ? "visits" : "sharing",
   )
   const pets = usePets()
   const shares = useMyVetShares()
@@ -47,10 +65,35 @@ export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; init
   const [shareOpen, setShareOpen] = useState(false)
   const [codeFor, setCodeFor] = useState<string | null>(null)
   const [code, setCode] = useState<string | null>(null)
-  const [bookOpen, setBookOpen] = useState(false)
-  const [busy, setBusy] = useState<string | null>(null)
+  const [bookOpen, setBookOpen] = useState(() => Boolean(practiceId))
+  /* A failed decision or code, in words on the page — never a browser alert. */
+  const [notice, setNotice] = useState<string | null>(null)
+  const [stopping, setStopping] = useState<VetShare | null>(null)
+  const [cancelling, setCancelling] = useState<OwnerAppointment | null>(null)
+  /* The clock the Cancel button is judged against, read once per visit to the
+     screen. owner_cancel_appointment is the authority: a visit that crosses
+     the 2-hour line while the screen is open gets its "call the practice"
+     sentence in the dialog. */
+  const [now] = useState(() => new Date())
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   const pending = links.data.length + shareReqs.data.length
+
+  async function stopSharing(s: VetShare): Promise<{ error: string | null }> {
+    const res = await revokeShare(s.shareId)
+    if (res.error) return { error: res.error }
+    toast.success(`${s.businessName} can no longer see anything new about ${s.petName}`)
+    shares.refetch()
+    return { error: null }
+  }
+
+  async function cancelVisit(a: OwnerAppointment, reason: string | null): Promise<{ error: string | null }> {
+    const res = await ownerCancelAppointment(a.id, reason)
+    if (res.error) return { error: res.error }
+    toast.success("Visit cancelled. The practice has been told.")
+    appts.refetch()
+    return { error: null }
+  }
 
   return (
     <div className="flex min-w-0 flex-col gap-4 px-4 pb-8 pt-4">
@@ -73,6 +116,20 @@ export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; init
         </div>
       </header>
 
+      {notice && (
+        <div role="alert" className="flex items-start justify-between gap-3 rounded-xl bg-destructive/10 px-3 py-2 text-[12.5px] text-destructive">
+          <span>{notice}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            aria-label="Dismiss"
+            className="flex-shrink-0 text-destructive/80 hover:text-destructive"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
       {pending > 0 && (
         <SectionCard title="Waiting on you" subtitle="A practice has asked for something">
           <ul className="flex flex-col gap-2">
@@ -90,8 +147,9 @@ export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; init
                       pets={pets.data.map((p) => ({ id: p.id, name: p.name }))}
                       label="That's my pet"
                       onPick={async (petId) => {
+                        setNotice(null)
                         const res = await decideLinkRequest(r.id, true, petId)
-                        if (res.error) window.alert(res.error)
+                        if (res.error) setNotice(res.error)
                         else {
                           links.refetch()
                           shares.refetch()
@@ -103,7 +161,7 @@ export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; init
                       variant="ghost"
                       onClick={async () => {
                         const res = await decideLinkRequest(r.id, false)
-                        if (res.error) window.alert(res.error)
+                        if (res.error) setNotice(res.error)
                         else links.refetch()
                       }}
                     >
@@ -132,7 +190,7 @@ export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; init
                     size="sm"
                     onClick={async () => {
                       const res = await decideShareRequest(r.id, true)
-                      if (res.error) window.alert(res.error)
+                      if (res.error) setNotice(res.error)
                       else {
                         shareReqs.refetch()
                         shares.refetch()
@@ -146,7 +204,7 @@ export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; init
                     variant="ghost"
                     onClick={async () => {
                       const res = await decideShareRequest(r.id, false)
-                      if (res.error) window.alert(res.error)
+                      if (res.error) setNotice(res.error)
                       else shareReqs.refetch()
                     }}
                   >
@@ -219,23 +277,7 @@ export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; init
                         ))}
                       </ul>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      busy={busy === s.shareId}
-                      onClick={async () => {
-                        const ok = window.confirm(
-                          `Stop ${s.businessName} seeing anything new about ${s.petName}?\n\n` +
-                            "This does not remove the appointment history and notes they keep in their own system.",
-                        )
-                        if (!ok) return
-                        setBusy(s.shareId)
-                        const res = await revokeShare(s.shareId)
-                        setBusy(null)
-                        if (res.error) window.alert(res.error)
-                        else shares.refetch()
-                      }}
-                    >
+                    <Button size="sm" variant="secondary" onClick={() => setStopping(s)}>
                       Stop sharing
                     </Button>
                   </div>
@@ -263,7 +305,7 @@ export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; init
                 onClick={async () => {
                   if (!codeFor) return
                   const res = await createDeskCode(codeFor)
-                  if (res.error) window.alert(res.error)
+                  if (res.error) setNotice(res.error)
                   else setCode(res.code ?? null)
                 }}
               >
@@ -322,23 +364,35 @@ export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; init
         (appts.isLoading ? (
           <Spinner />
         ) : appts.data.length === 0 ? (
-          <EmptyState title="No appointments" detail="Book with a practice you have shared with." />
+          <EmptyState
+            title="No appointments"
+            detail="Book a visit at any practice on Pet10x. It shows here once you send the request."
+            action={
+              <Button size="sm" onClick={() => setBookOpen(true)}>
+                <CalendarPlus className="h-4 w-4" aria-hidden="true" /> Book
+              </Button>
+            }
+          />
         ) : (
           <ul className="flex flex-col gap-2">
             {appts.data.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card p-4">
-                <div>
+                <div className="min-w-0">
                   <p className="text-[14px] font-semibold text-foreground">
                     {a.petName} · {a.reason ?? "Appointment"}
                   </p>
                   <p className="text-[12.5px] text-muted-foreground">
-                    {a.businessName} · {formatDateShort(a.startsAt)} at{" "}
-                    {formatTime(a.startsAt, Intl.DateTimeFormat().resolvedOptions().timeZone)}
+                    {a.businessName} · {formatDateShort(a.startsAt)} at {formatTime(a.startsAt, tz)}
                   </p>
                 </div>
-                <Pill tone={a.status === "requested" ? "warn" : a.status === "completed" ? "good" : "neutral"}>
-                  {a.status.replace(/_/g, " ")}
-                </Pill>
+                <div className="flex items-center gap-2">
+                  <Pill tone={appointmentTone(a.status)}>{appointmentLabel(a.status)}</Pill>
+                  {canOwnerCancel(a.status, a.startsAt, now) && (
+                    <Button size="sm" variant="secondary" onClick={() => setCancelling(a)}>
+                      Cancel
+                    </Button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
@@ -360,11 +414,40 @@ export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; init
         open={bookOpen}
         onClose={() => setBookOpen(false)}
         pets={pets.data.map((p) => ({ id: p.id, name: p.name }))}
+        initialPracticeId={practiceId}
         onBooked={() => {
           setBookOpen(false)
+          setView("visits")
           appts.refetch()
           shares.refetch()
         }}
+      />
+
+      <ConfirmDialog
+        open={stopping !== null}
+        onOpenChange={(open) => !open && setStopping(null)}
+        title={stopping ? `Stop ${stopping.businessName} seeing anything new about ${stopping.petName}?` : "Stop sharing?"}
+        description="This does not remove the appointment history and notes they keep in their own system."
+        confirmLabel="Stop sharing"
+        cancelLabel="Keep sharing"
+        tone="danger"
+        onConfirm={() => (stopping ? stopSharing(stopping) : Promise.resolve({ error: null }))}
+      />
+
+      <ConfirmDialog
+        open={cancelling !== null}
+        onOpenChange={(open) => !open && setCancelling(null)}
+        title="Cancel this visit?"
+        description={
+          cancelling
+            ? `${cancelling.petName} at ${cancelling.businessName}, ${formatDateShort(cancelling.startsAt)} at ${formatTime(cancelling.startsAt, tz)}. The practice is told.`
+            : ""
+        }
+        confirmLabel="Cancel visit"
+        cancelLabel="Keep visit"
+        tone="danger"
+        reason={{ label: "Reason (optional, the practice sees this)", required: false, placeholder: "Something came up at work" }}
+        onConfirm={(why) => (cancelling ? cancelVisit(cancelling, why) : Promise.resolve({ error: null }))}
       />
     </div>
   )
@@ -373,10 +456,14 @@ export function MyVetsScreen({ onBack, initialTab }: { onBack?: () => void; init
 /**
  * Estimates waiting on the owner first, then every other bill. Pet10x takes no
  * payment, so there is no pay button: an unpaid invoice says where to pay.
+ *
+ * An estimate waiting on the owner opens with its lines showing — the owner is
+ * being asked to agree to them — and can be approved or declined. Declining
+ * needs a note: the practice reads it to know what to change.
  */
 function BillsView({ bills }: { bills: ReturnType<typeof useMyInvoices> }) {
-  const [busy, setBusy] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [approving, setApproving] = useState<OwnerBill | null>(null)
+  const [declining, setDeclining] = useState<OwnerBill | null>(null)
 
   if (bills.isLoading) return <Spinner label="Loading bills" />
   if (bills.error) return <LoadError message={bills.error} onRetry={bills.refetch} />
@@ -392,27 +479,25 @@ function BillsView({ bills }: { bills: ReturnType<typeof useMyInvoices> }) {
 
   const { awaiting, others } = groupBills(bills.data)
 
-  async function approve(b: OwnerBill) {
-    const ok = window.confirm(
-      `Approve ${billLabel(b).toLowerCase()} from ${b.businessName} for ${b.petName} — ` +
-        `${formatMoney(b.totalCents, b.currency)}?\n\nThe practice is told you agreed to this cost.`,
-    )
-    if (!ok) return
-    setError(null)
-    setBusy(b.id)
+  /* Both dialogs keep a failure on screen, so only success toasts. */
+  async function approve(b: OwnerBill): Promise<{ error: string | null }> {
     const res = await approveEstimate(b.id)
-    setBusy(null)
-    if (res.error) setError(res.error)
+    if (res.error) return { error: res.error }
+    toast.success("Estimate approved. The practice has been told.")
     bills.refetch()
+    return { error: null }
+  }
+
+  async function decline(b: OwnerBill, note: string | null): Promise<{ error: string | null }> {
+    const res = await ownerDeclineEstimate(b.id, note ?? "")
+    if (res.error) return { error: res.error }
+    toast.success("Estimate declined. The practice has your note.")
+    bills.refetch()
+    return { error: null }
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {error && (
-        <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2 text-[12.5px] text-destructive">
-          {error}
-        </p>
-      )}
       {awaiting.length > 0 && (
         <SectionCard title="Estimates to approve" subtitle="Your practice is waiting for your go-ahead">
           <ul className="flex flex-col gap-2">
@@ -420,10 +505,16 @@ function BillsView({ bills }: { bills: ReturnType<typeof useMyInvoices> }) {
               <BillRow
                 key={b.id}
                 bill={b}
+                defaultOpen
                 action={
-                  <Button size="sm" busy={busy === b.id} onClick={() => void approve(b)}>
-                    <Check className="h-3.5 w-3.5" aria-hidden="true" /> Approve estimate
-                  </Button>
+                  <>
+                    <Button size="sm" variant="secondary" onClick={() => setDeclining(b)}>
+                      <X className="h-3.5 w-3.5" aria-hidden="true" /> Decline
+                    </Button>
+                    <Button size="sm" onClick={() => setApproving(b)}>
+                      <Check className="h-3.5 w-3.5" aria-hidden="true" /> Approve estimate
+                    </Button>
+                  </>
                 }
               />
             ))}
@@ -437,12 +528,60 @@ function BillsView({ bills }: { bills: ReturnType<typeof useMyInvoices> }) {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={approving !== null}
+        onOpenChange={(open) => !open && setApproving(null)}
+        title={
+          approving
+            ? `Approve ${billLabel(approving).toLowerCase()} for ${formatMoney(approving.totalCents, approving.currency)}?`
+            : "Approve this estimate?"
+        }
+        description={
+          approving
+            ? `From ${approving.businessName} for ${approving.petName}. The practice is told you agreed to this cost.`
+            : ""
+        }
+        confirmLabel="Approve estimate"
+        cancelLabel="Not yet"
+        onConfirm={() => (approving ? approve(approving) : Promise.resolve({ error: null }))}
+      />
+
+      <ConfirmDialog
+        open={declining !== null}
+        onOpenChange={(open) => !open && setDeclining(null)}
+        title={declining ? `Decline ${billLabel(declining).toLowerCase()}?` : "Decline this estimate?"}
+        description={
+          declining
+            ? `${declining.businessName} is told you said no to ${formatMoney(declining.totalCents, declining.currency)} for ${declining.petName}, with your note.`
+            : ""
+        }
+        confirmLabel="Decline estimate"
+        cancelLabel="Keep it open"
+        tone="danger"
+        reason={{
+          label: "Note for the practice",
+          required: true,
+          placeholder: "I'd like to talk through a cheaper option first",
+          requiredMessage: "Add a note — the practice will see it.",
+        }}
+        onConfirm={(note) => (declining ? decline(declining, note) : Promise.resolve({ error: null }))}
+      />
     </div>
   )
 }
 
-function BillRow({ bill: b, action }: { bill: OwnerBill; action?: ReactNode }) {
-  const [open, setOpen] = useState(false)
+function BillRow({
+  bill: b,
+  action,
+  defaultOpen = false,
+}: {
+  bill: OwnerBill
+  action?: ReactNode
+  /** Lines showing from the start — an estimate the owner is asked to agree to. */
+  defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
   const linesId = `bill-lines-${b.id}`
   return (
     <li className="rounded-2xl border border-border bg-card p-4">
@@ -461,7 +600,7 @@ function BillRow({ bill: b, action }: { bill: OwnerBill; action?: ReactNode }) {
             <p className="mt-1 text-[12px] font-medium text-foreground">Pay the clinic directly.</p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-[15px] font-semibold tabular-nums text-foreground">
             {formatMoney(b.totalCents, b.currency)}
           </span>
@@ -640,126 +779,250 @@ function ShareModal({
   )
 }
 
+type BookStep =
+  | { kind: "pick" }
+  | { kind: "review"; slot: Slot }
+  | { kind: "done"; status: string | undefined; startsAt: string }
+
+/**
+ * Book a vet visit in two clear steps, so a tap never books by accident:
+ * choose a time, then read a summary and press "Request appointment". Nothing
+ * is sent until then.
+ *
+ * Sharing the basics is OFF until the owner ticks it (CU-8): booking a visit
+ * is not consent to hand over records.
+ *
+ * `initialPracticeId` comes from a vet's page ("Book an appointment").
+ */
 function BookVetModal({
-  open, onClose, pets, onBooked,
+  open, onClose, pets, onBooked, initialPracticeId,
 }: {
   open: boolean
   onClose: () => void
   pets: Array<{ id: string; name: string }>
   onBooked: () => void
+  initialPracticeId?: string
 }) {
-  const dir = useVetDirectory("")
-  const [bizId, setBizId] = useState("")
+  const dir = useVetDirectory("", initialPracticeId)
+  const [bizId, setBizId] = useState(initialPracticeId ?? "")
   const [petId, setPetId] = useState("")
   const [typeId, setTypeId] = useState("")
   const [date, setDate] = useState(() => addDaysISO(todayISO(), 1))
-  const [share, setShare] = useState(true)
+  const [share, setShare] = useState(false)
+  const [step, setStep] = useState<BookStep>({ kind: "pick" })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const types = useAppointmentTypes(bizId || null)
   const bookable = types.data.filter((t) => t.isOnlineBookable && t.isActive)
   const slots = useAvailableSlots(bizId || null, typeId || null, date)
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+  const practice = dir.data.find((b) => b.id === bizId)
+  const practiceName = practice?.name ?? "The practice"
+  const type = bookable.find((t) => t.id === typeId)
+  const petName = pets.find((p) => p.id === petId)?.name ?? "Your pet"
+
+  /* Closing from the success state is the same as "Done": the list refreshes.
+     Any other close keeps the choices, so reopening picks up where it was. */
+  function close() {
+    const wasDone = step.kind === "done"
+    setStep({ kind: "pick" })
+    setError(null)
+    setShare(false)
+    if (wasDone) onBooked()
+    else onClose()
+  }
+
+  function chooseSlot(slot: Slot) {
+    if (!petId) {
+      setError("Choose a pet first.")
+      return
+    }
+    setError(null)
+    setStep({ kind: "review", slot })
+  }
+
+  async function request(slot: Slot) {
+    setBusy(true)
+    setError(null)
+    const res = await bookVetAppointment({
+      businessId: bizId,
+      typeId,
+      petId,
+      startsAt: slot.startsAt,
+      staffId: slot.staffId,
+      share,
+    })
+    setBusy(false)
+    if (res.error) setError(res.error)
+    else setStep({ kind: "done", status: res.status, startsAt: slot.startsAt })
+  }
+
+  const footer =
+    step.kind === "pick" ? (
+      <Button variant="secondary" onClick={close}>Close</Button>
+    ) : step.kind === "review" ? (
+      <>
+        <Button
+          variant="secondary"
+          disabled={busy}
+          onClick={() => {
+            setError(null)
+            setStep({ kind: "pick" })
+          }}
+        >
+          Pick another time
+        </Button>
+        <Button busy={busy} onClick={() => void request(step.slot)}>
+          Request appointment
+        </Button>
+      </>
+    ) : (
+      <Button onClick={close}>Done</Button>
+    )
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
-      title="Book with a vet"
-      description="Real availability, straight into their calendar."
-      footer={<Button variant="secondary" onClick={onClose}>Close</Button>}
+      onClose={close}
+      title={step.kind === "review" ? "Check your request" : step.kind === "done" ? "Request sent" : "Book with a vet"}
+      description={
+        step.kind === "pick"
+          ? "Pick a time from the practice's real calendar. You'll check the details before anything is sent."
+          : undefined
+      }
+      footer={footer}
     >
-      <div className="flex flex-col gap-3">
-        <Field label="Practice" required>
-          {(p) => (
-            <Select {...p} value={bizId} onChange={(e) => { setBizId(e.target.value); setTypeId("") }}>
-              <option value="">Choose…</option>
-              {dir.data.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </Select>
-          )}
-        </Field>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Pet" required>
-            {(p) => (
-              <Select {...p} value={petId} onChange={(e) => setPetId(e.target.value)}>
-                <option value="">Choose…</option>
-                {pets.map((pt) => (
-                  <option key={pt.id} value={pt.id}>{pt.name}</option>
-                ))}
-              </Select>
-            )}
-          </Field>
-          <Field label="Reason" required>
-            {(p) => (
-              <Select {...p} value={typeId} onChange={(e) => setTypeId(e.target.value)}>
-                <option value="">Choose…</option>
-                {bookable.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.durationMin} min)
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-        </div>
-        <Field label="Date">
-          {(p) => <TextInput {...p} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}
-        </Field>
-        <label className="flex items-start gap-2 text-[12.5px]">
-          <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} className="mt-0.5" />
-          <span>
-            <span className="font-semibold text-foreground">Share the basics with this practice</span>
-            <span className="block text-muted-foreground">
-              Details, vaccinations and health notes, until 30 days after the visit.
-            </span>
+      {step.kind === "done" ? (
+        <div role="status" className="flex flex-col items-center gap-3 py-4 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-success/15">
+            <Check className="h-6 w-6 text-success" aria-hidden="true" />
           </span>
-        </label>
+          {/* owner_book_appointment books outright when the practice's visit
+              type needs no confirmation; saying "will confirm" then would be
+              untrue. */}
+          <p className="text-[15px] font-semibold text-foreground">
+            {step.status === "booked"
+              ? `Booked. ${practiceName} has you down for ${formatDateShort(step.startsAt)} at ${formatTime(step.startsAt, tz)}.`
+              : `Request sent. ${practiceName} will confirm.`}
+          </p>
+          <p className="text-[12.5px] text-muted-foreground">You&apos;ll find it under Appointments.</p>
+        </div>
+      ) : step.kind === "review" ? (
+        <div className="flex flex-col gap-3">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl border border-border p-3 text-[13px]">
+            <dt className="text-muted-foreground">Practice</dt>
+            <dd className="font-semibold text-foreground">{practiceName}</dd>
+            <dt className="text-muted-foreground">Pet</dt>
+            <dd className="font-semibold text-foreground">{petName}</dd>
+            <dt className="text-muted-foreground">Reason</dt>
+            <dd className="font-semibold text-foreground">
+              {type ? `${type.name} (${type.durationMin} min)` : "Appointment"}
+            </dd>
+            <dt className="text-muted-foreground">Time</dt>
+            <dd className="font-semibold text-foreground">
+              {formatDateShort(step.slot.startsAt)} at {formatTime(step.slot.startsAt, tz)}
+              {step.slot.staffName ? ` with ${step.slot.staffName}` : ""}
+            </dd>
+            {type && type.priceCents > 0 && (
+              <>
+                <dt className="text-muted-foreground">Price</dt>
+                <dd className="font-semibold text-foreground">
+                  {formatMoney(type.priceCents)}
+                  <span className="block text-[11.5px] font-normal text-muted-foreground">
+                    The practice&apos;s listed price. You pay them directly.
+                  </span>
+                </dd>
+              </>
+            )}
+          </dl>
+          <label className="flex items-start gap-2 text-[12.5px]">
+            <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} className="mt-0.5" />
+            <span>
+              <span className="font-semibold text-foreground">Share the basics with this practice</span>
+              <span className="block text-muted-foreground">
+                Details, vaccinations and health notes, until 30 days after the visit. Only verified practices
+                receive them.
+              </span>
+            </span>
+          </label>
+          {error && (
+            <p role="alert" className="text-[12px] text-destructive">
+              {error}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <Field label="Practice" required>
+            {(p) => (
+              <Select {...p} value={bizId} onChange={(e) => { setBizId(e.target.value); setTypeId("") }}>
+                <option value="">Choose…</option>
+                {dir.data.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Pet" required>
+              {(p) => (
+                <Select {...p} value={petId} onChange={(e) => { setPetId(e.target.value); setError(null) }}>
+                  <option value="">Choose…</option>
+                  {pets.map((pt) => (
+                    <option key={pt.id} value={pt.id}>{pt.name}</option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <Field label="Reason" required>
+              {(p) => (
+                <Select {...p} value={typeId} onChange={(e) => setTypeId(e.target.value)}>
+                  <option value="">Choose…</option>
+                  {bookable.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.durationMin} min)
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          </div>
+          <Field label="Date">
+            {(p) => <TextInput {...p} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}
+          </Field>
 
-        {error && <p className="text-[12px] text-destructive">{error}</p>}
+          {error && (
+            <p role="alert" className="text-[12px] text-destructive">
+              {error}
+            </p>
+          )}
 
-        {bizId && typeId ? (
-          slots.isLoading ? (
-            <Spinner label="Finding times" />
-          ) : slots.data.length === 0 ? (
-            <EmptyState title="No times that day" detail="Try another date." />
+          {bizId && typeId ? (
+            slots.isLoading ? (
+              <Spinner label="Finding times" />
+            ) : slots.error ? (
+              <LoadError message="Couldn't load times for that day." onRetry={slots.refetch} />
+            ) : slots.data.length === 0 ? (
+              <EmptyState title="No times that day" detail="Try another date." />
+            ) : (
+              <div role="group" aria-label="Available times" className="flex flex-wrap gap-1.5">
+                {slots.data.slice(0, 24).map((s) => (
+                  <Button key={`${s.startsAt}-${s.staffId}`} size="sm" variant="secondary" onClick={() => chooseSlot(s)}>
+                    {formatTime(s.startsAt, tz)}
+                  </Button>
+                ))}
+              </div>
+            )
+          ) : bizId && !types.isLoading && bookable.length === 0 ? (
+            <p className="text-[12.5px] text-muted-foreground">
+              This practice doesn&apos;t take online bookings yet. Call them to book.
+            </p>
           ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {slots.data.slice(0, 24).map((s) => (
-                <Button
-                  key={s.startsAt}
-                  size="sm"
-                  variant="secondary"
-                  busy={busy}
-                  onClick={async () => {
-                    if (!petId) {
-                      setError("Choose a pet first.")
-                      return
-                    }
-                    setBusy(true)
-                    setError(null)
-                    const res = await bookVetAppointment({
-                      businessId: bizId,
-                      typeId,
-                      petId,
-                      startsAt: s.startsAt,
-                      staffId: s.staffId,
-                      share,
-                    })
-                    setBusy(false)
-                    if (res.error) setError(res.error)
-                    else onBooked()
-                  }}
-                >
-                  {formatTime(s.startsAt, Intl.DateTimeFormat().resolvedOptions().timeZone)}
-                </Button>
-              ))}
-            </div>
-          )
-        ) : (
-          <p className="text-[12.5px] text-muted-foreground">Choose a practice and a reason to see times.</p>
-        )}
-      </div>
+            <p className="text-[12.5px] text-muted-foreground">Choose a practice and a reason to see times.</p>
+          )}
+        </div>
+      )}
     </Modal>
   )
 }

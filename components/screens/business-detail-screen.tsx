@@ -7,7 +7,11 @@ import { IOSNavBar } from "@/components/ios-nav-bar"
 import { usePublicBusiness, DAY_KEYS, DAY_LABEL, formatAddress, mapsUrl, formatPrice } from "@/lib/data/business"
 import { useBusinessServices, useBusinessReviews, createBooking, type ServiceItem } from "@/lib/data/bookings"
 import { usePets } from "@/lib/data"
-import { ArrowLeft, Store, Star, Clock, Loader2, CalendarDays, Check, MessageSquare, MapPin, Navigation } from "lucide-react"
+import { isClinicBusiness } from "@/lib/data/appointment-labels"
+import { ContactLinks } from "@/components/screens/shared/contact-links"
+import {
+  ArrowLeft, Store, Star, Clock, Loader2, CalendarDays, CalendarPlus, Check, MessageSquare, MapPin, Navigation,
+} from "lucide-react"
 
 /** Default the booking to tomorrow at 10:00 — a sane, always-valid slot. */
 function defaultSlot(): string {
@@ -19,7 +23,15 @@ function defaultSlot(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-export function BusinessDetailScreen({ businessId, onBack }: { businessId?: string; onBack: () => void }) {
+export function BusinessDetailScreen({
+  businessId,
+  onBack,
+  onNavigate,
+}: {
+  businessId?: string
+  onBack: () => void
+  onNavigate?: (screen: string, id?: string, petId?: string, tab?: string) => void
+}) {
   const { data: biz, isLoading } = usePublicBusiness(businessId)
   const { data: services } = useBusinessServices(businessId)
   const { data: reviews } = useBusinessReviews(businessId)
@@ -42,6 +54,10 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
   }
 
   const active = services.filter((s) => s.active)
+  /* A veterinary practice books through the vet scheduler (real slots, the
+     practice confirms) — the same one My vets uses — not the catalog's
+     free-text request, so a vet lives in one booking system. */
+  const clinic = isClinicBusiness(biz)
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -102,6 +118,8 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
           </a>
         )}
 
+        <ContactBlock name={biz.name} phone={biz.contactPhone} email={biz.contactEmail} />
+
         {biz.description && <p className="pb-3 text-[13.5px] leading-relaxed text-foreground">{biz.description}</p>}
 
         {biz.tags.length > 0 && (
@@ -114,8 +132,24 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
           </div>
         )}
 
-        {/* Bookable catalog */}
-        <h2 className="mb-2 text-[16px] font-semibold text-foreground">Services</h2>
+        {clinic && (
+          <div className="mb-4 rounded-2xl card-raised p-3.5">
+            <p className="text-[14.5px] font-semibold text-foreground">Book a vet visit</p>
+            <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+              Pick a real time from {biz.name}&apos;s calendar. They confirm it, and it shows under My vets.
+            </p>
+            <button
+              onClick={() => onNavigate?.("my-vets", biz.id, undefined, "visits")}
+              disabled={!onNavigate}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-[14px] font-semibold text-white disabled:opacity-60"
+            >
+              <CalendarPlus className="h-4 w-4" /> Book an appointment
+            </button>
+          </div>
+        )}
+
+        {/* Bookable catalog — for a practice, a price list (booking is above). */}
+        <h2 className="mb-2 text-[16px] font-semibold text-foreground">{clinic ? "Prices" : "Services"}</h2>
         {active.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border p-6 text-center text-[13px] text-muted-foreground">
             This business hasn&apos;t published a service list yet.
@@ -135,12 +169,14 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
                 </div>
                 <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
                   <span className="text-[16px] font-bold text-foreground">{formatPrice(s.priceCents, s.currency)}</span>
-                  <button
-                    onClick={() => setBooking(s)}
-                    className="rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white"
-                  >
-                    Book
-                  </button>
+                  {!clinic && (
+                    <button
+                      onClick={() => setBooking(s)}
+                      className="rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white"
+                    >
+                      Book
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -207,6 +243,17 @@ export function BusinessDetailScreen({ businessId, onBack }: { businessId?: stri
 
       {booking && <BookSheet business={biz.name} businessId={biz.id} service={booking} onClose={() => setBooking(null)} />}
     </div>
+  )
+}
+
+/** How to reach the business. Nothing renders when it has given neither. */
+function ContactBlock({ name, phone, email }: { name: string; phone: string | null; email: string | null }) {
+  if (!phone && !email) return null
+  return (
+    <section id="business-contact" aria-label={`Contact ${name}`} className="mb-3 rounded-2xl card-raised p-3.5">
+      <h2 className="text-[13px] font-semibold text-foreground">Contact</h2>
+      <ContactLinks phone={phone} email={email} className="mt-1.5" />
+    </section>
   )
 }
 

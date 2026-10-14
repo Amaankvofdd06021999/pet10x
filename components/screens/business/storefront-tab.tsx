@@ -28,10 +28,11 @@ import {
   type ServiceErrors,
   type ServiceInput,
 } from "@/lib/data/fees"
+import { validateContact, type ContactErrors } from "@/lib/data/business-contact"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { SectionCard, TextInput, Field, Spinner, Stars } from "./business-ui"
-import { Loader2, Navigation, Plus, Archive, ArchiveRestore, ChevronDown, Store, MapPin, Star, Eye, Pencil } from "lucide-react"
+import { Loader2, Navigation, Plus, Archive, ArchiveRestore, ChevronDown, Store, MapPin, Star, Eye, Pencil, Phone, Mail } from "lucide-react"
 
 const CATEGORIES = ["Veterinary", "Grooming", "Boarding", "Dog walking", "Training", "Pet store", "Other"]
 
@@ -53,12 +54,24 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
     city: business.city ?? "",
     region: business.region ?? "",
     postalCode: business.postalCode ?? "",
+    contactPhone: business.contactPhone ?? "",
+    contactEmail: business.contactEmail ?? "",
   })
+  const [contactErrors, setContactErrors] = useState<ContactErrors>({})
   const [hours, setHours] = useState<BusinessHours>(
     business.hours ?? Object.fromEntries(DAY_KEYS.map((d) => [d, { open: "09:00", close: "17:00" }])),
   )
 
   async function save() {
+    /* The same grammars as the database's CHECKs, so a bad number is named
+       here rather than refused by Postgres in words nobody can act on. */
+    const contact = validateContact({ phone: f.contactPhone, email: f.contactEmail })
+    if (!contact.ok) {
+      setContactErrors(contact.errors)
+      toast.error("Check your contact details", { description: "Fix the highlighted fields, then save again." })
+      return
+    }
+    setContactErrors({})
     setSaving(true)
     const lat = f.latitude ? parseFloat(f.latitude) : null
     const lng = f.longitude ? parseFloat(f.longitude) : null
@@ -77,9 +90,11 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
       city: f.city.trim() || null,
       region: f.region.trim() || null,
       postalCode: f.postalCode.trim() || null,
+      contactPhone: contact.value.phone,
+      contactEmail: contact.value.email,
     })
     setSaving(false)
-    if (error) return toast.error("Couldn't save", { description: error })
+    if (error) return toast.error("Couldn't save your storefront", { description: "Try again." })
     toast.success("Storefront updated")
     onSaved()
   }
@@ -146,6 +161,20 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
                   {business.ratingCount > 0 ? `${business.ratingAvg} (${business.ratingCount})` : "No reviews yet"}
                 </span>
               </div>
+              {(f.contactPhone.trim() || f.contactEmail.trim()) && (
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[12px] text-muted-foreground">
+                  {f.contactPhone.trim() && (
+                    <span className="inline-flex items-center gap-1">
+                      <Phone className="h-3 w-3" /> {f.contactPhone.trim()}
+                    </span>
+                  )}
+                  {f.contactEmail.trim() && (
+                    <span className="inline-flex items-center gap-1">
+                      <Mail className="h-3 w-3" /> {f.contactEmail.trim()}
+                    </span>
+                  )}
+                </p>
+              )}
               {f.description && <p className="mt-1.5 line-clamp-2 text-[12.5px] text-muted-foreground">{f.description}</p>}
               {previewTags.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1">
@@ -233,6 +262,42 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
         </div>
       </SectionCard>
 
+      {/* Contact — shown on your page and on every confirmed booking. */}
+      <SectionCard title="How customers reach you">
+        <p className="mb-3 text-[12.5px] text-muted-foreground">
+          Shown on your page and on customers&apos; confirmed bookings, so they can call or email you about a visit.
+          Both are optional.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ContactInput
+            id="storefront-contact-phone"
+            label="Phone"
+            type="tel"
+            autoComplete="tel"
+            value={f.contactPhone}
+            onChange={(v) => {
+              setF((p) => ({ ...p, contactPhone: v }))
+              setContactErrors((e) => ({ ...e, phone: undefined }))
+            }}
+            placeholder="+1 604 555 0199"
+            error={contactErrors.phone}
+          />
+          <ContactInput
+            id="storefront-contact-email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            value={f.contactEmail}
+            onChange={(v) => {
+              setF((p) => ({ ...p, contactEmail: v }))
+              setContactErrors((e) => ({ ...e, email: undefined }))
+            }}
+            placeholder="hello@yourbusiness.ca"
+            error={contactErrors.email}
+          />
+        </div>
+      </SectionCard>
+
       {/* Hours */}
       <SectionCard title="Business hours">
         <p className="mb-3 text-[12.5px] text-muted-foreground">
@@ -297,6 +362,54 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
   )
 }
 
+/** A labelled field whose error is read out with it (aria-describedby). */
+function ContactInput({
+  id,
+  label,
+  type,
+  autoComplete,
+  value,
+  onChange,
+  placeholder,
+  error,
+}: {
+  id: string
+  label: string
+  type: "tel" | "email"
+  autoComplete: string
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+  error?: string
+}) {
+  const errorId = `${id}-error`
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        inputMode={type === "tel" ? "tel" : "email"}
+        autoComplete={autoComplete}
+        autoCapitalize="none"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
+        className={`w-full min-w-0 rounded-xl border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 ${error ? "border-destructive" : "border-border"}`}
+      />
+      {error && (
+        <p id={errorId} role="alert" className="mt-1 text-[11.5px] text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function ServiceCatalog({
   businessId,
   services,
@@ -335,7 +448,8 @@ function ServiceCatalog({
       sortOrder: services.length + 1,
     })
     setBusy(false)
-    if (error) return toast.error("Couldn't add service", { description: error })
+    // Never the database's text: the form has already checked every field.
+    if (error) return toast.error("Couldn't add the service", { description: "Try again." })
     toast.success("Service added")
     setN({ name: "", price: "", duration: "" })
     setDescription("")
@@ -619,7 +733,8 @@ function EditServiceForm({
       durationMin: checked.value.durationMin,
     })
     setBusy(false)
-    if (error) return toast.error("Couldn't save the service", { description: error })
+    // Never the database's text: the form has already checked every field.
+    if (error) return toast.error("Couldn't save the service", { description: "Try again." })
     toast.success("Service updated")
     onSaved()
   }

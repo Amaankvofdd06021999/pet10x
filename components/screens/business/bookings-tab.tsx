@@ -1,17 +1,21 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
   useOwnerBookings,
   setBookingStatus,
   markBookingPaid,
   businessCancelBooking,
+  fetchBookingContact,
   BOOKING_STATUS_LABEL,
   type BookingStatus,
   type OwnerBooking,
 } from "@/lib/data/bookings"
 import { formatPrice } from "@/lib/data/business"
+import { bookingContactState } from "@/lib/data/business-contact"
+import type { BookingContact } from "@/lib/data/cancel-errors"
+import { ContactLinks } from "@/components/screens/shared/contact-links"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { SectionCard, EmptyState, Spinner, LoadError, TextInput } from "./business-ui"
 import { Inbox, Check, X, Play, CircleCheck, DollarSign, Clock, Dog, Loader2, CalendarDays } from "lucide-react"
@@ -217,6 +221,7 @@ function BookingCard({
           {b.declinedReason && (
             <p className="mt-1.5 text-[12px] text-destructive">Declined: {b.declinedReason}</p>
           )}
+          <CustomerContact bookingId={b.id} status={b.status} name={b.customerName} />
         </div>
 
         {/* The customer pays this price to you; Pet10x bills its fee separately.
@@ -293,6 +298,45 @@ function BookingCard({
         </div>
       )}
     </SectionCard>
+  )
+}
+
+/**
+ * The customer's phone and email, once the booking is confirmed. Fetched per
+ * card, and only for a status business_booking_contact answers, so a request
+ * never asks and a cancelled booking never shows stale details. Keyed on the
+ * status: confirming a request fetches on the next render.
+ */
+function CustomerContact({ bookingId, status, name }: { bookingId: string; status: BookingStatus; name: string }) {
+  const state = bookingContactState(status)
+  const [loaded, setLoaded] = useState<{ key: string; contact: BookingContact | null; error: string | null } | null>(null)
+  const key = `${bookingId}:${status}`
+
+  useEffect(() => {
+    if (state !== "shared") return
+    let live = true
+    void fetchBookingContact(bookingId).then(({ email, phone, error }) => {
+      if (live) setLoaded({ key, contact: error ? null : { email, phone }, error })
+    })
+    return () => {
+      live = false
+    }
+  }, [bookingId, key, state])
+
+  if (state === "after_confirm") {
+    return <p className="mt-1.5 text-[11.5px] text-muted-foreground">Contact shared once you confirm</p>
+  }
+  if (state !== "shared") return null
+  const current = loaded?.key === key ? loaded : null
+  if (!current) return <p className="mt-1.5 text-[11.5px] text-muted-foreground">Loading contact details…</p>
+  if (current.error) return <p className="mt-1.5 text-[11.5px] text-muted-foreground">{current.error}</p>
+  if (!current.contact?.phone && !current.contact?.email) {
+    return <p className="mt-1.5 text-[11.5px] text-muted-foreground">{name} hasn&apos;t added a phone or email.</p>
+  }
+  return (
+    <div className="mt-1.5">
+      <ContactLinks phone={current.contact.phone} email={current.contact.email} />
+    </div>
   )
 }
 

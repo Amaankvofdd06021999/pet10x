@@ -104,14 +104,34 @@ export interface VetDirectoryEntry {
   ratingCount: number
 }
 
-/** Verified veterinary practices an owner can share with or book at. */
-export function useVetDirectory(search: string): LiveResult<VetDirectoryEntry[]> {
+type DirectoryRow = {
+  id: string
+  name: string
+  city: string | null
+  address: string | null
+  is_open: boolean
+  rating_avg: number
+  rating_count: number
+}
+
+const DIRECTORY_COLUMNS = "id, name, city, address, is_open, rating_avg, rating_count, business_kind, tier"
+
+/**
+ * Verified veterinary practices an owner can share with or book at.
+ *
+ * `pinnedId` is a practice the list must contain — the one a vet's page sent
+ * "Book an appointment" for. The list stops at 50 by name, so a practice
+ * further down would otherwise be preselected in a picker that has no option
+ * for it. It goes through the same filters, so pinning cannot surface a
+ * business the directory would not list.
+ */
+export function useVetDirectory(search: string, pinnedId?: string | null): LiveResult<VetDirectoryEntry[]> {
   return useLive<VetDirectoryEntry[]>(
     [],
     async (db) => {
       let q = db
         .from("businesses")
-        .select("id, name, city, address, is_open, rating_avg, rating_count, business_kind, tier")
+        .select(DIRECTORY_COLUMNS)
         .eq("business_kind", "veterinary")
         .in("tier", ["listed", "verified"])
         .order("name")
@@ -121,15 +141,19 @@ export function useVetDirectory(search: string): LiveResult<VetDirectoryEntry[]>
         const safe = term.replace(/[%,()]/g, " ")
         q = q.or(`name.ilike.%${safe}%,city.ilike.%${safe}%`)
       }
-      const rows = must(await q) as Array<{
-        id: string
-        name: string
-        city: string | null
-        address: string | null
-        is_open: boolean
-        rating_avg: number
-        rating_count: number
-      }>
+      const rows = must(await q) as DirectoryRow[]
+      if (pinnedId && !rows.some((r) => r.id === pinnedId)) {
+        const pinned = must(
+          await db
+            .from("businesses")
+            .select(DIRECTORY_COLUMNS)
+            .eq("id", pinnedId)
+            .eq("business_kind", "veterinary")
+            .in("tier", ["listed", "verified"])
+            .limit(1),
+        ) as DirectoryRow[]
+        rows.unshift(...pinned)
+      }
       return rows.map((r) => ({
         id: r.id,
         name: r.name,
@@ -140,7 +164,7 @@ export function useVetDirectory(search: string): LiveResult<VetDirectoryEntry[]>
         ratingCount: r.rating_count,
       }))
     },
-    [search],
+    [search, pinnedId ?? ""],
   )
 }
 
@@ -159,7 +183,7 @@ export async function grantShare(
     p_expires_at: expiresAt ?? undefined,
     p_via: "manual",
   })
-  if (error) return { error: error.message }
+  if (error) return { error: "Couldn't share the records. Try again." }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
 }
@@ -168,7 +192,7 @@ export async function revokeShare(shareId: string): Promise<{ error: string | nu
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { data, error } = await db.rpc("owner_revoke_record_share", { p_share: shareId })
-  if (error) return { error: error.message }
+  if (error) return { error: "Couldn't stop sharing. Try again." }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
 }
@@ -180,11 +204,15 @@ export async function createDeskCode(
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { data, error } = await db.rpc("owner_create_desk_code", { p_pet: petId, p_scopes: scopes })
-  if (error) return { error: error.message }
+  if (error) return { error: "Couldn't make a code. Try again." }
   const out = readOutcome(data)
   if (!out.ok) return { error: sentenceFor(out.error) }
   return { error: null, code: out.code as string }
 }
+
+/* The actions My vets calls (sharing, desk codes, the two decisions below,
+   booking) turn a raise into one "try again" sentence, never the database's
+   text; their `{ok:false}` codes go through sentenceFor. */
 
 /* ------------------------- requests awaiting me -------------------------- */
 
@@ -240,7 +268,7 @@ export async function decideLinkRequest(
     p_accept: accept,
     p_pet: petId ?? undefined,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: "Couldn't send your answer. Try again." }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
 }
@@ -298,7 +326,7 @@ export async function decideShareRequest(
     p_request: requestId,
     p_approve: approve,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: "Couldn't send your answer. Try again." }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
 }
@@ -421,7 +449,7 @@ export async function bookVetAppointment(input: {
     p_note: input.note ?? undefined,
     p_share: input.share,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: "Couldn't request the appointment. Try again." }
   const out = readOutcome(data)
   if (!out.ok) return { error: sentenceFor(out.error) }
   return { error: null, status: out.status as string }

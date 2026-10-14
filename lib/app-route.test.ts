@@ -52,6 +52,15 @@ describe("app routes", () => {
     expect(searchToRoute(`?screen=my-cases&id=${PET}`, "resident")).toEqual({ screen: "my-cases", id: PET })
     expect(searchToRoute("?screen=ai-chat", "resident")).toEqual({ screen: "ai-chat" })
   })
+  it("round-trips My vets opened on Appointments for one practice (Book an appointment)", () => {
+    const s = routeToSearch({ screen: "my-vets", id: PET, tab: "visits" })
+    expect(s).toBe(`?screen=my-vets&id=${PET}&tab=visits`)
+    expect(searchToRoute(s, "resident")).toEqual({ screen: "my-vets", id: PET, tab: "visits" })
+    expect(searchToRoute(s, "manager")).toEqual({ screen: "my-vets", id: PET, tab: "visits" })
+    // The practice is optional — bare My vets is still My vets — and must be a uuid.
+    expect(searchToRoute("?screen=my-vets", "resident")).toEqual({ screen: "my-vets" })
+    expect(searchToRoute("?screen=my-vets&id=bills", "resident")).toBeNull()
+  })
   it("accepts pet only on pet-care", () => {
     expect(searchToRoute(`?screen=pet-detail&id=${PET}&pet=${PET}`, "resident")).toBeNull()
   })

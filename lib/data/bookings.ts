@@ -334,6 +334,9 @@ export interface CustomerBooking {
   businessId: string | null
   businessName: string
   businessCategory: string
+  /** The business's public contact details (20261015000005); null when it gave none. */
+  businessPhone: string | null
+  businessEmail: string | null
   serviceName: string | null
   petName: string | null
   declinedReason: string | null
@@ -362,7 +365,7 @@ export function useMyBookings(): LiveResult<CustomerBooking[]> {
       .from("service_bookings")
       .select(
         `id, status, scheduled_for, created_at, amount_cents, currency, business_id, declined_reason,
-         business:businesses!service_bookings_business_id_fkey ( name, category ),
+         business:businesses!service_bookings_business_id_fkey ( name, category, contact_phone, contact_email ),
          service:business_services!service_bookings_service_id_fkey ( name ),
          pet:pets!service_bookings_pet_id_fkey ( name ),
          review:business_reviews!business_reviews_booking_id_fkey ( id, rating )`,
@@ -377,6 +380,7 @@ export function useMyBookings(): LiveResult<CustomerBooking[]> {
       return
     }
 
+    type BizJoin = { name: string; category: string; contact_phone: string | null; contact_email: string | null }
     type Row = {
       id: string
       status: string
@@ -386,7 +390,7 @@ export function useMyBookings(): LiveResult<CustomerBooking[]> {
       currency: string
       business_id: string | null
       declined_reason: string | null
-      business: { name: string; category: string } | { name: string }[] | null
+      business: BizJoin | BizJoin[] | null
       service: { name: string } | { name: string }[] | null
       pet: { name: string } | { name: string }[] | null
       review: { id: string; rating: number } | { id: string; rating: number }[] | null
@@ -394,7 +398,7 @@ export function useMyBookings(): LiveResult<CustomerBooking[]> {
 
     setData(
       ((rows ?? []) as unknown as Row[]).map((r) => {
-        const biz = first(r.business) as { name: string; category: string } | null
+        const biz = first(r.business)
         const rev = first(r.review) as { id: string; rating: number } | null
         return {
           id: r.id,
@@ -406,6 +410,8 @@ export function useMyBookings(): LiveResult<CustomerBooking[]> {
           businessId: r.business_id,
           businessName: r.business_id ? (biz?.name ?? "Business") : "A business no longer on Pet10x",
           businessCategory: biz?.category ?? "",
+          businessPhone: biz?.contact_phone ?? null,
+          businessEmail: biz?.contact_email ?? null,
           serviceName: first(r.service)?.name ?? null,
           petName: first(r.pet)?.name ?? null,
           declinedReason: r.declined_reason,
@@ -460,13 +466,19 @@ export async function createBooking(input: {
  * Cancel your own requested or confirmed booking — the only change a customer
  * can make to one (customer_cancel_booking, 20261012000004). The RPC also
  * tells the business.
+ *
+ * `contactBusiness` marks the one refusal whose answer is "talk to them": the
+ * booking has moved past cancelling. My bookings then points at the business's
+ * contact details on the card, when it has given any.
  */
-export async function cancelBooking(id: string): Promise<{ error: string | null }> {
+export async function cancelBooking(id: string): Promise<{ error: string | null; contactBusiness?: boolean }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.rpc("customer_cancel_booking", { p_booking: id })
   if (!error) return { error: null }
-  if (error.code === "22023") return { error: "This booking can't be cancelled any more — contact the business." }
+  if (error.code === "22023") {
+    return { error: "This booking can't be cancelled any more — contact the business.", contactBusiness: true }
+  }
   if (error.code === "42501") return { error: "That booking isn't yours to cancel." }
   return { error: "Couldn't cancel the booking. Try again." }
 }

@@ -162,6 +162,13 @@ export const ID_BEARING: readonly ScreenKey[] = [
    * adding a screen here without giving `handleNavigate` a branch for it is the
    * exact hazard the `add-pet` note below records. */
   "my-cases",
+  /* `my-vets` with a practice id opens the booking picker on that practice —
+   * a vet's page in Services sends "Book an appointment" here. Its own state
+   * again (`selectedPracticeId`), never `selectedPetId`. Notification targets
+   * are unaffected: `resolveActionTarget` reads `my-vets:<x>` as a TAB first
+   * (TAB_BEARING), so only the URL's `?id=` can carry a practice. Optional —
+   * bare My vets is the ordinary screen. */
+  "my-vets",
 ]
 
 /**

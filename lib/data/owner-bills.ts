@@ -36,6 +36,8 @@ export type BillTone = "neutral" | "good" | "warn" | "info"
 const LABEL: Record<string, string> = {
   sent: "Sent",
   approved: "Approved",
+  // The owner said no to an estimate (owner_decline_estimate, 20261015000005).
+  declined: "Declined",
   paid: "Paid",
   void: "Void",
 }
@@ -43,6 +45,7 @@ const LABEL: Record<string, string> = {
 const TONE: Record<string, BillTone> = {
   sent: "warn",
   approved: "info",
+  declined: "neutral",
   paid: "good",
   void: "neutral",
 }

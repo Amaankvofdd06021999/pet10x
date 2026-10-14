@@ -14,6 +14,8 @@ import {
   type CustomerBooking,
 } from "@/lib/data/bookings"
 import { formatPrice } from "@/lib/data/business"
+import { bookingContactState } from "@/lib/data/business-contact"
+import { ContactLinks } from "@/components/screens/shared/contact-links"
 import { ArrowLeft, CalendarDays, Loader2, Star, Store, Inbox } from "lucide-react"
 
 const STATUS_STYLE: Record<BookingStatus, string> = {
@@ -39,13 +41,25 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState<CustomerBooking | null>(null)
   const [cancelling, setCancelling] = useState<CustomerBooking | null>(null)
+  /* The booking whose cancel was refused because it has moved on. Its card
+     shows the business's contact details and a line pointing at them. */
+  const [blocked, setBlocked] = useState<string | null>(null)
 
   /* The dialog shows a failure in place and stays open, so the toast is only
-     for success. */
+     for success. cancelBooking maps every refusal to a sentence — the
+     database's text never reaches the dialog. */
   async function cancel(b: CustomerBooking): Promise<{ error: string | null }> {
     setBusy(b.id)
-    const { error } = await cancelBooking(b.id)
+    const { error, contactBusiness } = await cancelBooking(b.id)
     setBusy(null)
+    /* "Contact the business" is only useful with a way to do it: when the
+       business gave one, close the dialog and say so on the card, beside the
+       number. Otherwise the sentence stays in the dialog. */
+    if (error && contactBusiness && (b.businessPhone || b.businessEmail)) {
+      setBlocked(b.id)
+      refetch()
+      return { error: null }
+    }
     if (error) return { error }
     toast.success("Booking cancelled")
     refetch()
@@ -74,7 +88,7 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
             <Inbox className="mx-auto h-7 w-7 text-muted-foreground" />
             <p className="mt-2 text-[14px] font-semibold text-foreground">No bookings yet</p>
             <p className="mt-1 text-[12px] text-muted-foreground">
-              Browse Services to book a groomer, vet or walker near you.
+              Book groomers and walkers in Services. Vet appointments are under My vets.
             </p>
           </div>
         ) : (
@@ -112,6 +126,23 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
                       <p className="mt-0.5 text-[11.5px] text-muted-foreground">{STATUS_HINT[b.status]}</p>
                     )}
                     {b.declinedReason && <p className="mt-1 text-[12px] text-destructive">{b.declinedReason}</p>}
+                    {blocked === b.id && (
+                      <p role="alert" className="mt-1 text-[12px] text-destructive">
+                        This booking can&apos;t be cancelled any more.{" "}
+                        <a href={`#booking-contact-${b.id}`} className="font-semibold underline underline-offset-2">
+                          Contact {b.businessName}
+                        </a>
+                        .
+                      </p>
+                    )}
+                    {/* Once confirmed, both sides can reach each other — the
+                        business sees the customer's details from the same point. */}
+                    {(bookingContactState(b.status) === "shared" || blocked === b.id) &&
+                      (b.businessPhone || b.businessEmail) && (
+                        <div id={`booking-contact-${b.id}`} className="mt-1.5">
+                          <ContactLinks phone={b.businessPhone} email={b.businessEmail} />
+                        </div>
+                      )}
                   </div>
                   <span className="flex-shrink-0 text-[15px] font-bold text-foreground">{formatPrice(b.amount * 100, b.currency)}</span>
                 </div>

@@ -28,8 +28,10 @@ function bill(over: Partial<OwnerBill> & { id: string }): OwnerBill {
 }
 
 describe("billStatusLabel", () => {
-  it("names the four statuses an owner can see", () => {
+  it("names the five statuses an owner can see", () => {
     expect(billStatusLabel("sent")).toBe("Sent")
+    // owner_decline_estimate (20261015000005) added it.
+    expect(billStatusLabel("declined")).toBe("Declined")
     expect(billStatusLabel("approved")).toBe("Approved")
     expect(billStatusLabel("paid")).toBe("Paid")
     expect(billStatusLabel("void")).toBe("Void")
@@ -44,6 +46,7 @@ describe("billStatusLabel", () => {
     expect(billStatusTone("paid")).toBe("good")
     expect(billStatusTone("void")).toBe("neutral")
     expect(billStatusTone("approved")).toBe("info")
+    expect(billStatusTone("declined")).toBe("neutral")
     expect(billStatusTone("whatever")).toBe("neutral")
   })
 })

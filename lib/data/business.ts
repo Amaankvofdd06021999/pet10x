@@ -59,6 +59,9 @@ export interface MyBusiness {
   city: string | null
   region: string | null
   postalCode: string | null
+  /** Public contact details customers see (20261015000005). */
+  contactPhone: string | null
+  contactEmail: string | null
 }
 
 /**
@@ -135,6 +138,8 @@ function mapMine(r: BizRow): MyBusiness {
     city: r.city,
     region: r.region,
     postalCode: r.postal_code,
+    contactPhone: r.contact_phone,
+    contactEmail: r.contact_email,
   }
 }
 
@@ -219,6 +224,8 @@ export async function updateBusiness(
     city: string | null
     region: string | null
     postalCode: string | null
+    contactPhone: string | null
+    contactEmail: string | null
   }>,
 ): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
@@ -238,6 +245,8 @@ export async function updateBusiness(
   if (patch.city !== undefined) db.city = patch.city
   if (patch.region !== undefined) db.region = patch.region
   if (patch.postalCode !== undefined) db.postal_code = patch.postalCode
+  if (patch.contactPhone !== undefined) db.contact_phone = patch.contactPhone
+  if (patch.contactEmail !== undefined) db.contact_email = patch.contactEmail
   if (patch.hours !== undefined) {
     db.hours = patch.hours as Database["public"]["Tables"]["businesses"]["Update"]["hours"]
   }
@@ -363,9 +372,20 @@ export function useNearbyBusinesses(origin: { lat: number; lng: number } | null)
   return { data, isLoading, error, refetch }
 }
 
+/**
+ * The detail screen's business: the nearby card plus what only that screen
+ * shows — how to reach the business, and its kind (a veterinary practice books
+ * through My vets rather than the service catalog).
+ */
+export interface PublicBusiness extends NearbyBusiness {
+  businessKind: string | null
+  contactPhone: string | null
+  contactEmail: string | null
+}
+
 /** A single verified business, for the resident-facing detail screen. */
 export function usePublicBusiness(businessId?: string) {
-  const [data, setData] = useState<NearbyBusiness | null>(null)
+  const [data, setData] = useState<PublicBusiness | null>(null)
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -379,7 +399,7 @@ export function usePublicBusiness(businessId?: string) {
     const { data: r, error: err } = await supabase
       .from("businesses")
       .select(
-        "id, name, category, description, price_range, is_open, rating_avg, rating_count, latitude, longitude, tags, hours, address, city, region, postal_code, service_radius_m",
+        "id, name, category, description, price_range, is_open, rating_avg, rating_count, latitude, longitude, tags, hours, address, city, region, postal_code, service_radius_m, business_kind, contact_phone, contact_email",
       )
       .eq("id", businessId)
       .maybeSingle()
@@ -410,6 +430,9 @@ export function usePublicBusiness(businessId?: string) {
         longitude: r.longitude,
         serviceRadiusM: r.service_radius_m,
         servesMe: null,
+        businessKind: r.business_kind,
+        contactPhone: r.contact_phone,
+        contactEmail: r.contact_email,
       })
       setError(null)
     }
