@@ -13,9 +13,9 @@ describe("computeGaps", () => {
     expect(r.gaps.map((g) => g.target.screen)).toEqual(["add-pet"])
   })
 
-  it("asks a linked resident for unit and address, under the pet heading when no building rule is unmet", () => {
+  it("asks a linked resident for unit and address, as the building's ask", () => {
     const r = computeGaps({ ...base, hasUnit: false, hasAddress: false })
-    expect(r.heading).toBe("Finish your pet's profile")
+    expect(r.heading).toBe("Your building needs a few things")
     expect(r.gaps.map((g) => g.key)).toEqual(["unit", "address"])
     expect(r.gaps[0].target).toEqual({ screen: "profile" })
     expect(r.gaps[0].label).toBe("Add your unit number")
@@ -53,6 +53,15 @@ describe("computeGaps", () => {
   it("asks to add a pet when there is none", () => {
     const r = computeGaps({ ...base, pets: [] })
     expect(r.gaps).toEqual([{ key: "pet", label: "Add your pet", target: { screen: "add-pet" } }])
+  })
+
+  it("gives a linked resident missing only a unit, or only an address, the building heading", () => {
+    expect(computeGaps({ ...base, hasUnit: false }).heading).toBe("Your building needs a few things")
+    expect(computeGaps({ ...base, hasAddress: false }).heading).toBe("Your building needs a few things")
+  })
+
+  it("keeps the pet heading when only an emergency contact is missing", () => {
+    expect(computeGaps({ ...base, pets: [{ ...max, contacts: 0 }] }).heading).toBe("Finish your pet's profile")
   })
 
   it("says the building needs things whenever a building rule is unmet", () => {

@@ -238,8 +238,10 @@ export function computeGaps(input: SetupInput): { heading: string; gaps: Gap[] }
 
   /* The heading names who is asking. A gap raised by a building rule is the
    * building's ask — even while the link is still pending, since the rules
-   * already apply to the pets being registered there. Unit, contacts and
-   * address alone are the owner's own setup. */
+   * already apply to the pets being registered there. So are the unit and the
+   * address: both are raised only for a linked resident, and are how the
+   * building identifies them. An emergency contact alone is the owner's own
+   * setup. */
   const buildingAsks = gaps.some((g) => BUILDING_GAP_KINDS.has(g.key.split(":")[0]))
   return {
     heading: buildingAsks ? "Your building needs a few things" : "Finish your pet's profile",
@@ -247,8 +249,10 @@ export function computeGaps(input: SetupInput): { heading: string; gaps: Gap[] }
   }
 }
 
-/** Gap kinds that exist only because a building rule requires them. */
+/** Gap kinds that exist only because the resident's building asks for them. */
 const BUILDING_GAP_KINDS: ReadonlySet<string> = new Set([
+  "unit",
+  "address",
   "rabies",
   "core_vaccines",
   ...DOC_REQUIREMENTS.map((d) => d.requirement),
