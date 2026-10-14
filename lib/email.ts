@@ -177,7 +177,7 @@ export function sendManagerInviteEmail(opts: { to: string; inviteUrl: string; bu
 export function sendManagerAddedEmail(opts: { to: string; buildingName: string }) {
   return send({
     to: opts.to,
-    subject: `You can now manage ${opts.buildingName}`,
+    subject: subjectLine(`You can now manage ${opts.buildingName}`),
     html: emailHtml({
       headline: "You can now manage a building",
       body: `You've been added as a manager of ${escapeHtml(opts.buildingName)} on Pet10x. Sign in to open the strata portal.`,

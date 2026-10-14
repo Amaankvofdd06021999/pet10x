@@ -54,6 +54,11 @@ export async function POST(request: Request) {
 
   const email = body.email.trim().toLowerCase()
 
+  // Email content comes from the database, not the request body: the caller is
+  // authorised for this building, but the name they typed is not verified.
+  const { data: bldg } = await admin.from("buildings").select("name").eq("id", body.buildingId).maybeSingle()
+  const buildingName = bldg?.name?.trim() || "your building"
+
   // Existing account → elevate + link, then tell them (no invite link exists).
   const { data: existing } = await admin.from("profiles").select("id, role").eq("email", email).maybeSingle()
   if (existing) {
@@ -78,7 +83,7 @@ export async function POST(request: Request) {
     // send() has already logged any failure.
     const notified = await sendManagerAddedEmail({
       to: email,
-      buildingName: body.buildingName?.trim() || "a building",
+      buildingName,
     })
     return NextResponse.json({ ok: true, existingAccount: true, emailSent: notified.ok })
   }
@@ -116,7 +121,7 @@ export async function POST(request: Request) {
   const sent = await sendManagerInviteEmail({
     to: email,
     inviteUrl: link.properties.action_link,
-    buildingName: body.buildingName,
+    buildingName,
     inviterName: me?.full_name ?? "A Pet10x strata manager",
   })
   // Suppressed (dev) or refused by Resend: either way nobody got the link,
