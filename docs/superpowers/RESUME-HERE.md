@@ -1,6 +1,6 @@
 # Resume here
 
-Updated 2026-10-07, after Part F. Read this first; it is the whole handover.
+Updated 2026-10-14: migrations applied to production; code not yet deployed. Read this first; it is the whole handover.
 The previous version (paused 2026-08-21, Phases 0–8) is in git history.
 
 ## Where things stand
@@ -32,12 +32,13 @@ messages and title; customers cancel bookings only through
 a booking; the business and clinic consoles have a notifications inbox; the
 strata portal's Team tab opens the Email & push sheet.
 
-## Migrations — written, NOT applied
+## Migrations — APPLIED to production 2026-10-14
 
-No session in Parts A–F could reach a database (no Supabase CLI, no Docker,
-no psql). **Every migration from `20261007000001` onward is on disk and
-presumed unapplied.** Check against `supabase_migrations.schema_migrations`
-before applying, and apply in filename order:
+All 29 below were applied in one transaction with `supabase/bundles/apply.sql`
+(pasted into the Supabase SQL Editor) after `dry-run.sql` passed, and are
+recorded in `supabase_migrations.schema_migrations`. The dry run also ran every
+`supabase/tests/part-*.sql` check against live data: all pass. Steps 1–2 of the
+deploy order below are done; **the code on this branch is not yet deployed.**
 
 ```
 20261007000001_owner_archive_pet.sql            Part A
@@ -68,7 +69,19 @@ before applying, and apply in filename order:
 20261012000007_anonymous_incident_audit.sql
 20261012000008_booking_insert_guard.sql
 20261012000009_booking_status_notify_former_customer.sql
+20261014000001_pet_child_tables_manager_read_only.sql  found by the dry run
 ```
+
+`20261014000001`: eleven pet-record tables (`pet_documents`,
+`pet_vaccinations`, `care_entries`, …) had one `for all` policy whose USING
+admitted managers and whose WITH CHECK did not — and DELETE consults only
+USING, so a manager could delete a resident's records. Each is now four
+policies: select owner|manager|admin; insert/update/delete owner|admin.
+
+The Supabase CLI (2.121.0) is installed at `~/.local/bin/supabase` but not
+logged in. Do NOT use `supabase db push` here: local history drifts from
+production (`2026-08-23-migration-drift.md`). Use `bundles/build.sh` and the
+SQL Editor, or `supabase db query -f` once logged in.
 
 ## Deploy order
 
@@ -105,8 +118,8 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/part-f.sql
 ```
 
 (or paste into the Supabase SQL editor / MCP `execute_sql`). A pass prints
-only `ok:` notices and ends in ROLLBACK; nothing is written. None of them has
-been run yet.
+only `ok:` notices and ends in ROLLBACK; nothing is written. All pass as of
+2026-10-14 (run inside `bundles/dry-run.sql`).
 
 ## Environment variables
 

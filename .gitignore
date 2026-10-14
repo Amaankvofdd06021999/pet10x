@@ -32,3 +32,6 @@ DEMO_DATA.html
 
 # Local rescue copies of deleted production rows — never commit.
 /backups/
+
+# Supabase CLI local state
+supabase/.temp/
