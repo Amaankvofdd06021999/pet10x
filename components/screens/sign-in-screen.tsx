@@ -5,6 +5,7 @@ import { useAuth, MOCK_USERS, type DemoRole } from "@/lib/auth-context"
 import { PasswordField } from "@/components/ui/password-field"
 import { checkPassword } from "@/lib/auth/password-rules"
 import { CodeEntry, CODE_TTL_MS, RESEND_COOLDOWN_MS } from "@/components/auth/code-entry"
+import { saveDraft, loadDraft, clearDraft } from "@/lib/auth/signup-draft"
 import {
   Dog,
   Building2,
@@ -27,6 +28,16 @@ const ROLE_CARDS: { role: DemoRole; icon: typeof Dog; iconColor: string; iconBg:
 
 type SignInView = "main" | "verify-email"
 type AuthMode = "signin" | "signup"
+
+/* The tab's sessionStorage, or null where it cannot be opened (private mode
+   can throw on access). Everything that touches the draft goes through this. */
+function draftStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.sessionStorage
+  } catch {
+    return null
+  }
+}
 
 export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMode }) {
   const { signIn, signInWithPassword, startSignup, verifySignup, resetPassword, supabaseEnabled } =
@@ -51,6 +62,45 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
   const [resendAt, setResendAt] = useState(0)
   const [now, setNow] = useState(() => Date.now())
   const otpInputRef = useRef<HTMLInputElement>(null)
+  // True when the code screen was restored after a reload: the password was
+  // never stored, so the code screen has to ask for it again.
+  const [askPassword, setAskPassword] = useState(false)
+
+  /* Come back to where the person left off. Runs after mount, not in the state
+     initialisers, so server and client render the same first paint. A verify
+     draft wins over `initialMode`: they were mid-sign-up, whatever the link says. */
+  useEffect(() => {
+    const storage = draftStorage()
+    if (!storage) return
+    const t = Date.now()
+    const draft = loadDraft(storage, t)
+    if (!draft) return
+    setEmail(draft.email)
+    setFullName(draft.name)
+    if (draft.view === "verify") {
+      setMode("signup")
+      // The code's clock started when the draft was written; a late return
+      // sees "Code expired" and the resend button, not a fresh countdown.
+      setExpiresAt(draft.savedAt + CODE_TTL_MS)
+      setNow(t)
+      setAskPassword(true)
+      setView("verify-email")
+    }
+  }, [])
+
+  // Form drafts are written as the person types (sign-up only), not from an
+  // effect, so going back or switching to Sign in can clear one without it
+  // being rewritten on the next render.
+  const rememberForm = (nextEmail: string, nextName: string) => {
+    const storage = draftStorage()
+    if (storage && mode === "signup") {
+      saveDraft(storage, { email: nextEmail.trim(), name: nextName.trim(), view: "form" })
+    }
+  }
+  const forgetDraft = () => {
+    const storage = draftStorage()
+    if (storage) clearDraft(storage)
+  }
 
   // One ticker for both countdowns, running only while the step is on screen.
   useEffect(() => {
@@ -101,6 +151,9 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
       setResendAt(t + (retryAfterSeconds ? retryAfterSeconds * 1000 : RESEND_COOLDOWN_MS))
       setNow(t)
       setOtp("")
+      setAskPassword(false)
+      const storage = draftStorage()
+      if (storage) saveDraft(storage, { email: email.trim(), name: fullName.trim(), view: "verify" }, t)
       setView("verify-email")
     }
   }
@@ -116,6 +169,19 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
       setError("That code has expired. Request a new one.")
       return
     }
+    if (askPassword) {
+      // The server sets the password at verification, so it must be the one
+      // that passes the same rules the sign-up form showed.
+      if (!password) {
+        setError("Enter your password.")
+        return
+      }
+      const verdict = checkPassword(password)
+      if (!verdict.ok) {
+        setError(verdict.failed[0])
+        return
+      }
+    }
     setLoading(true)
     const { error: e, expired } = await verifySignup(email.trim(), otp, password, fullName.trim() || undefined)
     if (e) {
@@ -127,6 +193,7 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
       setOtp("")
       return
     }
+    forgetDraft()
     // Success → the account exists and we're signed in. Keep the spinner up;
     // AuthProvider swaps to the authed view once the profile loads.
   }
@@ -143,6 +210,9 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
     setResendAt(t + (retryAfterSeconds ? retryAfterSeconds * 1000 : RESEND_COOLDOWN_MS))
     setNow(t)
     setOtp("")
+    // A new code restarts the clock the restored screen counts from.
+    const storage = draftStorage()
+    if (storage) saveDraft(storage, { email: email.trim(), name: fullName.trim(), view: "verify" }, t)
     setInfo(`New code sent to ${email.trim()}.`)
   }
 
@@ -164,9 +234,12 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
       <div className="flex min-h-dvh flex-col bg-background">
         <div className="flex items-center gap-2.5 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-2">
           <button
+            type="button"
             onClick={() => {
               // Back, not cancel: email/password/name are kept so a mistyped
-              // address can be corrected without retyping everything.
+              // address can be corrected without retyping everything. The
+              // saved draft goes, so a reload does not bounce back to the code.
+              forgetDraft()
               setView("main")
               setError(null)
               setInfo(null)
@@ -190,14 +263,21 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
             account is created once it&rsquo;s verified.
           </p>
 
-          <div className="mt-6">
+          <form
+            className="mt-6"
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleVerify()
+            }}
+          >
             <CodeEntry
               value={otp}
               onChange={(code) => {
                 setOtp(code)
                 setError(null)
               }}
-              onEnter={handleVerify}
+              // Enter submits the surrounding form; handling it here too would verify twice.
+              onEnter={() => {}}
               inputRef={otpInputRef}
               invalid={!!error}
               msLeft={msLeft}
@@ -207,11 +287,35 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
               onResend={handleResend}
             />
 
-            {error && <p className="mt-3 text-[13px] text-destructive">{error}</p>}
-            {info && <p className="mt-3 text-[13px] text-success">{info}</p>}
+            {askPassword && (
+              <div className="mt-4">
+                <label htmlFor="verify-password" className="mb-1.5 block text-[13px] font-medium text-foreground">
+                  Your password
+                </label>
+                <PasswordField
+                  id="verify-password"
+                  value={password}
+                  onChange={setPassword}
+                  autoComplete="new-password"
+                  placeholder="Password"
+                  showRules
+                />
+              </div>
+            )}
+
+            {error && (
+              <p role="alert" className="mt-3 text-[13px] text-destructive">
+                {error}
+              </p>
+            )}
+            {info && (
+              <p role="status" className="mt-3 text-[13px] text-success">
+                {info}
+              </p>
+            )}
 
             <button
-              onClick={handleVerify}
+              type="submit"
               disabled={loading || otp.length !== 6 || codeExpired}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
@@ -223,7 +327,10 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
               Didn&rsquo;t get it? Check spam, or go back and confirm the address is right. No account exists until
               the code is entered.
             </p>
-          </div>
+            <p className="mt-2 text-center text-[12px] leading-relaxed text-muted-foreground">
+              Already have an account? We&rsquo;ve emailed you a sign-in link instead.
+            </p>
+          </form>
         </div>
       </div>
     )
@@ -249,7 +356,14 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
               {(["signin", "signup"] as AuthMode[]).map((m) => (
                 <button
                   key={m}
-                  onClick={() => { setMode(m); setError(null); setInfo(null) }}
+                  type="button"
+                  onClick={() => {
+                    setMode(m)
+                    setError(null)
+                    setInfo(null)
+                    // Sign in is not part of a sign-up in progress.
+                    if (m === "signin") forgetDraft()
+                  }}
                   className={`flex-1 rounded-lg py-2 text-[14px] font-semibold transition-all ${
                     mode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
                   }`}
@@ -259,22 +373,43 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
               ))}
             </div>
 
-            <div className="flex flex-col gap-3">
+            <form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleAuth()
+              }}
+              className="flex flex-col gap-3"
+            >
               {mode === "signup" && (
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Full name"
-                  className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
+                <div>
+                  <label htmlFor="signup-name" className="mb-1.5 block text-[13px] font-medium text-foreground">
+                    Your first name
+                  </label>
+                  <input
+                    id="signup-name"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => {
+                      setFullName(e.target.value)
+                      rememberForm(email, e.target.value)
+                    }}
+                    maxLength={80}
+                    autoComplete="given-name"
+                    className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
               )}
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    rememberForm(e.target.value, fullName)
+                  }}
+                  aria-label="Email"
                   placeholder="Email"
                   autoCapitalize="none"
                   autoComplete="email"
@@ -288,15 +423,22 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
                 value={password}
                 onChange={setPassword}
                 autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                onEnter={handleAuth}
                 showRules={mode === "signup"}
               />
 
-              {error && <p className="text-[13px] text-destructive">{error}</p>}
-              {info && <p className="text-[13px] text-success">{info}</p>}
+              {error && (
+                <p role="alert" className="text-[13px] text-destructive">
+                  {error}
+                </p>
+              )}
+              {info && (
+                <p role="status" className="text-[13px] text-success">
+                  {info}
+                </p>
+              )}
 
               <button
-                onClick={handleAuth}
+                type="submit"
                 disabled={loading}
                 className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
               >
@@ -305,11 +447,11 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
               </button>
 
               {mode === "signin" && (
-                <button onClick={handleForgot} className="text-center text-[13px] font-medium text-primary">
+                <button type="button" onClick={handleForgot} className="text-center text-[13px] font-medium text-primary">
                   Forgot password?
                 </button>
               )}
-            </div>
+            </form>
           </>
         ) : (
           <>

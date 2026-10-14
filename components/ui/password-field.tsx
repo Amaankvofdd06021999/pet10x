@@ -8,7 +8,7 @@ import { PASSWORD_RULES, STRENGTH_LABEL, checkPassword } from "@/lib/auth/passwo
  * Password input with a show/hide toggle, and — when creating a password —
  * a live requirements panel.
  *
- * The panel opens on focus as well as hover. Hover alone would hide it from
+ * The panel sits in the flow below the field and opens on focus as well as hover. Hover alone would hide it from
  * every phone, which is where most of this app is used; focus is the touch
  * equivalent of "the user is looking at this field right now".
  */
@@ -118,12 +118,13 @@ export function PasswordField({
       </div>
 
       {showRules && open && (
-        /* Positioned rather than inline so the form below does not jump as the
-           panel appears and disappears. */
+        /* In normal flow, never a pop-over: an overlay covered the submit
+           button on a phone, exactly when the person needed to tap it. The
+           form below shifts down instead — a small jump beats a hidden button. */
         <div
           id={panelId}
           role="status"
-          className="absolute left-0 right-0 top-full z-30 mt-1.5 rounded-xl border border-border bg-popover p-3 shadow-lg"
+          className="mt-1.5 rounded-xl border border-border bg-card p-3"
         >
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

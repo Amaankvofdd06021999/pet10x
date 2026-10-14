@@ -64,6 +64,8 @@ export function CodeEntry({
           {codeExpired ? "Code expired" : `Expires in ${mmss(msLeft)}`}
         </span>
         <button
+          // Not a submit: the code screen is a <form>, and resending must not verify.
+          type="button"
           onClick={onResend}
           disabled={loading || (resendLeft > 0 && !codeExpired)}
           className="text-[13px] font-semibold text-primary disabled:text-muted-foreground"
