@@ -17,7 +17,10 @@ export function calendarColumns(
       columns.push({ id: s.id, name: `${s.name} (not bookable)` })
     }
   }
-  if (columns.length === 0 || appts.some((a) => a.staffId === null)) {
+  // An appointment for someone we don't know (deleted staff) has no column of
+  // its own, so it falls into Unassigned rather than vanishing.
+  const known = new Set(staff.map((s) => s.id))
+  if (columns.length === 0 || appts.some((a) => a.staffId === null || !known.has(a.staffId))) {
     columns.push({ id: null, name: "Unassigned" })
   }
   return columns

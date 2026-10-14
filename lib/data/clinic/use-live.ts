@@ -136,6 +136,6 @@ export function sentenceFor(code: string | undefined): string {
     case undefined:
       return "Something went wrong."
     default:
-      return code.replace(/_/g, " ")
+      return "Couldn't do that. Try again."
   }
 }

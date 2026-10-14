@@ -47,13 +47,19 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
   // modal closes first: ConfirmDialog (z-50) would open under the Modal (z-[100]).
   const [pending, setPending] = useState<{ appt: Appointment; status: "cancelled" | "no_show" } | null>(null)
 
+  // One predicate for "can take bookings": deactivated clinicians keep
+  // is_bookable, so the grid and the Book form must both check is_active.
+  const bookableStaff = useMemo(() => staff.data.filter((s) => s.isBookable && s.isActive), [staff.data])
+
+  const knownStaff = useMemo(() => new Set(staff.data.map((s) => s.id)), [staff.data])
+
   const columns = useMemo(
     () =>
       calendarColumns(
-        staff.data.map((s) => ({ id: s.id, name: s.name, bookable: s.isBookable && s.isActive })),
+        staff.data.map((s) => ({ id: s.id, name: s.name, bookable: bookableStaff.some((b) => b.id === s.id) })),
         appts.data,
       ),
-    [staff.data, appts.data],
+    [staff.data, bookableStaff, appts.data],
   )
 
   async function moveTo(appt: Appointment, status: AppointmentStatus, note?: string): Promise<{ error: string | null }> {
@@ -129,7 +135,7 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
                       />
                     ))}
                     {appts.data
-                      .filter((a) => (a.staffId ?? null) === col.id)
+                      .filter((a) => (col.id === null ? !knownStaff.has(a.staffId ?? "") : a.staffId === col.id))
                       .map((a) => {
                         const top = (minutesInto(a.startsAt, date, tz) - DAY_START_MIN) * PX_PER_MIN
                         const height = Math.max(
@@ -180,7 +186,7 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
           appts.refetch()
         }}
         types={types.data}
-        staff={staff.data.filter((s) => s.isBookable)}
+        staff={bookableStaff}
         locationId={locations.find((l) => l.isPrimary)?.id ?? null}
       />
 
