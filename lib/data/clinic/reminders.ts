@@ -126,7 +126,7 @@ export async function generateReminders(businessId: string): Promise<{ error: st
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { data, error } = await db.rpc("clinic_generate_reminders", { p_business: businessId })
-  if (error) return { error: error.message }
+  if (error) return { error: "Couldn't do that. Try again." }
   const out = readOutcome(data)
   if (!out.ok) return { error: sentenceFor(out.error) }
   return { error: null, created: Number(out.created ?? 0) }
@@ -148,7 +148,7 @@ export async function actOnReminder(
     p_note: note ?? undefined,
     p_days: days ?? undefined,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: "Couldn't do that. Try again." }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
 }

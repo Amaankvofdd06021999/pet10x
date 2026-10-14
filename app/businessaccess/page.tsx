@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import Link from "next/link"
 import { PasswordField } from "@/components/ui/password-field"
 import { CodeEntry, CODE_TTL_MS, RESEND_COOLDOWN_MS } from "@/components/auth/code-entry"
 import { ConsentLine } from "@/components/legal/consent-line"
@@ -331,12 +330,17 @@ function BusinessAuth() {
                     <button type="button" onClick={() => void forgot()} className="text-center text-[13px] font-medium text-accent">
                       Forgot password?
                     </button>
-                    <Link
-                      href="/login?mode=signup&next=%2Fbusinessaccess"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode("signup")
+                        setError(null)
+                        setInfo(null)
+                      }}
                       className="text-center text-[13px] font-medium text-accent"
                     >
                       Create an account
-                    </Link>
+                    </button>
                   </>
                 )}
               </div>

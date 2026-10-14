@@ -30,4 +30,16 @@ describe("calendarColumns", () => {
       { id: null, name: "Unassigned" },
     ])
   })
+
+  it("gives a non-bookable or inactive clinician with an appointment its own column, before Unassigned", () => {
+    expect(calendarColumns([vet, admin], [{ staffId: "s3" }, { staffId: null }])).toEqual([
+      { id: "s1", name: "Dr Lee" },
+      { id: "s3", name: "Front desk (not bookable)" },
+      { id: null, name: "Unassigned" },
+    ])
+  })
+
+  it("adds no column for a non-bookable clinician with no appointments", () => {
+    expect(calendarColumns([vet, admin], [{ staffId: "s1" }])).toEqual([{ id: "s1", name: "Dr Lee" }])
+  })
 })

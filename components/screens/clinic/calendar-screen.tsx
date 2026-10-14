@@ -50,7 +50,7 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
   const columns = useMemo(
     () =>
       calendarColumns(
-        staff.data.filter((s) => s.isActive).map((s) => ({ id: s.id, name: s.name, bookable: s.isBookable })),
+        staff.data.map((s) => ({ id: s.id, name: s.name, bookable: s.isBookable && s.isActive })),
         appts.data,
       ),
     [staff.data, appts.data],

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import { Phone, RefreshCw, BellRing, Clock, Check, X } from "lucide-react"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
 import { capabilities } from "@/lib/data/clinic/context"
@@ -51,7 +52,7 @@ export function ClinicRemindersScreen({ clinic }: { clinic: ClinicMembership }) 
     setBusy(item.id)
     const res = await actOnReminder(item.id, action, note, days)
     setBusy(null)
-    if (res.error) window.alert(res.error)
+    if (res.error) toast.error(res.error)
     else queue.refetch()
   }
 
@@ -84,7 +85,7 @@ export function ClinicRemindersScreen({ clinic }: { clinic: ClinicMembership }) 
               setGenerating(true)
               const res = await generateReminders(clinic.businessId)
               setGenerating(false)
-              if (res.error) window.alert(res.error)
+              if (res.error) toast.error(res.error)
               else queue.refetch()
             }}
           >
