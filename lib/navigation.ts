@@ -147,7 +147,7 @@ export type ScreenKey = keyof typeof SCREEN_SURFACES
  * exact hazard the list exists to prevent. No writer emits that target today;
  * removed so none can.
  */
-const ID_BEARING: readonly ScreenKey[] = [
+export const ID_BEARING: readonly ScreenKey[] = [
   "pet-detail",
   "pet-care",
   "ai-chat",
@@ -195,7 +195,7 @@ const ID_BEARING: readonly ScreenKey[] = [
  * against the resident, which is a correct and useful answer — the id only
  * chooses which one opens expanded. Requiring one would delete the button from
  * any notification written before this phase. */
-const ID_REQUIRED: readonly ScreenKey[] = ["pet-detail", "business-detail"]
+export const ID_REQUIRED: readonly ScreenKey[] = ["pet-detail", "business-detail"]
 
 /**
  * Screens whose second half is a TAB, not an id — and the tabs each accepts.
@@ -210,7 +210,7 @@ const ID_REQUIRED: readonly ScreenKey[] = ["pet-detail", "business-detail"]
 export const MY_VETS_TABS = ["sharing", "records", "visits", "bills"] as const
 export type MyVetsTab = (typeof MY_VETS_TABS)[number]
 
-const TAB_BEARING: Partial<Record<ScreenKey, readonly string[]>> = {
+export const TAB_BEARING: Partial<Record<ScreenKey, readonly string[]>> = {
   "my-vets": MY_VETS_TABS,
 }
 

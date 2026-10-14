@@ -19,7 +19,10 @@
  * replace that parameter with `?screen=` instead of leaving both in the bar.
  */
 import {
+  ID_BEARING,
+  ID_REQUIRED,
   SCREEN_SURFACES,
+  TAB_BEARING,
   isScreenKey,
   readTargetParam,
   resolveActionTarget,
@@ -48,6 +51,18 @@ export const TAB_ROOTS: ReadonlySet<ScreenKey> = new Set<ScreenKey>([
   "settings",
 ])
 
+/**
+ * Tabs of screens that open on one but are not in `TAB_BEARING`, which governs
+ * notification targets. The lists are the ones the screens themselves accept
+ * (`DETAIL_TABS` in pet-detail-screen, the `lost | events | feed` check in
+ * community-screen), so a URL can round-trip any tab the app pushes.
+ */
+const SCREEN_TABS: Partial<Record<ScreenKey, readonly string[]>> = {
+  ...TAB_BEARING,
+  "pet-detail": ["overview", "care", "vaccinations", "documents", "contacts"],
+  community: ["feed", "lost", "events"],
+}
+
 function idMatches(screen: ScreenKey, id: string): boolean {
   return (screen === "pet-care" ? CARE_KIND_RE : ID_RE).test(id)
 }
@@ -72,20 +87,23 @@ export function searchToRoute(search: string, surface: Surface): AppRoute | null
   if (screen === null || !isScreenKey(screen)) return null
   if (!SCREEN_SURFACES[screen].includes(surface)) return null
 
+  // `handleNavigate` hands an id only to ID_BEARING screens (and a pet only to
+  // the tracker); an id anywhere else would stash a stale pet for the next
+  // screen that reads one. A screen whose subject IS the id cannot open without.
   const route: AppRoute = { screen }
   const id = p.get("id")
   if (id !== null) {
-    if (!idMatches(screen, id)) return null
+    if (!ID_BEARING.includes(screen) || !idMatches(screen, id)) return null
     route.id = id
-  }
+  } else if (ID_REQUIRED.includes(screen)) return null
   const pet = p.get("pet")
   if (pet !== null) {
-    if (!ID_RE.test(pet)) return null
+    if (screen !== "pet-care" || !ID_RE.test(pet)) return null
     route.petId = pet
   }
   const tab = p.get("tab")
   if (tab !== null) {
-    if (!TAB_RE.test(tab)) return null
+    if (!TAB_RE.test(tab) || !SCREEN_TABS[screen]?.includes(tab)) return null
     route.tab = tab
   }
   return route
