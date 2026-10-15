@@ -43,6 +43,14 @@ describe.each([':root', '.dark'] as const)('AA contrast tokens (%s)', (theme) =>
     expect(contrastRatio(t('success-strong'), t('background'))).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio(t('success-strong'), t('card'))).toBeGreaterThanOrEqual(4.5)
   })
+  it('primary-strong-hover keeps primary-foreground text readable', () => {
+    expect(contrastRatio(t('primary-strong-hover'), t('primary-foreground'))).toBeGreaterThanOrEqual(4.5)
+  })
+  it('success-strong fill carries white text', () => {
+    // The check badges use a fixed white, not --success-foreground.
+    const white = theme === ':root' ? '#FFFFFF' : t('success-foreground')
+    expect(contrastRatio(t('success-strong'), white)).toBeGreaterThanOrEqual(4.5)
+  })
   it('muted-foreground placeholder reads on the page ground and on cards', () => {
     expect(contrastRatio(t('muted-foreground'), t('background'))).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio(t('muted-foreground'), t('card'))).toBeGreaterThanOrEqual(4.5)

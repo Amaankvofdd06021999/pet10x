@@ -31,6 +31,9 @@
   --primary: #FD9340;
   --primary-strong: #B85A12;
   --primary-text: #A9520F;
+  /* A solid hover stop: a /90 alpha blends toward white and drops white text
+   * to ~3.9:1. */
+  --primary-strong-hover: #A04E0F;
   --primary-foreground: #FFFFFF;
 
   --secondary: #EDEEF6;
@@ -104,6 +107,7 @@
    * and under the dark foreground, so the strong stops equal it. */
   --primary-strong: #FD9340;
   --primary-text: #FD9340;
+  --primary-strong-hover: #E67E2A;
   --primary-foreground: #1F1F1F;
   --secondary: #26272C;
   --secondary-foreground: #F2F3F5;
@@ -151,6 +155,7 @@
   --color-primary: var(--primary);
   --color-primary-strong: var(--primary-strong);
   --color-primary-text: var(--primary-text);
+  --color-primary-strong-hover: var(--primary-strong-hover);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -247,13 +252,17 @@
 }
 
 /* Pinch-zoom is allowed, so iOS Safari's focus auto-zoom is the remaining
-   concern: it triggers on any field under 16px. One rule here beats chasing
-   `text-sm` across every input. Phones only; desktop keeps the denser size. */
-@media (max-width: 767px) {
-  input,
-  textarea,
-  select {
-    font-size: 16px;
+   concern: it triggers on any field under 16px. This is the floor for fields
+   that set no size of their own. It lives in the base layer so an explicit
+   utility (the 28px code-entry field, or `text-base md:text-sm` on the shared
+   inputs) still wins. */
+@layer base {
+  @media (max-width: 767px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
   }
 }
 

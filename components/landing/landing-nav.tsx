@@ -71,7 +71,7 @@ export function LandingNav() {
           </Link>
           <Link
             href="/login?mode=signup"
-            className="rounded-lg bg-primary-strong px-4 py-2 text-[14px] font-semibold text-primary-foreground shadow-sm shadow-primary/30 transition-all hover:scale-[1.03] hover:bg-primary-strong/90 active:scale-[0.98]"
+            className="rounded-lg bg-primary-strong px-4 py-2 text-[14px] font-semibold text-primary-foreground shadow-sm shadow-primary/30 transition-all hover:scale-[1.03] hover:bg-primary-strong-hover active:scale-[0.98]"
           >
             Get started
           </Link>

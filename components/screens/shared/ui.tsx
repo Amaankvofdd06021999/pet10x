@@ -192,7 +192,7 @@ export function Button({
     "inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none"
   const sizes = { sm: "px-2.5 py-1.5 text-[12.5px]", md: "px-3.5 py-2 text-[13.5px]" }[size]
   const variants = {
-    primary: "bg-primary-strong text-primary-foreground hover:bg-primary-strong/90",
+    primary: "bg-primary-strong text-primary-foreground hover:bg-primary-strong-hover",
     secondary: "border border-border bg-card text-foreground hover:bg-secondary",
     ghost: "text-muted-foreground hover:bg-secondary hover:text-foreground",
     danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
@@ -245,7 +245,7 @@ export function Field({
 }
 
 const INPUT_CLASS =
-  "w-full rounded-xl border border-input bg-card px-3 py-2 text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+  "w-full rounded-xl border border-input bg-card px-3 py-2 text-base text-foreground outline-none md:text-[13.5px] placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${INPUT_CLASS} ${props.className ?? ""}`} />

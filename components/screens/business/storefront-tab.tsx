@@ -307,7 +307,7 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
           {DAY_KEYS.map((d) => {
             const v = hours[d]
             return (
-              <div key={d} className="flex items-center gap-2">
+              <div key={d} className="flex flex-wrap items-center gap-2">
                 <span className="w-24 flex-shrink-0 text-[13px] text-foreground">{DAY_LABEL[d]}</span>
                 {v ? (
                   <>
@@ -315,14 +315,14 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
                       type="time"
                       value={v.open}
                       onChange={(e) => setHours((p) => ({ ...p, [d]: { ...v, open: e.target.value } }))}
-                      className="rounded-lg border border-border bg-background px-2 py-1.5 text-[13px] text-foreground focus:border-accent focus:outline-none"
+                      className="min-w-0 rounded-lg border border-border bg-background px-2 py-1.5 text-base text-foreground focus:border-accent focus:outline-none md:text-[13px]"
                     />
                     <span className="text-muted-foreground">–</span>
                     <input
                       type="time"
                       value={v.close}
                       onChange={(e) => setHours((p) => ({ ...p, [d]: { ...v, close: e.target.value } }))}
-                      className="rounded-lg border border-border bg-background px-2 py-1.5 text-[13px] text-foreground focus:border-accent focus:outline-none"
+                      className="min-w-0 rounded-lg border border-border bg-background px-2 py-1.5 text-base text-foreground focus:border-accent focus:outline-none md:text-[13px]"
                     />
                     <button
                       onClick={() => setHours((p) => ({ ...p, [d]: null }))}

@@ -241,7 +241,7 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link
                   href="/login?mode=signup"
-                  className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-6 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong/90"
+                  className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-6 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong-hover"
                 >
                   Get started free
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -487,7 +487,7 @@ export default function LandingPage() {
                     href={p.href}
                     className={`mt-7 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
                       p.featured
-                        ? "bg-primary-strong text-primary-foreground hover:bg-primary-strong/90"
+                        ? "bg-primary-strong text-primary-foreground hover:bg-primary-strong-hover"
                         : "border border-border text-foreground hover:bg-muted"
                     }`}
                   >
@@ -548,7 +548,7 @@ export default function LandingPage() {
                     href={tier.href}
                     className={`mt-8 inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
                       tier.featured
-                        ? "bg-primary-strong text-primary-foreground hover:bg-primary-strong/90"
+                        ? "bg-primary-strong text-primary-foreground hover:bg-primary-strong-hover"
                         : "border border-border text-foreground hover:bg-muted"
                     }`}
                   >
@@ -604,7 +604,7 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link
                   href="/login?mode=signup"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-7 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong/90"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-7 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong-hover"
                 >
                   Get started free
                   <ArrowRight className="h-4 w-4" />
