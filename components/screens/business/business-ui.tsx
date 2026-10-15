@@ -22,7 +22,7 @@ export function StatTile({
         : tone === "destructive"
           ? "text-destructive"
           : tone === "success"
-            ? "text-success"
+            ? "text-success-strong"
             : "text-foreground"
   return (
     <div className="rounded-2xl card-raised p-4">
@@ -123,7 +123,7 @@ export function TextInput({
       onKeyDown={(e) => e.key === "Enter" && onEnter?.()}
       placeholder={placeholder}
       autoCapitalize={type === "email" ? "none" : undefined}
-      className="w-full min-w-0 rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+      className="w-full min-w-0 rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
     />
   )
 }

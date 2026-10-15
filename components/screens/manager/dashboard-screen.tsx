@@ -170,7 +170,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
 
         {/* Headline pair — the building at a glance */}
         <section className="mb-6 grid grid-cols-2 gap-3">
-          <div className="relative overflow-hidden rounded-2xl bg-primary p-4">
+          <div className="relative overflow-hidden rounded-2xl bg-primary-strong p-4">
             <PawPrint
               className="absolute -bottom-3 -right-2 h-20 w-20 text-primary-foreground/20"
               fill="currentColor"
@@ -183,7 +183,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
           </div>
           <div className="rounded-2xl card-raised p-4">
             <p className="text-[13px] font-medium text-muted-foreground">Residents w/ pets</p>
-            <p className="mt-0.5 text-[30px] font-bold leading-none text-primary">
+            <p className="mt-0.5 text-[30px] font-bold leading-none text-primary-text">
               {loading ? "—" : ownersWithPets}
             </p>
           </div>
@@ -224,7 +224,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
                 {violations.length > 0 && (
                   <button
                     onClick={() => onNavigate?.("violations")}
-                    className="flex-shrink-0 text-[13px] font-semibold text-primary"
+                    className="flex-shrink-0 text-[13px] font-semibold text-primary-text"
                   >
                     View all
                   </button>
@@ -281,7 +281,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
             className="mb-6 flex w-full items-center gap-3 rounded-2xl border-l-4 border-success bg-success/10 p-4 text-left transition-transform active:scale-[0.99]"
           >
             <span className="min-w-0 flex-1">
-              <span className="block text-[14px] font-semibold text-success">Residents awaiting approval</span>
+              <span className="block text-[14px] font-semibold text-success-strong">Residents awaiting approval</span>
               <span className="mt-0.5 block text-[24px] font-bold leading-tight text-foreground">
                 {pending} new application{pending === 1 ? "" : "s"}
               </span>

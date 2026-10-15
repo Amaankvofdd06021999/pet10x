@@ -118,7 +118,7 @@ export function AlertsScreen({
           unreadCount > 0 ? (
             <button
               onClick={markAll}
-              className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12.5px] font-semibold text-primary"
+              className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12.5px] font-semibold text-primary-text"
             >
               <CheckCheck className="h-3.5 w-3.5" /> Mark all read
             </button>
@@ -135,7 +135,7 @@ export function AlertsScreen({
               onClick={() => setActiveTab(tab.id)}
               className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
                 effectiveTab === tab.id
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary-strong text-primary-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -177,7 +177,7 @@ export function AlertsScreen({
               <p className="text-[13px] leading-relaxed text-foreground">{loadError}</p>
               <button
                 onClick={() => void refreshNotifications()}
-                className="mt-2 text-[13px] font-semibold text-primary"
+                className="mt-2 text-[13px] font-semibold text-primary-text"
               >
                 Try again
               </button>

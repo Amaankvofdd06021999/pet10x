@@ -41,7 +41,7 @@ export function SpeciesTiles({
             }`}
           >
             <Icon className={`h-6 w-6 ${active ? "text-primary" : "text-muted-foreground"}`} />
-            <span className={`text-[13px] font-semibold ${active ? "text-primary" : "text-foreground"}`}>{s.label}</span>
+            <span className={`text-[13px] font-semibold ${active ? "text-primary-text" : "text-foreground"}`}>{s.label}</span>
           </button>
         )
       })}

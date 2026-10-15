@@ -101,7 +101,7 @@ export function AccommodationRequestScreen({
             </p>
             <button
               onClick={() => onNavigate?.("link-building")}
-              className="mt-4 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground"
+              className="mt-4 rounded-xl bg-primary-strong px-4 py-2.5 text-[14px] font-semibold text-primary-foreground"
             >
               Link my building
             </button>
@@ -373,7 +373,7 @@ function RequestEditor({
             if (ok) onClose()
           })
         }}
-        className="self-start text-[14px] font-semibold text-primary"
+        className="self-start text-[14px] font-semibold text-primary-text"
       >
         All requests
       </button>
@@ -503,7 +503,7 @@ function RequestEditor({
           <button
             onClick={() => void submit()}
             disabled={busy || missing.length > 0}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             Send to my building

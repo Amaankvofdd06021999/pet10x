@@ -22,8 +22,8 @@ const STATUS_STYLE: Record<BookingStatus, string> = {
   requested: "bg-warning/15 text-warning",
   confirmed: "bg-accent/15 text-accent",
   in_progress: "bg-info/15 text-info",
-  completed: "bg-success/15 text-success",
-  paid: "bg-success/15 text-success",
+  completed: "bg-success/15 text-success-strong",
+  paid: "bg-success/15 text-success-strong",
   declined: "bg-destructive/10 text-destructive",
   cancelled: "bg-muted text-muted-foreground",
 }
@@ -72,7 +72,7 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
         title="My bookings"
         largeTitle={false}
         leftAction={
-          <button onClick={onBack} className="flex items-center gap-1 text-[15px] text-primary">
+          <button onClick={onBack} className="flex items-center gap-1 text-[15px] text-primary-text">
             <ArrowLeft className="h-5 w-5" />
           </button>
         }

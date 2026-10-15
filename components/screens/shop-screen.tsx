@@ -38,7 +38,7 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
                 key={c}
                 onClick={() => setCategory(c)}
                 className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[12.5px] font-semibold capitalize transition-colors ${
-                  category === c ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  category === c ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {c}
@@ -92,7 +92,7 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
                         <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{item.merchant}</p>
                       )}
                       <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-                        <span className="text-[13px] font-bold text-primary">{item.priceLabel ?? "View"}</span>
+                        <span className="text-[13px] font-bold text-primary-text">{item.priceLabel ?? "View"}</span>
                         <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                       </div>
                     </div>

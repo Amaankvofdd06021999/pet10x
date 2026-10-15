@@ -259,7 +259,7 @@ function BusinessAuth() {
                 />
               </div>
               {error && <p className="mt-3 text-[13px] text-destructive">{error}</p>}
-              {info && <p className="mt-3 text-[13px] text-success">{info}</p>}
+              {info && <p className="mt-3 text-[13px] text-success-strong">{info}</p>}
               <button
                 onClick={verify}
                 disabled={loading || otp.length !== 6 || codeExpired}
@@ -316,7 +316,7 @@ function BusinessAuth() {
                   showRules={mode === "signup"}
                 />
                 {error && <p className="text-[13px] text-destructive">{error}</p>}
-                {info && <p className="text-[13px] text-success">{info}</p>}
+                {info && <p className="text-[13px] text-success-strong">{info}</p>}
                 <button
                   onClick={submit}
                   disabled={loading}
@@ -491,7 +491,7 @@ function Input({
       onKeyDown={(e) => e.key === "Enter" && onEnter?.()}
       placeholder={placeholder}
       autoCapitalize={type === "email" ? "none" : undefined}
-      className="w-full min-w-0 rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      className="w-full min-w-0 rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
     />
   )
 }

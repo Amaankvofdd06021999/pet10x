@@ -614,7 +614,7 @@ function BillRow({
             aria-expanded={open}
             aria-controls={linesId}
             onClick={() => setOpen((v) => !v)}
-            className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-primary"
+            className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-primary-text"
           >
             <ChevronDown
               className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}

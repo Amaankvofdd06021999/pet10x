@@ -32,7 +32,7 @@ function UserBubble({ turn }: { turn: ChatTurn }) {
           </div>
         )}
         {turn.content && (
-          <div className="rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5">
+          <div className="rounded-2xl rounded-br-md bg-primary-strong px-3.5 py-2.5">
             <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-primary-foreground">{turn.content}</p>
           </div>
         )}

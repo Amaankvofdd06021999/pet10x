@@ -206,7 +206,7 @@ export function BuildingRulesScreen({
                                   <li key={pet.id} className="flex items-center justify-between gap-2 text-[12.5px]">
                                     <span className="min-w-0 truncate text-muted-foreground">{pet.name}</span>
                                     {status.state === "met" ? (
-                                      <span className="flex flex-shrink-0 items-center gap-1 font-medium text-success">
+                                      <span className="flex flex-shrink-0 items-center gap-1 font-medium text-success-strong">
                                         <CheckCircle2 className="h-4 w-4" aria-hidden />
                                         Met
                                       </span>
@@ -369,7 +369,7 @@ function NoBuilding({
       {!pending && (
         <button
           onClick={() => onNavigate?.("link-building")}
-          className="rounded-xl bg-primary px-4 py-2 text-[14px] font-semibold text-primary-foreground"
+          className="rounded-xl bg-primary-strong px-4 py-2 text-[14px] font-semibold text-primary-foreground"
         >
           Link my building
         </button>

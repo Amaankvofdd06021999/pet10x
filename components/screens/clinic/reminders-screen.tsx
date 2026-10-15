@@ -161,7 +161,7 @@ export function ClinicRemindersScreen({ clinic }: { clinic: ClinicMembership }) 
                         <a
                           href={`tel:${r.customerPhone.replace(/[^\d+]/g, "")}`}
                           onClick={() => void act(r, "log_call", "Called from the queue")}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-2.5 py-1.5 text-[12.5px] font-semibold text-primary-foreground"
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-primary-strong px-2.5 py-1.5 text-[12.5px] font-semibold text-primary-foreground"
                         >
                           <Phone className="h-3.5 w-3.5" aria-hidden="true" /> Call
                         </a>

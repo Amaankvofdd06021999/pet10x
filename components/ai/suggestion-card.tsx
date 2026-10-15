@@ -59,7 +59,7 @@ export function SuggestionCard({ suggestion, onAction, onDismiss }: SuggestionCa
         {suggestion.actionLabel && (
           <button
             onClick={() => onAction(suggestion.actionTarget)}
-            className="mt-1.5 flex items-center gap-0.5 text-[12px] font-semibold text-primary"
+            className="mt-1.5 flex items-center gap-0.5 text-[12px] font-semibold text-primary-text"
           >
             {suggestion.actionLabel}
             <ChevronRight className="h-3.5 w-3.5" />

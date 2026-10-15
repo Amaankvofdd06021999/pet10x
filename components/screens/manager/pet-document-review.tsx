@@ -77,7 +77,7 @@ export function PetDocumentReviewControls({
           <button
             onClick={() => void decide("approve")}
             disabled={busy !== null}
-            className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success disabled:opacity-50"
+            className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-50"
           >
             {busy === "approve" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
             Approve

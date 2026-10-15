@@ -23,7 +23,14 @@
   --popover-foreground: #2C2E30;
   --muted-foreground: #646569; /* body, meta, helper text */
 
+  /* #FD9340 is 2.2:1 against white, so it is for surfaces that carry no
+   * words — icon tiles, rings, borders, chart accents, the logo. Anything
+   * that holds text takes one of the two deeper stops: `--primary-strong`
+   * for a fill under white text, `--primary-text` for orange type on the
+   * page or a card. Both clear 4.5:1 (checked in lib/contrast.test.ts). */
   --primary: #FD9340;
+  --primary-strong: #B85A12;
+  --primary-text: #A9520F;
   --primary-foreground: #FFFFFF;
 
   --secondary: #EDEEF6;
@@ -55,6 +62,8 @@
    * are display colours that go chalky next to a tinted ground and cannot
    * carry white text at any size. */
   --success: #1E9E62;
+  /* #1E9E62 is 3.4:1 as running text; this is the same green deepened to AA. */
+  --success-strong: #147A4A;
   --success-foreground: #FFFFFF;
   --warning: #F0A81E;
   --warning-foreground: #2C2E30;
@@ -91,6 +100,10 @@
   --popover: #1C1D21;
   --popover-foreground: #F2F3F5;
   --primary: #FD9340;
+  /* On the dark ground the brand orange already clears 4.5:1 both as text
+   * and under the dark foreground, so the strong stops equal it. */
+  --primary-strong: #FD9340;
+  --primary-text: #FD9340;
   --primary-foreground: #1F1F1F;
   --secondary: #26272C;
   --secondary-foreground: #F2F3F5;
@@ -109,6 +122,7 @@
   --chart-4: #6E92F2;
   --chart-5: #FFC94D;
   --success: #3FBF83;
+  --success-strong: #3FBF83;
   --success-foreground: #0F1F17;
   --warning: #FFC94D;
   --warning-foreground: #1F1F1F;
@@ -135,6 +149,8 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-text: var(--primary-text);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -153,6 +169,7 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   --color-success: var(--success);
+  --color-success-strong: var(--success-strong);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
@@ -226,6 +243,17 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Pinch-zoom is allowed, so iOS Safari's focus auto-zoom is the remaining
+   concern: it triggers on any field under 16px. One rule here beats chasing
+   `text-sm` across every input. Phones only; desktop keeps the denser size. */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
   }
 }
 

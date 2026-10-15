@@ -67,7 +67,7 @@ function ManagerLogin() {
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10 [background-image:radial-gradient(60rem_40rem_at_50%_-10%,var(--color-info)/8%,transparent)]">
       <div className="w-full max-w-sm sm:max-w-md">
-        <Link href="/app" className="mb-6 flex w-fit items-center gap-1 text-[14px] text-primary transition-colors hover:text-primary/80">
+        <Link href="/app" className="mb-6 flex w-fit items-center gap-1 text-[14px] text-primary-text transition-colors hover:text-primary-text/80">
           <ArrowLeft className="h-4 w-4" /> Pet owner? Sign in here
         </Link>
         <div className="mb-6 flex flex-col items-center text-center sm:mb-8">
@@ -97,7 +97,7 @@ function ManagerLogin() {
             onEnter={submit}
           />
           {error && <p className="text-[13px] text-destructive">{error}</p>}
-          {info && <p className="text-[13px] text-success">{info}</p>}
+          {info && <p className="text-[13px] text-success-strong">{info}</p>}
           <button
             onClick={submit}
             disabled={loading}
@@ -106,7 +106,7 @@ function ManagerLogin() {
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Sign in
           </button>
-          <button onClick={forgot} className="text-center text-[13px] font-medium text-primary transition-colors hover:text-primary/80">
+          <button onClick={forgot} className="text-center text-[13px] font-medium text-primary-text transition-colors hover:text-primary-text/80">
             Forgot password?
           </button>
         </div>

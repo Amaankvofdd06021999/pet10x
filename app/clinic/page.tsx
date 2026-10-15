@@ -161,7 +161,7 @@ function Console() {
                 aria-current={on ? "page" : undefined}
                 className={`mb-0.5 flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-colors ${
                   on
-                    ? "bg-primary/10 text-primary"
+                    ? "bg-primary/10 text-primary-text"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 }`}
               >
@@ -267,7 +267,7 @@ function Console() {
                 aria-current={activeTab === t.id ? "page" : undefined}
                 className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-semibold ${
                   activeTab === t.id
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-primary-strong text-primary-foreground"
                     : "border border-border text-muted-foreground"
                 }`}
               >

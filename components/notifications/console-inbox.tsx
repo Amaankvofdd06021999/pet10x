@@ -91,7 +91,7 @@ export function ConsoleInbox({
                   {unread > 0 && (
                     <button
                       onClick={readAll}
-                      className="flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-[12px] font-semibold text-primary"
+                      className="flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-[12px] font-semibold text-primary-text"
                     >
                       <CheckCheck className="h-3.5 w-3.5" /> Mark all read
                     </button>
@@ -117,7 +117,7 @@ export function ConsoleInbox({
                   // A failed load is said as one — never as "all caught up".
                   <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-center">
                     <p className="text-[13px] text-foreground">{error}</p>
-                    <button onClick={() => void refreshNotifications()} className="mt-2 text-[13px] font-semibold text-primary">
+                    <button onClick={() => void refreshNotifications()} className="mt-2 text-[13px] font-semibold text-primary-text">
                       Try again
                     </button>
                   </div>

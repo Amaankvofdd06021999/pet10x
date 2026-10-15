@@ -207,7 +207,7 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
                 <button
                   onClick={() => approve(r.linkId)}
                   disabled={busy === r.linkId}
-                  className="flex items-center gap-1 rounded-lg bg-success/15 px-3 py-1.5 text-[12px] font-semibold text-success disabled:opacity-50"
+                  className="flex items-center gap-1 rounded-lg bg-success/15 px-3 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-50"
                 >
                   {busy === r.linkId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                   Approve
@@ -560,7 +560,7 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                         <button
                           onClick={() => setClosing({ id: v.id, act: "overturned" })}
                           disabled={busy === v.id}
-                          className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success disabled:opacity-50"
+                          className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-50"
                         >
                           <ShieldCheck className="h-3.5 w-3.5" /> Overturn
                         </button>
@@ -581,7 +581,7 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                           <button
                             onClick={() => setClosing({ id: v.id, act: "resolve" })}
                             disabled={busy === v.id}
-                            className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success disabled:opacity-50"
+                            className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-50"
                           >
                             <ShieldCheck className="h-3.5 w-3.5" /> Resolve
                           </button>
@@ -706,7 +706,7 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                       {v.type} · Unit {v.unit}
                     </span>
                     <span className="flex-shrink-0 text-[11.5px] text-muted-foreground">
-                      <span className={tone === "good" ? "font-semibold text-success" : "font-semibold"}>{label}</span>
+                      <span className={tone === "good" ? "font-semibold text-success-strong" : "font-semibold"}>{label}</span>
                       {v.resolved ? ` · ${v.resolved}` : ""}
                     </span>
                   </div>

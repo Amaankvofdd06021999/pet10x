@@ -56,7 +56,7 @@ export function CodeEntry({
         onKeyDown={(e) => e.key === "Enter" && onEnter()}
         placeholder="••••••"
         aria-invalid={invalid}
-        className="w-full rounded-xl border border-input bg-card py-4 text-center font-mono text-[28px] font-bold tracking-[0.4em] text-foreground placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="w-full rounded-xl border border-input bg-card py-4 text-center font-mono text-[28px] font-bold tracking-[0.4em] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
       />
 
       <div className="mt-3 flex items-center justify-between gap-3">
@@ -68,7 +68,7 @@ export function CodeEntry({
           type="button"
           onClick={onResend}
           disabled={loading || (resendLeft > 0 && !codeExpired)}
-          className="text-[13px] font-semibold text-primary disabled:text-muted-foreground"
+          className="text-[13px] font-semibold text-primary-text disabled:text-muted-foreground"
         >
           {resendLeft > 0 && !codeExpired ? `Resend in ${Math.ceil(resendLeft / 1000)}s` : "Send a new code"}
         </button>

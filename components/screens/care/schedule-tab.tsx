@@ -306,7 +306,7 @@ export function ScheduleTab({
 
       <button
         onClick={() => setDraft({ ...EMPTY })}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[14px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[14px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
       >
         <Plus className="h-4 w-4" /> Add to schedule
       </button>
@@ -331,7 +331,7 @@ export function ScheduleTab({
                 key={k.value}
                 onClick={() => setDraft({ ...draft, kind: k.value })}
                 className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                  draft.kind === k.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  draft.kind === k.value ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {k.label}
@@ -412,7 +412,7 @@ export function ScheduleTab({
                     onClick={() => setDraft({ ...draft, intervalDays: c.intervalDays })}
                     className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
                       draft.intervalDays === c.intervalDays
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary-strong text-primary-foreground"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -439,7 +439,7 @@ export function ScheduleTab({
                     onClick={() => setDraft({ ...draft, durationDays: d.days })}
                     className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
                       draft.durationDays === d.days
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary-strong text-primary-foreground"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -489,7 +489,7 @@ export function ScheduleTab({
                   }
                   aria-pressed={on}
                   className={`h-9 flex-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                    on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    on ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {d[0]}
@@ -507,7 +507,7 @@ export function ScheduleTab({
                 key={m}
                 onClick={() => setDraft({ ...draft, remind: m })}
                 className={`flex-1 rounded-lg py-2 text-[12px] font-semibold transition-colors ${
-                  draft.remind === m ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  draft.remind === m ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {m === 0 ? "On time" : `${m}m early`}
@@ -526,7 +526,7 @@ export function ScheduleTab({
             <button
               onClick={save}
               disabled={saving}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
             </button>

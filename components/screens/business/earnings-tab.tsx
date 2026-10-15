@@ -97,12 +97,12 @@ export function EarningsTab({ businessId }: { businessId: string }) {
                     <td className="py-2 pr-3 text-muted-foreground">{b.customerName}</td>
                     <td className="py-2 pr-3 text-right tabular-nums">{formatPrice(b.amountCents, b.currency)}</td>
                     <td className="py-2 pr-3 text-right tabular-nums text-destructive">−{formatPrice(b.commissionCents, b.currency)}</td>
-                    <td className="py-2 pr-3 text-right font-semibold tabular-nums text-success">
+                    <td className="py-2 pr-3 text-right font-semibold tabular-nums text-success-strong">
                       {formatPrice(b.amountCents - b.commissionCents, b.currency)}
                     </td>
                     <td className="py-2 text-right">
                       <span
-                        className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${b.status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}
+                        className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${b.status === "paid" ? "bg-success/15 text-success-strong" : "bg-warning/15 text-warning"}`}
                       >
                         {BOOKING_STATUS_LABEL[b.status]}
                       </span>

@@ -309,7 +309,7 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
               </p>
             )}
             {info && (
-              <p role="status" className="mt-3 text-[13px] text-success">
+              <p role="status" className="mt-3 text-[13px] text-success-strong">
                 {info}
               </p>
             )}
@@ -317,7 +317,7 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
             <button
               type="submit"
               disabled={loading || otp.length !== 6 || codeExpired}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong/90 disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Verify &amp; create account
@@ -432,7 +432,7 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
                 </p>
               )}
               {info && (
-                <p role="status" className="text-[13px] text-success">
+                <p role="status" className="text-[13px] text-success-strong">
                   {info}
                 </p>
               )}
@@ -440,14 +440,14 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+                className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong/90 disabled:opacity-60"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {mode === "signin" ? "Sign in" : "Create account"}
               </button>
 
               {mode === "signin" && (
-                <button type="button" onClick={handleForgot} className="text-center text-[13px] font-medium text-primary">
+                <button type="button" onClick={handleForgot} className="text-center text-[13px] font-medium text-primary-text">
                   Forgot password?
                 </button>
               )}

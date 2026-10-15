@@ -54,7 +54,7 @@ export function ComplianceReportScreen({
         ) : error || !report ? (
           <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-center">
             <p className="text-[13px] text-foreground">{error ?? "Couldn't load the compliance report."}</p>
-            <button onClick={() => void refetch()} className="mt-2 text-[13px] font-semibold text-primary">
+            <button onClick={() => void refetch()} className="mt-2 text-[13px] font-semibold text-primary-text">
               Try again
             </button>
           </div>
@@ -64,7 +64,7 @@ export function ComplianceReportScreen({
               <button
                 onClick={exportCsv}
                 disabled={report.rows.length === 0}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-strong py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-50"
               >
                 <Download className="h-4 w-4" /> Download CSV
               </button>

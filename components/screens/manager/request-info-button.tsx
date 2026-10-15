@@ -57,7 +57,7 @@ export function RequestInfoButton({
 
   if (missing.length === 0) {
     return (
-      <span className="flex items-center gap-1 text-[12px] font-semibold text-success">
+      <span className="flex items-center gap-1 text-[12px] font-semibold text-success-strong">
         <Check className="h-3.5 w-3.5" strokeWidth={3} /> Complete
       </span>
     )
@@ -68,7 +68,7 @@ export function RequestInfoButton({
       onClick={send}
       disabled={sending}
       className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${
-        askedRecently ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
+        askedRecently ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary-text"
       }`}
     >
       {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MailQuestion className="h-3.5 w-3.5" />}

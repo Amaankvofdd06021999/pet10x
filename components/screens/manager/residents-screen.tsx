@@ -168,7 +168,7 @@ export function ManagerResidentsScreen() {
                           discovered afterwards. */}
                       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                         {gaps.length === 0 ? (
-                          <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                          <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success-strong">
                             All details provided
                           </span>
                         ) : (
@@ -223,7 +223,7 @@ export function ManagerResidentsScreen() {
               <div className="mb-2.5 flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
                 <h2 className="text-[15px] font-semibold text-foreground">Members</h2>
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{members.length}</span>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary-text">{members.length}</span>
               </div>
               {members.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-[13px] text-muted-foreground">
@@ -317,7 +317,7 @@ function MemberCard({
               {pets.map((p) => {
                 const Icon = p.species === "dog" ? Dog : Cat
                 const color =
-                  p.compliancePct >= 100 ? "text-success" : p.compliancePct >= 50 ? "text-warning-strong" : "text-destructive"
+                  p.compliancePct >= 100 ? "text-success-strong" : p.compliancePct >= 50 ? "text-warning-strong" : "text-destructive"
                 return (
                   <div key={p.id} className="flex items-center gap-2.5 rounded-lg bg-muted/40 p-2.5">
                     <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />

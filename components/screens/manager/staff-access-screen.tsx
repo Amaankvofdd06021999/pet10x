@@ -40,7 +40,7 @@ export function StaffAccessScreen({
         ) : error ? (
           <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-center">
             <p className="text-[13px] text-foreground">Couldn&apos;t load the team.</p>
-            <button onClick={() => void refetch()} className="mt-2 text-[13px] font-semibold text-primary">
+            <button onClick={() => void refetch()} className="mt-2 text-[13px] font-semibold text-primary-text">
               Try again
             </button>
           </div>

@@ -106,7 +106,7 @@ export function ActivityTab() {
             onClick={() => setArea(a.id)}
             aria-pressed={area === a.id}
             className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${
-              area === a.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              area === a.id ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
             }`}
           >
             {a.label}
@@ -121,7 +121,7 @@ export function ActivityTab() {
       ) : error ? (
         <div role="alert" className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-center">
           <p className="text-[13px] text-foreground">{error}</p>
-          <button onClick={() => void load(lastCursor())} className="mt-2 text-[13px] font-semibold text-primary">
+          <button onClick={() => void load(lastCursor())} className="mt-2 text-[13px] font-semibold text-primary-text">
             Try again
           </button>
         </div>

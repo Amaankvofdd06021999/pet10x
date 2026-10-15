@@ -101,13 +101,13 @@ export function ClinicSignIn() {
           <Button type="submit" busy={busy} className="mt-1 w-full">
             Sign in <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Button>
-          {info && <p role="status" className="text-center text-[12.5px] text-success">{info}</p>}
-          <button type="button" onClick={() => void forgot()} className="text-center text-[13px] font-medium text-primary">
+          {info && <p role="status" className="text-center text-[12.5px] text-success-strong">{info}</p>}
+          <button type="button" onClick={() => void forgot()} className="text-center text-[13px] font-medium text-primary-text">
             Forgot password?
           </button>
           <p className="text-center text-[12.5px] text-muted-foreground">
             New here?{" "}
-            <Link href="/login?mode=signup&next=%2Fclinic" className="font-semibold text-primary">
+            <Link href="/login?mode=signup&next=%2Fclinic" className="font-semibold text-primary-text">
               Create an account
             </Link>
             , then register your practice on the next screen.

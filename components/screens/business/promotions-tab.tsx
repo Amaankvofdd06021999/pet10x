@@ -145,7 +145,7 @@ export function PromotionsTab({ business }: { business: MyBusiness }) {
             </Field>
 
             {/* Said before the button, so nobody wonders what launching costs. */}
-            <p className="text-[12.5px] font-semibold text-success">Free during beta</p>
+            <p className="text-[12.5px] font-semibold text-success-strong">Free during beta</p>
             <button
               onClick={create}
               disabled={busy || launchBlock !== null}
@@ -182,7 +182,7 @@ export function PromotionsTab({ business }: { business: MyBusiness }) {
                 </div>
                 <button
                   onClick={() => toggle(c.id, !c.active)}
-                  className={`rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold ${c.active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}
+                  className={`rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold ${c.active ? "bg-success/15 text-success-strong" : "bg-muted text-muted-foreground"}`}
                 >
                   {c.active ? "Active" : "Paused"}
                 </button>

@@ -184,7 +184,7 @@ export function MunicipalitiesTab() {
             setSaveError(null)
             setForm({ ...EMPTY })
           }}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[13px] font-semibold text-primary-foreground"
+          className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-primary-strong px-3 py-1.5 text-[13px] font-semibold text-primary-foreground"
         >
           <Plus className="h-3.5 w-3.5" /> Add municipality
         </button>
@@ -215,7 +215,7 @@ export function MunicipalitiesTab() {
             <button
               onClick={() => void submit()}
               disabled={saving}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+              className="flex items-center gap-2 rounded-lg bg-primary-strong px-4 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
             >
               {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Save
@@ -234,7 +234,7 @@ export function MunicipalitiesTab() {
       ) : loadError ? (
         <div role="alert" className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-center">
           <p className="text-[13px]">{loadError}</p>
-          <button onClick={() => void load()} className="mt-2 text-[13px] font-semibold text-primary">
+          <button onClick={() => void load()} className="mt-2 text-[13px] font-semibold text-primary-text">
             Try again
           </button>
         </div>
@@ -256,7 +256,7 @@ export function MunicipalitiesTab() {
                   {m.postal_prefixes.length > 0 ? m.postal_prefixes.join(", ") : "No postal prefixes"}
                 </p>
               </div>
-              <button onClick={() => edit(m)} aria-label={`Edit ${m.name}`} className="flex-shrink-0 text-[13px] font-semibold text-primary">
+              <button onClick={() => edit(m)} aria-label={`Edit ${m.name}`} className="flex-shrink-0 text-[13px] font-semibold text-primary-text">
                 Edit
               </button>
             </li>

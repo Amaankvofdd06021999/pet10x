@@ -422,7 +422,7 @@ function DeskCodeModal({
       }
     >
       {ok ? (
-        <p className="flex items-center gap-2 rounded-xl bg-success/10 p-3 text-[13px] font-medium text-success">
+        <p className="flex items-center gap-2 rounded-xl bg-success/10 p-3 text-[13px] font-medium text-success-strong">
           <ShieldCheck className="h-4 w-4" aria-hidden="true" />
           Records shared. Open the patient to read them.
         </p>

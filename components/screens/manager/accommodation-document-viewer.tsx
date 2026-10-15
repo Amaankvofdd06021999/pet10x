@@ -207,7 +207,7 @@ export function AccommodationDocumentViewer({ document, onVerdict, onClose }: Ac
                     await onVerdict(true, note)
                     setBusy(false)
                   }}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-success/10 py-2 text-[13px] font-semibold text-success disabled:opacity-60"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-success/10 py-2 text-[13px] font-semibold text-success-strong disabled:opacity-60"
                 >
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                   Verify

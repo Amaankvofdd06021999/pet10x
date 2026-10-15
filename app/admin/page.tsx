@@ -161,7 +161,7 @@ function AdminLogin() {
           <button
             onClick={submit}
             disabled={loading}
-            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Sign in
@@ -323,7 +323,7 @@ function Buildings() {
           <button
             onClick={create}
             disabled={saving}
-            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} Create building
           </button>
@@ -485,7 +485,7 @@ function BuildingCard({
         <div className="border-t border-border p-3.5">
           <div className="mb-2 flex items-center justify-between">
             <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Building details</p>
-            <button onClick={() => setEditing((v) => !v)} className="text-[12px] font-semibold text-primary">
+            <button onClick={() => setEditing((v) => !v)} className="text-[12px] font-semibold text-primary-text">
               {editing ? "Cancel" : "Edit"}
             </button>
           </div>
@@ -523,7 +523,7 @@ function BuildingCard({
               <button
                 onClick={saveDetails}
                 disabled={busy}
-                className="mt-1 rounded-xl bg-primary py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+                className="mt-1 rounded-xl bg-primary-strong py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
               >
                 Save details
               </button>
@@ -542,7 +542,7 @@ function BuildingCard({
             <AdminInput placeholder="Manager name (optional)" value={name} onChange={setName} />
             <div className="flex gap-2">
               <AdminInput placeholder="manager@email.com" value={email} onChange={setEmail} />
-              <button onClick={invite} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-60">
+              <button onClick={invite} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-60">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Invite
               </button>
             </div>
@@ -705,7 +705,7 @@ function Managers() {
               setCity("")
               setRegion("")
             }}
-            className="text-[12px] font-semibold text-primary"
+            className="text-[12px] font-semibold text-primary-text"
           >
             Clear
           </button>
@@ -1017,7 +1017,7 @@ function DeleteFootprint({
     return (
       <span className="flex flex-col items-start gap-1.5">
         <span>{footprint.message}</span>
-        <button type="button" onClick={onRetry} className="font-semibold text-primary underline">
+        <button type="button" onClick={onRetry} className="font-semibold text-primary-text underline">
           Try again
         </button>
       </span>
@@ -1106,7 +1106,7 @@ function BusinessCard({
                 if (err) toast.error("Couldn't change the tier", { description: err })
               }}
               disabled={busy}
-              className="rounded-lg bg-primary px-2.5 py-1.5 text-[12px] font-semibold text-primary-foreground disabled:opacity-60"
+              className="rounded-lg bg-primary-strong px-2.5 py-1.5 text-[12px] font-semibold text-primary-foreground disabled:opacity-60"
             >
               Apply
             </button>
@@ -1181,7 +1181,7 @@ function BusinessCard({
                 onClick={() => setApproving(true)}
                 disabled={busy || !hasLicence}
                 aria-describedby={hasLicence ? undefined : `need-licence-${b.id}`}
-                className="flex items-center gap-1.5 rounded-lg bg-success/15 px-3 py-1.5 text-[12px] font-semibold text-success disabled:opacity-60"
+                className="flex items-center gap-1.5 rounded-lg bg-success/15 px-3 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-60"
               >
                 <BadgeCheck className="h-3.5 w-3.5" /> Approve — verify
               </button>
@@ -1566,7 +1566,7 @@ function UserCard({ user, isMe, onChange }: { user: AdminUser; isMe: boolean; on
             <button
               onClick={toggleAdmin}
               disabled={busy || !adminConfirmationMatches(typed, user.email)}
-              className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
+              className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary-strong px-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
             >
               {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Confirm
             </button>

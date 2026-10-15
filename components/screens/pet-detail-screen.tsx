@@ -73,7 +73,7 @@ function statusBadge(status: string): string {
     case "current":
     case "active":
     case "approved":
-      return "bg-success/10 text-success"
+      return "bg-success/10 text-success-strong"
     case "expiring":
       return "bg-[#FFF9E6] text-[#B38F00]"
     case "expired":
@@ -119,7 +119,7 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
       <Shell onBack={onBack}>
         <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
           <p className="text-[15px] font-semibold text-foreground">Pet not found</p>
-          <button onClick={onBack} className="mt-3 text-[14px] font-medium text-primary">
+          <button onClick={onBack} className="mt-3 text-[14px] font-medium text-primary-text">
             Go back
           </button>
         </div>
@@ -450,7 +450,7 @@ function EditForm({
               key={g}
               onClick={() => set("gender", g)}
               className={`rounded-xl border py-2 text-[13px] font-semibold transition-all ${
-                f.gender === g ? "border-primary bg-primary/5 text-primary" : "border-border bg-card text-foreground"
+                f.gender === g ? "border-primary bg-primary/5 text-primary-text" : "border-border bg-card text-foreground"
               }`}
             >
               {g}
@@ -495,7 +495,7 @@ function EditForm({
         <button
           onClick={save}
           disabled={saving || !weightField.valid}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save
         </button>
@@ -565,7 +565,7 @@ function VaccinationsTab({ petId, species }: { petId: string; species: string | 
                   onClick={() => setF((p) => ({ ...p, choice: o.key }))}
                   aria-pressed={f.choice === o.key}
                   className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                    f.choice === o.key ? "border-primary bg-primary/5 text-primary" : "border-border bg-card text-foreground"
+                    f.choice === o.key ? "border-primary bg-primary/5 text-primary-text" : "border-border bg-card text-foreground"
                   }`}
                 >
                   {o.label}
@@ -672,7 +672,7 @@ function DocumentsTab({ petId }: { petId: string }) {
                   key={d.value}
                   onClick={() => setF((p) => ({ ...p, kind: d.value }))}
                   className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                    f.kind === d.value ? "border-primary bg-primary/5 text-primary" : "border-border bg-card text-foreground"
+                    f.kind === d.value ? "border-primary bg-primary/5 text-primary-text" : "border-border bg-card text-foreground"
                   }`}
                 >
                   {d.label}
@@ -789,7 +789,7 @@ function ContactsTab({ petId }: { petId: string }) {
                 <p className="truncate text-[14px] font-medium text-foreground">{c.name}</p>
                 <p className="text-[12px] text-muted-foreground">{c.role}</p>
               </div>
-              <a href={`tel:${c.phone}`} className="text-[13px] font-medium text-primary">
+              <a href={`tel:${c.phone}`} className="text-[13px] font-medium text-primary-text">
                 {c.phone}
               </a>
               <DeleteBtn onClick={() => remove(c.id)} />
@@ -808,7 +808,7 @@ function Shell({ children, onBack, action }: { children: React.ReactNode; onBack
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 bg-card/80 pt-safe backdrop-blur-xl">
         <div className="flex h-11 items-center justify-between px-4">
-          <button onClick={onBack} className="flex items-center gap-1 text-primary">
+          <button onClick={onBack} className="flex items-center gap-1 text-primary-text">
             <ArrowLeft className="h-5 w-5" />
             <span className="text-[17px]">Back</span>
           </button>
@@ -878,7 +878,7 @@ function SectionHeader({ title, onAdd, adding }: { title: string; onAdd: () => v
   return (
     <div className="flex items-center justify-between">
       <h3 className="text-[15px] font-semibold text-foreground">{title}</h3>
-      <button onClick={onAdd} className="flex items-center gap-1 text-[13px] font-semibold text-primary">
+      <button onClick={onAdd} className="flex items-center gap-1 text-[13px] font-semibold text-primary-text">
         {adding ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />} {adding ? "Close" : "Add"}
       </button>
     </div>
@@ -894,7 +894,7 @@ function SaveRow({ saving, disabled, onSave, onCancel }: { saving: boolean; disa
       <button
         onClick={onSave}
         disabled={saving || disabled}
-        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save
       </button>

@@ -162,7 +162,7 @@ export function PasswordField({
                 <li key={r.id} className="flex items-start gap-2">
                   <span
                     className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full ${
-                      met ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
+                      met ? "bg-success/15 text-success-strong" : "bg-muted text-muted-foreground"
                     }`}
                   >
                     {met ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}

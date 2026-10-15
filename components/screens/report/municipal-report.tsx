@@ -176,7 +176,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
   /* ── Form ── */
   return (
     <div className="mx-auto w-full max-w-xl px-5 py-6">
-      <button onClick={onBack} className="mb-4 flex items-center gap-1.5 text-[14px] font-medium text-primary">
+      <button onClick={onBack} className="mb-4 flex items-center gap-1.5 text-[14px] font-medium text-primary-text">
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
@@ -253,7 +253,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
         <button
           onClick={useMyLocation}
           disabled={geoBusy}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-xl card-interactive px-3.5 py-3 text-[13.5px] font-semibold text-primary disabled:opacity-60"
+          className="flex flex-shrink-0 items-center gap-1.5 rounded-xl card-interactive px-3.5 py-3 text-[13.5px] font-semibold text-primary-text disabled:opacity-60"
         >
           {geoBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
           GPS
@@ -261,7 +261,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
       </div>
 
       {matched && (
-        <p className="mt-2 flex items-center gap-1.5 text-[13px] text-success">
+        <p className="mt-2 flex items-center gap-1.5 text-[13px] text-success-strong">
           <MapPin className="h-3.5 w-3.5" /> {matched.name}
           {matched.region ? `, ${matched.region}` : ""}
         </p>
@@ -297,7 +297,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
       <button
         onClick={submit}
         disabled={submitting || !type || !description.trim()}
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
       >
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         Record report

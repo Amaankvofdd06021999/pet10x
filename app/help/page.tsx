@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  * describes a button nobody can find is worse than no FAQ.
  */
 
-const link = "font-medium text-primary underline underline-offset-2"
+const link = "font-medium text-primary-text underline underline-offset-2"
 
 function Faq({ q, id, children }: { q: string; id?: string; children: ReactNode }) {
   return (

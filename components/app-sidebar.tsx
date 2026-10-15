@@ -62,7 +62,7 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
   const badges: Record<string, number> = { alerts: unreadCount }
   const tabs = isManager ? managerTabs : ownerTabs
   // Matches the mobile tab bar: one brand colour for both roles, not `--info`.
-  const activeColor = "text-primary"
+  const activeColor = "text-primary-text"
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 flex-shrink-0 flex-col border-r border-border bg-card md:flex">

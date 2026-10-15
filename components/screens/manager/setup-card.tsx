@@ -124,7 +124,7 @@ export function SetupCard({
             <p className="text-[12px] text-muted-foreground">Share the code so residents can join {building.name}.</p>
           </div>
           {complete && (
-            <button onClick={hide} className="flex-shrink-0 text-[13px] font-semibold text-primary">
+            <button onClick={hide} className="flex-shrink-0 text-[13px] font-semibold text-primary-text">
               Hide
             </button>
           )}
@@ -142,7 +142,7 @@ export function SetupCard({
           </div>
           <button
             onClick={() => void copy()}
-            className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground active:scale-[0.97]"
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary-strong px-3.5 py-2 text-[13px] font-semibold text-primary-foreground active:scale-[0.97]"
           >
             <Copy className="h-3.5 w-3.5" /> Copy
           </button>

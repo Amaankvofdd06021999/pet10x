@@ -77,7 +77,7 @@ export function BusinessDetailScreen({
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span
-                className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${biz.openNow ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}
+                className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${biz.openNow ? "bg-success/15 text-success-strong" : "bg-muted text-muted-foreground"}`}
               >
                 {biz.openNow ? "Open now" : "Closed"}
               </span>
@@ -259,7 +259,7 @@ function ContactBlock({ name, phone, email }: { name: string; phone: string | nu
 
 function BackBtn({ onBack }: { onBack: () => void }) {
   return (
-    <button onClick={onBack} className="flex items-center gap-1 text-[15px] text-primary">
+    <button onClick={onBack} className="flex items-center gap-1 text-[15px] text-primary-text">
       <ArrowLeft className="h-5 w-5" />
     </button>
   )

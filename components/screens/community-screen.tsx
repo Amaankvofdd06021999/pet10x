@@ -138,7 +138,7 @@ function EmptyState({
       {cta && onCta && (
         <button
           onClick={onCta}
-          className="mt-3 rounded-xl bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground"
+          className="mt-3 rounded-xl bg-primary-strong px-4 py-2 text-[13px] font-semibold text-primary-foreground"
         >
           {cta}
         </button>
@@ -524,7 +524,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
         rightAction={
           <button
             onClick={() => setComposerOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12.5px] font-semibold text-primary"
+            className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12.5px] font-semibold text-primary-text"
           >
             <Plus className="h-3.5 w-3.5" /> New post
           </button>
@@ -695,7 +695,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
           <div className="flex flex-col gap-3">
             <button
               onClick={() => setLfOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground"
+              className="flex items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground"
             >
               <Plus className="h-4 w-4" /> Report a lost or found pet
             </button>
@@ -722,12 +722,12 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                     <div className="flex items-center gap-2">
                       <AlertTriangle className={`h-4 w-4 flex-shrink-0 ${lost ? "text-destructive" : "text-success"}`} />
                       <span
-                        className={`text-[13px] font-bold uppercase ${lost ? "text-destructive" : "text-success"}`}
+                        className={`text-[13px] font-bold uppercase ${lost ? "text-destructive" : "text-success-strong"}`}
                       >
                         {lost ? "Lost Pet" : "Found Pet"}
                       </span>
                       {item.reward && (
-                        <Badge className="ml-auto border-0 bg-primary text-[10px] text-primary-foreground">
+                        <Badge className="ml-auto border-0 bg-primary-strong text-[10px] text-primary-foreground">
                           Reward: {item.reward}
                         </Badge>
                       )}
@@ -775,7 +775,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                       <button
                         onClick={() => handleResolve(item)}
                         disabled={busyId === item.id}
-                        className="flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-[12.5px] font-semibold text-success disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-[12.5px] font-semibold text-success-strong disabled:opacity-50"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" /> Mark resolved
                       </button>
@@ -792,7 +792,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
           <div className="flex flex-col gap-3">
             <button
               onClick={() => setEvOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground"
+              className="flex items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground"
             >
               <Plus className="h-4 w-4" /> Suggest an event
             </button>
@@ -822,8 +822,8 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                       <h3 className="text-[17px] font-semibold text-foreground break-words">{event.title}</h3>
                     </div>
                     <div className="flex flex-shrink-0 flex-col items-center rounded-xl bg-primary/10 px-3 py-2">
-                      <span className="text-[11px] font-medium text-primary">{when.day}</span>
-                      <span className="text-[15px] font-bold text-primary">{when.date}</span>
+                      <span className="text-[11px] font-medium text-primary-text">{when.day}</span>
+                      <span className="text-[15px] font-bold text-primary-text">{when.date}</span>
                     </div>
                   </div>
                   <div className="mt-2 flex flex-col gap-1">
@@ -860,7 +860,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                       className={`rounded-full px-4 py-1.5 text-[13px] font-semibold disabled:opacity-50 ${
                         event.going
                           ? "border border-border bg-card text-foreground"
-                          : "bg-primary text-primary-foreground"
+                          : "bg-primary-strong text-primary-foreground"
                       }`}
                     >
                       {event.going ? "Going ✓" : "RSVP"}
@@ -945,7 +945,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             <button
               onClick={handleCreatePost}
               disabled={posting || !composerContent.trim()}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
             >
               {posting && <Loader2 className="h-4 w-4 animate-spin" />} Post
             </button>
@@ -1046,7 +1046,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             <button
               onClick={handleReportLostFound}
               disabled={lfBusy || !lfName.trim()}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
             >
               {lfBusy && <Loader2 className="h-4 w-4 animate-spin" />} Post report
             </button>
@@ -1112,7 +1112,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             <button
               onClick={handleCreateEvent}
               disabled={evBusy || !evTitle.trim() || !evStartsAt}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
             >
               {evBusy && <Loader2 className="h-4 w-4 animate-spin" />} Add event
             </button>

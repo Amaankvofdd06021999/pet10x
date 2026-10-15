@@ -60,11 +60,11 @@ export function locationLabel(location: string): string {
  * guarantee that stopped at the hand. */
 const INCIDENT_STATUS_STYLE: Record<IncidentStatus, string> = {
   submitted: "bg-destructive/10 text-destructive",
-  triaged: "bg-primary/10 text-primary",
+  triaged: "bg-primary/10 text-primary-text",
   investigating: "bg-warning/10 text-warning-strong",
-  linked_to_violation: "bg-primary/10 text-primary",
+  linked_to_violation: "bg-primary/10 text-primary-text",
   dismissed: "bg-muted text-muted-foreground",
-  resolved: "bg-success/10 text-success",
+  resolved: "bg-success/10 text-success-strong",
 }
 
 export function IncidentCard({
@@ -204,7 +204,7 @@ export function IncidentCard({
                   href={mapUrl(incident.location)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 text-primary underline decoration-dotted underline-offset-2"
+                  className="inline-flex items-center gap-0.5 text-primary-text underline decoration-dotted underline-offset-2"
                   title="Open in Google Maps"
                 >
                   <MapPin className="h-3 w-3" />
@@ -251,7 +251,7 @@ export function IncidentCard({
           <button
             onClick={() => move("resolved", "Marked resolved")}
             disabled={busy}
-            className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-[12px] font-semibold text-success disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-60"
           >
             <CheckCircle2 className="h-3.5 w-3.5" /> Resolve
           </button>

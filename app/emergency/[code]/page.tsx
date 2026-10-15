@@ -124,7 +124,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
           <button
             onClick={() => void retry()}
             disabled={retrying}
-            className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-6 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary-strong px-6 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {retrying && <Loader2 className="h-4 w-4 animate-spin" />}
             Retry

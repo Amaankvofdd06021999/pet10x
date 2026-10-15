@@ -135,7 +135,7 @@ export function ReportsScreen() {
                     <td className="py-2 pr-3 font-medium text-foreground">{m.name}</td>
                     <td className="py-2 pr-3 text-right font-semibold tabular-nums">{m.compliance}%</td>
                     <td
-                      className={`py-2 pr-3 text-right tabular-nums ${delta < 0 ? "text-destructive" : "text-success"}`}
+                      className={`py-2 pr-3 text-right tabular-nums ${delta < 0 ? "text-destructive" : "text-success-strong"}`}
                     >
                       {delta > 0 ? "+" : ""}
                       {delta}

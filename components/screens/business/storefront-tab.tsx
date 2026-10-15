@@ -137,10 +137,10 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-[15px] font-semibold text-foreground">{f.name || "Your business name"}</p>
                 {business.isVerified && (
-                  <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-success">Verified</span>
+                  <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-success-strong">Verified</span>
                 )}
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${openNow ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${openNow ? "bg-success/15 text-success-strong" : "bg-muted text-muted-foreground"}`}
                 >
                   {openNow ? "Open now" : "Closed"}
                 </span>
@@ -399,7 +399,7 @@ function ContactInput({
         placeholder={placeholder}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className={`w-full min-w-0 rounded-xl border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 ${error ? "border-destructive" : "border-border"}`}
+        className={`w-full min-w-0 rounded-xl border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 ${error ? "border-destructive" : "border-border"}`}
       />
       {error && (
         <p id={errorId} role="alert" className="mt-1 text-[11.5px] text-destructive">
@@ -656,7 +656,7 @@ function PriceInput({
           inputMode="decimal"
           aria-label="Price"
           placeholder="85"
-          className="w-full min-w-0 bg-transparent py-2.5 pl-1.5 pr-3.5 text-[14px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+          className="w-full min-w-0 bg-transparent py-2.5 pl-1.5 pr-3.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none"
         />
       </div>
       {error ? (

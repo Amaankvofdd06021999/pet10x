@@ -135,7 +135,7 @@ function StrataLogin() {
             </div>
             <PasswordField value={password} onChange={setPassword} onEnter={submit} />
             {error && <p className="text-[13px] text-destructive">{error}</p>}
-            {info && <p className="text-[13px] text-success">{info}</p>}
+            {info && <p className="text-[13px] text-success-strong">{info}</p>}
             <button
               onClick={submit}
               disabled={loading}

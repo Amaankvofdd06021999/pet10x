@@ -80,7 +80,7 @@ function CareTile({
     >
       <Icon className={`mb-0.5 h-5 w-5 ${met ? "text-success" : "text-muted-foreground"}`} />
       <span className="text-[11px] font-semibold text-muted-foreground">{label}</span>
-      <span className={`text-[12px] font-semibold ${met ? "text-success" : "text-muted-foreground"}`}>{detail}</span>
+      <span className={`text-[12px] font-semibold ${met ? "text-success-strong" : "text-muted-foreground"}`}>{detail}</span>
     </button>
   )
 }

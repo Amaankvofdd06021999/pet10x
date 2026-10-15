@@ -111,7 +111,7 @@ export function TodayScheduleStrip({
       <div className={SHELL}>
         <div className="flex items-center gap-2 rounded-xl bg-success/10 px-3 py-2.5">
           <Check className="h-4 w-4 flex-shrink-0 text-success" strokeWidth={3} />
-          <span className="text-[12px] font-semibold text-success">
+          <span className="text-[12px] font-semibold text-success-strong">
             {`All ${todays.length} scheduled ${todays.length === 1 ? "task" : "tasks"} done today`}
           </span>
         </div>

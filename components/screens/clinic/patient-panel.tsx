@@ -798,7 +798,7 @@ function RequestDetailsButton({ patientId, label }: { patientId: string; label: 
         }
       >
         {sent ? (
-          <p className="rounded-xl bg-success/10 p-3 text-[13px] font-medium text-success">{sent}</p>
+          <p className="rounded-xl bg-success/10 p-3 text-[13px] font-medium text-success-strong">{sent}</p>
         ) : (
           <div className="flex flex-col gap-3">
             <fieldset className="rounded-xl border border-border p-3">

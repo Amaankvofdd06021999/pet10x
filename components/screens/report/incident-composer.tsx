@@ -461,7 +461,7 @@ export function IncidentComposer({
         <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
           <button
             onClick={startOver}
-            className="w-full rounded-xl bg-primary py-3.5 text-[17px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+            className="w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
           >
             File Another Report
           </button>
@@ -571,7 +571,7 @@ export function IncidentComposer({
               onClick={() => selectedType && setStep("evidence")}
               disabled={!selectedType}
               className={`mt-6 w-full rounded-xl py-3.5 text-[17px] font-semibold transition-all active:scale-[0.98] ${
-                selectedType ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                selectedType ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}
             >
               Continue
@@ -599,7 +599,7 @@ export function IncidentComposer({
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe the incident in detail..."
                   rows={4}
-                  className="w-full rounded-xl border border-input bg-card p-3 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-input bg-card p-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
@@ -619,14 +619,14 @@ export function IncidentComposer({
                       setGeoError(null)
                     }}
                     placeholder="e.g. Lobby, Floor 12, Parking B2"
-                    className="w-full rounded-xl border border-input bg-card py-3 pl-10 pr-4 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-xl border border-input bg-card py-3 pl-10 pr-4 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleUseLocation}
                   disabled={locating}
-                  className="mt-2 flex items-center gap-2 rounded-xl card-interactive px-3 py-2 text-[13px] font-semibold text-primary transition-transform active:scale-[0.98] disabled:opacity-60"
+                  className="mt-2 flex items-center gap-2 rounded-xl card-interactive px-3 py-2 text-[13px] font-semibold text-primary-text transition-transform active:scale-[0.98] disabled:opacity-60"
                 >
                   {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
                   {locating ? "Locating…" : "Use my current location"}
@@ -701,7 +701,7 @@ export function IncidentComposer({
               onClick={() => description.trim() && setStep("pet")}
               disabled={!description.trim()}
               className={`mt-6 w-full rounded-xl py-3.5 text-[17px] font-semibold transition-all active:scale-[0.98] ${
-                description.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                description.trim() ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}
             >
               Continue
@@ -786,7 +786,7 @@ export function IncidentComposer({
 
             <button
               onClick={() => setStep("summary")}
-              className="mt-6 w-full rounded-xl bg-primary py-3.5 text-[17px] font-semibold text-primary-foreground transition-all active:scale-[0.98]"
+              className="mt-6 w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-foreground transition-all active:scale-[0.98]"
             >
               {petId ? "Continue" : "Skip — I don't recognise them"}
             </button>
@@ -817,7 +817,7 @@ export function IncidentComposer({
                   <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">{description}</p>
                   <button
                     onClick={() => setStep("evidence")}
-                    className="mt-1.5 text-[12px] font-semibold text-primary underline underline-offset-2"
+                    className="mt-1.5 text-[12px] font-semibold text-primary-text underline underline-offset-2"
                   >
                     Edit
                   </button>
@@ -902,7 +902,7 @@ export function IncidentComposer({
                   <button
                     onClick={() => void handleSubmit()}
                     disabled={submitting}
-                    className="flex-1 rounded-lg bg-primary py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
+                    className="flex-1 rounded-lg bg-primary-strong py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
                   >
                     {photos.length > 0 ? "Try the photos again" : "Try again"}
                   </button>
@@ -926,7 +926,7 @@ export function IncidentComposer({
               <button
                 onClick={() => void handleSubmit()}
                 disabled={submitting}
-                className="mt-4 w-full rounded-xl bg-primary py-3.5 text-[17px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+                className="mt-4 w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
               >
                 {submitting ? (photos.length > 0 ? "Sending photos…" : "Filing report…") : "Submit Report"}
               </button>

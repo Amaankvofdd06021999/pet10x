@@ -133,9 +133,9 @@ const FINE_STATUS_WORDS: Record<string, { label: string; tone: string; owed: boo
   issued: { label: "Unpaid", tone: "bg-destructive/10 text-destructive", owed: true },
   partially_paid: { label: "Part paid", tone: "bg-warning/10 text-warning-strong", owed: true },
   disputed: { label: "Under appeal", tone: "bg-warning/10 text-warning-strong", owed: true },
-  paid: { label: "Paid", tone: "bg-success/10 text-success", owed: false },
-  waived: { label: "Waived", tone: "bg-success/10 text-success", owed: false },
-  remitted: { label: "Remitted", tone: "bg-success/10 text-success", owed: false },
+  paid: { label: "Paid", tone: "bg-success/10 text-success-strong", owed: false },
+  waived: { label: "Waived", tone: "bg-success/10 text-success-strong", owed: false },
+  remitted: { label: "Remitted", tone: "bg-success/10 text-success-strong", owed: false },
   written_off: { label: "Written off", tone: "bg-muted text-muted-foreground", owed: false },
 }
 
@@ -536,7 +536,7 @@ function DisputePanel({
         <>
           <button
             onClick={onDispute}
-            className="w-full rounded-lg bg-primary/10 py-2.5 text-[13px] font-semibold text-primary transition-transform active:scale-[0.98]"
+            className="w-full rounded-lg bg-primary/10 py-2.5 text-[13px] font-semibold text-primary-text transition-transform active:scale-[0.98]"
           >
             Dispute this
           </button>
@@ -668,7 +668,7 @@ function DisputeSheet({
           <button
             onClick={submit}
             disabled={busy || blocked}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             Submit appeal

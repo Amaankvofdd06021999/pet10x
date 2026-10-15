@@ -212,7 +212,7 @@ export function BuildingRulesEditor({
           ) : (
             <button
               onClick={() => setDraft(BLANK)}
-              className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-[13px] font-semibold text-primary-foreground"
+              className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-3 py-2 text-[13px] font-semibold text-primary-foreground"
             >
               <Plus className="h-4 w-4" /> New house rule
             </button>
@@ -396,7 +396,7 @@ function Composer({
       <button
         onClick={onSave}
         disabled={saving || blocked}
-        className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
+        className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-primary-strong px-4 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
       >
         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
         {draft.id ? "Save changes" : "Save draft"}
@@ -435,7 +435,7 @@ function RuleCard({
         <p className="min-w-0 flex-1 break-words text-[13.5px] font-semibold text-foreground">{rule.title}</p>
         <span
           className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${
-            rule.isPublished ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+            rule.isPublished ? "bg-success/10 text-success-strong" : "bg-muted text-muted-foreground"
           }`}
         >
           {rule.isPublished ? "Published" : "Draft"}
@@ -483,7 +483,7 @@ function SmallButton({
       onClick={onClick}
       disabled={disabled}
       className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold disabled:opacity-40 ${
-        primary ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+        primary ? "bg-primary-strong text-primary-foreground" : "bg-muted text-foreground"
       }`}
     >
       <Icon className="h-3.5 w-3.5" /> {label}

@@ -88,7 +88,7 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
                     )}
                     {clinic.canNotify && card.petId && (
                       told === clinic.id ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success-strong">
                           <Check className="h-3.5 w-3.5" aria-hidden="true" /> They know you are coming
                         </span>
                       ) : (

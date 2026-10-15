@@ -181,7 +181,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
         v.amount === 0 ? (
           <span className="text-muted-foreground">—</span>
         ) : (
-          <span className={v.outstanding > 0 ? "font-semibold text-destructive" : "text-success"}>
+          <span className={v.outstanding > 0 ? "font-semibold text-destructive" : "text-success-strong"}>
             {v.outstanding > 0 ? fromDollars(v.outstanding) : "Settled"}
           </span>
         ),
@@ -644,7 +644,7 @@ function Stepper({ step }: { step: 1 | 2 }) {
           <li key={label} className="flex flex-1 items-center gap-2">
             <span
               className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                done ? "bg-success text-white" : on ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+                done ? "bg-success text-white" : on ? "bg-primary-strong text-primary-foreground" : "bg-secondary text-muted-foreground"
               }`}
             >
               {done ? "✓" : n}
@@ -1369,7 +1369,7 @@ function AppealPanel({
           onClick={() => onChoose("overturned")}
           className="rounded-xl border border-success/50 bg-success/10 p-3 text-left transition-colors hover:bg-success/15"
         >
-          <span className="block text-[13.5px] font-semibold text-success">
+          <span className="block text-[13.5px] font-semibold text-success-strong">
             Overturn
           </span>
           <span className="mt-0.5 block text-[11.5px] text-muted-foreground">

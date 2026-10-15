@@ -247,7 +247,7 @@ export function OnboardingFlow() {
       {/* Building code */}
       {step === "code" && (
         <div className="flex flex-1 flex-col">
-          <button onClick={() => goTo("intro")} className="-ml-1 flex w-fit items-center gap-1 text-primary" aria-label="Back">
+          <button onClick={() => goTo("intro")} className="-ml-1 flex w-fit items-center gap-1 text-primary-text" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
             <span className="text-[15px]">Back</span>
           </button>
@@ -275,7 +275,7 @@ export function OnboardingFlow() {
                 autoComplete="off"
                 maxLength={12}
                 onKeyDown={(e) => e.key === "Enter" && linkBuilding()}
-                className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[16px] font-mono font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[16px] font-mono font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
             {error && <p className="mt-1.5 text-[13px] text-destructive">{error}</p>}
@@ -284,7 +284,7 @@ export function OnboardingFlow() {
           <button
             onClick={linkBuilding}
             disabled={loading}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Request to join
@@ -300,7 +300,7 @@ export function OnboardingFlow() {
         <div className="flex flex-1 flex-col">
           <button
             onClick={() => goTo("code")}
-            className="-ml-1 flex w-fit items-center gap-1 text-primary"
+            className="-ml-1 flex w-fit items-center gap-1 text-primary-text"
             aria-label="Back"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -326,7 +326,7 @@ export function OnboardingFlow() {
               placeholder="e.g. 2104"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && saveUnitAndContinue()}
-              className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[16px] font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[16px] font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             {error && <p className="mt-1.5 text-[13px] text-destructive">{error}</p>}
           </div>
@@ -334,7 +334,7 @@ export function OnboardingFlow() {
           <button
             onClick={saveUnitAndContinue}
             disabled={loading || !unit.trim()}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Continue
@@ -361,7 +361,7 @@ export function OnboardingFlow() {
           </p>
           <button
             onClick={() => goTo("pet")}
-            className="mt-8 flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+            className="mt-8 flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
           >
             Continue
           </button>
@@ -371,7 +371,7 @@ export function OnboardingFlow() {
       {/* Standalone */}
       {step === "standalone" && (
         <div className="flex flex-1 flex-col">
-          <button onClick={() => goTo("intro")} className="-ml-1 flex w-fit items-center gap-1 text-primary" aria-label="Back">
+          <button onClick={() => goTo("intro")} className="-ml-1 flex w-fit items-center gap-1 text-primary-text" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
             <span className="text-[15px]">Back</span>
           </button>
@@ -404,7 +404,7 @@ export function OnboardingFlow() {
           <div className="mt-auto pt-8">
             <button
               onClick={() => goTo("pet")}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
             >
               Continue
             </button>
@@ -464,7 +464,7 @@ export function OnboardingFlow() {
               setError(null)
             }}
             placeholder="e.g. Max"
-            className="mb-5 w-full rounded-xl border border-input bg-card px-4 py-3 text-[16px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="mb-5 w-full rounded-xl border border-input bg-card px-4 py-3 text-[16px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
 
           <p className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -488,7 +488,7 @@ export function OnboardingFlow() {
             <button
               onClick={savePet}
               disabled={loading || !petName.trim() || !species}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Add pet
@@ -595,7 +595,7 @@ function PetAdded({
             <button
               onClick={() => onDoItNow(next.target)}
               disabled={busy}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               Do it now
@@ -612,7 +612,7 @@ function PetAdded({
           <button
             onClick={onLater}
             disabled={busy}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             Continue to Pet10x

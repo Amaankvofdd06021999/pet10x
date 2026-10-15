@@ -80,7 +80,7 @@ export function NotificationRow({
                 e.stopPropagation()
                 onAction()
               }}
-              className="mt-1.5 text-[12px] font-semibold text-primary"
+              className="mt-1.5 text-[12px] font-semibold text-primary-text"
             >
               {/* A target with no label is a real case, not an oversight —
                   Phase 6 writes one on purpose. "Open" is the honest generic. */}

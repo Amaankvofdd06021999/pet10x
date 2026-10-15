@@ -131,7 +131,7 @@ function BuildingSearchStep({
 
   return (
     <div className="mx-auto w-full max-w-xl px-5 py-8">
-      <button onClick={onBack} className="mb-5 flex items-center gap-1.5 text-[14px] font-medium text-primary">
+      <button onClick={onBack} className="mb-5 flex items-center gap-1.5 text-[14px] font-medium text-primary-text">
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
@@ -162,7 +162,7 @@ function BuildingSearchStep({
             placeholder="e.g. Maple Court, or 1450 Cambie"
             autoComplete="off"
             autoFocus
-            className="w-full rounded-xl border border-input bg-card py-3.5 pl-11 pr-11 text-[16px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-input bg-card py-3.5 pl-11 pr-11 text-[16px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           {searching && (
             <Loader2 className="absolute right-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -198,7 +198,7 @@ function BuildingSearchStep({
           <p className="text-[14px] font-medium text-foreground">No building found</p>
           <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
             It may not be on Pet10x yet, or be listed under a different name. You can{" "}
-            <button onClick={onMunicipal} className="font-semibold text-primary underline underline-offset-2">
+            <button onClick={onMunicipal} className="font-semibold text-primary-text underline underline-offset-2">
               report to your local municipality
             </button>{" "}
             instead.
@@ -211,7 +211,7 @@ function BuildingSearchStep({
           Already have the building code?{" "}
           <button
             onClick={() => onPick({ name: "", address: null, city: null, region: null, postalCode: null })}
-            className="font-semibold text-primary underline underline-offset-2"
+            className="font-semibold text-primary-text underline underline-offset-2"
           >
             Enter it directly
           </button>
@@ -256,7 +256,7 @@ function BuildingCodeStep({
 
   return (
     <div className="mx-auto w-full max-w-xl px-5 py-8">
-      <button onClick={onBack} className="mb-5 flex items-center gap-1.5 text-[14px] font-medium text-primary">
+      <button onClick={onBack} className="mb-5 flex items-center gap-1.5 text-[14px] font-medium text-primary-text">
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
@@ -285,7 +285,7 @@ function BuildingCodeStep({
               <p className="truncate text-[13px] text-muted-foreground">{addressLine(building)}</p>
             )}
           </div>
-          <button onClick={onBack} className="flex-shrink-0 text-[13px] font-semibold text-primary">
+          <button onClick={onBack} className="flex-shrink-0 text-[13px] font-semibold text-primary-text">
             Change
           </button>
         </div>
@@ -311,7 +311,7 @@ function BuildingCodeStep({
             autoComplete="off"
             maxLength={12}
             autoFocus
-            className="w-full rounded-xl border border-input bg-card py-3.5 pl-11 pr-4 font-mono text-[16px] font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-input bg-card py-3.5 pl-11 pr-4 font-mono text-[16px] font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
         {error && <p className="mt-2 text-[13px] text-destructive">{error}</p>}
@@ -320,7 +320,7 @@ function BuildingCodeStep({
       <button
         onClick={submit}
         disabled={busy}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
       >
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
         Continue
@@ -330,7 +330,7 @@ function BuildingCodeStep({
         Don&apos;t have the code? You can still{" "}
         {/* Goes to the municipal form, not back to the chooser — the sentence
             offers a destination, so the link should be one. */}
-        <button onClick={onMunicipal} className="font-semibold text-primary underline underline-offset-2">
+        <button onClick={onMunicipal} className="font-semibold text-primary-text underline underline-offset-2">
           report to your local municipality
         </button>
         .

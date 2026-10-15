@@ -234,7 +234,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                   setLabel("")
                 }}
                 className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-semibold transition-all ${
-                  on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  on ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 <Icon className="h-4 w-4" /> {k.label}
@@ -248,7 +248,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
         ) : (
           <>
           {/* Today */}
-          <section className="mb-4 rounded-2xl bg-primary p-4 text-primary-foreground">
+          <section className="mb-4 rounded-2xl bg-primary-strong p-4 text-primary-foreground">
             <p className="text-[12px] font-medium opacity-80">
               {spec.label} today · {pet?.name}
             </p>
@@ -273,7 +273,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
               <h2 className="text-[14px] font-semibold text-foreground">{spec.targetLabel}</h2>
               <button
                 onClick={() => setTargetSheet(true)}
-                className="flex items-center gap-1 text-[13px] font-semibold text-primary"
+                className="flex items-center gap-1 text-[13px] font-semibold text-primary-text"
               >
                 <Target className="h-3.5 w-3.5" /> {spec.multi ? "Add" : targets.length ? "Edit" : "Set"}
               </button>
@@ -364,7 +364,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
               <button
                 onClick={() => log(amount ? parseFloat(amount) : null)}
                 disabled={saving}
-                className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+                className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary-strong px-4 py-2.5 text-[14px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Log
               </button>
@@ -680,7 +680,7 @@ function TargetSheet({
           {spec.multi && (
             <button
               onClick={() => setRows((prev) => [...prev, blank()])}
-              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-[13px] font-semibold text-primary"
+              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-[13px] font-semibold text-primary-text"
             >
               <Plus className="h-3.5 w-3.5" /> Add another
             </button>
@@ -689,7 +689,7 @@ function TargetSheet({
           <button
             onClick={save}
             disabled={saving}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Save
@@ -748,7 +748,7 @@ function DietPlan({ pet }: { pet: Pet }) {
             onClick={() => setDietType(dietType === d.id ? "" : d.id)}
             title={d.hint}
             className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-              dietType === d.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              dietType === d.id ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
             }`}
           >
             {d.label}
@@ -765,7 +765,7 @@ function DietPlan({ pet }: { pet: Pet }) {
         <button
           onClick={save}
           disabled={saving}
-          className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-4 py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
         </button>

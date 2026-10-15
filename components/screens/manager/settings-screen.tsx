@@ -147,7 +147,7 @@ export function ManagerSettingsScreen({
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-[17px] font-semibold text-foreground">{user?.name}</h2>
                 <p className="truncate text-[12px] text-muted-foreground">{building?.name ?? "No building assigned"}</p>
-                <Badge className="mt-1 border-0 bg-primary/10 text-[10px] text-primary">{PERSONA_LABEL[viewAs]}</Badge>
+                <Badge className="mt-1 border-0 bg-primary/10 text-[10px] text-primary-text">{PERSONA_LABEL[viewAs]}</Badge>
               </div>
             </div>
           </div>
@@ -684,7 +684,7 @@ function SheetButton({ onClick, busy, label }: { onClick: () => void; busy: bool
     <button
       onClick={onClick}
       disabled={busy}
-      className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+      className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
     >
       {busy && <Loader2 className="h-4 w-4 animate-spin" />}
       {label}

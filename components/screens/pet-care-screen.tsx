@@ -56,7 +56,7 @@ export function PetCareScreen({ onBack, onNavigate, initialKind, initialPetId }:
           </p>
           <button
             onClick={() => onNavigate?.("add-pet")}
-            className="mt-5 flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+            className="mt-5 flex items-center gap-2 rounded-xl bg-primary-strong px-5 py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
           >
             <Plus className="h-4.5 w-4.5" /> Add a pet
           </button>
@@ -86,7 +86,7 @@ function ScreenShell({ children, onBack, title }: { children: React.ReactNode; o
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 px-4 pt-safe backdrop-blur-xl">
         <div className="flex h-12 items-center gap-2">
-          <button onClick={onBack} className="flex items-center gap-1 text-primary" aria-label="Back">
+          <button onClick={onBack} className="flex items-center gap-1 text-primary-text" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
             <span className="text-[17px]">Back</span>
           </button>

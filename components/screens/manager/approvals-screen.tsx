@@ -205,7 +205,7 @@ export function ManagerApprovalsScreen({
               onClick={() => setActiveTab(tab.id)}
               className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
                 activeTab === tab.id
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary-strong text-primary-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -231,7 +231,7 @@ export function ManagerApprovalsScreen({
                   onNavigate && (
                     <button
                       onClick={() => onNavigate("incidents")}
-                      className="text-[13px] font-semibold text-primary underline-offset-2 hover:underline"
+                      className="text-[13px] font-semibold text-primary-text underline-offset-2 hover:underline"
                     >
                       Incident reports
                     </button>
@@ -324,7 +324,7 @@ export function ManagerApprovalsScreen({
                         <button
                           onClick={() => approveRegistration(reg.id, reg.name)}
                           disabled={regBusy === reg.id}
-                          className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success active:scale-[0.97] transition-transform disabled:opacity-60">
+                          className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success-strong active:scale-[0.97] transition-transform disabled:opacity-60">
                           Approve
                         </button>
                         {/* A deny needs a reason the owner reads — the function
@@ -524,7 +524,7 @@ function AccommodationsTab({
 }
 
 const CHECK_TONE: Record<ChecklistItem["state"], string> = {
-  verified: "text-success",
+  verified: "text-success-strong",
   provided: "text-warning",
   rejected: "text-destructive",
   missing: "text-muted-foreground",
@@ -660,7 +660,7 @@ function AccommodationCard({
               <div className="flex items-start gap-2">
                 <Scale className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold text-primary">Guidance (the resident can read this)</p>
+                  <p className="text-[11px] font-semibold text-primary-text">Guidance (the resident can read this)</p>
                   <p className="mt-0.5 break-words text-[11px] leading-relaxed text-foreground">{request.legalNote}</p>
                 </div>
               </div>
@@ -725,7 +725,7 @@ function AccommodationCard({
                 <button
                   disabled={!readyToApprove || busy}
                   onClick={() => runDecision("approved", "")}
-                  className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success transition-transform active:scale-[0.97] disabled:opacity-50"
+                  className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success-strong transition-transform active:scale-[0.97] disabled:opacity-50"
                 >
                   Approve
                 </button>
@@ -742,7 +742,7 @@ function AccommodationCard({
                 <button
                   disabled={busy}
                   onClick={() => setDecision("info_requested")}
-                  className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary transition-transform active:scale-[0.97] disabled:opacity-50"
+                  className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary-text transition-transform active:scale-[0.97] disabled:opacity-50"
                 >
                   Request more information
                 </button>
@@ -862,7 +862,7 @@ function DecisionSheet({
             <button
               onClick={onSubmit}
               disabled={busy || (needsNote && !hasNote)}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {outcome === "denied" ? "Deny" : "Send"}

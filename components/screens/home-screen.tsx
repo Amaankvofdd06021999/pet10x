@@ -35,10 +35,10 @@ import {
 import Image from "next/image"
 
 const STATUS_CONFIG = {
-  home: { label: "Home", pill: "bg-success/10 text-success" },
+  home: { label: "Home", pill: "bg-success/10 text-success-strong" },
   away: { label: "Away", pill: "bg-muted text-muted-foreground" },
   "at-vet": { label: "At Vet", pill: "bg-info/10 text-info" },
-  vacation: { label: "On Vacation", pill: "bg-primary/10 text-primary" },
+  vacation: { label: "On Vacation", pill: "bg-primary/10 text-primary-text" },
 } as const
 
 /**
@@ -263,7 +263,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-[17px] font-semibold text-foreground">My Pets</h3>
               <button
-                className="flex items-center gap-1 text-[14px] font-medium text-primary"
+                className="flex items-center gap-1 text-[14px] font-medium text-primary-text"
                 onClick={() => onNavigate?.("add-pet")}
               >
                 <Plus className="h-4 w-4" />
@@ -295,7 +295,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               </p>
               <button
                 onClick={() => onNavigate?.("add-pet")}
-                className="w-full rounded-xl bg-primary px-4 py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] sm:w-auto sm:px-8"
+                className="w-full rounded-xl bg-primary-strong px-4 py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] sm:w-auto sm:px-8"
               >
                 Add your pet
               </button>
@@ -578,7 +578,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               <h3 className="text-[17px] font-semibold text-foreground">Recent Activity</h3>
               <button
                 onClick={() => onNavigate?.("alerts")}
-                className="flex items-center gap-0.5 text-[14px] font-medium text-primary"
+                className="flex items-center gap-0.5 text-[14px] font-medium text-primary-text"
               >
                 See All
                 <ChevronRight className="h-4 w-4" />

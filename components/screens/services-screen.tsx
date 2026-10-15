@@ -97,7 +97,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
               <button
                 onClick={() => void requestLocation()}
                 disabled={gps}
-                className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12px] font-semibold text-primary disabled:opacity-60"
+                className="flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12px] font-semibold text-primary-text disabled:opacity-60"
               >
                 {gps ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Navigation className="h-3.5 w-3.5" />}
                 Update
@@ -122,7 +122,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
               <button
                 onClick={() => void requestLocation()}
                 disabled={gps}
-                className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
+                className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-primary-strong px-3 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {gps ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
                 Use my location
@@ -168,7 +168,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
                     onClick={() => setMaxKm(km)}
                     className={`rounded-[10px] px-2.5 py-1 text-[12px] font-semibold transition-colors ${
                       active
-                        ? "bg-primary text-primary-foreground shadow-sm"
+                        ? "bg-primary-strong text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -244,7 +244,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
                       <h3 className="truncate text-[14px] font-semibold text-foreground">{b.name}</h3>
                       <span
                         className={`flex-shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
-                          b.openNow ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+                          b.openNow ? "bg-success/10 text-success-strong" : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {b.openNow ? "Open" : "Closed"}
@@ -257,7 +257,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
                       </p>
                     )}
                     {b.servesMe === true && (
-                      <span className="mt-1 inline-block rounded-md bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success">
+                      <span className="mt-1 inline-block rounded-md bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-strong">
                         Serves your area
                       </span>
                     )}

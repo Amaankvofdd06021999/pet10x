@@ -167,7 +167,7 @@ function actionsFor(item: QueueItem): RowAction[] {
 }
 
 const TONE_CLASS: Record<RowAction["tone"], string> = {
-  approve: "bg-success/15 text-success hover:bg-success/25",
+  approve: "bg-success/15 text-success-strong hover:bg-success/25",
   deny: "bg-destructive/10 text-destructive hover:bg-destructive/20",
   neutral: "bg-muted text-foreground hover:bg-muted/70",
   escalate: "bg-info/15 text-info hover:bg-info/25",
@@ -250,7 +250,7 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
           <button
             onClick={() => setBulkOpen(true)}
             disabled={bulkBusy}
-            className="ml-auto flex items-center gap-2 rounded-lg bg-success/15 px-3.5 py-1.5 text-[13px] font-semibold text-success transition-colors hover:bg-success/25 disabled:opacity-60"
+            className="ml-auto flex items-center gap-2 rounded-lg bg-success/15 px-3.5 py-1.5 text-[13px] font-semibold text-success-strong transition-colors hover:bg-success/25 disabled:opacity-60"
           >
             {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
             Approve {safe.length}{" "}

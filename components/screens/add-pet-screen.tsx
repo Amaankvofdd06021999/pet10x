@@ -62,7 +62,7 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
           <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
             <button
               onClick={() => onNavigate?.("pet-care")}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[16px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[16px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
             >
               <Utensils className="h-5 w-5" />{" "}
               Set up food &amp; care
@@ -192,7 +192,7 @@ function AddPetForm({
       {/* Nav */}
       <header className="sticky top-0 z-40 border-b border-border bg-card/80 px-4 pt-safe backdrop-blur-xl">
         <div className="flex h-12 items-center justify-between">
-          <button onClick={onBack} className="flex items-center gap-1 text-primary" aria-label="Cancel">
+          <button onClick={onBack} className="flex items-center gap-1 text-primary-text" aria-label="Cancel">
             <ArrowLeft className="h-5 w-5" />
             <span className="text-[17px]">Cancel</span>
           </button>
@@ -200,7 +200,7 @@ function AddPetForm({
           <button
             onClick={handleSubmit}
             disabled={!canSubmit || saving}
-            className={`text-[17px] font-semibold ${canSubmit && !saving ? "text-primary" : "text-muted-foreground/50"}`}
+            className={`text-[17px] font-semibold ${canSubmit && !saving ? "text-primary-text" : "text-muted-foreground/50"}`}
           >
             {saving ? "Saving…" : "Add pet"}
           </button>
@@ -331,7 +331,7 @@ function AddPetForm({
               aria-pressed={gender === g}
               onClick={() => setGender(g)}
               className={`rounded-xl border-2 py-2.5 text-[14px] font-semibold transition-all active:scale-[0.98] ${
-                gender === g ? "border-primary bg-primary/5 text-primary" : "border-border bg-card text-foreground"
+                gender === g ? "border-primary bg-primary/5 text-primary-text" : "border-border bg-card text-foreground"
               }`}
             >
               {g}
@@ -370,7 +370,7 @@ function AddPetForm({
                 aria-pressed={sizeBand === b.id}
                 onClick={() => setSizeBand(sizeBand === b.id ? "" : b.id)}
                 className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                  sizeBand === b.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  sizeBand === b.id ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {b.label}
@@ -380,7 +380,7 @@ function AddPetForm({
               <button
                 type="button"
                 onClick={() => setShowChart((v) => !v)}
-                className="rounded-full px-3 py-1.5 text-[12.5px] font-semibold text-primary"
+                className="rounded-full px-3 py-1.5 text-[12.5px] font-semibold text-primary-text"
               >
                 {showChart ? "Hide chart" : "Size chart"}
               </button>
@@ -437,7 +437,7 @@ function AddPetForm({
                     on ? "border-primary bg-primary/5" : "border-border bg-card"
                   }`}
                 >
-                  <span className={`block text-[14px] font-semibold ${on ? "text-primary" : "text-foreground"}`}>
+                  <span className={`block text-[14px] font-semibold ${on ? "text-primary-text" : "text-foreground"}`}>
                     {r.label}
                   </span>
                   <span className="block text-[12px] text-muted-foreground">{r.hint}</span>
@@ -474,7 +474,7 @@ function AddPetForm({
           onClick={handleSubmit}
           disabled={!canSubmit || saving}
           className={`flex w-full items-center justify-center gap-2 rounded-lg py-3.5 text-[16px] font-semibold transition-all active:scale-[0.98] ${
-            canSubmit && !saving ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            canSubmit && !saving ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
           }`}
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -567,7 +567,7 @@ function Input({ id, label, value, onChange, placeholder }: { id?: string; label
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
     />
   )
 }

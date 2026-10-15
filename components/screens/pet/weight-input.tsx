@@ -62,7 +62,7 @@ export function WeightInput({
           aria-label="Weight"
           aria-invalid={invalid}
           aria-describedby={invalid ? errorId : undefined}
-          className={`min-w-0 flex-1 rounded-xl border bg-card text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 ${
+          className={`min-w-0 flex-1 rounded-xl border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 ${
             compact ? "px-3.5 py-2.5 text-[14px]" : "px-4 py-3 text-[15px]"
           } ${
             invalid
@@ -78,7 +78,7 @@ export function WeightInput({
               aria-pressed={unit === u}
               onClick={() => onUnitChange(u)}
               className={`px-3.5 text-[14px] font-semibold ${
-                unit === u ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"
+                unit === u ? "bg-primary-strong text-primary-foreground" : "bg-card text-muted-foreground"
               }`}
             >
               {u}

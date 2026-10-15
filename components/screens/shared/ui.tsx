@@ -59,11 +59,11 @@ export function StatTile({
 }) {
   const toneClass = {
     default: "text-foreground",
-    good: "text-success",
+    good: "text-success-strong",
     warn: "text-warning-strong",
     bad: "text-destructive",
     info: "text-info",
-    accent: "text-primary",
+    accent: "text-primary-text",
   }[tone]
   const Tag = onClick ? "button" : "div"
   return (
@@ -147,11 +147,11 @@ export type Tone = "neutral" | "good" | "warn" | "bad" | "info" | "accent"
 
 const TONE_CLASS: Record<Tone, string> = {
   neutral: "bg-secondary text-secondary-foreground",
-  good: "bg-success/12 text-success",
+  good: "bg-success/12 text-success-strong",
   warn: "bg-warning/15 text-warning-strong",
   bad: "bg-destructive/12 text-destructive",
   info: "bg-info/12 text-info",
-  accent: "bg-primary/12 text-primary",
+  accent: "bg-primary/12 text-primary-text",
 }
 
 export function Pill({
@@ -192,7 +192,7 @@ export function Button({
     "inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none"
   const sizes = { sm: "px-2.5 py-1.5 text-[12.5px]", md: "px-3.5 py-2 text-[13.5px]" }[size]
   const variants = {
-    primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+    primary: "bg-primary-strong text-primary-foreground hover:bg-primary-strong/90",
     secondary: "border border-border bg-card text-foreground hover:bg-secondary",
     ghost: "text-muted-foreground hover:bg-secondary hover:text-foreground",
     danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
@@ -294,7 +294,7 @@ export function SegmentedTabs<T extends string>({
             tabIndex={on ? 0 : -1}
             onClick={() => onChange(t.id)}
             className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-              on ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:text-foreground"
+              on ? "bg-primary-strong text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:text-foreground"
             }`}
           >
             {t.label}

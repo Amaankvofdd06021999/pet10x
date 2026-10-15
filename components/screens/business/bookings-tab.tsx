@@ -33,8 +33,8 @@ const STATUS_STYLE: Record<BookingStatus, string> = {
   requested: "bg-warning/15 text-warning",
   confirmed: "bg-accent/15 text-accent",
   in_progress: "bg-info/15 text-info",
-  completed: "bg-success/15 text-success",
-  paid: "bg-success/15 text-success",
+  completed: "bg-success/15 text-success-strong",
+  paid: "bg-success/15 text-success-strong",
   declined: "bg-destructive/10 text-destructive",
   cancelled: "bg-muted text-muted-foreground",
 }
@@ -231,7 +231,7 @@ function BookingCard({
           <p className="text-[11px] text-muted-foreground">
             −{formatPrice(b.commissionCents, b.currency)} Pet10x fee
           </p>
-          <p className="text-[12px] font-semibold text-success">
+          <p className="text-[12px] font-semibold text-success-strong">
             {formatPrice(b.amountCents - b.commissionCents, b.currency)} you keep
           </p>
         </div>
@@ -355,7 +355,7 @@ function Action({
 }) {
   const cls =
     tone === "accept"
-      ? "bg-success/15 text-success hover:bg-success/25"
+      ? "bg-success/15 text-success-strong hover:bg-success/25"
       : tone === "deny"
         ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
         : tone === "money"

@@ -194,7 +194,7 @@ const PRICING = [
 ]
 
 /* Shared type scale (keeps hierarchy consistent across sections). */
-const EYEBROW = "text-[13px] font-semibold uppercase tracking-[0.14em] text-primary"
+const EYEBROW = "text-[13px] font-semibold uppercase tracking-[0.14em] text-primary-text"
 const H2 = "text-[28px] font-semibold leading-[1.1] tracking-tight sm:text-[38px]"
 const LEAD = "text-[16px] leading-relaxed text-muted-foreground sm:text-[17px]"
 
@@ -241,7 +241,7 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link
                   href="/login?mode=signup"
-                  className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-6 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong/90"
                 >
                   Get started free
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -326,7 +326,7 @@ export default function LandingPage() {
                 </p>
                 <Link
                   href="/login?mode=signup"
-                  className="group mt-5 inline-flex items-center gap-2 text-[14px] font-semibold text-primary"
+                  className="group mt-5 inline-flex items-center gap-2 text-[14px] font-semibold text-primary-text"
                 >
                   Get the app
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -487,7 +487,7 @@ export default function LandingPage() {
                     href={p.href}
                     className={`mt-7 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
                       p.featured
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        ? "bg-primary-strong text-primary-foreground hover:bg-primary-strong/90"
                         : "border border-border text-foreground hover:bg-muted"
                     }`}
                   >
@@ -526,7 +526,7 @@ export default function LandingPage() {
                   {/* Badge sits on the border, as the reference does — inside
                       the card it competed with the plan name for the same row. */}
                   {tier.featured && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary-strong px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
                       Coming soon
                     </span>
                   )}
@@ -548,7 +548,7 @@ export default function LandingPage() {
                     href={tier.href}
                     className={`mt-8 inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
                       tier.featured
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        ? "bg-primary-strong text-primary-foreground hover:bg-primary-strong/90"
                         : "border border-border text-foreground hover:bg-muted"
                     }`}
                   >
@@ -591,7 +591,7 @@ export default function LandingPage() {
               }}
             />
             <div className="relative">
-              <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-card px-3 py-1 text-[12px] font-semibold text-primary">
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-card px-3 py-1 text-[12px] font-semibold text-primary-text">
                 <PawPrint className="h-3.5 w-3.5" />
                 Free for residents
               </span>
@@ -604,7 +604,7 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link
                   href="/login?mode=signup"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-7 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-7 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong/90"
                 >
                   Get started free
                   <ArrowRight className="h-4 w-4" />
@@ -699,7 +699,7 @@ function FeatureVisual({ index }: { index: number }) {
             <p className="text-[15px] font-semibold">Luna · Golden Retriever</p>
             <p className="text-[12px] text-muted-foreground">Maple Court Residences · Unit 302</p>
           </div>
-          <span className="ml-auto rounded-md bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">92%</span>
+          <span className="ml-auto rounded-md bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success-strong">92%</span>
         </div>
         <div className="mt-5 space-y-2.5">
           {[
@@ -728,7 +728,7 @@ function FeatureVisual({ index }: { index: number }) {
       <div className="mt-4 rounded-lg border border-border/70 bg-secondary/50 p-4">
         <div className="flex items-center justify-between">
           <span className="text-[12px] font-medium text-muted-foreground">Building risk score</span>
-          <span className="flex items-center gap-1 text-[11px] font-semibold text-success"><TrendingUp className="h-3.5 w-3.5" /> Low</span>
+          <span className="flex items-center gap-1 text-[11px] font-semibold text-success-strong"><TrendingUp className="h-3.5 w-3.5" /> Low</span>
         </div>
         <p className="mt-1 text-[26px] font-semibold tracking-tight">23<span className="text-[15px] font-medium text-muted-foreground">/100</span></p>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -751,7 +751,7 @@ function HeroMock() {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-info/10"><Building2 className="h-4.5 w-4.5 text-info" /></span>
         </div>
 
-        <div className="rounded-xl bg-primary p-4 text-primary-foreground">
+        <div className="rounded-xl bg-primary-strong p-4 text-primary-foreground">
           <p className="text-[11px] font-medium opacity-80">Building Compliance</p>
           <p className="text-[34px] font-semibold leading-none">94%</p>
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-primary-foreground/25">
@@ -779,7 +779,7 @@ function HeroMock() {
               <p className="text-[13px] font-semibold">Luna · Golden Retriever</p>
               <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full w-[92%] rounded-full bg-success" /></div>
             </div>
-            <span className="rounded-md bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">Home</span>
+            <span className="rounded-md bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success-strong">Home</span>
           </div>
         </div>
       </div>
@@ -836,7 +836,7 @@ function Tone({ tone, children }: { tone: string; children: React.ReactNode }) {
   const map: Record<string, string> = {
     info: "bg-info/10 text-info",
     destructive: "bg-destructive/10 text-destructive",
-    success: "bg-success/10 text-success",
+    success: "bg-success/10 text-success-strong",
     warning: "bg-warning/15 text-warning-strong",
   }
   return <span className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${map[tone] ?? map.info}`}>{children}</span>

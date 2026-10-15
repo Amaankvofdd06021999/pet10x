@@ -54,7 +54,7 @@ export function IOSTabBar({ activeTab, onTabChange }: TabBarProps) {
   // One brand colour for both roles. Managers used to get `--info` (iOS system
   // blue), which is not a Pet10x colour and made their half of the app look
   // like a different product.
-  const activeColor = "text-primary"
+  const activeColor = "text-primary-text"
 
   return (
     <nav
@@ -104,7 +104,7 @@ export function IOSTabBar({ activeTab, onTabChange }: TabBarProps) {
 
               <span
                 className={`text-[10px] font-medium transition-colors ${
-                  emphasis ? "text-primary" : isActive ? activeColor : "text-muted-foreground"
+                  emphasis ? "text-primary-text" : isActive ? activeColor : "text-muted-foreground"
                 }`}
               >
                 {tab.label}

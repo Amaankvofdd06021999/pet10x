@@ -53,7 +53,7 @@ export function PetPhotoGallery({ petId }: { petId: string }) {
         <button
           onClick={() => input.current?.click()}
           disabled={busy}
-          className="flex items-center gap-1.5 text-[13px] font-semibold text-primary disabled:opacity-60"
+          className="flex items-center gap-1.5 text-[13px] font-semibold text-primary-text disabled:opacity-60"
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />} Add
         </button>

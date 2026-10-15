@@ -33,7 +33,7 @@ export function VetRecords({ petId }: { petId: string }) {
         <h3 className="text-[15px] font-semibold text-foreground">Vet records</h3>
         <button
           onClick={() => setAdding(true)}
-          className="flex items-center gap-1.5 text-[13px] font-semibold text-primary"
+          className="flex items-center gap-1.5 text-[13px] font-semibold text-primary-text"
         >
           <Plus className="h-3.5 w-3.5" /> Add visit
         </button>
@@ -73,7 +73,7 @@ export function VetRecords({ petId }: { petId: string }) {
                   </p>
                   {v.notes && <p className="mt-1.5 text-[12.5px] leading-relaxed text-foreground">{v.notes}</p>}
                   {v.followUpOn && (
-                    <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-medium text-primary">
+                    <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-medium text-primary-text">
                       <CalendarClock className="h-3.5 w-3.5" />
                       Follow-up{" "}
                       {parseDbDate(v.followUpOn)?.toLocaleDateString("en-CA", {
@@ -219,7 +219,7 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
           <button
             onClick={save}
             disabled={saving}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save visit
           </button>

@@ -18,7 +18,7 @@ export const STATE_LABEL: Record<BuildingState, string> = {
 export const STATE_TEXT: Record<BuildingState, string> = {
   "at-risk": "text-destructive",
   watch: "text-warning",
-  healthy: "text-success",
+  healthy: "text-success-strong",
 }
 export const STATE_DOT: Record<BuildingState, string> = {
   "at-risk": "bg-destructive",
@@ -45,7 +45,7 @@ export function StatTile({
         : tone === "destructive"
           ? "text-destructive"
           : tone === "success"
-            ? "text-success"
+            ? "text-success-strong"
             : "text-foreground"
   return (
     <div className="rounded-2xl card-raised p-4">
