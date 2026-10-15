@@ -75,6 +75,7 @@ export function fineStatusError(r: {
       return `This fine is already ${from}, so it can't be ${to}.`
     }
     default:
-      return r.error ? `Couldn't update this fine (${r.error}).` : "Couldn't update this fine."
+      console.error("fine status: unhandled RPC code", r.error)
+      return "Couldn't update this fine. Try again."
   }
 }

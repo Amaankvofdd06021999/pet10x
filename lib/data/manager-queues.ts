@@ -642,12 +642,10 @@ function advanceError(r: { error?: string; from?: string; to?: string }): string
       return "This building has no fine schedule yet — enter an amount for this fine."
     default:
       // Never swallow a code this client has not been taught. The RPC's
-      // rejection vocabulary can grow, and a manager reading "Couldn't move
-      // this case." with no trace of WHY has nothing to report and nothing to
-      // search for.
-      return r.error
-        ? `Couldn't move this case (${r.error}).`
-        : "Couldn't move this case."
+      // rejection vocabulary can grow: log the code so there is something to
+      // search for, but keep the snake_case code off the screen.
+      console.error("move case: unhandled RPC code", r.error)
+      return "Couldn't move this case. Try again."
   }
 }
 

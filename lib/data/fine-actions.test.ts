@@ -66,7 +66,7 @@ describe("fineStatusError", () => {
   })
 
   it("never swallows a code it was not taught", () => {
-    expect(fineStatusError({ error: "something_new" })).toBe("Couldn't update this fine (something_new).")
-    expect(fineStatusError({})).toBe("Couldn't update this fine.")
+    expect(fineStatusError({ error: "something_new" })).toBe("Couldn't update this fine. Try again.")
+    expect(fineStatusError({})).toBe("Couldn't update this fine. Try again.")
   })
 })

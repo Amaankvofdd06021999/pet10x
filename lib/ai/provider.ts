@@ -120,7 +120,10 @@ function groqErrorMessage(status: number, detail: string): string {
     return "The assistant hit its rate limit. Wait a moment and ask again."
   }
   if (status === 413) return "That answer grew too large to finish. Try a narrower question."
-  if (status === 401 || status === 403) return "The assistant isn't configured correctly."
+  if (status === 401 || status === 403) {
+    console.error(`[ai] Groq rejected the API key (${status})`)
+    return "The assistant isn't available right now."
+  }
   if (status === 404) return "That assistant model is unavailable."
   return "The assistant couldn't answer just now."
 }
