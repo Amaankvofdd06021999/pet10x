@@ -85,7 +85,7 @@ export function LandingNav() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="border-t border-border bg-background/80 backdrop-blur-xl md:hidden">
+        <div className="border-t border-border bg-background/95 backdrop-blur-xl md:hidden">
           <div className="mx-auto flex max-w-7xl flex-col gap-1 px-5 py-4">
             {LINKS.map((l) => (
               <a

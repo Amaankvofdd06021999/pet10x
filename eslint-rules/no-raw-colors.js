@@ -87,6 +87,10 @@ const ALLOWED_ALPHA = new Set([
   // Sticky glass bands (headers, tab bars) that let content blur through.
   "bg-card/85",
   "bg-background/80",
+  // Near-opaque glass for sticky headers and menus over scrolling content,
+  // where the words on them must stay readable (the emergency timer header,
+  // the landing mobile menu). Controller ruling, Task 7.
+  "bg-background/95",
 ])
 
 // Utilities that can take a colour. Longest first so `ring-offset-` wins over

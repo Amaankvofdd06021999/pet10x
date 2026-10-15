@@ -36,6 +36,8 @@ tester.run("no-raw-colors", rule, {
     jsx("bg-cover bg-center bg-no-repeat bg-gradient-to-t bg-linear-to-b"),
     // The allowed overlays.
     jsx("bg-black/40 bg-black/50 bg-white/10 bg-white/15 bg-card/85 supports-[backdrop-filter]:bg-background/80"),
+    // Near-opaque glass for sticky headers and menus over scrolling content.
+    jsx("sticky top-0 bg-background/95 backdrop-blur-xl"),
     // Variants and the important mark are stripped before checking.
     jsx("dark:hover:bg-muted focus-visible:!ring-foreground data-[state=open]:bg-muted *:[svg]:text-destructive"),
     // Not class strings: comparisons, lookups, other calls.

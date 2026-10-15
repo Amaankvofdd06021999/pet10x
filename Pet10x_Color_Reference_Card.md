@@ -89,5 +89,5 @@ opacity tints on colours (`bg-success/10` and friends).
 outside this card: hex/rgb/hsl, Tailwind palette names (`orange-600`), the
 retired tokens, and opacity modifiers on colours. The only translucent
 colours allowed are the overlays `bg-black/40`, `bg-black/50` (backdrops,
-scrims), `bg-white/10`, `bg-white/15` (light tiles on a dark band) and
-`bg-card/85`, `bg-background/80` (sticky glass bars).
+scrims), `bg-white/10`, `bg-white/15` (light tiles on a dark band),
+`bg-card/85`, `bg-background/80` (sticky glass bars), and `bg-background/95` (near-opaque glass for headers and menus over scrolling content).

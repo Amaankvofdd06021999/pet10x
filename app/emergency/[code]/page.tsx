@@ -138,7 +138,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 px-4 pt-safe backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 px-4 pt-safe backdrop-blur-xl">
         <div className="flex items-center justify-between py-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
