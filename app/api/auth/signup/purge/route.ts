@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   if (!isAuthorised(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { data, error } = await getSupabaseAdmin().rpc("purge_expired_pending_signups")
   if (error) {
-    return NextResponse.json(cronFailure("purge_pending", error), { status: 500 })
+    return NextResponse.json(cronFailure("purge_pending", error, "[signup-purge]"), { status: 500 })
   }
   return NextResponse.json({ ok: true, deleted: data ?? 0 })
 }

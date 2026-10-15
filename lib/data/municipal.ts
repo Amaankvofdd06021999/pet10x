@@ -241,7 +241,7 @@ export function useManagerMunicipalReports(
   buildingId: string | null | undefined,
 ): LiveResult<ManagerMunicipalReport[]> {
   return useLive<ManagerMunicipalReport[]>(
-    "building reports",
+    "municipal reports",
     [],
     async (db) => {
       const { data, error } = await db.rpc("manager_municipal_reports", { p_building: buildingId as string })

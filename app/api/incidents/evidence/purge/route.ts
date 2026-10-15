@@ -40,6 +40,7 @@ import { ageEligible, unclaimed, type EvidenceObject } from "@/lib/data/evidence
 export const runtime = "nodejs"
 export const maxDuration = 60
 
+const TAG = "[incidents-evidence-purge]"
 const BUCKET = "guest-evidence"
 
 /**
@@ -246,7 +247,7 @@ async function purge(request: Request): Promise<Summary> {
     try {
       stillClaimed = await claimedAmong(admin, group)
     } catch (err) {
-      Object.assign(summary, cronFailureOf(err))
+      Object.assign(summary, cronFailureOf(err, TAG))
       console.error("[incidents] evidence purge stopped mid-sweep", summary)
       return summary
     }
@@ -268,7 +269,7 @@ async function purge(request: Request): Promise<Summary> {
       // would discard both and leave an operator investigating a missing photo
       // with nothing at all to read.
       // The response carries the stage and code; Storage's own text goes to the log.
-      Object.assign(summary, cronFailure("remove_evidence", error))
+      Object.assign(summary, cronFailure("remove_evidence", error, TAG))
       console.error("[incidents] evidence purge stopped mid-sweep", summary)
       return summary
     }
@@ -296,7 +297,7 @@ export async function POST(request: Request) {
     // here. That is a property of the loop, not of this handler: a new
     // throwing call added inside it would silently move back into this branch
     // and take the account of an irreversible delete with it.
-    return NextResponse.json(cronFailureOf(err), { status: 500 })
+    return NextResponse.json(cronFailureOf(err, TAG), { status: 500 })
   }
 }
 

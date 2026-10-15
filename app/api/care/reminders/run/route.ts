@@ -3,6 +3,8 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin"
 import { addCalendarDays, calendarDaysBetween } from "@/lib/dates"
 import { cronFailure } from "@/lib/cron-failure"
 
+const TAG = "[care-reminders]"
+
 /**
  * Raise reminders for care tasks that are due and not yet done.
  *
@@ -83,7 +85,7 @@ export async function GET(request: NextRequest) {
     // flea, six-month heartworm) is due on a DATE, not at a time of day, and
     // that filter excluded every one of them.
 
-  if (error) return NextResponse.json(cronFailure("read_tasks", error), { status: 500 })
+  if (error) return NextResponse.json(cronFailure("read_tasks", error, TAG), { status: 500 })
 
   const due: {
     taskId: string
@@ -148,10 +150,13 @@ export async function GET(request: NextRequest) {
 
   // Already done today, or already reminded today — either way, skip.
   const ids = due.map((d) => d.taskId)
-  const [{ data: doneRows }, { data: sentRows }] = await Promise.all([
+  const [{ data: doneRows, error: doneErr }, { data: sentRows, error: sentErr }] = await Promise.all([
     supabase.from("pet_care_log").select("task_id, on_date, completed").in("task_id", ids),
     supabase.from("pet_care_reminders").select("task_id, on_date").in("task_id", ids),
   ])
+  // Not knowing what is done or already sent must never read as "nothing is":
+  // that would raise "due today" for tasks an owner already ticked off.
+  if (doneErr || sentErr) return NextResponse.json(cronFailure("read_logs", doneErr ?? sentErr, TAG), { status: 500 })
 
   type LogKey = { task_id: string; on_date: string; completed?: boolean }
   const done = new Set(
@@ -251,12 +256,15 @@ export async function GET(request: NextRequest) {
    * that lapses is the one nobody was told about, and for a building that
    * enforces rabies it is also a compliance failure the resident never saw
    * coming. */
-  const { data: vaccines } = await supabase
+  const { data: vaccines, error: vaccinesErr } = await supabase
     .from("pet_vaccinations")
     .select("id, name, kind, expires_on, remind_days_before, reminded_for, pets!inner(id, name, owner_id)")
     .not("expires_on", "is", null)
     // A removed pet's booster is not due. Nothing else stops this one.
     .is("pets.deleted_at", null)
+  // The care reminders above are already raised, so the run still reports 500
+  // rather than "0 checked" with a 200.
+  if (vaccinesErr) return NextResponse.json(cronFailure("read_vaccines", vaccinesErr, TAG), { status: 500 })
 
   let vaccineReminders = 0
   const todayKey = new Date().toISOString().slice(0, 10)

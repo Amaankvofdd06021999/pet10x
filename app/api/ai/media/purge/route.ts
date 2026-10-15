@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
-import { CronStageError, cronFailureOf } from "@/lib/cron-failure"
+import { CronStageError, cronFailure, cronFailureOf } from "@/lib/cron-failure"
 
 /**
  * Pet10x — retention sweep for assistant photo attachments.
@@ -16,6 +16,8 @@ import { CronStageError, cronFailureOf } from "@/lib/cron-failure"
  * Only files matching the `ai-` prefix are touched. Pet profile photos and
  * uploaded documents live in the same bucket and must survive this.
  */
+
+const TAG = "[ai-media-purge]"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -57,7 +59,16 @@ async function purge() {
   // Then drop the dead paths from the messages that referenced them, so the
   // thread renders as text instead of trying to sign a file that is gone.
   const { data: touched, error: forgetError } = await admin.rpc("ai_forget_chat_media", { p_paths: paths })
-  if (forgetError) console.error("[ai] purged media but couldn't clear image_paths", forgetError)
+  // The files are already gone, so a failure here keeps the account of what
+  // was removed and answers 500: threads still point at files that no longer exist.
+  if (forgetError) {
+    return {
+      retentionDays: days,
+      deleted: paths.length,
+      messagesUpdated: 0,
+      ...cronFailure("forget_paths", forgetError, TAG),
+    }
+  }
 
   return { retentionDays: days, deleted: paths.length, messagesUpdated: touched ?? 0 }
 }
@@ -65,9 +76,10 @@ async function purge() {
 export async function POST(request: Request) {
   if (!isAuthorised(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   try {
-    return NextResponse.json({ ok: true, ...(await purge()) })
+    const result = await purge()
+    return NextResponse.json({ ok: !("error" in result), ...result }, { status: "error" in result ? 500 : 200 })
   } catch (err) {
-    return NextResponse.json(cronFailureOf(err), { status: 500 })
+    return NextResponse.json(cronFailureOf(err, TAG), { status: 500 })
   }
 }
 

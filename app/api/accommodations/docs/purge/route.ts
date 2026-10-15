@@ -67,6 +67,7 @@ import {
 export const runtime = "nodejs"
 export const maxDuration = 60
 
+const TAG = "[accommodation-docs-purge]"
 const BUCKET = "accommodation-docs"
 
 /**
@@ -378,7 +379,7 @@ async function purge(request: Request): Promise<Summary> {
     } catch (err) {
       // Nothing irreversible has happened to a FILE yet, so this is reportable
       // rather than fatal: carry on and sweep the objects.
-      Object.assign(summary, cronFailureOf(err))
+      Object.assign(summary, cronFailureOf(err, TAG))
       console.error("[accommodations] purge left abandoned drafts alone", logView(summary))
     }
   }
@@ -405,7 +406,7 @@ async function purge(request: Request): Promise<Summary> {
       )
       live = new Set(stillClassified.remove.map((v) => v.path))
     } catch (err) {
-      Object.assign(summary, cronFailureOf(err))
+      Object.assign(summary, cronFailureOf(err, TAG))
       console.error("[accommodations] purge stopped mid-sweep", logView(summary))
       return summary
     }
@@ -429,7 +430,7 @@ async function purge(request: Request): Promise<Summary> {
       // body, and the deletion cannot be undone, so what already went is only
       // knowable from the log and this summary.
       // The response carries a sentence; Storage's own text goes to the log.
-      Object.assign(summary, cronFailure("remove_files", error))
+      Object.assign(summary, cronFailure("remove_files", error, TAG))
       console.error("[accommodations] purge stopped mid-sweep", logView(summary))
       return summary
     }
@@ -489,7 +490,7 @@ async function purge(request: Request): Promise<Summary> {
     // The files are gone either way. Report the bookkeeping failure rather
     // than discarding the account of what was destroyed.
     // The step says which: update_rows is "files removed, rows not amended".
-    Object.assign(summary, cronFailure(err instanceof CronStageError ? err.step : "update_rows", err instanceof CronStageError ? err.detail : err))
+    Object.assign(summary, cronFailureOf(err, TAG, "update_rows"))
     console.error("[accommodations] purge left rows out of step", logView(summary))
     return summary
   }
@@ -506,7 +507,7 @@ export async function POST(request: Request) {
     // Reached only when the run failed BEFORE its first removal — the listing
     // and the pre-loop reference read throw. Once the removal loop is running,
     // every failure inside it returns a partial summary instead of throwing.
-    return NextResponse.json(cronFailureOf(err), { status: 500 })
+    return NextResponse.json(cronFailureOf(err, TAG), { status: 500 })
   }
 }
 

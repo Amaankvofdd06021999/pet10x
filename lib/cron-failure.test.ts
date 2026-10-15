@@ -49,6 +49,12 @@ describe("cronFailure", () => {
     expect(out.error).toBe(SENTENCE)
   })
 
+  it("prefixes the log line with the route tag when given one", () => {
+    const err = new Error("detail")
+    cronFailure("save", err, "[my-route]")
+    expect(console.error).toHaveBeenCalledWith("[my-route] save", err)
+  })
+
   it("logs the step and the error", () => {
     const err = new Error("detail")
     cronFailure("save", err)
@@ -64,6 +70,11 @@ describe("cronFailureOf", () => {
 
   it("says unknown for anything else", () => {
     expect(cronFailureOf(new Error("x"))).toEqual({ error: SENTENCE, step: "unknown", code: null })
+  })
+
+  it("uses the fallback step for an unnamed failure, but not over a named one", () => {
+    expect(cronFailureOf(new Error("x"), undefined, "update_rows").step).toBe("update_rows")
+    expect(cronFailureOf(new CronStageError("delete_drafts", {}), undefined, "update_rows").step).toBe("delete_drafts")
   })
 })
 

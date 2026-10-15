@@ -218,7 +218,11 @@ export function takenTodayByCurrency(
 export function takenTodayText(totals: Array<{ currency: string; cents: number }>): string {
   if (totals.length === 0) return formatMoney(0)
   if (totals.length === 1) return formatMoney(totals[0].cents, totals[0].currency)
-  return totals.map((t) => `${formatMoney(t.cents, t.currency)} ${t.currency}`).join(" · ")
+  // The code follows each amount, so the symbol is the plain "$": en-CA
+  // would otherwise write US$40.00 USD.
+  return totals
+    .map((t) => `${formatMoney(t.cents, t.currency, "narrowSymbol")} ${t.currency}`)
+    .join(" · ")
 }
 
 /* ------------------------------- payment -------------------------------- */

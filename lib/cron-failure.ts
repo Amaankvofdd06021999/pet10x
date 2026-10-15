@@ -15,11 +15,16 @@ const NAMED_CODE = /^[a-z_]{1,40}$/
 
 export const CRON_FAILED = "The job couldn't finish. The server log has the detail."
 
+/**
+ * `tag` is the route's own log prefix ("[care-reminders]"), so the log line
+ * stays greppable: step names such as `remove_files` repeat across routes.
+ */
 export function cronFailure(
   step: string,
   err: unknown,
+  tag?: string,
 ): { error: string; step: string; code: string | null } {
-  console.error(step, err)
+  console.error(tag ? `${tag} ${step}` : step, err)
   const raw = err && typeof err === "object" ? (err as { code?: unknown }).code : null
   const code = typeof raw === "string" && (SQLSTATE.test(raw) || NAMED_CODE.test(raw)) ? raw : null
   return { error: CRON_FAILED, step: STEP.test(step) ? step : "unknown", code }
@@ -39,9 +44,13 @@ export class CronStageError extends Error {
   }
 }
 
-/** The body for a 500: the stage when one was named, "unknown" when not. */
-export function cronFailureOf(err: unknown): { error: string; step: string; code: string | null } {
-  return err instanceof CronStageError ? cronFailure(err.step, err.detail) : cronFailure("unknown", err)
+/** The body for a 500: the stage when one was named, else `fallbackStep`. */
+export function cronFailureOf(
+  err: unknown,
+  tag?: string,
+  fallbackStep = "unknown",
+): { error: string; step: string; code: string | null } {
+  return err instanceof CronStageError ? cronFailure(err.step, err.detail, tag) : cronFailure(fallbackStep, err, tag)
 }
 
 /** Run one stage; a failure that does not already name its stage is given this one. */

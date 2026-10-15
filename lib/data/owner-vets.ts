@@ -56,7 +56,7 @@ export interface VetShare {
 /** Every practice that can currently see something, per pet. */
 export function useMyVetShares(): LiveResult<VetShare[]> {
   return useLive<VetShare[]>(
-    "your shared records",
+    "who can see your records",
     [],
     async (db) => {
       const { data: auth } = await db.auth.getUser()

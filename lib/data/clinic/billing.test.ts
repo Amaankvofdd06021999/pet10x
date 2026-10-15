@@ -216,7 +216,7 @@ describe("takenTodayText", () => {
         { currency: "CAD", cents: 12000 },
         { currency: "USD", cents: 4000 },
       ]),
-    ).toMatch(/^\$120\.00 CAD · .*40\.00 USD$/)
+    ).toBe("$120.00 CAD · $40.00 USD")
   })
 })
 

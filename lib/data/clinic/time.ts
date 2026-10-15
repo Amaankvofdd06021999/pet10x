@@ -130,10 +130,15 @@ export function dueLabel(dateISO: string | null): string {
   return `Due in ${d} days`
 }
 
-export function formatMoney(cents: number, currency = "cad"): string {
+export function formatMoney(
+  cents: number,
+  currency = "cad",
+  currencyDisplay: "symbol" | "narrowSymbol" = "symbol",
+): string {
   return new Intl.NumberFormat("en-CA", {
     style: "currency",
     currency: currency.toUpperCase(),
+    currencyDisplay,
     minimumFractionDigits: 2,
   }).format(cents / 100)
 }

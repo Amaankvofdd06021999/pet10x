@@ -24,6 +24,7 @@ import { advanceCursor, nextBatch } from "@/lib/ai/suggestions/nightly"
 export const runtime = "nodejs"
 export const maxDuration = 300
 
+const TAG = "[ai-nightly-suggestions]"
 const CURSOR_NAME = "suggestions_nightly"
 /** Pet rows read per page; at most this many owners per page. */
 const PAGE = 200
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
     .select("cursor")
     .eq("name", CURSOR_NAME)
     .maybeSingle()
-  if (cursorErr) return NextResponse.json(cronFailure("read_cursor", cursorErr), { status: 500 })
+  if (cursorErr) return NextResponse.json(cronFailure("read_cursor", cursorErr, TAG), { status: 500 })
 
   let cursor: string | null = cursorRow?.cursor ?? null
   let processed = 0
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
     const { error } = await admin
       .from("cron_cursors")
       .upsert({ name: CURSOR_NAME, cursor: value, updated_at: new Date().toISOString() })
-    if (error) stageFailure ??= cronFailure("save_cursor", error)
+    if (error) stageFailure ??= cronFailure("save_cursor", error, TAG)
   }
 
   while (!done && !timedOut) {
@@ -82,7 +83,7 @@ export async function GET(request: Request) {
     if (cursor !== null) query = query.gt("owner_id", cursor)
     const { data: rows, error } = await query
     if (error) {
-      const failure = cronFailure("list_owners", error)
+      const failure = cronFailure("list_owners", error, TAG)
       if (firstPage) return NextResponse.json(failure, { status: 500 })
       stageFailure ??= failure
       break
@@ -119,5 +120,8 @@ export async function GET(request: Request) {
   // A finished sweep resets the cursor so the next night starts from the top.
   if (done) await saveCursor(advanceCursor([], true))
 
-  return NextResponse.json({ ok: true, processed, failed, done, ...(stageFailure ?? {}) })
+  return NextResponse.json(
+    { ok: !stageFailure, processed, failed, done, ...(stageFailure ?? {}) },
+    { status: stageFailure ? 500 : 200 },
+  )
 }

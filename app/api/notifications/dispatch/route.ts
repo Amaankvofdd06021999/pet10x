@@ -83,7 +83,7 @@ async function emailPass(supabase: Admin, started: number) {
     p_kinds: [...EMAIL_KINDS],
     p_max_recipients: EMAIL_MAX_RECIPIENTS,
   })
-  if (error) return cronFailure("claim_emails", error)
+  if (error) return cronFailure("claim_emails", error, "[dispatch]")
 
   const now = Date.now()
   const rows = (data ?? []).filter((n) => isEmailEligible(n, now))
@@ -162,7 +162,7 @@ async function pushPass(supabase: Admin, started: number) {
   if (!configured.ok) return { skipped: configured.why }
 
   const { data: claimed, error } = await supabase.rpc("claim_notification_pushes", { p_limit: PUSH_MAX_PER_RUN })
-  if (error) return cronFailure("claim_pushes", error)
+  if (error) return cronFailure("claim_pushes", error, "[dispatch]")
   const notes = claimed ?? []
   if (notes.length === 0) return { claimed: 0, pushed: 0 }
 
@@ -174,7 +174,7 @@ async function pushPass(supabase: Admin, started: number) {
   if (subsErr) {
     await supabase.from("notifications").update({ push_claimed_at: null }).in("id", notes.map((n) => n.id))
     // The pushes were released above, so the next run retries them.
-    return cronFailure("read_subscriptions", subsErr)
+    return cronFailure("read_subscriptions", subsErr, "[dispatch]")
   }
 
   const byProfile = new Map<string, NonNullable<typeof subs>>()
