@@ -323,7 +323,10 @@ export default function LandingPage() {
                   Set up your pet&apos;s profile in minutes — upgrade only when you&apos;re ready.
                 </p>
                 <Button asChild variant="link" className="mt-5 self-start">
-                  <Link href="/login?mode=signup">Get the app</Link>
+                  <Link href="/login?mode=signup">
+                    Get the app
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
                 </Button>
               </div>
             </Reveal>
@@ -400,7 +403,7 @@ export default function LandingPage() {
             />
             <div className="relative grid items-center gap-9 lg:grid-cols-[1.25fr_1fr]">
               <div>
-                <span className="inline-flex items-center gap-2 rounded-full bg-muted-foreground px-3 py-1 text-[12px] font-semibold">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[12px] font-semibold">
                   <Siren className="h-3.5 w-3.5" />
                   Emergency access
                 </span>
@@ -432,8 +435,8 @@ export default function LandingPage() {
                   { icon: ListChecks, label: "By floor & unit", body: "Species, presence, contact." },
                   { icon: ShieldCheck, label: "Logged & revocable", body: "Expires on its own." },
                 ].map((f) => (
-                  <li key={f.label} className="flex items-start gap-3 rounded-2xl bg-muted-foreground p-4">
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-foreground">
+                  <li key={f.label} className="flex items-start gap-3 rounded-2xl bg-white/10 p-4">
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white/15">
                       <f.icon className="h-4.5 w-4.5" />
                     </span>
                     <div className="min-w-0">
@@ -514,9 +517,9 @@ export default function LandingPage() {
                   {/* Badge sits on the border, as the reference does — inside
                       the card it competed with the plan name for the same row. */}
                   {tier.featured && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
+                    <Badge variant="brand" className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1 shadow-sm">
                       Coming soon
-                    </span>
+                    </Badge>
                   )}
                   <h3 className="text-[17px] font-semibold tracking-tight">{tier.name}</h3>
                   <div className="mt-4 flex items-baseline gap-1.5">
