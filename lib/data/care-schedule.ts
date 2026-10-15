@@ -480,7 +480,7 @@ export async function setCareTaskDone(
 
   if (done) {
     if ((existing ?? []).length > 0) return { error: null }
-    await supabase.from("care_entries").insert({
+    const { error: insertErr } = await supabase.from("care_entries").insert({
       pet_id: task.pet_id,
       kind: target.kind,
       label: target.label,
@@ -488,11 +488,15 @@ export async function setCareTaskDone(
       unit: target.unit,
       source_task_id: taskId,
     })
-    // Home's goal tiles read this pet's entries; tell them to re-read.
-    careLogged(task.pet_id)
+    // Home's goal tiles read this pet's entries; tell them to re-read — only
+    // when there is something new to read.
+    if (!insertErr) careLogged(task.pet_id)
   } else if ((existing ?? []).length > 0) {
-    await supabase.from("care_entries").delete().in("id", (existing ?? []).map((e) => e.id))
-    careLogged(task.pet_id)
+    const { error: deleteErr } = await supabase
+      .from("care_entries")
+      .delete()
+      .in("id", (existing ?? []).map((e) => e.id))
+    if (!deleteErr) careLogged(task.pet_id)
   }
 
   return { error: null }

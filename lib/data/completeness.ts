@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { hasRabies } from "./vaccines"
-import { useMyBuildingLink, usePets } from "./live"
+import { usePets } from "./live"
 import type { ScreenKey } from "@/lib/navigation"
 
 /** The five flags a building may enforce, from `buildings.pet_rules`. */
@@ -288,31 +288,39 @@ export interface CompletenessResult {
   heading: string
   gaps: Gap[]
   isLoading: boolean
+  /** A read failed. The gaps are then the last good answer (or none), never
+      ones computed from the failed read. */
+  error: string | null
   refetch: () => void
 }
+
+const COMPLETENESS_LOAD_FAILED = "Couldn't check what your building needs. Try again."
 
 /**
  * The signed-in resident's own outstanding items.
  *
- * Pet identity comes from the shared pets cache and the building from the
- * shared link store, both of which Home has already loaded. This used to
- * re-select every pet with three embeds and then, once the link came back,
- * make a second round trip for `buildings.pet_rules`. Now every read it still
- * needs — vaccinations, documents and contacts for those pet ids, the profile,
- * the link's unit, and the building's rules — goes out in one `Promise.all`.
+ * Pet identity comes from the shared pets cache, which Home has already
+ * loaded. This used to re-select every pet with three embeds and then, once
+ * the link came back, make a second round trip for `buildings.pet_rules`. Now
+ * every read it still needs — vaccinations, documents and contacts for those
+ * pet ids, the profile, and the link with its building's rules embedded — goes
+ * out in one `Promise.all`.
  *
- * The pets cache lists non-deleted pets of this owner, the same rows the old
- * select read; the link store answers from `my_building_link()`, which filters
- * resident_links exactly as the query below does (pending or approved, not
- * left), so the building whose rules are read is the same building.
+ * The rules ride on the resident_links row rather than coming from the shared
+ * link store, so "linked", the unit and the rules are always one answer about
+ * one link: a store that failed to load cannot turn the rules into `{}` while
+ * the link still reads as approved.
+ *
+ * A failed read keeps the previous gaps and reports `error`. Gaps computed
+ * from a failed vaccinations read would ask for a rabies record already on
+ * file.
  */
 export function useMyCompleteness(): CompletenessResult {
   const [result, setResult] = useState<{ heading: string; gaps: Gap[] }>({ heading: "", gaps: [] })
   const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const pets = usePets()
-  const link = useMyBuildingLink()
-  const ready = !pets.isLoading && !link.isLoading
-  const buildingId = link.data?.buildingId ?? null
+  const ready = !pets.isLoading
   /* Keyed on a string of what is read from each pet, not on the array: the
      cache hands over a new array after any pet mutation, and a rename or a
      neutered toggle must re-run this while an unrelated re-render must not. */
@@ -340,23 +348,33 @@ export function useMyCompleteness(): CompletenessResult {
        than an empty result — with no pets there is nothing to ask. */
     const none = Promise.resolve({ data: [] as never[], error: null })
 
-    const [{ data: profile }, { data: linkRow }, { data: vaccinations }, { data: documents }, { data: contacts }, { data: building }] =
-      await Promise.all([
-        supabase.from("profiles").select("phone, street_address, postal_code").eq("id", user.id).maybeSingle(),
-        supabase
-          .from("resident_links")
-          .select("unit_id, building_id, status")
-          .eq("profile_id", user.id)
-          .in("status", ["pending", "approved"])
-          .is("left_at", null)
-          .maybeSingle(),
-        ids.length ? supabase.from("pet_vaccinations").select("pet_id, name, status").in("pet_id", ids) : none,
-        ids.length ? supabase.from("pet_documents").select("pet_id, kind").in("pet_id", ids) : none,
-        ids.length ? supabase.from("pet_emergency_contacts").select("pet_id").in("pet_id", ids) : none,
-        buildingId
-          ? supabase.from("buildings").select("pet_rules").eq("id", buildingId).maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-      ])
+    const [profileRes, linkRes, vaxRes, docRes, contactRes] = await Promise.all([
+      supabase.from("profiles").select("phone, street_address, postal_code").eq("id", user.id).maybeSingle(),
+      supabase
+        .from("resident_links")
+        .select("unit_id, building_id, status, building:buildings(pet_rules)")
+        .eq("profile_id", user.id)
+        .in("status", ["pending", "approved"])
+        .is("left_at", null)
+        .maybeSingle(),
+      ids.length ? supabase.from("pet_vaccinations").select("pet_id, name, status").in("pet_id", ids) : none,
+      ids.length ? supabase.from("pet_documents").select("pet_id, kind").in("pet_id", ids) : none,
+      ids.length ? supabase.from("pet_emergency_contacts").select("pet_id").in("pet_id", ids) : none,
+    ])
+
+    const failed = [profileRes, linkRes, vaxRes, docRes, contactRes].find((r) => r.error)
+    if (failed) {
+      console.error("[completeness] read failed", failed.error)
+      setError(COMPLETENESS_LOAD_FAILED)
+      setLoading(false)
+      return
+    }
+    const profile = profileRes.data
+    const linkRow = linkRes.data
+    const vaccinations = vaxRes.data
+    const documents = docRes.data
+    const contacts = contactRes.data
+    const building = Array.isArray(linkRow?.building) ? linkRow.building[0] : linkRow?.building
 
     const rules: BuildingPetRules = ((building?.pet_rules ?? {}) as BuildingPetRules) || {}
 
@@ -390,14 +408,15 @@ export function useMyCompleteness(): CompletenessResult {
         })),
       }),
     )
+    setError(null)
     setLoading(false)
-  }, [ready, petKey, buildingId])
+  }, [ready, petKey])
 
   useEffect(() => {
     void refetch()
   }, [refetch])
 
-  return { heading: result.heading, gaps: result.gaps, isLoading, refetch }
+  return { heading: result.heading, gaps: result.gaps, isLoading, error, refetch }
 }
 
 /** "Phone number, Unit number and 2 more" — for a one-line summary. */

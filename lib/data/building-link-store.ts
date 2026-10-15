@@ -11,8 +11,8 @@
  * injected so vitest can drive the rules without a database:
  *
  *   1. Readers share one request. `ensure()` loads only when nothing is loaded
- *      and nothing is loading, so two components mounting together cost one
- *      RPC.
+ *      and the newest request is not still in flight, so two components
+ *      mounting together cost one RPC.
  *   2. "No link" is an answer and is cached; an error is not. A failed load
  *      leaves nothing cached, so the next reader tries again, and the error is
  *      reported rather than rendered as "Link your building".
@@ -54,7 +54,11 @@ export function createBuildingLinkStore<T>(deps: { load: () => Promise<BuildingL
   /* The last answer was "nobody is signed in". Not loading — a reader shows
      no link — but not cached either: the next reader asks again. */
   let signedOut = false
-  let inFlight = 0
+  /* Tickets of the requests still in flight. `ensure()` asks whether the
+     NEWEST ticket is among them, not whether anything is: a load superseded
+     by `clear()` (a sign-out mid-request) can still be in flight, will never
+     write, and must not stop the next reader from loading. */
+  const inFlight = new Set<number>()
   /* Rule 3: every request takes a ticket; only the newest ticket may write.
      `clear` takes one too, so nothing sent before it can land after it. */
   let seq = 0
@@ -74,7 +78,7 @@ export function createBuildingLinkStore<T>(deps: { load: () => Promise<BuildingL
 
   const refresh = async () => {
     const ticket = ++seq
-    inFlight++
+    inFlight.add(ticket)
     try {
       const res = await deps.load()
       if (ticket !== seq) return
@@ -106,7 +110,7 @@ export function createBuildingLinkStore<T>(deps: { load: () => Promise<BuildingL
       owner = null
       error = "Couldn't load your building. Try again."
     } finally {
-      inFlight--
+      inFlight.delete(ticket)
       notify()
     }
   }
@@ -114,7 +118,7 @@ export function createBuildingLinkStore<T>(deps: { load: () => Promise<BuildingL
   return {
     get: () => data,
     error: () => error,
-    isLoading: () => !loaded && (inFlight > 0 || (error === null && !signedOut)),
+    isLoading: () => !loaded && (inFlight.size > 0 || (error === null && !signedOut)),
     subscribe(fn) {
       subs.add(fn)
       return () => {
@@ -122,7 +126,7 @@ export function createBuildingLinkStore<T>(deps: { load: () => Promise<BuildingL
       }
     },
     ensure() {
-      if (!loaded && inFlight === 0) void refresh()
+      if (!loaded && !inFlight.has(seq)) void refresh()
     },
     refresh,
     clear,

@@ -118,6 +118,21 @@ describe("building link store", () => {
     expect(s.get()).toBeNull() // Alice's answer must not become Bob's link
   })
 
+  it("a reader mounting after a clear is not blocked by the load the clear superseded", async () => {
+    const stale = deferred()
+    const load = vi.fn().mockReturnValueOnce(stale.promise).mockResolvedValueOnce(ok(null, "bob"))
+    const s = createBuildingLinkStore<Link>({ load })
+    const first = s.refresh() // Alice's load, in flight
+    s.clear() // sign-out
+    s.ensure() // the next reader mounts
+    expect(load).toHaveBeenCalledTimes(2)
+    stale.settle(ok())
+    await first
+    await Promise.resolve()
+    expect(s.get()).toBeNull()
+    expect(s.isLoading()).toBe(false)
+  })
+
   it("signed out caches nothing", async () => {
     const load = vi.fn(async () => ok(null, null))
     const s = createBuildingLinkStore<Link>({ load })
