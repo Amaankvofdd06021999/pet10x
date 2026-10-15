@@ -12,10 +12,19 @@ import {
 } from "@/lib/data/clinic/customers"
 import { PatientPanel } from "./patient-panel"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal,
-  Field, TextInput, Select, SpeciesIcon, LinkedBadge, Toolbar,
-} from "@/components/screens/shared/ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Modal } from "@/components/ui/dialog"
+import { Field } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { NativeSelect } from "@/components/ui/select"
+import { SpeciesIcon } from "@/components/screens/shared/species-icon"
+import { LinkedBadge } from "@/components/screens/clinic/linked-badge"
+import { Toolbar } from "@/components/ui/toolbar"
 
 export function ClinicCustomersScreen({
   clinic,
@@ -47,12 +56,12 @@ export function ClinicCustomersScreen({
           <label htmlFor="cust-search" className="sr-only">
             Search customers
           </label>
-          <input
+          <Input
             id="cust-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Name, phone or email"
-            className="w-full rounded-xl border border-input bg-card py-2 pl-9 pr-3 text-[13.5px] outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="pl-9"
           />
         </div>
         {caps.readSharedRecords && (
@@ -197,28 +206,29 @@ function CustomerRow({
         className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left"
       >
         <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-foreground">
+          <p className="flex flex-wrap items-center gap-2 text-body font-semibold text-foreground">
             {c.fullName}
-            {c.isLinked && <Pill tone="accent">Pet10x</Pill>}
-            {!c.serviceReminders && <Pill tone="neutral">No reminders</Pill>}
+            {c.isLinked && <Badge variant="brand">Pet10x</Badge>}
+            {!c.serviceReminders && <Badge variant="neutral">No reminders</Badge>}
           </p>
-          <p className="text-[12.5px] text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             {[c.phone, c.email].filter(Boolean).join(" · ") || "No contact details"}
           </p>
           {c.alertNote && (
-            <p className="mt-1 text-[12px] font-medium text-warning-strong">{c.alertNote}</p>
+            <p className="mt-1 text-caption font-medium text-foreground">{c.alertNote}</p>
           )}
         </div>
         <div className="flex items-center gap-2">
           {c.phone && (
-            <a
-              href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}
-              onClick={(e) => e.stopPropagation()}
-              aria-label={`Call ${c.fullName}`}
-              className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            >
-              <Phone className="h-4 w-4" aria-hidden="true" />
-            </a>
+            <Button asChild variant="secondary" size="icon-sm">
+              <a
+                href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Call ${c.fullName}`}
+              >
+                <Phone className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </Button>
           )}
           <span
             role="button"
@@ -235,13 +245,14 @@ function CustomerRow({
                 onEdit()
               }
             }}
-            className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            // A <button> can't sit inside the row's <button>, so this span takes the Button look.
+            className={buttonVariants({ variant: "secondary", size: "icon-sm" })}
           >
             <Pencil className="h-4 w-4" aria-hidden="true" />
           </span>
-          <Pill tone="neutral">
+          <Badge variant="neutral">
             {c.patientCount} {c.patientCount === 1 ? "animal" : "animals"}
-          </Pill>
+          </Badge>
         </div>
       </button>
       {open && (
@@ -252,7 +263,7 @@ function CustomerRow({
             </Button>
           </div>
           {c.patients.length === 0 ? (
-            <p className="px-1 text-[12.5px] text-muted-foreground">No animals on this record yet.</p>
+            <p className="px-1 text-caption text-muted-foreground">No animals on this record yet.</p>
           ) : (
             <ul className="flex flex-col gap-1.5">
               {c.patients.map((p) => (
@@ -260,13 +271,13 @@ function CustomerRow({
                   <button
                     type="button"
                     onClick={() => onOpenPatient(p.id)}
-                    className="flex w-full items-center justify-between gap-2 rounded-xl border border-border px-3 py-2 text-left hover:bg-secondary"
+                    className="flex w-full items-center justify-between gap-2 rounded-xl border border-border px-3 py-2 text-left hover:bg-muted"
                   >
-                    <span className="flex items-center gap-2 text-[13.5px] font-medium text-foreground">
+                    <span className="flex items-center gap-2 text-meta font-medium text-foreground">
                       <SpeciesIcon species={p.species} />
                       {p.name}
-                      {p.breed && <span className="text-[12px] text-muted-foreground">{p.breed}</span>}
-                      {p.isDeceased && <Pill tone="neutral">Deceased</Pill>}
+                      {p.breed && <span className="text-caption text-muted-foreground">{p.breed}</span>}
+                      {p.isDeceased && <Badge variant="neutral">Deceased</Badge>}
                     </span>
                     <LinkedBadge linked={p.isLinked} />
                   </button>
@@ -305,7 +316,7 @@ function NewCustomerModal({
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button
-            busy={busy}
+            loading={busy}
             onClick={async () => {
               setBusy(true)
               setError(null)
@@ -334,27 +345,27 @@ function NewCustomerModal({
       <div className="flex flex-col gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="First name" required error={error}>
-            {(p) => <TextInput {...p} value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} />}
+            {(p) => <Input {...p} value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} />}
           </Field>
           <Field label="Last name">
-            {(p) => <TextInput {...p} value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} />}
+            {(p) => <Input {...p} value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} />}
           </Field>
           <Field label="Phone">
-            {(p) => <TextInput {...p} type="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />}
+            {(p) => <Input {...p} type="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />}
           </Field>
           <Field label="Email">
-            {(p) => <TextInput {...p} type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />}
+            {(p) => <Input {...p} type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />}
           </Field>
         </div>
-        <div className="rounded-xl bg-secondary p-3">
-          <p className="mb-2 text-[12px] font-semibold text-foreground">Their animal (optional)</p>
+        <div className="rounded-xl bg-muted p-3">
+          <p className="mb-2 text-caption font-semibold text-foreground">Their animal (optional)</p>
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Name">
-              {(p) => <TextInput {...p} value={f.petName} onChange={(e) => setF({ ...f, petName: e.target.value })} />}
+              {(p) => <Input {...p} value={f.petName} onChange={(e) => setF({ ...f, petName: e.target.value })} />}
             </Field>
             <Field label="Species">
               {(p) => (
-                <Select {...p} value={f.species} onChange={(e) => setF({ ...f, species: e.target.value })}>
+                <NativeSelect {...p} value={f.species} onChange={(e) => setF({ ...f, species: e.target.value })}>
                   <option value="dog">Dog</option>
                   <option value="cat">Cat</option>
                   <option value="bird">Bird</option>
@@ -362,11 +373,11 @@ function NewCustomerModal({
                   <option value="reptile">Reptile</option>
                   <option value="fish">Fish</option>
                   <option value="other">Other</option>
-                </Select>
+                </NativeSelect>
               )}
             </Field>
             <Field label="Breed">
-              {(p) => <TextInput {...p} value={f.breed} onChange={(e) => setF({ ...f, breed: e.target.value })} />}
+              {(p) => <Input {...p} value={f.breed} onChange={(e) => setF({ ...f, breed: e.target.value })} />}
             </Field>
           </div>
         </div>
@@ -403,7 +414,7 @@ function DeskCodeModal({
         <>
           <Button variant="secondary" onClick={onClose}>Close</Button>
           <Button
-            busy={busy}
+            loading={busy}
             onClick={async () => {
               setBusy(true)
               setError(null)
@@ -422,14 +433,14 @@ function DeskCodeModal({
       }
     >
       {ok ? (
-        <p className="flex items-center gap-2 rounded-xl bg-success/10 p-3 text-[13px] font-medium text-success-strong">
-          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+        <p className="flex items-center gap-2 rounded-xl bg-success-soft p-3 text-meta font-medium text-foreground">
+          <ShieldCheck className="h-4 w-4 text-success" aria-hidden="true" />
           Records shared. Open the patient to read them.
         </p>
       ) : (
         <Field label="Code" required error={error} hint="Single use, valid for ten minutes.">
           {(p) => (
-            <TextInput
+            <Input
               {...p}
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -483,7 +494,7 @@ function EditCustomerModal({
       footer={
         <>
           <Button
-            variant="ghost"
+            variant="quiet"
             onClick={() => {
               if (customer) onArchive(customer)
             }}
@@ -492,7 +503,7 @@ function EditCustomerModal({
           </Button>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button
-            busy={busy}
+            loading={busy}
             onClick={async () => {
               if (!customer) return
               if (!f.firstName.trim()) {
@@ -523,24 +534,24 @@ function EditCustomerModal({
       <div className="flex flex-col gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="First name" required error={error}>
-            {(p) => <TextInput {...p} value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} />}
+            {(p) => <Input {...p} value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} />}
           </Field>
           <Field label="Last name">
-            {(p) => <TextInput {...p} value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} />}
+            {(p) => <Input {...p} value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} />}
           </Field>
           <Field label="Phone">
-            {(p) => <TextInput {...p} type="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />}
+            {(p) => <Input {...p} type="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />}
           </Field>
           <Field label="Email">
-            {(p) => <TextInput {...p} type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />}
+            {(p) => <Input {...p} type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />}
           </Field>
         </div>
         <Field label="City">
-          {(p) => <TextInput {...p} value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} />}
+          {(p) => <Input {...p} value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} />}
         </Field>
         <Field label="Alert note" hint="Shown on their record every time it is opened.">
           {(p) => (
-            <TextInput
+            <Input
               {...p}
               value={f.alertNote}
               onChange={(e) => setF({ ...f, alertNote: e.target.value })}
@@ -548,7 +559,7 @@ function EditCustomerModal({
             />
           )}
         </Field>
-        <label className="flex items-start gap-2 rounded-xl bg-secondary p-3 text-[12.5px]">
+        <label className="flex items-start gap-2 rounded-xl bg-muted p-3 text-caption">
           <input
             type="checkbox"
             checked={f.reminders}
@@ -563,7 +574,7 @@ function EditCustomerModal({
           </span>
         </label>
         {customer?.isLinked && (
-          <p className="rounded-xl bg-accent/10 p-3 text-[11.5px] text-muted-foreground">
+          <p className="rounded-xl bg-primary-soft p-3 text-caption text-muted-foreground">
             This customer has a Pet10x account. Reminders reach them as a free notification they can book from.
           </p>
         )}
@@ -593,7 +604,7 @@ function AddAnimalModal({
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button
-            busy={busy}
+            loading={busy}
             onClick={async () => {
               if (!customer) return
               setBusy(true)
@@ -620,12 +631,12 @@ function AddAnimalModal({
     >
       <div className="flex flex-col gap-3">
         <Field label="Name" required error={error}>
-          {(p) => <TextInput {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}
+          {(p) => <Input {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Species">
             {(p) => (
-              <Select {...p} value={f.species} onChange={(e) => setF({ ...f, species: e.target.value })}>
+              <NativeSelect {...p} value={f.species} onChange={(e) => setF({ ...f, species: e.target.value })}>
                 <option value="dog">Dog</option>
                 <option value="cat">Cat</option>
                 <option value="bird">Bird</option>
@@ -633,17 +644,17 @@ function AddAnimalModal({
                 <option value="reptile">Reptile</option>
                 <option value="fish">Fish</option>
                 <option value="other">Other</option>
-              </Select>
+              </NativeSelect>
             )}
           </Field>
           <Field label="Breed">
-            {(p) => <TextInput {...p} value={f.breed} onChange={(e) => setF({ ...f, breed: e.target.value })} />}
+            {(p) => <Input {...p} value={f.breed} onChange={(e) => setF({ ...f, breed: e.target.value })} />}
           </Field>
           <Field label="Date of birth">
-            {(p) => <TextInput {...p} type="date" value={f.dob} onChange={(e) => setF({ ...f, dob: e.target.value })} />}
+            {(p) => <Input {...p} type="date" value={f.dob} onChange={(e) => setF({ ...f, dob: e.target.value })} />}
           </Field>
           <Field label="Microchip">
-            {(p) => <TextInput {...p} value={f.microchip} onChange={(e) => setF({ ...f, microchip: e.target.value })} />}
+            {(p) => <Input {...p} value={f.microchip} onChange={(e) => setF({ ...f, microchip: e.target.value })} />}
           </Field>
         </div>
       </div>

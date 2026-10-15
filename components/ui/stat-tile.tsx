@@ -1,3 +1,5 @@
+import { useId, type ReactNode } from 'react'
+
 import { cn } from '@/lib/utils'
 
 export type StatTone = 'default' | 'good' | 'warn' | 'bad' | 'info' | 'accent'
@@ -23,12 +25,14 @@ export function StatTile({
 }: {
   label: string
   value: string | number
-  hint?: string
+  // A node, not only a string: a tile whose read failed puts its Retry here.
+  hint?: ReactNode
   tone?: StatTone
   onClick?: () => void
 }) {
   const Tag = onClick ? 'button' : 'div'
   const dot = TONE_DOT[tone]
+  const hintId = useId()
   return (
     <Tag
       {...(onClick ? { type: 'button' as const, onClick } : {})}
@@ -42,8 +46,17 @@ export function StatTile({
         {dot && <span aria-hidden="true" className={cn('size-2 rounded-full', dot)} />}
         {label}
       </p>
-      <p className="mt-1 text-heading font-semibold leading-none tabular-nums text-foreground">{value}</p>
-      {hint && <p className="mt-1 text-caption text-muted-foreground">{hint}</p>}
+      <p
+        aria-describedby={hint ? hintId : undefined}
+        className="mt-1 text-heading font-semibold leading-none tabular-nums text-foreground"
+      >
+        {value}
+      </p>
+      {hint && (
+        <div id={hintId} className="mt-1 text-caption text-muted-foreground">
+          {hint}
+        </div>
+      )}
     </Tag>
   )
 }

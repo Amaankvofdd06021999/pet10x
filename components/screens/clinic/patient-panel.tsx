@@ -16,10 +16,21 @@ import { invoiceFromVisit, usePatientInvoices } from "@/lib/data/clinic/shop"
 import { liveInvoiceByVisit } from "@/lib/data/clinic/billing"
 import { validateServiceInput, type ServiceErrors } from "@/lib/data/fees"
 import { formatDateShort, ageFrom, dueLabel, formatMoney } from "@/lib/data/clinic/time"
-import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Field, Modal,
-  TextInput, TextArea, SpeciesIcon, LinkedBadge, SegmentedTabs, Toolbar,
-} from "@/components/screens/shared/ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Field } from "@/components/ui/field"
+import { Modal } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { SpeciesIcon } from "@/components/screens/shared/species-icon"
+import { LinkedBadge } from "@/components/screens/clinic/linked-badge"
+import { SegmentedTabs } from "@/components/ui/segmented-tabs"
+import { Toolbar } from "@/components/ui/toolbar"
+import { ErrorText } from "@/components/ui/error-text"
 
 export type PatientTab = "overview" | "visits" | "vaccines" | "shared"
 
@@ -63,30 +74,30 @@ export function PatientPanel({
   return (
     <div className="flex flex-col gap-4">
       {/* Signalment header. The allergy banner never collapses. */}
-      <div className="rounded-2xl border border-border bg-secondary/50 p-4">
-        <p className="flex flex-wrap items-center gap-2 text-[17px] font-semibold text-foreground">
+      <div className="rounded-2xl border border-border bg-muted p-4">
+        <p className="flex flex-wrap items-center gap-2 text-title font-semibold text-foreground">
           <SpeciesIcon species={p.species} />
           {p.name}
           <LinkedBadge linked={p.isLinked} />
-          {p.isDeceased && <Pill tone="neutral">Deceased</Pill>}
+          {p.isDeceased && <Badge variant="neutral">Deceased</Badge>}
         </p>
-        <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+        <p className="mt-0.5 text-caption text-muted-foreground">
           {[p.breed, p.sex, ageFrom(p.dob), p.colour].filter(Boolean).join(" · ")}
           {p.microchip ? ` · chip ${p.microchip}` : ""}
         </p>
-        <p className="mt-1 text-[12.5px] text-muted-foreground">
+        <p className="mt-1 text-caption text-muted-foreground">
           {p.customerName}
           {p.customerPhone ? ` · ${p.customerPhone}` : ""}
         </p>
         {(p.allergies || p.behaviouralAlert) && (
           <div className="mt-2 flex flex-col gap-1">
             {p.allergies && (
-              <p className="rounded-lg bg-destructive/10 px-2.5 py-1.5 text-[12.5px] font-semibold text-destructive">
+              <p className="rounded-lg bg-destructive-soft px-2.5 py-1.5 text-caption font-semibold text-foreground">
                 Allergies: {p.allergies}
               </p>
             )}
             {p.behaviouralAlert && (
-              <p className="rounded-lg bg-warning/10 px-2.5 py-1.5 text-[12.5px] font-semibold text-warning-strong">
+              <p className="rounded-lg bg-warning-soft px-2.5 py-1.5 text-caption font-semibold text-foreground">
                 Handling: {p.behaviouralAlert}
               </p>
             )}
@@ -166,11 +177,11 @@ function OverviewTab({
       <div className="flex flex-col gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Allergies">
-            {(p) => <TextInput {...p} disabled={!canEdit} value={f.allergies} onChange={(e) => setF({ ...f, allergies: e.target.value })} />}
+            {(p) => <Input {...p} disabled={!canEdit} value={f.allergies} onChange={(e) => setF({ ...f, allergies: e.target.value })} />}
           </Field>
           <Field label="Weight (kg)">
             {(p) => (
-              <TextInput
+              <Input
                 {...p}
                 disabled={!canEdit}
                 inputMode="decimal"
@@ -181,21 +192,21 @@ function OverviewTab({
           </Field>
         </div>
         <Field label="Ongoing conditions">
-          {(p) => <TextArea {...p} disabled={!canEdit} value={f.conditions} onChange={(e) => setF({ ...f, conditions: e.target.value })} />}
+          {(p) => <Textarea {...p} disabled={!canEdit} value={f.conditions} onChange={(e) => setF({ ...f, conditions: e.target.value })} />}
         </Field>
         <Field label="Medication notes">
-          {(p) => <TextArea {...p} disabled={!canEdit} value={f.medicationsNotes} onChange={(e) => setF({ ...f, medicationsNotes: e.target.value })} />}
+          {(p) => <Textarea {...p} disabled={!canEdit} value={f.medicationsNotes} onChange={(e) => setF({ ...f, medicationsNotes: e.target.value })} />}
         </Field>
         <Field label="Handling note" hint="Shown on every appointment card for this animal.">
-          {(p) => <TextInput {...p} disabled={!canEdit} value={f.behaviouralAlert} onChange={(e) => setF({ ...f, behaviouralAlert: e.target.value })} />}
+          {(p) => <Input {...p} disabled={!canEdit} value={f.behaviouralAlert} onChange={(e) => setF({ ...f, behaviouralAlert: e.target.value })} />}
         </Field>
         <Field label="Internal note" hint="Stays with the practice. Never handed back to the owner." error={error}>
-          {(p) => <TextArea {...p} disabled={!canEdit} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />}
+          {(p) => <Textarea {...p} disabled={!canEdit} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />}
         </Field>
         {canEdit && (
           <div>
             <Button
-              busy={busy}
+              loading={busy}
               onClick={async () => {
                 setBusy(true)
                 setError(null)
@@ -286,7 +297,7 @@ function VisitsTab({
     <SectionCard
       title="Visits"
       subtitle="What the practice did, and what it charged"
-      actions={caps.recordVisits && <Button size="sm" onClick={() => void startVisit()} busy={busy === "new"}><Plus className="h-4 w-4" aria-hidden="true" /> Record a visit</Button>}
+      actions={caps.recordVisits && <Button size="sm" onClick={() => void startVisit()} loading={busy === "new"}><Plus className="h-4 w-4" aria-hidden="true" /> Record a visit</Button>}
     >
       {visits.isLoading ? (
         <Spinner />
@@ -297,30 +308,30 @@ function VisitsTab({
           {visits.data.map((v) => (
             <li
               key={v.id}
-              className={`rounded-xl border p-3 ${v.id === focusVisitId ? "border-primary ring-2 ring-primary/20" : "border-border"}`}
+              className={`rounded-xl border p-3 ${v.id === focusVisitId ? "border-primary bg-primary-soft" : "border-border"}`}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-[13.5px] font-semibold text-foreground">
+                  <p className="text-meta font-semibold text-foreground">
                     {v.reason ?? "Visit"} · {formatDateShort(v.visitedOn)}
                   </p>
-                  <p className="text-[12px] text-muted-foreground">
+                  <p className="text-caption text-muted-foreground">
                     {v.staffName}
                     {v.totalCents > 0 ? ` · ${formatMoney(v.totalCents)}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {v.publishedAt ? (
-                    <Pill tone="good" title={`Handed back ${formatDateShort(v.publishedAt)}`}>
+                    <Badge variant="success" title={`Handed back ${formatDateShort(v.publishedAt)}`}>
                       Shared with owner
-                    </Pill>
+                    </Badge>
                   ) : (
                     caps.publishRecords &&
                     isLinked && (
                       <Button
                         size="sm"
                         variant="secondary"
-                        busy={busy === v.id}
+                        loading={busy === v.id}
                         onClick={async () => {
                           setBusy(v.id)
                           const res = await publishRecord(patientId, "visit_summary", v.id)
@@ -336,7 +347,7 @@ function VisitsTab({
                   {caps.recordVisits && (
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="quiet"
                       onClick={() =>
                         setDraft({
                           id: v.id,
@@ -351,14 +362,14 @@ function VisitsTab({
                   )}
                 </div>
               </div>
-              {v.summary && <p className="mt-2 text-[12.5px] text-muted-foreground">{v.summary}</p>}
+              {v.summary && <p className="mt-2 text-caption text-muted-foreground">{v.summary}</p>}
               {v.services.length > 0 && (
                 <ul className="mt-2 flex flex-wrap gap-1.5">
                   {v.services.map((s) => (
                     <li key={s.id}>
-                      <Pill tone="neutral">
+                      <Badge variant="neutral">
                         {s.name} · {formatMoney(s.unitPriceCents)}
-                      </Pill>
+                      </Badge>
                     </li>
                   ))}
                 </ul>
@@ -368,7 +379,7 @@ function VisitsTab({
                   <Button
                     size="sm"
                     variant="secondary"
-                    busy={busy === `estimate-${v.id}`}
+                    loading={busy === `estimate-${v.id}`}
                     disabled={busy !== null}
                     onClick={() => void bill(v.id, "estimate")}
                   >
@@ -386,7 +397,7 @@ function VisitsTab({
                   ) : (
                     <Button
                       size="sm"
-                      busy={busy === `invoice-${v.id}`}
+                      loading={busy === `invoice-${v.id}`}
                       // Until the chart's bills have loaded, "already invoiced" is unknown.
                       disabled={busy !== null || bills.isLoading || Boolean(bills.error)}
                       onClick={() => void bill(v.id, "invoice")}
@@ -397,27 +408,27 @@ function VisitsTab({
                 </div>
               )}
               {canBill && v.services.length === 0 && v.id === focusVisitId && (
-                <p className="mt-2 text-[12px] text-muted-foreground">
+                <p className="mt-2 text-caption text-muted-foreground">
                   Add the services you provided, then create the invoice.
                 </p>
               )}
               {v.nextDueOn && (
-                <p className="mt-2 text-[12px] font-medium text-info">
+                <p className="mt-2 text-caption font-medium text-foreground">
                   Next due: {v.nextDueReason ?? "follow-up"} — {formatDateShort(v.nextDueOn)}
                 </p>
               )}
 
               {draft?.id === v.id && (
-                <div className="mt-3 flex flex-col gap-2 rounded-xl bg-secondary p-3">
+                <div className="mt-3 flex flex-col gap-2 rounded-xl bg-muted p-3">
                   <Field label="Summary for the owner" hint="This is what gets handed back if you publish it.">
-                    {(p) => <TextArea {...p} value={draft.summary} onChange={(e) => setDraft({ ...draft, summary: e.target.value })} />}
+                    {(p) => <Textarea {...p} value={draft.summary} onChange={(e) => setDraft({ ...draft, summary: e.target.value })} />}
                   </Field>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Field label="Next due">
-                      {(p) => <TextInput {...p} type="date" value={draft.nextDue} onChange={(e) => setDraft({ ...draft, nextDue: e.target.value })} />}
+                      {(p) => <Input {...p} type="date" value={draft.nextDue} onChange={(e) => setDraft({ ...draft, nextDue: e.target.value })} />}
                     </Field>
                     <Field label="What for">
-                      {(p) => <TextInput {...p} value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} placeholder="Dental check" />}
+                      {(p) => <Input {...p} value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} placeholder="Dental check" />}
                     </Field>
                   </div>
                   <Toolbar>
@@ -438,7 +449,7 @@ function VisitsTab({
                     >
                       Save
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
+                    <Button size="sm" variant="quiet" onClick={() => setDraft(null)}>Cancel</Button>
                   </Toolbar>
                   <AddServiceRow visitId={v.id} businessId={clinic.businessId} onAdded={visits.refetch} />
                 </div>
@@ -484,19 +495,19 @@ function AddServiceRow({
 
   return (
     <div className="flex flex-col gap-2 border-t border-border pt-2">
-      <p className="text-[12px] font-semibold text-foreground">Add a service</p>
+      <p className="text-caption font-semibold text-foreground">Add a service</p>
       <div className="grid gap-2 sm:grid-cols-[1fr_140px_auto] sm:items-end">
         <Field label="Service" error={errors.name}>
-          {(p) => <TextInput {...p} value={name} onChange={(e) => setName(e.target.value)} placeholder="Dental scale and polish" />}
+          {(p) => <Input {...p} value={name} onChange={(e) => setName(e.target.value)} placeholder="Dental scale and polish" />}
         </Field>
         <Field label="Price (dollars)" error={errors.price}>
-          {(p) => <TextInput {...p} inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" />}
+          {(p) => <Input {...p} inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" />}
         </Field>
-        <Button size="sm" variant="secondary" busy={busy} onClick={() => void add()}>
+        <Button size="sm" variant="secondary" loading={busy} onClick={() => void add()}>
           <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add
         </Button>
       </div>
-      {failed && <p role="alert" className="text-[12px] text-destructive">{failed}</p>}
+      {failed && <ErrorText className="text-caption">{failed}</ErrorText>}
     </div>
   )
 }
@@ -522,25 +533,25 @@ function VaccinesTab({
       actions={caps.recordVisits && <Button size="sm" onClick={() => setAdding((v) => !v)}><Syringe className="h-4 w-4" aria-hidden="true" /> Record</Button>}
     >
       {adding && (
-        <div className="mb-3 flex flex-col gap-2 rounded-xl bg-secondary p-3">
+        <div className="mb-3 flex flex-col gap-2 rounded-xl bg-muted p-3">
           <div className="grid gap-2 sm:grid-cols-2">
             <Field label="Vaccine" required>
-              {(p) => <TextInput {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}
+              {(p) => <Input {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}
             </Field>
             <Field label="Product">
-              {(p) => <TextInput {...p} value={f.product} onChange={(e) => setF({ ...f, product: e.target.value })} placeholder="Nobivac 3-Rabies" />}
+              {(p) => <Input {...p} value={f.product} onChange={(e) => setF({ ...f, product: e.target.value })} placeholder="Nobivac 3-Rabies" />}
             </Field>
             <Field label="Given on" required>
-              {(p) => <TextInput {...p} type="date" value={f.given} onChange={(e) => setF({ ...f, given: e.target.value })} />}
+              {(p) => <Input {...p} type="date" value={f.given} onChange={(e) => setF({ ...f, given: e.target.value })} />}
             </Field>
             <Field label="Due again">
-              {(p) => <TextInput {...p} type="date" value={f.expires} onChange={(e) => setF({ ...f, expires: e.target.value })} />}
+              {(p) => <Input {...p} type="date" value={f.expires} onChange={(e) => setF({ ...f, expires: e.target.value })} />}
             </Field>
           </div>
           <Toolbar>
             <Button
               size="sm"
-              busy={busy === "add"}
+              loading={busy === "add"}
               onClick={async () => {
                 setBusy("add")
                 const res = await recordVaccination({
@@ -562,7 +573,7 @@ function VaccinesTab({
             >
               Save
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
+            <Button size="sm" variant="quiet" onClick={() => setAdding(false)}>Cancel</Button>
           </Toolbar>
         </div>
       )}
@@ -576,22 +587,22 @@ function VaccinesTab({
           {vaccines.data.map((v) => (
             <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
               <div className="min-w-0">
-                <p className="text-[13.5px] font-semibold text-foreground">{v.name}</p>
-                <p className="text-[12px] text-muted-foreground">
+                <p className="text-meta font-semibold text-foreground">{v.name}</p>
+                <p className="text-caption text-muted-foreground">
                   Given {formatDateShort(v.givenOn)}
                   {v.expiresOn ? ` · ${dueLabel(v.expiresOn)}` : ""}
                   {v.product ? ` · ${v.product}` : ""}
                 </p>
               </div>
               {v.publishedAt ? (
-                <Pill tone="good">
+                <Badge variant="success">
                   <ShieldCheck className="h-3 w-3" aria-hidden="true" /> In owner&apos;s app
-                </Pill>
+                </Badge>
               ) : caps.publishRecords && isLinked ? (
                 <Button
                   size="sm"
                   variant="secondary"
-                  busy={busy === v.id}
+                  loading={busy === v.id}
                   onClick={async () => {
                     setBusy(v.id)
                     const res = await publishRecord(patientId, "vaccination", v.id)
@@ -603,9 +614,9 @@ function VaccinesTab({
                   <Send className="h-3.5 w-3.5" aria-hidden="true" /> Hand back
                 </Button>
               ) : (
-                <Pill tone="neutral" title={isLinked ? "Your role or tier does not allow publishing" : "Not linked to a Pet10x account"}>
+                <Badge variant="neutral" title={isLinked ? "Your role or tier does not allow publishing" : "Not linked to a Pet10x account"}>
                   Local only
-                </Pill>
+                </Badge>
               )}
             </li>
           ))}
@@ -663,9 +674,9 @@ function SharedTab({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-accent/10 p-3">
-        <ShieldCheck className="h-4 w-4 text-accent" aria-hidden="true" />
-        <p className="text-[12.5px] text-foreground">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-primary-soft p-3">
+        <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+        <p className="text-caption text-foreground">
           Shared by the owner. This read has been logged.
           {s.expiresAt ? ` Access ends ${formatDateShort(s.expiresAt)}.` : " No end date set."}
         </p>
@@ -682,8 +693,8 @@ function SharedTab({
               ["Usual vet", health.vet_clinic],
             ].map(([k, v]) => (
               <div key={String(k)}>
-                <dt className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">{k}</dt>
-                <dd className="text-[13px] text-foreground">{v ? String(v) : "—"}</dd>
+                <dt className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">{k}</dt>
+                <dd className="text-meta text-foreground">{v ? String(v) : "—"}</dd>
               </div>
             ))}
           </dl>
@@ -698,12 +709,12 @@ function SharedTab({
             <ul className="flex flex-col gap-1.5">
               {vax.map((v, i) => (
                 <li key={i} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-                  <span className="text-[13px] font-medium text-foreground">{String(v.name)}</span>
-                  <span className="flex items-center gap-2 text-[12px] text-muted-foreground">
+                  <span className="text-meta font-medium text-foreground">{String(v.name)}</span>
+                  <span className="flex items-center gap-2 text-caption text-muted-foreground">
                     {v.expires_on ? dueLabel(String(v.expires_on)) : "No expiry"}
-                    <Pill tone={v.provenance === "clinic_confirmed" ? "good" : "neutral"}>
+                    <Badge variant={v.provenance === "clinic_confirmed" ? "success" : "neutral"}>
                       {v.provenance === "clinic_confirmed" ? "Vet confirmed" : "Owner reported"}
-                    </Pill>
+                    </Badge>
                   </span>
                 </li>
               ))}
@@ -717,8 +728,8 @@ function SharedTab({
           <ul className="flex flex-col gap-1.5">
             {(s.data.other_clinic_records ?? []).map((r, i) => (
               <li key={i} className="rounded-lg border border-border px-3 py-2">
-                <p className="text-[13px] font-medium text-foreground">{String(r.title)}</p>
-                <p className="text-[12px] text-muted-foreground">
+                <p className="text-meta font-medium text-foreground">{String(r.title)}</p>
+                <p className="text-caption text-muted-foreground">
                   {String(r.business)} · {formatDateShort(String(r.published_at))}
                 </p>
               </li>
@@ -774,7 +785,7 @@ function RequestDetailsButton({ patientId, label }: { patientId: string; label: 
             <>
               <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
               <Button
-                busy={busy}
+                loading={busy}
                 onClick={async () => {
                   setBusy(true)
                   setError(null)
@@ -798,14 +809,14 @@ function RequestDetailsButton({ patientId, label }: { patientId: string; label: 
         }
       >
         {sent ? (
-          <p className="rounded-xl bg-success/10 p-3 text-[13px] font-medium text-success-strong">{sent}</p>
+          <p className="rounded-xl bg-success-soft p-3 text-meta font-medium text-foreground">{sent}</p>
         ) : (
           <div className="flex flex-col gap-3">
             <fieldset className="rounded-xl border border-border p-3">
-              <legend className="px-1 text-[12px] font-semibold text-foreground">What are you asking for?</legend>
+              <legend className="px-1 text-caption font-semibold text-foreground">What are you asking for?</legend>
               <div className="flex flex-col gap-2">
                 {SCOPES.map((sc) => (
-                  <label key={sc.key} className="flex items-start gap-2 text-[12.5px]">
+                  <label key={sc.key} className="flex items-start gap-2 text-caption">
                     <input
                       type="checkbox"
                       checked={scopes.includes(sc.key)}
@@ -816,7 +827,7 @@ function RequestDetailsButton({ patientId, label }: { patientId: string; label: 
                     />
                     <span>
                       <span className="font-semibold text-foreground">{sc.label}</span>
-                      {sc.sensitive && <span className="ml-1 text-warning-strong">(sensitive)</span>}
+                      {sc.sensitive && <span className="ml-1 text-foreground">(sensitive)</span>}
                       <span className="block text-muted-foreground">{sc.detail}</span>
                     </span>
                   </label>
@@ -825,7 +836,7 @@ function RequestDetailsButton({ patientId, label }: { patientId: string; label: 
             </fieldset>
             <Field label="Why" hint="Shown to the owner. A reason gets a faster yes.">
               {(p) => (
-                <TextArea
+                <Textarea
                   {...p}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -833,7 +844,7 @@ function RequestDetailsButton({ patientId, label }: { patientId: string; label: 
                 />
               )}
             </Field>
-            {error && <p className="text-[12.5px] font-medium text-destructive">{error}</p>}
+            {error && <ErrorText className="text-caption font-medium">{error}</ErrorText>}
           </div>
         )}
       </Modal>

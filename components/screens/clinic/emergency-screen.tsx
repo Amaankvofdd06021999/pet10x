@@ -9,10 +9,16 @@ import {
   useOnCall, type EmergencyProjection,
 } from "@/lib/data/clinic/emergency"
 import { formatDateShort } from "@/lib/data/clinic/time"
-import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal,
-  Field, TextInput, Toolbar,
-} from "@/components/screens/shared/ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Modal } from "@/components/ui/dialog"
+import { Field } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Toolbar } from "@/components/ui/toolbar"
 
 export function ClinicEmergencyScreen({ clinic }: { clinic: ClinicMembership }) {
   const arrivals = useEmergencyArrivals(clinic.businessId)
@@ -47,17 +53,17 @@ export function ClinicEmergencyScreen({ clinic }: { clinic: ClinicMembership }) 
         ) : (
           <ul className="flex flex-col gap-2">
             {arrivals.data.map((a) => (
-              <li key={a.id} className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+              <li key={a.id} className="rounded-xl border border-destructive bg-destructive-soft p-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-foreground">
+                    <p className="flex flex-wrap items-center gap-2 text-body font-semibold text-foreground">
                       {a.petName ?? "Animal"}
-                      <Pill tone="bad">{a.triageLevel}</Pill>
-                      {a.etaMinutes !== null && <Pill tone="warn">ETA {a.etaMinutes} min</Pill>}
-                      <Pill tone="neutral">{a.status}</Pill>
+                      <Badge variant="danger">{a.triageLevel}</Badge>
+                      {a.etaMinutes !== null && <Badge variant="warning">ETA {a.etaMinutes} min</Badge>}
+                      <Badge variant="neutral">{a.status}</Badge>
                     </p>
-                    <p className="mt-0.5 text-[13px] text-foreground">{a.problem}</p>
-                    <p className="text-[12px] text-muted-foreground">
+                    <p className="mt-0.5 text-meta text-foreground">{a.problem}</p>
+                    <p className="text-caption text-muted-foreground">
                       {[
                         a.species,
                         a.weightGrams ? `${(a.weightGrams / 1000).toFixed(1)} kg` : null,
@@ -66,17 +72,16 @@ export function ClinicEmergencyScreen({ clinic }: { clinic: ClinicMembership }) 
                         .join(" · ")}
                     </p>
                     {a.allergies && (
-                      <p className="mt-1 text-[12.5px] font-semibold text-destructive">Allergies: {a.allergies}</p>
+                      <p className="mt-1 text-caption font-semibold text-foreground">Allergies: {a.allergies}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-1.5">
                     {a.contactPhone && (
-                      <a
-                        href={`tel:${a.contactPhone.replace(/[^\d+]/g, "")}`}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-border px-2.5 py-1.5 text-[12.5px] font-semibold"
-                      >
-                        <Phone className="h-3.5 w-3.5" aria-hidden="true" /> Call owner
-                      </a>
+                      <Button asChild variant="secondary" size="sm">
+                        <a href={`tel:${a.contactPhone.replace(/[^\d+]/g, "")}`}>
+                          <Phone className="h-3.5 w-3.5" aria-hidden="true" /> Call owner
+                        </a>
+                      </Button>
                     )}
                     {a.status === "incoming" && (
                       <Button
@@ -91,7 +96,7 @@ export function ClinicEmergencyScreen({ clinic }: { clinic: ClinicMembership }) 
                     )}
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="quiet"
                       onClick={async () => {
                         await setArrivalStatus(a.id, "handled")
                         arrivals.refetch()
@@ -115,12 +120,12 @@ export function ClinicEmergencyScreen({ clinic }: { clinic: ClinicMembership }) 
             {onCall.data.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
                 <div>
-                  <p className="text-[13.5px] font-semibold text-foreground">{s.staffName}</p>
-                  <p className="text-[12px] text-muted-foreground">
+                  <p className="text-meta font-semibold text-foreground">{s.staffName}</p>
+                  <p className="text-caption text-muted-foreground">
                     {formatDateShort(s.startsAt)} → {formatDateShort(s.endsAt)}
                   </p>
                 </div>
-                {s.phone && <Pill tone="neutral">{s.phone}</Pill>}
+                {s.phone && <Badge variant="neutral">{s.phone}</Badge>}
               </li>
             ))}
           </ul>
@@ -134,8 +139,8 @@ export function ClinicEmergencyScreen({ clinic }: { clinic: ClinicMembership }) 
           <ul className="flex flex-col gap-2">
             {pulls.data.map((p) => (
               <li key={p.id} className="rounded-xl border border-border p-3">
-                <p className="text-[13px] font-medium text-foreground">{p.reason}</p>
-                <p className="text-[12px] text-muted-foreground">
+                <p className="text-meta font-medium text-foreground">{p.reason}</p>
+                <p className="text-caption text-muted-foreground">
                   {formatDateShort(p.pulledAt)} ·{" "}
                   {p.reviewedAt ? `reviewed: ${p.reviewOutcome}` : "awaiting review"}
                 </p>
@@ -187,7 +192,7 @@ function EmergencyPullModal({
             <Button variant="secondary" onClick={onClose}>Cancel</Button>
             <Button
               variant="danger"
-              busy={busy}
+              loading={busy}
               onClick={async () => {
                 setBusy(true)
                 setError(null)
@@ -208,7 +213,7 @@ function EmergencyPullModal({
     >
       {result ? (
         <div className="flex flex-col gap-2">
-          <p className="rounded-xl bg-warning/10 p-3 text-[12.5px] font-medium text-warning-strong">
+          <p className="rounded-xl bg-warning-soft p-3 text-caption font-medium text-foreground">
             The owner has been notified and this lookup is logged.
           </p>
           <dl className="grid gap-2 sm:grid-cols-2">
@@ -224,8 +229,8 @@ function EmergencyPullModal({
               ["Owner phone", result.owner_phone],
             ].map(([k, v]) => (
               <div key={String(k)}>
-                <dt className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">{k}</dt>
-                <dd className="text-[13px] text-foreground">{v ? String(v) : "—"}</dd>
+                <dt className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">{k}</dt>
+                <dd className="text-meta text-foreground">{v ? String(v) : "—"}</dd>
               </div>
             ))}
           </dl>
@@ -233,11 +238,11 @@ function EmergencyPullModal({
       ) : (
         <div className="flex flex-col gap-3">
           <Field label="Pet identifier" hint="The Pet10x pet id, read from a tag or the owner's app." required>
-            {(p) => <TextInput {...p} value={petId} onChange={(e) => setPetId(e.target.value)} placeholder="uuid" className="font-mono text-[12px]" />}
+            {(p) => <Input {...p} value={petId} onChange={(e) => setPetId(e.target.value)} placeholder="uuid" className="font-mono text-caption" />}
           </Field>
           <Field label="Reason" required error={error} hint="Retained with your name against this lookup.">
             {(p) => (
-              <TextInput
+              <Input
                 {...p}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}

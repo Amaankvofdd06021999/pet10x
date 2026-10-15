@@ -5,10 +5,16 @@ import Link from "next/link"
 import { Stethoscope, ArrowRight } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
-import { Button, Field, TextInput, Select, SectionCard, Spinner } from "@/components/screens/shared/ui"
+import { Button } from "@/components/ui/button"
+import { Field } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { NativeSelect } from "@/components/ui/select"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
 import { useBusinessTypes } from "@/lib/data/business-types"
 import { clinicSignupHref, readTargetParam } from "@/lib/navigation"
 import { dbErrorMessage } from "@/lib/data/db-error"
+import { ErrorText } from "@/components/ui/error-text"
 
 /** Plain-English names for the console modules a type turns on. */
 const MODULE_BLURB: Record<string, string> = {
@@ -78,18 +84,18 @@ export function ClinicSignIn() {
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <form onSubmit={submit} className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft">
             <Stethoscope className="h-6 w-6 text-primary" aria-hidden="true" />
           </div>
-          <h1 className="mt-3 text-[22px] font-semibold text-foreground">Pet10x for practices</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">
+          <h1 className="mt-3 text-heading font-semibold text-foreground">Pet10x for practices</h1>
+          <p className="mt-1 text-meta text-muted-foreground">
             Sign in to your practice console.
           </p>
         </div>
         <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
           <Field label="Email" required>
             {(p) => (
-              <TextInput
+              <Input
                 {...p}
                 type="email"
                 autoComplete="email"
@@ -101,7 +107,7 @@ export function ClinicSignIn() {
           </Field>
           <Field label="Password" required error={error}>
             {(p) => (
-              <TextInput
+              <Input
                 {...p}
                 type="password"
                 autoComplete="current-password"
@@ -110,16 +116,16 @@ export function ClinicSignIn() {
               />
             )}
           </Field>
-          <Button type="submit" busy={busy} className="mt-1 w-full">
+          <Button type="submit" loading={busy} className="mt-1 w-full">
             Sign in <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Button>
-          {info && <p role="status" className="text-center text-[12.5px] text-success-strong">{info}</p>}
-          <button type="button" onClick={() => void forgot()} className="text-center text-[13px] font-medium text-primary-text">
+          {info && <p role="status" className="text-center text-caption text-foreground">{info}</p>}
+          <button type="button" onClick={() => void forgot()} className="text-center text-meta font-medium text-foreground">
             Forgot password?
           </button>
-          <p className="text-center text-[12.5px] text-muted-foreground">
+          <p className="text-center text-caption text-muted-foreground">
             New here?{" "}
-            <Link href={clinicSignupHref(null)} onClick={openSignup} className="font-semibold text-primary-text">
+            <Link href={clinicSignupHref(null)} onClick={openSignup} className="font-semibold text-foreground">
               Create an account
             </Link>
             , then register your practice on the next screen.
@@ -194,11 +200,11 @@ export function RegisterPractice({
     <div className="flex min-h-dvh items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-5 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft">
             <Stethoscope className="h-6 w-6 text-primary" aria-hidden="true" />
           </div>
-          <h1 className="mt-3 text-[22px] font-semibold text-foreground">Register your practice</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">
+          <h1 className="mt-3 text-heading font-semibold text-foreground">Register your practice</h1>
+          <p className="mt-1 text-meta text-muted-foreground">
             Two minutes, and you can book tomorrow&apos;s appointments.
           </p>
         </div>
@@ -206,7 +212,7 @@ export function RegisterPractice({
           <div className="flex flex-col gap-3">
             <Field label="Practice name" required error={failed}>
               {(p) => (
-                <TextInput
+                <Input
                   {...p}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -222,19 +228,19 @@ export function RegisterPractice({
                 types.isLoading ? (
                   <Spinner label="Loading types" />
                 ) : (
-                  <Select {...p} value={kind} onChange={(e) => setKind(e.target.value)}>
+                  <NativeSelect {...p} value={kind} onChange={(e) => setKind(e.target.value)}>
                     {types.data.map((t) => (
                       <option key={t.code} value={t.code}>
                         {t.label}
                       </option>
                     ))}
-                  </Select>
+                  </NativeSelect>
                 )
               }
             </Field>
             <Field label="Address" hint="Used for your listing once you verify.">
               {(p) => (
-                <TextInput
+                <Input
                   {...p}
                   value={phoneless}
                   onChange={(e) => setPhoneless(e.target.value)}
@@ -244,28 +250,28 @@ export function RegisterPractice({
             </Field>
             <Field label="City">
               {(p) => (
-                <TextInput {...p} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Vancouver" />
+                <Input {...p} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Vancouver" />
               )}
             </Field>
-            <div className="rounded-xl bg-secondary p-3">
-              <p className="text-[12px] font-semibold text-foreground">What you get right away</p>
-              <ul className="mt-1 list-disc pl-4 text-[11.5px] text-muted-foreground">
+            <div className="rounded-xl bg-muted p-3">
+              <p className="text-caption font-semibold text-foreground">What you get right away</p>
+              <ul className="mt-1 list-disc pl-4 text-caption text-muted-foreground">
                 {(types.data.find((t) => t.code === kind)?.modules ?? []).map((m) => (
                   <li key={m}>{MODULE_BLURB[m] ?? m.replace(/_/g, " ")}</li>
                 ))}
                 <li>Everything works whether or not your customers use Pet10x</li>
               </ul>
-              <p className="mt-2 text-[12px] font-semibold text-foreground">After verification</p>
-              <ul className="mt-1 list-disc pl-4 text-[11.5px] text-muted-foreground">
+              <p className="mt-2 text-caption font-semibold text-foreground">After verification</p>
+              <ul className="mt-1 list-disc pl-4 text-caption text-muted-foreground">
                 <li>Appear in Pet10x search and take online bookings</li>
                 <li>Receive records owners choose to share, and hand records back</li>
               </ul>
             </div>
-            <Button onClick={() => void create()} busy={busy} className="w-full">
+            <Button onClick={() => void create()} loading={busy} className="w-full">
               Create practice
             </Button>
-            {error && <p className="text-[12px] text-destructive">{error}</p>}
-            <p className="text-center text-[11.5px] text-muted-foreground">
+            {error && <ErrorText className="text-caption">{error}</ErrorText>}
+            <p className="text-center text-caption text-muted-foreground">
               Signed in as {user?.email}.{" "}
               <button type="button" onClick={() => void signOut()} className="underline">
                 Sign out

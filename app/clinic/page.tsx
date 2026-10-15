@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useState } from "react"
 import {
   CalendarDays, Users, Bell, Stethoscope, ShoppingBag, Receipt,
-  Siren, UsersRound, LayoutDashboard, LogOut, Loader2, Building2, ChevronDown, BellRing, UserRound, LifeBuoy,
+  Siren, UsersRound, LayoutDashboard, LogOut, Building2, ChevronDown, BellRing, UserRound, LifeBuoy,
 } from "lucide-react"
 import Link from "next/link"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { useActiveClinic, capabilities } from "@/lib/data/clinic/context"
 import { useBusinessType, FALLBACK_TYPE, type ModuleKey } from "@/lib/data/business-types"
-import { Button, Pill } from "@/components/screens/shared/ui"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Spinner } from "@/components/ui/spinner"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -111,7 +113,7 @@ function Console() {
   if (authLoading || (isAuthenticated && isLoading)) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-label="Loading" />
+        <Spinner />
       </div>
     )
   }
@@ -151,8 +153,8 @@ function Console() {
         <div className="flex items-center gap-2 border-b border-border px-4 py-4">
           <Stethoscope className="h-5 w-5 flex-shrink-0 text-primary" aria-hidden="true" />
           <div className="min-w-0">
-            <p className="truncate text-[14px] font-semibold text-foreground">{clinic.name}</p>
-            <p className="truncate text-[11px] text-muted-foreground">{type.label}</p>
+            <p className="truncate text-body font-semibold text-foreground">{clinic.name}</p>
+            <p className="truncate text-caption text-muted-foreground">{type.label}</p>
           </div>
         </div>
         <nav aria-label="Console sections" className="flex-1 overflow-y-auto p-2">
@@ -165,10 +167,10 @@ function Console() {
                 type="button"
                 onClick={() => pickTab(t.id)}
                 aria-current={on ? "page" : undefined}
-                className={`mb-0.5 flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-colors ${
+                className={`mb-0.5 flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-meta font-medium transition-colors ${
                   on
-                    ? "bg-primary/10 text-primary-text"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    ? "bg-primary-soft text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
                 <Icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
@@ -182,18 +184,18 @@ function Console() {
             <VerificationBanner clinic={clinic} canRequest={caps.manageTeam} />
           </div>
           <HelpLegalLinks className="mb-1.5 px-1" />
-          <p className="truncate px-1 text-[12px] text-muted-foreground">{user?.email}</p>
+          <p className="truncate px-1 text-caption text-muted-foreground">{user?.email}</p>
           <button
             type="button"
             onClick={() => setNotificationsOpen(true)}
-            className="mt-1 flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-[12.5px] text-muted-foreground hover:text-foreground"
+            className="mt-1 flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-caption text-muted-foreground hover:text-foreground"
           >
             <BellRing className="h-3.5 w-3.5" aria-hidden="true" /> Email &amp; push
           </button>
           <button
             type="button"
             onClick={() => void signOut()}
-            className="mt-1 flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-[12.5px] text-muted-foreground hover:text-foreground"
+            className="mt-1 flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-caption text-muted-foreground hover:text-foreground"
           >
             <LogOut className="h-3.5 w-3.5" aria-hidden="true" /> Sign out
           </button>
@@ -204,10 +206,10 @@ function Console() {
         <header className="sticky top-0 z-30 border-b border-border bg-card/85 px-4 py-3 backdrop-blur-xl">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <h1 className="text-[17px] font-semibold text-foreground">
+              <h1 className="text-title font-semibold text-foreground">
                 {visible.find((t) => t.id === activeTab)?.label ?? "Console"}
               </h1>
-              <Pill tone={clinic.tier === "verified" ? "good" : "warn"}>{clinic.tier}</Pill>
+              <Badge variant={clinic.tier === "verified" ? "success" : "warning"}>{clinic.tier}</Badge>
             </div>
             {/* The inbox, on every screen size; its gear opens Email & push. */}
             <ConsoleInbox
@@ -254,7 +256,7 @@ function Console() {
                           setActive(c.businessId)
                           setSwitcherOpen(false)
                         }}
-                        className="block w-full rounded-lg px-3 py-2 text-left text-[13px] hover:bg-secondary"
+                        className="block w-full rounded-lg px-3 py-2 text-left text-meta hover:bg-muted"
                       >
                         {c.name}
                       </button>
@@ -271,9 +273,9 @@ function Console() {
                 type="button"
                 onClick={() => pickTab(t.id)}
                 aria-current={activeTab === t.id ? "page" : undefined}
-                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-semibold ${
+                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-caption font-semibold ${
                   activeTab === t.id
-                    ? "bg-primary-strong text-primary-foreground"
+                    ? "bg-primary text-primary-foreground"
                     : "border border-border text-muted-foreground"
                 }`}
               >

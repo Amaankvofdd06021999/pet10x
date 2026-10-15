@@ -14,9 +14,17 @@ import { formatDateShort } from "@/lib/data/clinic/time"
 import { useStaffHours, replaceStaffHours } from "@/lib/data/clinic/schedule"
 import { validateHours, nextSession, WEEKDAY_LABEL, WEEKDAY_ORDER, type HoursRow } from "@/lib/data/clinic/hours"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Select, Field, Modal, TextInput,
-} from "@/components/screens/shared/ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { NativeSelect } from "@/components/ui/select"
+import { Field } from "@/components/ui/field"
+import { Modal } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { ErrorText } from "@/components/ui/error-text"
 
 export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
   const staff = useClinicStaff(clinic.businessId)
@@ -61,19 +69,19 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
               return (
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3">
                   <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-foreground">
+                    <p className="flex flex-wrap items-center gap-2 text-meta font-semibold text-foreground">
                       {s.name}
-                      {!s.isActive && <Pill tone="neutral">Inactive</Pill>}
-                      {s.isBookable && <Pill tone="accent">Bookable</Pill>}
-                      {lapsed && <Pill tone="bad">Licence lapsed</Pill>}
+                      {!s.isActive && <Badge variant="neutral">Inactive</Badge>}
+                      {s.isBookable && <Badge variant="brand">Bookable</Badge>}
+                      {lapsed && <Badge variant="danger">Licence lapsed</Badge>}
                     </p>
-                    <p className="text-[12px] text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       {[s.email, s.title].filter(Boolean).join(" · ") || "No contact on file"}
                       {s.licenceNumber ? ` · ${s.licenceNumber}` : ""}
                       {s.licenceExpiresOn ? ` · expires ${formatDateShort(s.licenceExpiresOn)}` : ""}
                     </p>
                     {s.isBookable && s.isActive && !hours.isLoading && !hours.error && (
-                      <p className="mt-0.5 text-[12px] text-muted-foreground">
+                      <p className="mt-0.5 text-caption text-muted-foreground">
                         {hoursSummary(hours.data[s.id] ?? [])}
                       </p>
                     )}
@@ -87,7 +95,7 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                         <label htmlFor={`role-${s.id}`} className="sr-only">
                           Role for {s.name}
                         </label>
-                        <Select
+                        <NativeSelect
                           id={`role-${s.id}`}
                           value={s.role}
                           disabled={busy === s.id}
@@ -110,10 +118,10 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                               {ROLE_LABEL[r]}
                             </option>
                           ))}
-                        </Select>
+                        </NativeSelect>
                       </>
                     ) : (
-                      <Pill tone="neutral">{ROLE_LABEL[s.role]}</Pill>
+                      <Badge variant="neutral">{ROLE_LABEL[s.role]}</Badge>
                     )}
                     {caps.manageSchedule && s.isBookable && s.isActive && (
                       // Never opened on hours that haven't loaded: saving an
@@ -129,7 +137,7 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                     )}
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="quiet"
                       onClick={async () => {
                         setBusy(s.id)
                         const res = await updateStaff(s.id, { is_bookable: !s.isBookable })
@@ -144,7 +152,7 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
                         <Button
                           size="sm"
                           variant="secondary"
-                          busy={busy === `active-${s.id}`}
+                          loading={busy === `active-${s.id}`}
                           onClick={async () => {
                             if (s.isActive) return setDeactivating(s)
                             setBusy(`active-${s.id}`)
@@ -221,15 +229,15 @@ export function ClinicTeamScreen({ clinic }: { clinic: ClinicMembership }) {
             {locations.data.map((l) => (
               <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
                 <div>
-                  <p className="flex items-center gap-2 text-[13.5px] font-semibold text-foreground">
+                  <p className="flex items-center gap-2 text-meta font-semibold text-foreground">
                     {l.name}
-                    {l.isPrimary && <Pill tone="accent">Primary</Pill>}
+                    {l.isPrimary && <Badge variant="brand">Primary</Badge>}
                   </p>
-                  <p className="text-[12px] text-muted-foreground">
+                  <p className="text-caption text-muted-foreground">
                     {[l.address, l.city, l.phone].filter(Boolean).join(" · ") || "No address on file"}
                   </p>
                 </div>
-                <Pill tone="neutral">{l.timezone}</Pill>
+                <Badge variant="neutral">{l.timezone}</Badge>
               </li>
             ))}
           </ul>
@@ -303,18 +311,18 @@ function InviteStaffModal({
         ) : (
           <>
             <Button variant="secondary" onClick={close}>Cancel</Button>
-            <Button busy={busy} onClick={() => void submit()}>Send invite</Button>
+            <Button loading={busy} onClick={() => void submit()}>Send invite</Button>
           </>
         )
       }
     >
       {done ? (
         <div className="flex flex-col gap-3">
-          <p role="status" className="text-[13px] text-foreground">{done.message}</p>
+          <p role="status" className="text-meta text-foreground">{done.message}</p>
           {done.inviteUrl && (
             <div className="flex items-center gap-2">
               <label htmlFor="invite-url" className="sr-only">Invite link</label>
-              <TextInput id="invite-url" readOnly value={done.inviteUrl} onFocus={(e) => e.currentTarget.select()} />
+              <Input id="invite-url" readOnly value={done.inviteUrl} onFocus={(e) => e.currentTarget.select()} />
               <Button
                 size="sm"
                 variant="secondary"
@@ -328,11 +336,11 @@ function InviteStaffModal({
       ) : (
         <div className="flex flex-col gap-3">
           <Field label="Name" required>
-            {(p) => <TextInput {...p} value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="off" />}
+            {(p) => <Input {...p} value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="off" />}
           </Field>
           <Field label="Email" required>
             {(p) => (
-              <TextInput
+              <Input
                 {...p}
                 type="email"
                 value={email}
@@ -344,13 +352,13 @@ function InviteStaffModal({
           </Field>
           <Field label="Role" required error={error}>
             {(p) => (
-              <Select {...p} value={role} onChange={(e) => setRole(e.target.value as InvitableRole)}>
+              <NativeSelect {...p} value={role} onChange={(e) => setRole(e.target.value as InvitableRole)}>
                 {INVITABLE_ROLES.map((r) => (
                   <option key={r} value={r}>
                     {ROLE_LABEL[r]}
                   </option>
                 ))}
-              </Select>
+              </NativeSelect>
             )}
           </Field>
         </div>
@@ -416,7 +424,7 @@ function HoursModal({
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button busy={busy} onClick={() => void save()}>Save hours</Button>
+          <Button loading={busy} onClick={() => void save()}>Save hours</Button>
         </>
       }
     >
@@ -426,13 +434,13 @@ function HoursModal({
           const next = nextSession(day, sessions.map(({ r }) => r))
           return (
             <fieldset key={day} className="rounded-xl border border-border p-2.5">
-              <legend className="px-1 text-[12.5px] font-semibold text-foreground">{WEEKDAY_LABEL[day]}</legend>
-              {sessions.length === 0 && <p className="text-[12px] text-muted-foreground">Not working</p>}
+              <legend className="px-1 text-caption font-semibold text-foreground">{WEEKDAY_LABEL[day]}</legend>
+              {sessions.length === 0 && <p className="text-caption text-muted-foreground">Not working</p>}
               <ul className="flex flex-col gap-1.5">
                 {sessions.map(({ r, i }) => (
                   <li key={i} className="flex flex-wrap items-center gap-2">
                     <label className="sr-only" htmlFor={`start-${day}-${i}`}>{WEEKDAY_LABEL[day]} start</label>
-                    <TextInput
+                    <Input
                       id={`start-${day}-${i}`}
                       type="time"
                       step={300}
@@ -440,9 +448,9 @@ function HoursModal({
                       onChange={(e) => update(i, { start: e.target.value })}
                       className="w-32"
                     />
-                    <span className="text-[12px] text-muted-foreground">to</span>
+                    <span className="text-caption text-muted-foreground">to</span>
                     <label className="sr-only" htmlFor={`end-${day}-${i}`}>{WEEKDAY_LABEL[day]} end</label>
-                    <TextInput
+                    <Input
                       id={`end-${day}-${i}`}
                       type="time"
                       step={300}
@@ -452,7 +460,7 @@ function HoursModal({
                     />
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="quiet"
                       aria-label={`Remove ${WEEKDAY_LABEL[day]} ${r.start}–${r.end}`}
                       onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
                     >
@@ -463,7 +471,7 @@ function HoursModal({
               </ul>
               <Button
                 size="sm"
-                variant="ghost"
+                variant="quiet"
                 className="mt-1"
                 // No room left in the day (or a time half-typed): nothing valid to add.
                 disabled={next === null}
@@ -476,7 +484,7 @@ function HoursModal({
             </fieldset>
           )
         })}
-        {error && <p role="alert" className="text-[12px] font-medium text-destructive">{error}</p>}
+        {error && <ErrorText className="text-caption font-medium">{error}</ErrorText>}
       </div>
     </Modal>
   )

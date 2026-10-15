@@ -10,10 +10,18 @@ import { useAppointmentTypes, saveAppointmentType, type AppointmentType } from "
 import { validateAppointmentType, typePriceLabel } from "@/lib/data/clinic/appointment-type-form"
 import type { ServiceErrors } from "@/lib/data/fees"
 import { formatMoney } from "@/lib/data/clinic/time"
-import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal,
-  Field, TextInput, SegmentedTabs, Toolbar,
-} from "@/components/screens/shared/ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Modal } from "@/components/ui/dialog"
+import { Field } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { SegmentedTabs } from "@/components/ui/segmented-tabs"
+import { Toolbar } from "@/components/ui/toolbar"
+import { ErrorText } from "@/components/ui/error-text"
 
 export type ShopView = "storefront" | "catalogue" | "services"
 
@@ -76,7 +84,7 @@ export function ClinicShopScreen({
           )}
           {clinic.tier !== "verified" && (
             <SectionCard title="Get listed">
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 {clinic.tier === "registered"
                   ? "Your storefront is private until Pet10x lists the practice. Listed practices appear in owner search and take online bookings; verified practices can also receive and hand back records."
                   : "You're listed in owner search. Verification also lets you receive and hand back records."}{" "}
@@ -107,19 +115,19 @@ export function ClinicShopScreen({
                 return (
                   <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
                     <div className="min-w-0">
-                      <p className="text-[13.5px] font-semibold text-foreground">{p.name}</p>
-                      <p className="text-[12px] text-muted-foreground">
+                      <p className="text-meta font-semibold text-foreground">{p.name}</p>
+                      <p className="text-caption text-muted-foreground">
                         {[p.category, p.sku].filter(Boolean).join(" · ") || "Uncategorised"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Pill tone={low ? "bad" : "neutral"}>
+                      <Badge variant={low ? "danger" : "neutral"}>
                         {p.quantity} in stock{low ? " · reorder" : ""}
-                      </Pill>
-                      <span className="text-[13.5px] font-semibold tabular-nums text-foreground">
+                      </Badge>
+                      <span className="text-meta font-semibold tabular-nums text-foreground">
                         {formatMoney(p.priceCents)}
                       </span>
-                      <Button size="sm" variant="ghost" onClick={() => setStockFor(p)}>
+                      <Button size="sm" variant="quiet" onClick={() => setStockFor(p)}>
                         Set stock
                       </Button>
                     </div>
@@ -200,12 +208,12 @@ function StockModal({
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button busy={busy} onClick={() => void save()}>Save</Button>
+          <Button loading={busy} onClick={() => void save()}>Save</Button>
         </>
       }
     >
       <Field label="In stock" required error={error}>
-        {(p) => <TextInput {...p} inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />}
+        {(p) => <Input {...p} inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />}
       </Field>
     </Modal>
   )
@@ -258,18 +266,18 @@ function ServicesEditor({
                   style={{ backgroundColor: t.colour }}
                 />
                 <div>
-                  <p className={`text-[13.5px] font-semibold ${t.isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                  <p className={`text-meta font-semibold ${t.isActive ? "text-foreground" : "text-muted-foreground"}`}>
                     {t.name}
                   </p>
-                  <p className="text-[12px] text-muted-foreground">{t.durationMin} minutes</p>
+                  <p className="text-caption text-muted-foreground">{t.durationMin} minutes</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {t.isOnlineBookable && t.isActive && <Pill tone="accent">Bookable online</Pill>}
-                {!t.isActive && <Pill tone="neutral">Switched off</Pill>}
-                <span className="text-[13.5px] font-semibold tabular-nums">{typePriceLabel(t.priceCents)}</span>
+                {t.isOnlineBookable && t.isActive && <Badge variant="brand">Bookable online</Badge>}
+                {!t.isActive && <Badge variant="neutral">Switched off</Badge>}
+                <span className="text-meta font-semibold tabular-nums">{typePriceLabel(t.priceCents)}</span>
                 {canEdit && (
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(t)} aria-label={`Edit ${t.name}`}>
+                  <Button size="sm" variant="quiet" onClick={() => setEditing(t)} aria-label={`Edit ${t.name}`}>
                     Edit
                   </Button>
                 )}
@@ -345,27 +353,27 @@ function AppointmentTypeModal({
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button busy={busy} onClick={() => void save()}>{type ? "Save" : "Add service"}</Button>
+          <Button loading={busy} onClick={() => void save()}>{type ? "Save" : "Add service"}</Button>
         </>
       }
     >
       <div className="flex flex-col gap-3">
         <Field label="Name" required error={errors.name}>
-          {(p) => <TextInput {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}
+          {(p) => <Input {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Duration (minutes)" required error={errors.duration}>
             {(p) => (
-              <TextInput {...p} inputMode="numeric" value={f.duration} onChange={(e) => setF({ ...f, duration: e.target.value })} />
+              <Input {...p} inputMode="numeric" value={f.duration} onChange={(e) => setF({ ...f, duration: e.target.value })} />
             )}
           </Field>
           <Field label="Price (dollars)" hint="Leave empty to show Price on request." error={errors.price}>
             {(p) => (
-              <TextInput {...p} inputMode="decimal" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />
+              <Input {...p} inputMode="decimal" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />
             )}
           </Field>
         </div>
-        <label className="flex items-start gap-2 text-[13px] text-foreground">
+        <label className="flex items-start gap-2 text-meta text-foreground">
           <input
             type="checkbox"
             className="mt-0.5 h-4 w-4 accent-primary"
@@ -374,10 +382,10 @@ function AppointmentTypeModal({
           />
           <span>
             Owners can book this online
-            <span className="block text-[11.5px] text-muted-foreground">Shown on your booking page once you are listed.</span>
+            <span className="block text-caption text-muted-foreground">Shown on your booking page once you are listed.</span>
           </span>
         </label>
-        <label className="flex items-start gap-2 text-[13px] text-foreground">
+        <label className="flex items-start gap-2 text-meta text-foreground">
           <input
             type="checkbox"
             className="mt-0.5 h-4 w-4 accent-primary"
@@ -386,12 +394,12 @@ function AppointmentTypeModal({
           />
           <span>
             Offered
-            <span className="block text-[11.5px] text-muted-foreground">
+            <span className="block text-caption text-muted-foreground">
               Switch off a service you no longer offer. Past appointments keep it.
             </span>
           </span>
         </label>
-        {failed && <p role="alert" className="text-[12px] text-destructive">{failed}</p>}
+        {failed && <ErrorText className="text-caption">{failed}</ErrorText>}
       </div>
     </Modal>
   )
@@ -410,23 +418,23 @@ function ProductForm({
   return (
     <div className="flex w-full flex-col gap-3">
       <Field label="Name" required error={error}>
-        {(p) => <TextInput {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}
+        {(p) => <Input {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}
       </Field>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Category">
-          {(p) => <TextInput {...p} value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} />}
+          {(p) => <Input {...p} value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} />}
         </Field>
         <Field label="Price (dollars)">
-          {(p) => <TextInput {...p} inputMode="decimal" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />}
+          {(p) => <Input {...p} inputMode="decimal" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />}
         </Field>
         <Field label="Reorder at">
-          {(p) => <TextInput {...p} inputMode="numeric" value={f.reorder} onChange={(e) => setF({ ...f, reorder: e.target.value })} />}
+          {(p) => <Input {...p} inputMode="numeric" value={f.reorder} onChange={(e) => setF({ ...f, reorder: e.target.value })} />}
         </Field>
       </div>
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel}>Cancel</Button>
         <Button
-          busy={busy}
+          loading={busy}
           onClick={async () => {
             setBusy(true)
             setError(null)
@@ -468,22 +476,22 @@ function LocationEditor({
     <SectionCard title="Main location" subtitle="What the public sees once you are listed">
       <div className="flex flex-col gap-3">
         <Field label="Location name" required error={error}>
-          {(p) => <TextInput {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}
+          {(p) => <Input {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Phone">
-            {(p) => <TextInput {...p} type="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />}
+            {(p) => <Input {...p} type="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />}
           </Field>
           <Field label="Address">
-            {(p) => <TextInput {...p} value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} />}
+            {(p) => <Input {...p} value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} />}
           </Field>
         </div>
         <Field label="After-hours arrangement" hint="Shown to owners looking for help at 2am.">
-          {(p) => <TextInput {...p} value={f.afterHours} onChange={(e) => setF({ ...f, afterHours: e.target.value })} />}
+          {(p) => <Input {...p} value={f.afterHours} onChange={(e) => setF({ ...f, afterHours: e.target.value })} />}
         </Field>
         <div>
           <Button
-            busy={busy}
+            loading={busy}
             onClick={async () => {
               setBusy(true)
               setError(null)

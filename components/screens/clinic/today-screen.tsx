@@ -19,10 +19,19 @@ import { checkoutCompletes } from "@/lib/data/clinic/billing"
 import { useReminderQueue, useClinicTasks, completeTask, addTask } from "@/lib/data/clinic/reminders"
 import { useEmergencyArrivals } from "@/lib/data/clinic/emergency"
 import { formatTime, todayISO, dueLabel, daysUntil } from "@/lib/data/clinic/time"
-import {
-  SectionCard, StatTile, Spinner, LoadError, EmptyState, Button, Pill,
-  SpeciesIcon, LinkedBadge, Modal, Field, TextInput, Toolbar,
-} from "@/components/screens/shared/ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { StatTile } from "@/components/ui/stat-tile"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { SpeciesIcon } from "@/components/screens/shared/species-icon"
+import { LinkedBadge } from "@/components/screens/clinic/linked-badge"
+import { Modal } from "@/components/ui/dialog"
+import { Field } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Toolbar } from "@/components/ui/toolbar"
 
 /**
  * The operations board. Answers, without anyone asking anyone: who is here,
@@ -157,16 +166,16 @@ export function ClinicTodayScreen({
         >
           <ul className="flex flex-col gap-2">
             {arrivals.data.slice(0, 3).map((a) => (
-              <li key={a.id} className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+              <li key={a.id} className="rounded-xl border border-destructive bg-destructive-soft p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden="true" />
-                  <span className="text-[13.5px] font-semibold text-foreground">{a.petName}</span>
-                  <Pill tone="bad">{a.triageLevel}</Pill>
-                  {a.etaMinutes !== null && <Pill tone="warn">ETA {a.etaMinutes} min</Pill>}
+                  <span className="text-meta font-semibold text-foreground">{a.petName}</span>
+                  <Badge variant="danger">{a.triageLevel}</Badge>
+                  {a.etaMinutes !== null && <Badge variant="warning">ETA {a.etaMinutes} min</Badge>}
                 </div>
-                <p className="mt-1 text-[12.5px] text-muted-foreground">{a.problem}</p>
+                <p className="mt-1 text-caption text-muted-foreground">{a.problem}</p>
                 {a.allergies && (
-                  <p className="mt-0.5 text-[12px] font-semibold text-destructive">Allergies: {a.allergies}</p>
+                  <p className="mt-0.5 text-caption font-semibold text-foreground">Allergies: {a.allergies}</p>
                 )}
               </li>
             ))}
@@ -182,7 +191,7 @@ export function ClinicTodayScreen({
                 actions={
                   <>
                     <Button size="sm" onClick={() => void move(a, "booked")}>Confirm</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setDeclining(a)}>Decline request</Button>
+                    <Button size="sm" variant="quiet" onClick={() => setDeclining(a)}>Decline request</Button>
                   </>
                 } />
             ))}
@@ -244,20 +253,19 @@ export function ClinicTodayScreen({
               {reminders.data.slice(0, 5).map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
                   <div className="min-w-0">
-                    <p className="text-[13.5px] font-semibold text-foreground">
+                    <p className="text-meta font-semibold text-foreground">
                       {r.patientName} · {r.label}
                     </p>
-                    <p className="text-[12px] text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       {r.customerName} · {dueLabel(r.dueOn)}
                     </p>
                   </div>
                   {r.customerPhone && (
-                    <a
-                      href={`tel:${r.customerPhone.replace(/[^\d+]/g, "")}`}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-border px-2.5 py-1.5 text-[12.5px] font-semibold text-foreground hover:bg-secondary"
-                    >
-                      <Phone className="h-3.5 w-3.5" aria-hidden="true" /> Call
-                    </a>
+                    <Button asChild variant="secondary" size="sm">
+                      <a href={`tel:${r.customerPhone.replace(/[^\d+]/g, "")}`}>
+                        <Phone className="h-3.5 w-3.5" aria-hidden="true" /> Call
+                      </a>
+                    </Button>
                   )}
                 </li>
               ))}
@@ -277,13 +285,13 @@ export function ClinicTodayScreen({
             {tasks.data.map((t) => (
               <li key={t.id} className="flex items-start justify-between gap-3 rounded-xl border border-border p-3">
                 <div className="min-w-0">
-                  <p className="text-[13.5px] font-medium text-foreground">{t.title}</p>
-                  {t.detail && <p className="text-[12px] text-muted-foreground">{t.detail}</p>}
-                  {t.dueOn && <p className="mt-0.5 text-[11.5px] text-muted-foreground">{dueLabel(t.dueOn)}</p>}
+                  <p className="text-meta font-medium text-foreground">{t.title}</p>
+                  {t.detail && <p className="text-caption text-muted-foreground">{t.detail}</p>}
+                  {t.dueOn && <p className="mt-0.5 text-caption text-muted-foreground">{dueLabel(t.dueOn)}</p>}
                 </div>
                 <Button
                   size="sm"
-                  variant="ghost"
+                  variant="quiet"
                   aria-label={`Mark "${t.title}" done`}
                   onClick={async () => {
                     await completeTask(t.id)
@@ -346,7 +354,7 @@ export function ClinicTodayScreen({
       >
         <Field label="What needs doing?" required>
           {(p) => (
-            <TextInput
+            <Input
               {...p}
               value={taskTitle}
               onChange={(e) => setTaskTitle(e.target.value)}
@@ -365,7 +373,7 @@ export function ClinicTodayScreen({
         footer={
           <>
             <Button variant="secondary" onClick={() => setCheckout(null)}>Not yet</Button>
-            <Button variant="ghost" busy={checkoutBusy} onClick={() => void finishCheckout(null)}>
+            <Button variant="quiet" loading={checkoutBusy} onClick={() => void finishCheckout(null)}>
               Check out without an invoice
             </Button>
           </>
@@ -382,7 +390,7 @@ export function ClinicTodayScreen({
               onOpenInvoice={caps.takePayment ? billFromCheckout : undefined}
             />
           ) : (
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               This appointment has no patient on it, so there is no chart to bill from.
             </p>
           ))}
@@ -443,11 +451,11 @@ function SetupChecklist({
                 <Circle className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
               )}
               <div className="min-w-0">
-                <p className="text-[13.5px] font-semibold text-foreground">
+                <p className="text-meta font-semibold text-foreground">
                   {item.label}
                   <span className="sr-only">{item.done ? " (done)" : " (to do)"}</span>
                 </p>
-                <p className="text-[12px] text-muted-foreground">{item.detail}</p>
+                <p className="text-caption text-muted-foreground">{item.detail}</p>
               </div>
             </div>
             {!item.done && item.actionLabel && (
@@ -479,24 +487,24 @@ function ApptRow({
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3">
       <div className="flex min-w-0 items-start gap-2.5">
-        <span className="mt-0.5 w-11 flex-shrink-0 text-[12.5px] font-semibold tabular-nums text-muted-foreground">
+        <span className="mt-0.5 w-11 flex-shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
           {formatTime(a.startsAt, tz)}
         </span>
         <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-1.5 text-[13.5px] font-semibold text-foreground">
+          <p className="flex flex-wrap items-center gap-1.5 text-meta font-semibold text-foreground">
             <SpeciesIcon species={a.species} />
             {a.patientName}
             <LinkedBadge linked={a.isLinked} />
             {a.behaviouralAlert && (
-              <Pill tone="warn" title={a.behaviouralAlert}>
+              <Badge variant="warning" title={a.behaviouralAlert}>
                 Handling note
-              </Pill>
+              </Badge>
             )}
           </p>
-          <p className="text-[12px] text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             {a.customerName} · {a.typeName} · {STATUS_LABEL[a.status]}
             {showWait && waited !== null && (
-              <span className={waited > 15 ? "font-semibold text-warning-strong" : ""}>
+              <span className={waited > 15 ? "font-semibold text-foreground" : ""}>
                 {" "}· waiting {waited} min
               </span>
             )}

@@ -1,11 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Button, Field, TextInput } from "@/components/screens/shared/ui"
+import { Button } from "@/components/ui/button"
+import { Field } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 import { verificationBanner } from "@/lib/data/business-tier"
 import { requestVerification, resubmitVerification, useLatestVerification, type VerificationRequest } from "@/lib/data/clinic/verification"
 import { validateVerification, type VerificationErrors, type VerificationInput } from "@/lib/data/verification-form"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
+import { ErrorText } from "@/components/ui/error-text"
 
 /**
  * "Not yet verified", and the way out of it. The practice's owner or a manager
@@ -75,10 +78,10 @@ export function VerificationBanner({ clinic, canRequest }: { clinic: ClinicMembe
     setForm((f) => ({ ...f, [k]: e.target.value }))
 
   return (
-    <div className="rounded-xl bg-warning/10 p-2.5">
-      <p className="text-[11.5px] font-semibold text-warning-strong">{heading}</p>
-      {body && <p className="mt-0.5 text-[11px] text-muted-foreground">{body}</p>}
-      {latest.error && <p className="mt-1 text-[11px] text-destructive">Couldn&apos;t check for a verification request.</p>}
+    <div className="rounded-xl bg-warning-soft p-2.5">
+      <p className="text-caption font-semibold text-foreground">{heading}</p>
+      {body && <p className="mt-0.5 text-caption text-muted-foreground">{body}</p>}
+      {latest.error && <ErrorText className="mt-1 text-caption">Couldn&apos;t check for a verification request.</ErrorText>}
       {canRequest && banner.canRequest && !latest.isLoading && !latest.error && !open && (
         <Button size="sm" variant="secondary" className="mt-2 w-full" onClick={() => openForm(latest.data)}>
           {banner.state === "rejected" ? "Request again" : banner.state === "needs_info" ? "Update and resubmit" : "Request verification"}
@@ -87,19 +90,19 @@ export function VerificationBanner({ clinic, canRequest }: { clinic: ClinicMembe
       {open && (
         <form onSubmit={submit} noValidate className="mt-2 flex flex-col gap-2">
           <Field label="Licence number" required error={errors.licenceNumber}>
-            {(p) => <TextInput {...p} value={form.licenceNumber} onChange={set("licenceNumber")} autoComplete="off" />}
+            {(p) => <Input {...p} value={form.licenceNumber} onChange={set("licenceNumber")} autoComplete="off" />}
           </Field>
           <Field label="Issuing body" required error={errors.issuingBody} hint="Who issued the licence, for example your provincial college.">
-            {(p) => <TextInput {...p} value={form.issuingBody} onChange={set("issuingBody")} autoComplete="off" />}
+            {(p) => <Input {...p} value={form.issuingBody} onChange={set("issuingBody")} autoComplete="off" />}
           </Field>
           <Field label="Contact name" error={errors.contactName}>
-            {(p) => <TextInput {...p} value={form.contactName} onChange={set("contactName")} autoComplete="name" />}
+            {(p) => <Input {...p} value={form.contactName} onChange={set("contactName")} autoComplete="name" />}
           </Field>
           <Field label="Contact phone" error={errors.contactPhone}>
-            {(p) => <TextInput {...p} type="tel" value={form.contactPhone} onChange={set("contactPhone")} autoComplete="tel" />}
+            {(p) => <Input {...p} type="tel" value={form.contactPhone} onChange={set("contactPhone")} autoComplete="tel" />}
           </Field>
           <div className="flex gap-1.5">
-            <Button type="submit" size="sm" className="flex-1" busy={busy}>
+            <Button type="submit" size="sm" className="flex-1" loading={busy}>
               {banner.state === "needs_info" ? "Resubmit" : "Send request"}
             </Button>
             <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => setOpen(false)}>
@@ -109,9 +112,7 @@ export function VerificationBanner({ clinic, canRequest }: { clinic: ClinicMembe
         </form>
       )}
       {failed && (
-        <p role="alert" className="mt-1 text-[11px] text-destructive">
-          {failed}
-        </p>
+        <ErrorText className="mt-1 text-caption">{failed}</ErrorText>
       )}
     </div>
   )

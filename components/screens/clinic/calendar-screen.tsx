@@ -13,23 +13,33 @@ import { calendarColumns } from "@/lib/data/clinic/calendar-columns"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useClinicPatients } from "@/lib/data/clinic/customers"
 import { formatTime, todayISO, addDaysISO, formatDayLabel, minutesInto } from "@/lib/data/clinic/time"
-import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal,
-  Field, TextInput, Select, SpeciesIcon, LinkedBadge, Toolbar,
-} from "@/components/screens/shared/ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Modal } from "@/components/ui/dialog"
+import { Field } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { NativeSelect } from "@/components/ui/select"
+import { SpeciesIcon } from "@/components/screens/shared/species-icon"
+import { LinkedBadge } from "@/components/screens/clinic/linked-badge"
+import { Toolbar } from "@/components/ui/toolbar"
+import { ErrorText } from "@/components/ui/error-text"
 
 const DAY_START_MIN = 7 * 60
 const DAY_END_MIN = 20 * 60
 const PX_PER_MIN = 1.15
 
-const STATUS_TONE: Record<AppointmentStatus, "neutral" | "good" | "warn" | "bad" | "info" | "accent"> = {
-  requested: "warn",
+const STATUS_BADGE: Record<AppointmentStatus, "neutral" | "success" | "warning" | "danger" | "info" | "brand"> = {
+  requested: "warning",
   booked: "neutral",
   arrived: "info",
-  in_progress: "accent",
-  ready: "warn",
-  completed: "good",
-  no_show: "bad",
+  in_progress: "brand",
+  ready: "warning",
+  completed: "success",
+  no_show: "danger",
   cancelled: "neutral",
 }
 
@@ -80,7 +90,7 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
         <Button variant="secondary" size="sm" aria-label="Next day" onClick={() => setDate(addDaysISO(date, 1))}>
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </Button>
-        <p className="text-[14px] font-semibold text-foreground">{formatDayLabel(date, tz)}</p>
+        <p className="text-body font-semibold text-foreground">{formatDayLabel(date, tz)}</p>
         <div className="ml-auto">
           <Button size="sm" onClick={() => setBookOpen(true)}>
             <Plus className="h-4 w-4" aria-hidden="true" /> Book
@@ -110,7 +120,7 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
                   {Array.from({ length: (DAY_END_MIN - DAY_START_MIN) / 60 + 1 }).map((_, i) => (
                     <div
                       key={i}
-                      className="absolute -translate-y-1/2 text-[11px] tabular-nums text-muted-foreground"
+                      className="absolute -translate-y-1/2 text-caption tabular-nums text-muted-foreground"
                       style={{ top: i * 60 * PX_PER_MIN }}
                     >
                       {String(7 + i).padStart(2, "0")}:00
@@ -121,7 +131,7 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
 
               {columns.map((col) => (
                 <div key={col.id ?? "none"} className="min-w-[180px] flex-1">
-                  <p className="mb-1 h-6 truncate text-[12.5px] font-semibold text-foreground">{col.name}</p>
+                  <p className="mb-1 h-6 truncate text-caption font-semibold text-foreground">{col.name}</p>
                   <div
                     className="relative rounded-xl border border-border bg-background"
                     style={{ height: (DAY_END_MIN - DAY_START_MIN) * PX_PER_MIN }}
@@ -129,7 +139,7 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
                     {Array.from({ length: (DAY_END_MIN - DAY_START_MIN) / 60 + 1 }).map((_, i) => (
                       <div
                         key={i}
-                        className="absolute inset-x-0 border-t border-border/60"
+                        className="absolute inset-x-0 border-t border-border"
                         style={{ top: i * 60 * PX_PER_MIN }}
                         aria-hidden="true"
                       />
@@ -158,10 +168,10 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
                               backgroundColor: `${a.colour}1A`,
                             }}
                           >
-                            <span className="block truncate text-[11.5px] font-semibold text-foreground">
+                            <span className="block truncate text-caption font-semibold text-foreground">
                               {formatTime(a.startsAt, tz)} {a.patientName}
                             </span>
-                            <span className="block truncate text-[10.5px] text-muted-foreground">
+                            <span className="block truncate text-caption text-muted-foreground">
                               {a.typeName} · {STATUS_LABEL[a.status]}
                             </span>
                           </button>
@@ -254,15 +264,15 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
         }
       >
         {selected && (
-          <div className="flex flex-col gap-2 text-[13px]">
+          <div className="flex flex-col gap-2 text-meta">
             <p className="flex items-center gap-2">
               <SpeciesIcon species={selected.species} />
               <span className="font-semibold">{selected.patientName}</span>
               <LinkedBadge linked={selected.isLinked} />
-              <Pill tone={STATUS_TONE[selected.status]}>{STATUS_LABEL[selected.status]}</Pill>
+              <Badge variant={STATUS_BADGE[selected.status]}>{STATUS_LABEL[selected.status]}</Badge>
             </p>
             {selected.behaviouralAlert && (
-              <p className="rounded-lg bg-warning/10 p-2 text-[12.5px] font-medium text-warning-strong">
+              <p className="rounded-lg bg-warning-soft p-2 text-caption font-medium text-foreground">
                 Handling note: {selected.behaviouralAlert}
               </p>
             )}
@@ -271,7 +281,7 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
               {selected.customerPhone ? ` · ${selected.customerPhone}` : ""}
             </p>
             <p className="text-muted-foreground">Booked {selected.source === "online" ? "online by the owner" : "by the practice"}</p>
-            {selected.note && <p className="rounded-lg bg-secondary p-2 text-[12.5px]">{selected.note}</p>}
+            {selected.note && <p className="rounded-lg bg-muted p-2 text-caption">{selected.note}</p>}
           </div>
         )}
       </Modal>
@@ -341,58 +351,58 @@ function BookModal({
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => void submit()} busy={busy}>Book</Button>
+          <Button onClick={() => void submit()} loading={busy}>Book</Button>
         </>
       }
     >
       <div className="flex flex-col gap-3">
         <Field label="Find a patient" hint="Name, breed or microchip">
           {(p) => (
-            <TextInput {...p} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Bramble" />
+            <Input {...p} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Bramble" />
           )}
         </Field>
         <Field label="Patient" required error={error && !patientId ? error : null}>
           {(p) => (
-            <Select {...p} value={patientId} onChange={(e) => setPatientId(e.target.value)}>
+            <NativeSelect {...p} value={patientId} onChange={(e) => setPatientId(e.target.value)}>
               <option value="">Choose…</option>
               {patients.data.map((pt) => (
                 <option key={pt.id} value={pt.id}>
                   {pt.name} — {pt.customerName}
                 </option>
               ))}
-            </Select>
+            </NativeSelect>
           )}
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Type" required>
             {(p) => (
-              <Select {...p} value={typeId} onChange={(e) => setTypeId(e.target.value)}>
+              <NativeSelect {...p} value={typeId} onChange={(e) => setTypeId(e.target.value)}>
                 {types.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name} ({t.durationMin} min)
                   </option>
                 ))}
-              </Select>
+              </NativeSelect>
             )}
           </Field>
           <Field label="Start time" required>
-            {(p) => <TextInput {...p} type="time" value={time} onChange={(e) => setTime(e.target.value)} />}
+            {(p) => <Input {...p} type="time" value={time} onChange={(e) => setTime(e.target.value)} />}
           </Field>
         </div>
         <Field label="Clinician">
           {(p) => (
-            <Select {...p} value={staffId} onChange={(e) => setChosenStaff(e.target.value)}>
+            <NativeSelect {...p} value={staffId} onChange={(e) => setChosenStaff(e.target.value)}>
               <option value="">Unassigned</option>
               {staff.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
-            </Select>
+            </NativeSelect>
           )}
         </Field>
         <Field label="Note">
-          {(p) => <TextInput {...p} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Limping on left hind" />}
+          {(p) => <Input {...p} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Limping on left hind" />}
         </Field>
-        {error && patientId && <p className="text-[12px] text-destructive">{error}</p>}
+        {error && patientId && <ErrorText className="text-caption">{error}</ErrorText>}
       </div>
     </Modal>
   )

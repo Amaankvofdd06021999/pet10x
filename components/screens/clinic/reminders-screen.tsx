@@ -10,10 +10,20 @@ import {
   type ReminderItem,
 } from "@/lib/data/clinic/reminders"
 import { dueLabel, daysUntil, formatDateShort } from "@/lib/data/clinic/time"
-import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal,
-  Field, TextInput, Select, SegmentedTabs, Toolbar, StatTile, LinkedBadge,
-} from "@/components/screens/shared/ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Modal } from "@/components/ui/dialog"
+import { Field } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { NativeSelect } from "@/components/ui/select"
+import { SegmentedTabs } from "@/components/ui/segmented-tabs"
+import { Toolbar } from "@/components/ui/toolbar"
+import { StatTile } from "@/components/ui/stat-tile"
+import { LinkedBadge } from "@/components/screens/clinic/linked-badge"
 
 type View = "due" | "sent" | "rules"
 
@@ -80,7 +90,7 @@ export function ClinicRemindersScreen({ clinic }: { clinic: ClinicMembership }) 
           <Button
             size="sm"
             variant="secondary"
-            busy={generating}
+            loading={generating}
             onClick={async () => {
               setGenerating(true)
               const res = await generateReminders(clinic.businessId)
@@ -110,13 +120,13 @@ export function ClinicRemindersScreen({ clinic }: { clinic: ClinicMembership }) 
               {rules.data.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
                   <div>
-                    <p className="text-[13.5px] font-semibold text-foreground">{r.name}</p>
-                    <p className="text-[12px] text-muted-foreground">
+                    <p className="text-meta font-semibold text-foreground">{r.name}</p>
+                    <p className="text-caption text-muted-foreground">
                       {r.triggerKind.replace(/_/g, " ")} · {r.leadDays} days ahead · via{" "}
                       {CHANNEL_LABEL[r.channel] ?? r.channel}
                     </p>
                   </div>
-                  <Pill tone={r.isActive ? "good" : "neutral"}>{r.isActive ? "Active" : "Off"}</Pill>
+                  <Badge variant={r.isActive ? "success" : "neutral"}>{r.isActive ? "Active" : "Off"}</Badge>
                 </li>
               ))}
             </ul>
@@ -140,44 +150,46 @@ export function ClinicRemindersScreen({ clinic }: { clinic: ClinicMembership }) 
               <li key={r.id} className="rounded-2xl border border-border bg-card p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-foreground">
+                    <p className="flex flex-wrap items-center gap-2 text-body font-semibold text-foreground">
                       {r.patientName} · {r.label}
                       <LinkedBadge linked={r.isLinked} />
-                      {!r.serviceReminders && <Pill tone="warn">Opted out</Pill>}
+                      {!r.serviceReminders && <Badge variant="warning">Opted out</Badge>}
                     </p>
-                    <p className="text-[12.5px] text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       {r.customerName}
                       {r.customerPhone ? ` · ${r.customerPhone}` : " · no phone on file"}
                     </p>
-                    <p className={`mt-0.5 text-[12px] font-medium ${late ? "text-destructive" : "text-muted-foreground"}`}>
+                    <p className={`mt-0.5 text-caption font-medium ${late ? "text-foreground" : "text-muted-foreground"}`}>
+                      {late && <span aria-hidden="true" className="mr-1.5 inline-block size-2 rounded-full bg-destructive" />}
                       {dueLabel(r.dueOn)} ({formatDateShort(r.dueOn)})
                       {r.snoozedUntil ? ` · snoozed to ${formatDateShort(r.snoozedUntil)}` : ""}
                     </p>
-                    {r.note && <p className="mt-1 text-[12px] text-muted-foreground">{r.note}</p>}
+                    {r.note && <p className="mt-1 text-caption text-muted-foreground">{r.note}</p>}
                   </div>
                   {view === "due" && caps.workReminders && (
                     <div className="flex flex-wrap items-center gap-1.5">
                       {r.customerPhone && (
-                        <a
-                          href={`tel:${r.customerPhone.replace(/[^\d+]/g, "")}`}
-                          onClick={() => void act(r, "log_call", "Called from the queue")}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-primary-strong px-2.5 py-1.5 text-[12.5px] font-semibold text-primary-foreground"
-                        >
-                          <Phone className="h-3.5 w-3.5" aria-hidden="true" /> Call
-                        </a>
+                        <Button asChild size="sm">
+                          <a
+                            href={`tel:${r.customerPhone.replace(/[^\d+]/g, "")}`}
+                            onClick={() => void act(r, "log_call", "Called from the queue")}
+                          >
+                            <Phone className="h-3.5 w-3.5" aria-hidden="true" /> Call
+                          </a>
+                        </Button>
                       )}
                       {r.isLinked && (
-                        <Button size="sm" variant="secondary" busy={busy === r.id} onClick={() => void act(r, "notify")}>
+                        <Button size="sm" variant="secondary" loading={busy === r.id} onClick={() => void act(r, "notify")}>
                           <BellRing className="h-3.5 w-3.5" aria-hidden="true" /> Notify
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" onClick={() => void act(r, "snooze", undefined, 7)}>
+                      <Button size="sm" variant="quiet" onClick={() => void act(r, "snooze", undefined, 7)}>
                         <Clock className="h-3.5 w-3.5" aria-hidden="true" /> Snooze
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => void act(r, "booked")}>
+                      <Button size="sm" variant="quiet" onClick={() => void act(r, "booked")}>
                         <Check className="h-3.5 w-3.5" aria-hidden="true" /> Booked
                       </Button>
-                      <Button size="sm" variant="ghost" aria-label="Suppress this reminder" onClick={() => void act(r, "suppress")}>
+                      <Button size="sm" variant="quiet" aria-label="Suppress this reminder" onClick={() => void act(r, "suppress")}>
                         <X className="h-3.5 w-3.5" aria-hidden="true" />
                       </Button>
                     </div>
@@ -222,7 +234,7 @@ function RuleModal({
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button
-            busy={busy}
+            loading={busy}
             onClick={async () => {
               setBusy(true)
               setError(null)
@@ -239,21 +251,21 @@ function RuleModal({
     >
       <div className="flex flex-col gap-3">
         <Field label="Name" required error={error}>
-          {(p) => <TextInput {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Annual booster" />}
+          {(p) => <Input {...p} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Annual booster" />}
         </Field>
         <Field label="Triggered by">
           {(p) => (
-            <Select {...p} value={f.triggerKind} onChange={(e) => setF({ ...f, triggerKind: e.target.value })}>
+            <NativeSelect {...p} value={f.triggerKind} onChange={(e) => setF({ ...f, triggerKind: e.target.value })}>
               <option value="vaccination_due">A vaccination coming due</option>
               <option value="visit_follow_up">A follow-up a visit asked for</option>
               <option value="annual_check">Annual check</option>
               <option value="lapsed_customer">A customer who has not been in</option>
-            </Select>
+            </NativeSelect>
           )}
         </Field>
         <Field label="How many days ahead" hint="How early it appears in the queue.">
           {(p) => (
-            <TextInput
+            <Input
               {...p}
               type="number"
               min={0}
@@ -269,11 +281,11 @@ function RuleModal({
             unless the owner turned email off. */}
         <Field label="Default channel" hint={CHANNEL_HINT[f.channel]}>
           {(p) => (
-            <Select {...p} value={f.channel} onChange={(e) => setF({ ...f, channel: e.target.value })}>
+            <NativeSelect {...p} value={f.channel} onChange={(e) => setF({ ...f, channel: e.target.value })}>
               <option value="app">{CHANNEL_LABEL.app}</option>
               <option value="call">{CHANNEL_LABEL.call}</option>
               <option value="email">{CHANNEL_LABEL.email}</option>
-            </Select>
+            </NativeSelect>
           )}
         </Field>
       </div>

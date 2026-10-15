@@ -15,10 +15,19 @@ import {
 } from "@/lib/data/clinic/billing"
 import { formatMoney, formatDateShort, dayBounds, todayISO } from "@/lib/data/clinic/time"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal, Field, TextInput,
-  SegmentedTabs, Toolbar, StatTile,
-} from "@/components/screens/shared/ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Modal } from "@/components/ui/dialog"
+import { Field } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { SegmentedTabs } from "@/components/ui/segmented-tabs"
+import { Toolbar } from "@/components/ui/toolbar"
+import { StatTile } from "@/components/ui/stat-tile"
+import { ErrorText } from "@/components/ui/error-text"
 
 const ACTION_LABEL: Record<InvoiceAction, string> = {
   send: "Send",
@@ -28,9 +37,19 @@ const ACTION_LABEL: Record<InvoiceAction, string> = {
   void: "Void",
 }
 
+// invoiceStatusView names a tone; the Badge names its variant.
+const STATUS_BADGE = {
+  neutral: "neutral",
+  good: "success",
+  warn: "warning",
+  bad: "danger",
+  info: "info",
+  accent: "brand",
+} as const
+
 function StatusPill({ bill }: { bill: Invoice }) {
   const { label, tone } = invoiceStatusView(bill)
-  return <Pill tone={tone}>{label}</Pill>
+  return <Badge variant={STATUS_BADGE[tone]}>{label}</Badge>
 }
 
 export function ClinicBillingScreen({
@@ -181,15 +200,15 @@ export function ClinicBillingScreen({
                   <button
                     type="button"
                     onClick={() => setOpenId(i.id)}
-                    className="min-w-0 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                    className="min-w-0 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-foreground">
+                    <p className="flex flex-wrap items-center gap-2 text-meta font-semibold text-foreground">
                       {i.patientName} · {i.customerName}
                       <StatusPill bill={i} />
-                      {i.kind === "estimate" && <Pill tone="info">Estimate</Pill>}
-                      {i.ownerApprovedAt && <Pill tone="good">Owner approved</Pill>}
+                      {i.kind === "estimate" && <Badge variant="info">Estimate</Badge>}
+                      {i.ownerApprovedAt && <Badge variant="success">Owner approved</Badge>}
                     </p>
-                    <p className="text-[12px] text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       {formatDateShort(i.issuedOn ?? i.createdAt)} · {i.lines.length} line
                       {i.lines.length === 1 ? "" : "s"}
                       {isPartlyPaid(i) ? ` · ${formatMoney(i.paidCents, i.currency)} paid, ${formatMoney(remainingCents(i), i.currency)} left` : ""}
@@ -197,7 +216,7 @@ export function ClinicBillingScreen({
                     </p>
                   </button>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[15px] font-semibold tabular-nums text-foreground">
+                    <span className="text-body font-semibold tabular-nums text-foreground">
                       {formatMoney(i.totalCents, i.currency)}
                     </span>
                     <BillActions actions={actionsFor(i)} busy={busy === i.id} onRun={(a) => void run(i, a)} />
@@ -233,9 +252,9 @@ export function ClinicBillingScreen({
             <Spinner label="Opening the bill" />
           ) : (
             <div className="flex flex-col gap-3">
-              <p className="flex flex-wrap items-center gap-2 text-[12.5px] text-muted-foreground">
+              <p className="flex flex-wrap items-center gap-2 text-caption text-muted-foreground">
                 <StatusPill bill={openBill} />
-                {openBill.ownerApprovedAt && <Pill tone="good">Owner approved</Pill>}
+                {openBill.ownerApprovedAt && <Badge variant="success">Owner approved</Badge>}
                 {openBill.issuedOn ? `Sent ${formatDateShort(openBill.issuedOn)}` : `Created ${formatDateShort(openBill.createdAt)}`}
               </p>
               {(() => {
@@ -244,17 +263,17 @@ export function ClinicBillingScreen({
                     ? convertedTotalNote(converted.estimateTotalCents, openBill.totalCents, openBill.currency)
                     : null
                 return note ? (
-                  <p role="status" className="rounded-lg bg-warning/10 px-2.5 py-1.5 text-[12.5px] font-medium text-warning-strong">
+                  <p role="status" className="rounded-lg bg-warning-soft px-2.5 py-1.5 text-caption font-medium text-foreground">
                     {note}
                   </p>
                 ) : null
               })()}
               {openBill.lines.length === 0 ? (
-                <p className="text-[12.5px] text-muted-foreground">No lines on this bill.</p>
+                <p className="text-caption text-muted-foreground">No lines on this bill.</p>
               ) : (
                 <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
                   {openBill.lines.map((l) => (
-                    <li key={l.id} className="flex items-center justify-between gap-2 px-3 py-2 text-[13px]">
+                    <li key={l.id} className="flex items-center justify-between gap-2 px-3 py-2 text-meta">
                       <span className="text-foreground">
                         {l.description}
                         {l.quantity !== 1 ? ` × ${l.quantity}` : ""}
@@ -266,22 +285,22 @@ export function ClinicBillingScreen({
                   ))}
                 </ul>
               )}
-              <p className="flex items-center justify-between text-[14px] font-semibold text-foreground">
+              <p className="flex items-center justify-between text-body font-semibold text-foreground">
                 <span>Total</span>
                 <span className="tabular-nums">{formatMoney(openBill.totalCents, openBill.currency)}</span>
               </p>
               {isPartlyPaid(openBill) && (
-                <p className="text-[12.5px] text-muted-foreground">{paymentProgress(openBill)}</p>
+                <p className="text-caption text-muted-foreground">{paymentProgress(openBill)}</p>
               )}
               {shortPaidNote(openBill) && (
-                <p className="text-[12.5px] text-muted-foreground">{shortPaidNote(openBill)}</p>
+                <p className="text-caption text-muted-foreground">{shortPaidNote(openBill)}</p>
               )}
               {openBill.payments.length > 0 && (
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-[12px] font-semibold text-foreground">Payments</p>
+                  <p className="text-caption font-semibold text-foreground">Payments</p>
                   <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
                     {paymentRows(openBill.payments, clinic.timezone, openBill.currency).map((p) => (
-                      <li key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 text-[13px]">
+                      <li key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 text-meta">
                         <span className="text-foreground">
                           {p.date} · {p.method}
                         </span>
@@ -292,12 +311,12 @@ export function ClinicBillingScreen({
                 </div>
               )}
               {openBill.status === "declined" && (
-                <p className="text-[12.5px] text-muted-foreground">
+                <p className="text-caption text-muted-foreground">
                   The owner declined this estimate. Write a new one if the plan changes.
                 </p>
               )}
               {openBill.status === "draft" && (
-                <p className="text-[12.5px] text-muted-foreground">
+                <p className="text-caption text-muted-foreground">
                   Only you can see a draft. Send it and the owner gets it in their app.
                 </p>
               )}
@@ -397,8 +416,8 @@ export function ClinicBillingScreen({
 
 /**
  * Taken today, which must never show a confident $0 when the read behind it
- * failed: "—" with Couldn't load and Retry, and "…" while it loads. StatTile
- * takes only a string hint, so this tile is its own markup in the same style.
+ * failed: "—" with Couldn't load and Retry, and "…" while it loads. The shared
+ * StatTile carries it; its hint takes the Retry as a node.
  */
 function TakenTodayTile({
   totals, loading, failed, onRetry,
@@ -408,32 +427,24 @@ function TakenTodayTile({
   failed: boolean
   onRetry: () => void
 }) {
-  const hintId = useId()
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 text-left">
-      <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Taken today</p>
-      <p
-        aria-describedby={hintId}
-        className="mt-1 text-[26px] font-semibold leading-none tabular-nums text-success-strong"
-      >
-        {failed ? "—" : loading ? "…" : takenTodayText(totals)}
-      </p>
-      {failed ? (
-        <p role="alert" className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-destructive">
-          Couldn&apos;t load
-          <button
-            type="button"
-            onClick={onRetry}
-            className="rounded font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-          >
-            Retry
-          </button>
-        </p>
-      ) : null}
-      <p id={hintId} className="mt-1 text-[12px] text-muted-foreground">
-        Payments on voided bills aren&apos;t counted.
-      </p>
-    </div>
+    <StatTile
+      label="Taken today"
+      value={failed ? "—" : loading ? "…" : takenTodayText(totals)}
+      hint={
+        <>
+          {failed ? (
+            <ErrorText className="mb-1 flex-wrap items-center">
+              Couldn&apos;t load
+              <Button variant="link" size="sm" onClick={onRetry}>
+                Retry
+              </Button>
+            </ErrorText>
+          ) : null}
+          <span className="block">Payments on voided bills aren&apos;t counted.</span>
+        </>
+      }
+    />
   )
 }
 
@@ -452,7 +463,7 @@ function BillActions({
           key={a}
           size="sm"
           variant={a === "void" ? "ghost" : "primary"}
-          busy={busy && a !== "void"}
+          loading={busy && a !== "void"}
           disabled={busy}
           onClick={() => onRun(a)}
         >
@@ -500,12 +511,12 @@ function PaymentModal({
       }
     >
       <div className="flex flex-col gap-3">
-        <p className="text-[13px] font-medium tabular-nums text-foreground">{paymentProgress(bill)}</p>
+        <p className="text-meta font-medium tabular-nums text-foreground">{paymentProgress(bill)}</p>
         <Field label="Amount received (dollars)" required error={errors.amount}>
-          {(p) => <TextInput {...p} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}
+          {(p) => <Input {...p} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}
         </Field>
         <div className="flex flex-col gap-1">
-          <p id={methodLabelId} className="text-[12px] font-semibold text-foreground">
+          <p id={methodLabelId} className="text-caption font-semibold text-foreground">
             How they paid<span className="ml-0.5 text-destructive">*</span>
           </p>
           <div role="group" aria-labelledby={methodLabelId} className="flex flex-wrap gap-1.5">
@@ -515,7 +526,7 @@ function PaymentModal({
                 type="button"
                 aria-pressed={method === m}
                 onClick={() => setMethod(m)}
-                className={`rounded-full border px-3 py-1.5 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+                className={`rounded-full border px-3 py-1.5 text-meta font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   method === m
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-card text-foreground hover:bg-muted"
@@ -526,9 +537,7 @@ function PaymentModal({
             ))}
           </div>
           {errors.method && (
-            <p role="alert" className="text-[11.5px] font-medium text-destructive">
-              {errors.method}
-            </p>
+            <ErrorText className="text-caption font-medium">{errors.method}</ErrorText>
           )}
         </div>
       </div>
@@ -598,22 +607,22 @@ function NewInvoiceModal({
             {list.map((v) => (
               <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
                 <div className="min-w-0">
-                  <p className="text-[13.5px] font-semibold text-foreground">
+                  <p className="text-meta font-semibold text-foreground">
                     {v.patientName} · {v.customerName}
                   </p>
-                  <p className="text-[12px] text-muted-foreground">
+                  <p className="text-caption text-muted-foreground">
                     {v.reason ?? "Visit"} · {formatDateShort(v.visitedOn)} · {v.serviceCount} service
                     {v.serviceCount === 1 ? "" : "s"} · {formatMoney(v.totalCents)}
                   </p>
                 </div>
-                <Button size="sm" busy={busy === v.id} disabled={busy !== null} onClick={() => void create(v.id)}>
+                <Button size="sm" loading={busy === v.id} disabled={busy !== null} onClick={() => void create(v.id)}>
                   {kind === "estimate" ? "Create estimate" : "Create invoice"}
                 </Button>
               </li>
             ))}
           </ul>
         )}
-        {error && <p role="alert" className="text-[12px] text-destructive">{error}</p>}
+        {error && <ErrorText className="text-caption">{error}</ErrorText>}
       </div>
     </Modal>
   )
