@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 import { PawPrint, Menu, X, AlertTriangle } from "lucide-react"
 
@@ -33,10 +34,10 @@ export function LandingNav() {
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
         <Link href="/" className="flex items-center gap-2" aria-label="Pet10x home">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm shadow-primary/30">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
             <PawPrint className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
           </span>
-          <span className="text-[17px] font-semibold tracking-tight text-foreground">Pet10x</span>
+          <span className="text-title font-semibold tracking-tight text-foreground">Pet10x</span>
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">
@@ -44,7 +45,7 @@ export function LandingNav() {
             <a
               key={l.href}
               href={l.href}
-              className="text-[14px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="text-meta font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               {l.label}
             </a>
@@ -56,35 +57,30 @@ export function LandingNav() {
               saw the incident is often not a resident and has nothing to sign
               in with. Outlined rather than solid so it reads as available
               without competing with "Get started". */}
-          <Link
-            href="/report"
-            className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3.5 py-2 text-[14px] font-semibold text-destructive transition-colors hover:bg-destructive/5"
-          >
-            <AlertTriangle className="h-3.5 w-3.5" />
-            Report incident
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-lg px-4 py-2 text-[14px] font-semibold text-foreground transition-colors hover:bg-muted"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/login?mode=signup"
-            className="rounded-lg bg-primary-strong px-4 py-2 text-[14px] font-semibold text-primary-foreground shadow-sm shadow-primary/30 transition-all hover:scale-[1.03] hover:bg-primary-strong-hover active:scale-[0.98]"
-          >
-            Get started
-          </Link>
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/report">
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+              Report incident
+            </Link>
+          </Button>
+          <Button asChild variant="quiet" size="sm">
+            <Link href="/login">Sign in</Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/login?mode=signup">Get started</Link>
+          </Button>
         </div>
 
-        <button
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted md:hidden"
+        <Button
+          variant="quiet"
+          size="icon-lg"
+          className="md:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        </Button>
       </nav>
 
       {/* Mobile menu */}
@@ -96,32 +92,24 @@ export function LandingNav() {
                 key={l.href}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-[15px] font-medium text-foreground transition-colors hover:bg-muted"
+                className="rounded-lg px-3 py-2.5 text-body font-medium text-foreground transition-colors hover:bg-muted"
               >
                 {l.label}
               </a>
             ))}
             <div className="mt-2 flex flex-col gap-2">
-              <Link
-                href="/report"
-                onClick={() => setOpen(false)}
-                className="flex items-center justify-center gap-2 rounded-lg border border-destructive/30 px-4 py-2.5 text-center text-[15px] font-semibold text-destructive"
-              >
-                <AlertTriangle className="h-4 w-4" />
-                Report incident
-              </Link>
-              <Link
-                href="/login"
-                className="rounded-lg border border-border px-4 py-2.5 text-center text-[15px] font-semibold text-foreground"
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/login?mode=signup"
-                className="rounded-lg bg-primary-strong px-4 py-2.5 text-center text-[15px] font-semibold text-primary-foreground"
-              >
-                Get started
-              </Link>
+              <Button asChild variant="secondary">
+                <Link href="/report" onClick={() => setOpen(false)}>
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  Report incident
+                </Link>
+              </Button>
+              <Button asChild variant="secondary">
+                <Link href="/login">Sign in</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/login?mode=signup">Get started</Link>
+              </Button>
             </div>
           </div>
         </div>

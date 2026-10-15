@@ -5,6 +5,8 @@ import { PasswordField } from "@/components/ui/password-field"
 import { checkPassword } from "@/lib/auth/password-rules"
 import { useRouter } from "next/navigation"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { Button } from "@/components/ui/button"
+import { ErrorText } from "@/components/ui/error-text"
 import { PawPrint, Loader2 } from "lucide-react"
 
 /**
@@ -88,41 +90,38 @@ export default function SetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-secondary/40 px-5">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-5">
       <div className="w-full max-w-sm rounded-2xl card-raised p-7">
         <div className="mb-5 flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <PawPrint className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
           </span>
-          <span className="text-[17px] font-semibold tracking-tight">Pet10x</span>
+          <span className="text-title font-semibold tracking-tight">Pet10x</span>
         </div>
 
         {status === "verifying" && (
           <div className="flex flex-col items-center gap-3 py-8 text-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <p className="text-[14px] text-muted-foreground">Verifying your link…</p>
+            <p className="text-meta text-muted-foreground">Verifying your link…</p>
           </div>
         )}
 
         {status === "invalid" && (
           <div className="py-4 text-center">
-            <h1 className="text-[18px] font-semibold">Link expired or invalid</h1>
-            <p className="mt-2 text-[14px] text-muted-foreground">
+            <h1 className="text-title font-semibold">Link expired or invalid</h1>
+            <p className="mt-2 text-meta text-muted-foreground">
               This link is no longer valid. Request a new invite or password reset.
             </p>
-            <button
-              onClick={() => router.replace("/app")}
-              className="mt-5 w-full rounded-lg border border-border py-2.5 text-[14px] font-semibold"
-            >
+            <Button variant="secondary" onClick={() => router.replace("/app")} className="mt-5 w-full">
               Back to sign in
-            </button>
+            </Button>
           </div>
         )}
 
         {status === "ready" && (
           <div>
-            <h1 className="text-[20px] font-semibold tracking-tight">Set your password</h1>
-            <p className="mt-1 text-[14px] text-muted-foreground">Choose a password to finish setting up your account.</p>
+            <h1 className="text-heading font-semibold tracking-tight">Set your password</h1>
+            <p className="mt-1 text-meta text-muted-foreground">Choose a password to finish setting up your account.</p>
             <form
               noValidate
               onSubmit={(e) => {
@@ -148,18 +147,10 @@ export default function SetPasswordPage() {
                 placeholder="Confirm password"
                 autoComplete="new-password"
               />
-              {error && (
-                <p role="alert" className="text-[13px] text-destructive">
-                  {error}
-                </p>
-              )}
-              <button
-                type="submit"
-                disabled={saving}
-                className="mt-1 w-full rounded-lg bg-primary-strong py-2.5 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong-hover disabled:opacity-60"
-              >
+              {error && <ErrorText className="text-meta">{error}</ErrorText>}
+              <Button type="submit" disabled={saving} className="mt-1 w-full">
                 {saving ? "Saving…" : "Set password & continue"}
-              </button>
+              </Button>
             </form>
           </div>
         )}

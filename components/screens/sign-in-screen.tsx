@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react"
 import { useAuth, MOCK_USERS, type DemoRole } from "@/lib/auth-context"
 import { PasswordField } from "@/components/ui/password-field"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { ErrorText } from "@/components/ui/error-text"
 import { checkPassword } from "@/lib/auth/password-rules"
 import { CodeEntry, CODE_TTL_MS, RESEND_COOLDOWN_MS } from "@/components/auth/code-entry"
 import { saveDraft, loadDraft, clearDraft } from "@/lib/auth/signup-draft"
@@ -14,17 +18,29 @@ import {
   ArrowLeft,
   Mail,
   Lock,
-  Loader2,
+  CheckCircle2,
   MailCheck,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { ConsentLine } from "@/components/legal/consent-line"
 
-const ROLE_CARDS: { role: DemoRole; icon: typeof Dog; iconColor: string; iconBg: string; accent: string }[] = [
-  { role: "pet-owner", icon: Dog, iconColor: "text-primary", iconBg: "bg-primary/10", accent: "border-primary/20 active:border-primary/40" },
-  { role: "building-manager", icon: Building2, iconColor: "text-info", iconBg: "bg-info/10", accent: "border-info/20 active:border-info/40" },
+// The role is a Badge (dark words on a soft tint); only the little icon in it
+// carries the role's colour.
+const ROLE_CARDS: { role: DemoRole; icon: typeof Dog; iconColor: string; badge: "brand" | "info" }[] = [
+  { role: "pet-owner", icon: Dog, iconColor: "text-primary", badge: "brand" },
+  { role: "building-manager", icon: Building2, iconColor: "text-info", badge: "info" },
 ]
+
+// A neutral confirmation line: dark words, the green check carries "done".
+function InfoText({ className = "", children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <p role="status" className={`flex items-start gap-1.5 text-meta text-foreground ${className}`}>
+      <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
+      <span>{children}</span>
+    </p>
+  )
+}
 
 type SignInView = "main" | "verify-email"
 type AuthMode = "signin" | "signup"
@@ -233,8 +249,10 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
     return (
       <div className="flex min-h-dvh flex-col bg-background">
         <div className="flex items-center gap-2.5 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-2">
-          <button
+          <Button
             type="button"
+            variant="quiet"
+            size="icon"
             onClick={() => {
               // Back, not cancel: email/password/name are kept so a mistyped
               // address can be corrected without retyping everything. The
@@ -245,20 +263,20 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
               setInfo(null)
               setOtp("")
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-muted transition-transform active:scale-95"
+            className="rounded-full bg-muted"
             aria-label="Go back"
           >
             <ArrowLeft className="h-4.5 w-4.5 text-foreground" />
-          </button>
-          <h1 className="text-[17px] font-semibold text-foreground">Verify your email</h1>
+          </Button>
+          <h1 className="text-title font-semibold text-foreground">Verify your email</h1>
         </div>
 
         <div className="flex-1 px-5 pt-6 sm:flex sm:flex-none sm:flex-col sm:justify-center sm:pt-10">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-soft">
             <MailCheck className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="text-center text-[20px] font-semibold text-foreground">Enter your code</h2>
-          <p className="mt-1.5 text-center text-[14px] leading-relaxed text-muted-foreground">
+          <h2 className="text-center text-heading font-semibold text-foreground">Enter your code</h2>
+          <p className="mt-1.5 text-center text-meta leading-relaxed text-muted-foreground">
             We sent a 6-digit code to <span className="font-semibold text-foreground">{email.trim()}</span>. Your
             account is created once it&rsquo;s verified.
           </p>
@@ -289,7 +307,7 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
 
             {askPassword && (
               <div className="mt-4">
-                <label htmlFor="verify-password" className="mb-1.5 block text-[13px] font-medium text-foreground">
+                <label htmlFor="verify-password" className="mb-1.5 block text-meta font-medium text-foreground">
                   Your password
                 </label>
                 <PasswordField
@@ -303,31 +321,23 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
               </div>
             )}
 
-            {error && (
-              <p role="alert" className="mt-3 text-[13px] text-destructive">
-                {error}
-              </p>
-            )}
-            {info && (
-              <p role="status" className="mt-3 text-[13px] text-success-strong">
-                {info}
-              </p>
-            )}
+            {error && <ErrorText className="mt-3 text-meta">{error}</ErrorText>}
+            {info && <InfoText className="mt-3">{info}</InfoText>}
 
-            <button
+            <Button
               type="submit"
-              disabled={loading || otp.length !== 6 || codeExpired}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong-hover disabled:opacity-60"
+              loading={loading}
+              disabled={otp.length !== 6 || codeExpired}
+              className="mt-5 w-full"
             >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Verify &amp; create account
-            </button>
+            </Button>
 
-            <p className="mt-4 text-center text-[12px] leading-relaxed text-muted-foreground">
+            <p className="mt-4 text-center text-caption leading-relaxed text-muted-foreground">
               Didn&rsquo;t get it? Check spam, or go back and confirm the address is right. No account exists until
               the code is entered.
             </p>
-            <p className="mt-2 text-center text-[12px] leading-relaxed text-muted-foreground">
+            <p className="mt-2 text-center text-caption leading-relaxed text-muted-foreground">
               Already have an account? We&rsquo;ve emailed you a sign-in link instead.
             </p>
           </form>
@@ -341,11 +351,11 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
   return (
     <div className="flex min-h-dvh flex-col bg-background sm:justify-center sm:py-8">
       <div className="flex flex-col items-center px-5 pt-[max(2rem,env(safe-area-inset-top))] pb-5 sm:pt-2">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary shadow-lg shadow-primary/20">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary shadow-sm">
           <PawPrint className="h-8 w-8 text-primary-foreground" strokeWidth={2.5} />
         </div>
         <h1 className="text-[24px] font-semibold text-foreground sm:text-[26px]">Welcome to Pet10x</h1>
-        <p className="mt-1 text-center text-[14px] text-muted-foreground">Pet governance &amp; community for your building</p>
+        <p className="mt-1 text-center text-meta text-muted-foreground">Pet governance &amp; community for your building</p>
       </div>
 
       <div className="flex-1 px-5 sm:flex-none">
@@ -364,7 +374,7 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
                     // Sign in is not part of a sign-up in progress.
                     if (m === "signin") forgetDraft()
                   }}
-                  className={`flex-1 rounded-lg py-2 text-[14px] font-semibold transition-all ${
+                  className={`flex-1 rounded-lg py-2 text-meta font-semibold transition-all ${
                     mode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
                   }`}
                 >
@@ -383,10 +393,10 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
             >
               {mode === "signup" && (
                 <div>
-                  <label htmlFor="signup-name" className="mb-1.5 block text-[13px] font-medium text-foreground">
+                  <label htmlFor="signup-name" className="mb-1.5 block text-meta font-medium text-foreground">
                     Your first name
                   </label>
-                  <input
+                  <Input
                     id="signup-name"
                     type="text"
                     value={fullName}
@@ -396,13 +406,12 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
                     }}
                     maxLength={80}
                     autoComplete="given-name"
-                    className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               )}
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
-                <input
+                <Input
                   type="email"
                   value={email}
                   onChange={(e) => {
@@ -413,7 +422,7 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
                   placeholder="Email"
                   autoCapitalize="none"
                   autoComplete="email"
-                  className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="pl-11"
                 />
               </div>
               {/* Rules panel only while creating a password — showing a
@@ -428,37 +437,24 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
                 showRules={mode === "signup"}
               />
 
-              {error && (
-                <p role="alert" className="text-[13px] text-destructive">
-                  {error}
-                </p>
-              )}
-              {info && (
-                <p role="status" className="text-[13px] text-success-strong">
-                  {info}
-                </p>
-              )}
+              {error && <ErrorText className="text-meta">{error}</ErrorText>}
+              {info && <InfoText>{info}</InfoText>}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong-hover disabled:opacity-60"
-              >
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Button type="submit" loading={loading} className="mt-1 w-full">
                 {mode === "signin" ? "Sign in" : "Create account"}
-              </button>
+              </Button>
 
               {mode === "signin" && (
-                <button type="button" onClick={handleForgot} className="text-center text-[13px] font-medium text-primary-text">
+                <Button type="button" variant="quiet" size="sm" onClick={handleForgot} className="self-center">
                   Forgot password?
-                </button>
+                </Button>
               )}
             </form>
           </>
         ) : (
           <>
             {/* Mock demo sign-in (Supabase not configured) */}
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Sign in as</p>
+            <p className="mb-3 text-caption font-semibold uppercase tracking-wide text-muted-foreground">Sign in as</p>
             <div className="flex flex-col gap-2.5">
               {ROLE_CARDS.map((card) => {
                 const u = MOCK_USERS[card.role]
@@ -467,20 +463,20 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
                   <button
                     key={card.role}
                     onClick={() => signIn(card.role)}
-                    className={`flex items-center gap-3 rounded-2xl border bg-card p-3 text-left transition-all active:scale-[0.98] ${card.accent}`}
+                    className={`flex items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left transition-all active:scale-[0.98]`}
                   >
                     <div className="relative h-11 w-11 overflow-hidden rounded-full bg-muted flex-shrink-0">
                       <Image src={u.avatar} alt={u.name} fill className="object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[15px] font-semibold text-foreground truncate">{u.name}</span>
-                        <span className={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold flex-shrink-0 ${card.iconBg} ${card.iconColor}`}>
-                          <Icon className="h-2.5 w-2.5" />
+                        <span className="text-body font-semibold text-foreground truncate">{u.name}</span>
+                        <Badge variant={card.badge} className="flex-shrink-0">
+                          <Icon className={`h-2.5 w-2.5 ${card.iconColor}`} />
                           {u.roleLabel}
-                        </span>
+                        </Badge>
                       </div>
-                      <p className="mt-0.5 text-[12px] text-muted-foreground truncate">
+                      <p className="mt-0.5 text-caption text-muted-foreground truncate">
                         {u.role === "building-manager" ? u.building : `Unit ${u.unit}`} &middot; {u.description}
                       </p>
                     </div>
@@ -499,12 +495,9 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
       </div>
 
       <div className="px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-4 sm:pb-2">
-        <Link
-          href="/manager"
-          className="block rounded-xl card-interactive py-2.5 text-center text-[13px] font-semibold text-info transition-colors active:bg-muted"
-        >
-          Are you a manager at a building? Sign in here
-        </Link>
+        <Button asChild variant="secondary" className="h-auto w-full whitespace-normal py-2.5 text-center text-meta">
+          <Link href="/manager">Are you a manager at a building? Sign in here</Link>
+        </Button>
         <ConsentLine className="mt-3" />
       </div>
     </div>

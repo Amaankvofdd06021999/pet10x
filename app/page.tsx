@@ -27,6 +27,8 @@ import {
   Stethoscope,
 } from "lucide-react"
 import { LandingNav } from "@/components/landing/landing-nav"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Reveal } from "@/components/landing/reveal"
 import { SiteFooter } from "@/components/landing/site-footer"
 
@@ -194,7 +196,7 @@ const PRICING = [
 ]
 
 /* Shared type scale (keeps hierarchy consistent across sections). */
-const EYEBROW = "text-[13px] font-semibold uppercase tracking-[0.14em] text-primary-text"
+const EYEBROW = "text-[13px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
 const H2 = "text-[28px] font-semibold leading-[1.1] tracking-tight sm:text-[38px]"
 const LEAD = "text-[16px] leading-relaxed text-muted-foreground sm:text-[17px]"
 
@@ -208,11 +210,11 @@ export default function LandingPage() {
       <LandingNav />
 
       {/* ===================== Hero ===================== */}
-      <section className="relative overflow-hidden border-b border-border/60 px-5 pb-20 pt-28 sm:px-8 sm:pb-24 sm:pt-36">
+      <section className="relative overflow-hidden border-b border-border px-5 pb-20 pt-28 sm:px-8 sm:pb-24 sm:pt-36">
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
           <div
             className="absolute left-1/2 top-[-18%] h-[460px] w-[min(880px,94vw)] -translate-x-1/2 rounded-full opacity-60"
-            style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(253,147,64,0.12), rgba(47,191,184,0.05) 60%, rgba(253,147,64,0))" }}
+            style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(253,147,64,0.12) 60%, rgba(253,147,64,0))" }}
           />
           <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.035)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:radial-gradient(ellipse_72%_55%_at_50%_0%,#000_20%,transparent_72%)]" />
         </div>
@@ -239,34 +241,30 @@ export default function LandingPage() {
             </Reveal>
             <Reveal immediate delay={240}>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Link
-                  href="/login?mode=signup"
-                  className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-6 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong-hover"
-                >
-                  Get started free
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-                <Link
-                  href="/help#contact"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg card-interactive px-6 py-3 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
-                >
-                  Book a demo
-                </Link>
+                <Button asChild size="lg" className="group">
+                  <Link href="/login?mode=signup">
+                    Get started free
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                </Button>
+                <Button asChild variant="secondary" size="lg">
+                  <Link href="/help#contact">Book a demo</Link>
+                </Button>
               </div>
             </Reveal>
             <Reveal immediate delay={320}>
               <div className="mt-7 flex items-center gap-2 text-[13px] text-muted-foreground">
-                <ShieldCheck className="h-4 w-4 text-accent" />
+                <ShieldCheck className="h-4 w-4 text-success" />
                 Governance &amp; risk platform — not legal advice or a life-safety system.
               </div>
             </Reveal>
 
             {/* Evidence sits with the claim, not a section below it. */}
             <Reveal immediate delay={400}>
-              <dl className="mt-9 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-border/60 pt-7 sm:grid-cols-4 sm:gap-x-4">
+              <dl className="mt-9 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-border pt-7 sm:grid-cols-4 sm:gap-x-4">
                 {STATS.map((s) => (
                   <div key={s.label} className="flex items-start gap-2.5">
-                    <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft">
                       <s.icon className="h-3.5 w-3.5 text-primary" />
                     </span>
                     <div className="min-w-0">
@@ -309,8 +307,8 @@ export default function LandingPage() {
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {OWNER_FEATURES.map((f, i) => (
               <Reveal key={f.title} delay={(i % 3) * 70}>
-                <div className="group h-full rounded-2xl card-raised p-6 transition-colors hover:bg-muted/40">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <div className="group h-full rounded-2xl card-raised p-6 transition-colors hover:bg-muted">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary-soft text-primary">
                     <f.icon className="h-5 w-5" />
                   </span>
                   <h3 className="mt-5 text-[17px] font-semibold tracking-tight">{f.title}</h3>
@@ -319,18 +317,14 @@ export default function LandingPage() {
               </Reveal>
             ))}
             <Reveal delay={70}>
-              <div className="flex h-full flex-col justify-center rounded-2xl border border-primary/40 bg-primary/[0.03] p-6">
+              <div className="flex h-full flex-col justify-center rounded-2xl border border-primary bg-primary-soft p-6">
                 <p className="text-[15px] font-semibold tracking-tight">Free to start.</p>
                 <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
                   Set up your pet&apos;s profile in minutes — upgrade only when you&apos;re ready.
                 </p>
-                <Link
-                  href="/login?mode=signup"
-                  className="group mt-5 inline-flex items-center gap-2 text-[14px] font-semibold text-primary-text"
-                >
-                  Get the app
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
+                <Button asChild variant="link" className="mt-5 self-start">
+                  <Link href="/login?mode=signup">Get the app</Link>
+                </Button>
               </div>
             </Reveal>
           </div>
@@ -338,7 +332,7 @@ export default function LandingPage() {
       </section>
 
       {/* ===================== Features ===================== */}
-      <section id="product" className="scroll-mt-16 border-t border-border/60 px-5 py-20 sm:px-8 sm:py-28">
+      <section id="product" className="scroll-mt-16 border-t border-border px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-7xl">
           <Reveal className="max-w-2xl">
             <p className={EYEBROW}>For buildings</p>
@@ -361,7 +355,7 @@ export default function LandingPage() {
           "Comprehensive Care" block. Cards are separated rather than fused
           into a gapless bento: six equal things read as a list of six, and
           the hairline grid made them read as one table. */}
-      <section className="border-y border-border/60 bg-secondary/40 px-5 py-20 sm:px-8 sm:py-28">
+      <section className="border-y border-border bg-secondary/40 px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-7xl">
           <Reveal className="mx-auto max-w-2xl text-center">
             <p className={EYEBROW}>Beyond governance</p>
@@ -371,8 +365,8 @@ export default function LandingPage() {
           <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {CAPABILITIES.map((c, i) => (
               <Reveal key={c.title} delay={(i % 3) * 70}>
-                <div className="group h-full rounded-2xl card-raised p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_8px_28px_-18px_rgba(0,0,0,0.28)]">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                <div className="group h-full rounded-2xl card-raised p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-[0_8px_28px_-18px_rgba(0,0,0,0.28)]">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                     <c.icon className="h-5 w-5" />
                   </span>
                   <h3 className="mt-5 text-[16.5px] font-semibold tracking-tight">{c.title}</h3>
@@ -401,12 +395,12 @@ export default function LandingPage() {
               className="pointer-events-none absolute inset-0 opacity-[0.14]"
               style={{
                 background:
-                  "radial-gradient(70% 90% at 88% 12%, rgba(253,147,64,0.9), transparent 62%), radial-gradient(60% 80% at 8% 96%, rgba(47,191,184,0.55), transparent 60%)",
+                  "radial-gradient(70% 90% at 88% 12%, rgba(253,147,64,0.9), transparent 62%)",
               }}
             />
             <div className="relative grid items-center gap-9 lg:grid-cols-[1.25fr_1fr]">
               <div>
-                <span className="inline-flex items-center gap-2 rounded-full bg-background/15 px-3 py-1 text-[12px] font-semibold">
+                <span className="inline-flex items-center gap-2 rounded-full bg-muted-foreground px-3 py-1 text-[12px] font-semibold">
                   <Siren className="h-3.5 w-3.5" />
                   Emergency access
                 </span>
@@ -419,13 +413,12 @@ export default function LandingPage() {
                   it is no longer needed.
                 </p>
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <Link
-                    href="/help#emergency-access"
-                    className="group inline-flex items-center justify-center gap-2 rounded-lg bg-background px-6 py-3 text-[15px] font-semibold text-foreground transition-opacity hover:opacity-90"
-                  >
-                    See how it works
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                  </Link>
+                  <Button asChild variant="secondary" size="lg" className="group">
+                    <Link href="/help#emergency-access">
+                      See how it works
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                  </Button>
                   <span className="text-[13px] text-background/60">No account needed to scan.</span>
                 </div>
               </div>
@@ -439,8 +432,8 @@ export default function LandingPage() {
                   { icon: ListChecks, label: "By floor & unit", body: "Species, presence, contact." },
                   { icon: ShieldCheck, label: "Logged & revocable", body: "Expires on its own." },
                 ].map((f) => (
-                  <li key={f.label} className="flex items-start gap-3 rounded-2xl bg-background/10 p-4">
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-background/15">
+                  <li key={f.label} className="flex items-start gap-3 rounded-2xl bg-muted-foreground p-4">
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-foreground">
                       <f.icon className="h-4.5 w-4.5" />
                     </span>
                     <div className="min-w-0">
@@ -467,7 +460,7 @@ export default function LandingPage() {
               <Reveal key={p.title} delay={i * 80}>
                 <div
                   className={`flex h-full flex-col rounded-xl border p-7 ${
-                    p.featured ? "border-primary/40 bg-primary/[0.03]" : "border-border/70 bg-card"
+                    p.featured ? "border-primary bg-primary-soft" : "border-border bg-card"
                   }`}
                 >
                   <span className={`flex h-11 w-11 items-center justify-center rounded-lg ${p.featured ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
@@ -478,22 +471,17 @@ export default function LandingPage() {
                   <ul className="mt-5 flex flex-col gap-2.5">
                     {p.points.map((pt) => (
                       <li key={pt} className="flex items-center gap-2.5 text-[14px] text-foreground">
-                        <Check className="h-4 w-4 flex-shrink-0 text-accent" />
+                        <Check className="h-4 w-4 flex-shrink-0 text-success" />
                         {pt}
                       </li>
                     ))}
                   </ul>
-                  <Link
-                    href={p.href}
-                    className={`mt-7 inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
-                      p.featured
-                        ? "bg-primary-strong text-primary-foreground hover:bg-primary-strong-hover"
-                        : "border border-border text-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {p.cta}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
+                  <Button asChild variant={p.featured ? "primary" : "secondary"} className="mt-7">
+                    <Link href={p.href}>
+                      {p.cta}
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
                 </div>
               </Reveal>
             ))}
@@ -502,7 +490,7 @@ export default function LandingPage() {
       </section>
 
       {/* ===================== Pricing ===================== */}
-      <section id="pricing" className="scroll-mt-16 border-t border-border/60 bg-secondary/40 px-5 py-20 sm:px-8 sm:py-28">
+      <section id="pricing" className="scroll-mt-16 border-t border-border bg-secondary/40 px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-7xl">
           <Reveal className="mx-auto max-w-2xl text-center">
             <p className={EYEBROW}>Pricing</p>
@@ -519,14 +507,14 @@ export default function LandingPage() {
                 <div
                   className={`relative flex h-full flex-col rounded-2xl border bg-card ${
                     tier.featured
-                      ? "border-primary/60 p-8 shadow-[0_18px_48px_-28px_rgba(253,147,64,0.55)] lg:scale-[1.035]"
-                      : "border-border/70 p-7"
+                      ? "border-primary p-8 shadow-[0_18px_48px_-28px_rgba(253,147,64,0.55)] lg:scale-[1.035]"
+                      : "border-border p-7"
                   }`}
                 >
                   {/* Badge sits on the border, as the reference does — inside
                       the card it competed with the plan name for the same row. */}
                   {tier.featured && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary-strong px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-1 text-[11px] font-semibold text-primary-foreground shadow-sm">
                       Coming soon
                     </span>
                   )}
@@ -539,29 +527,22 @@ export default function LandingPage() {
                   <ul className="mt-6 flex flex-1 flex-col gap-3">
                     {tier.features.map((feat) => (
                       <li key={feat} className="flex items-start gap-2.5 text-[14px] text-foreground">
-                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
+                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-success" />
                         {feat}
                       </li>
                     ))}
                   </ul>
-                  <Link
-                    href={tier.href}
-                    className={`mt-8 inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-[14px] font-semibold transition-colors ${
-                      tier.featured
-                        ? "bg-primary-strong text-primary-foreground hover:bg-primary-strong-hover"
-                        : "border border-border text-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {tier.cta}
-                  </Link>
+                  <Button asChild variant={tier.featured ? "primary" : "secondary"} className="mt-8">
+                    <Link href={tier.href}>{tier.cta}</Link>
+                  </Button>
                 </div>
               </Reveal>
             ))}
           </div>
 
           <Reveal>
-            <div className="mt-6 flex max-w-3xl items-start gap-3 rounded-xl border border-accent/25 bg-accent/[0.05] p-5">
-              <Building2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent" />
+            <div className="mt-6 flex max-w-3xl items-start gap-3 rounded-xl border border-border bg-success-soft p-5">
+              <Building2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-success" />
               <p className="text-[14px] leading-relaxed text-foreground">
                 <span className="font-semibold">Planned.</span> <span className="font-semibold">Linked to a participating building?</span> Your premium is on the
                 house — the building sponsors Pet Plus for every approved resident, at a bulk rate below the
@@ -581,20 +562,20 @@ export default function LandingPage() {
               and the closing pitch stopped reading as its own moment. The
               reference puts light content immediately above its dark footer for
               exactly this reason. */}
-          <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-primary/20 bg-primary/[0.06] px-7 py-14 text-center sm:px-12 sm:py-20">
+          <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-border bg-primary-soft px-7 py-14 text-center sm:px-12 sm:py-20">
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0"
               style={{
                 background:
-                  "radial-gradient(60% 80% at 50% 0%, rgba(253,147,64,0.16), transparent 70%), radial-gradient(45% 60% at 92% 100%, rgba(47,191,184,0.12), transparent 70%)",
+                  "radial-gradient(60% 80% at 50% 0%, rgba(253,147,64,0.16), transparent 70%)",
               }}
             />
             <div className="relative">
-              <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-card px-3 py-1 text-[12px] font-semibold text-primary-text">
-                <PawPrint className="h-3.5 w-3.5" />
+              <Badge variant="brand" className="gap-2 px-3 py-1">
+                <PawPrint className="h-3.5 w-3.5 text-primary" />
                 Free for residents
-              </span>
+              </Badge>
               <h2 className="mx-auto mt-5 max-w-2xl text-balance text-[28px] font-semibold leading-[1.1] tracking-tight text-foreground sm:text-[38px]">
                 Bring order to pets in your building.
               </h2>
@@ -602,19 +583,15 @@ export default function LandingPage() {
                 Start free as a resident, or book a demo to roll Pet10x out across your strata.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <Link
-                  href="/login?mode=signup"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-strong px-7 py-3 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong-hover"
-                >
-                  Get started free
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  href="/help#contact"
-                  className="inline-flex items-center justify-center rounded-lg card-interactive px-7 py-3 text-[15px] font-semibold text-foreground transition-colors hover:bg-muted"
-                >
-                  Book a demo
-                </Link>
+                <Button asChild size="lg">
+                  <Link href="/login?mode=signup">
+                    Get started free
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button asChild variant="secondary" size="lg">
+                  <Link href="/help#contact">Book a demo</Link>
+                </Button>
               </div>
             </div>
           </div>
@@ -643,7 +620,7 @@ function FeatureRow({
   return (
     <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
       <Reveal className={flip ? "lg:order-2" : ""}>
-        <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <span className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-primary-soft text-primary">
           <Icon className="h-5 w-5" />
         </span>
         <p className={`mt-5 ${EYEBROW}`}>{feature.eyebrow}</p>
@@ -652,8 +629,8 @@ function FeatureRow({
         <ul className="mt-6 flex flex-col gap-3">
           {feature.points.map((p) => (
             <li key={p} className="flex items-center gap-2.5 text-[15px] font-medium text-foreground">
-              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-accent/15">
-                <Check className="h-3 w-3 text-accent" />
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-success-soft">
+                <Check className="h-3 w-3 text-success" />
               </span>
               {p}
             </li>
@@ -681,11 +658,11 @@ function FeatureVisual({ index }: { index: number }) {
             </div>
           ))}
         </div>
-        <div className="mt-4 flex items-center justify-between rounded-lg border border-border/70 bg-secondary/50 px-4 py-3">
+        <div className="mt-4 flex items-center justify-between rounded-lg border border-border bg-muted px-4 py-3">
           <div className="flex items-center gap-2 text-[13px] font-medium text-foreground">
             <FileText className="h-4 w-4 text-info" /> CRT evidence package
           </div>
-          <span className="rounded-md bg-info/10 px-2.5 py-1 text-[11px] font-semibold text-info">Export</span>
+          <Badge variant="info">Export</Badge>
         </div>
       </Panel>
     )
@@ -694,12 +671,12 @@ function FeatureVisual({ index }: { index: number }) {
     return (
       <Panel>
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary"><PawPrint className="h-5 w-5" /></span>
+          <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary-soft text-primary"><PawPrint className="h-5 w-5" /></span>
           <div>
             <p className="text-[15px] font-semibold">Luna · Golden Retriever</p>
             <p className="text-[12px] text-muted-foreground">Maple Court Residences · Unit 302</p>
           </div>
-          <span className="ml-auto rounded-md bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success-strong">92%</span>
+          <Badge variant="success" className="ml-auto">92%</Badge>
         </div>
         <div className="mt-5 space-y-2.5">
           {[
@@ -719,16 +696,16 @@ function FeatureVisual({ index }: { index: number }) {
   return (
     <Panel>
       <PanelHeader title="ESA accommodation" subtitle="Unit 1102 · Maine Coon" badge="Council review" badgeTone="info" />
-      <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-info/[0.07] p-3.5">
+      <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-info-soft p-3.5">
         <Scale className="mt-0.5 h-4 w-4 flex-shrink-0 text-info" />
         <p className="text-[12px] leading-relaxed text-foreground">
           Verify documentation authenticity only — accommodation cannot be unreasonably denied.
         </p>
       </div>
-      <div className="mt-4 rounded-lg border border-border/70 bg-secondary/50 p-4">
+      <div className="mt-4 rounded-lg border border-border bg-muted p-4">
         <div className="flex items-center justify-between">
           <span className="text-[12px] font-medium text-muted-foreground">Building risk score</span>
-          <span className="flex items-center gap-1 text-[11px] font-semibold text-success-strong"><TrendingUp className="h-3.5 w-3.5" /> Low</span>
+          <span className="flex items-center gap-1 text-[11px] font-semibold text-foreground"><TrendingUp className="h-3.5 w-3.5 text-success" /> Low</span>
         </div>
         <p className="mt-1 text-[26px] font-semibold tracking-tight">23<span className="text-[15px] font-medium text-muted-foreground">/100</span></p>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -748,10 +725,10 @@ function HeroMock() {
             <p className="text-[11px] text-muted-foreground">Building</p>
             <p className="text-[14px] font-semibold tracking-tight">Maple Court Residences</p>
           </div>
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-info/10"><Building2 className="h-4.5 w-4.5 text-info" /></span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-info-soft"><Building2 className="h-4.5 w-4.5 text-info" /></span>
         </div>
 
-        <div className="rounded-xl bg-primary-strong p-4 text-primary-foreground">
+        <div className="rounded-xl bg-primary p-4 text-primary-foreground">
           <p className="text-[11px] font-medium opacity-80">Building Compliance</p>
           <p className="text-[34px] font-semibold leading-none">94%</p>
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-primary-foreground/25">
@@ -774,25 +751,25 @@ function HeroMock() {
 
         <div className="mt-3">
           <div className="flex items-center gap-3 rounded-lg card-raised p-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><PawPrint className="h-4.5 w-4.5" /></span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary"><PawPrint className="h-4.5 w-4.5" /></span>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-semibold">Luna · Golden Retriever</p>
               <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full w-[92%] rounded-full bg-success" /></div>
             </div>
-            <span className="rounded-md bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success-strong">Home</span>
+            <Badge variant="success">Home</Badge>
           </div>
         </div>
       </div>
 
       <div className="absolute -left-5 bottom-8 hidden rotate-[-6deg] items-center gap-2 rounded-lg card-raised px-3.5 py-2.5 shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)] sm:flex">
-        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-success/10"><Check className="h-4 w-4 text-success" /></span>
+        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-success-soft"><Check className="h-4 w-4 text-success" /></span>
         <div>
           <p className="text-[11px] font-semibold leading-tight">Registration approved</p>
           <p className="text-[10px] text-muted-foreground">Unit 511 · Cat</p>
         </div>
       </div>
       <div className="absolute -right-4 top-10 hidden rotate-[6deg] items-center gap-2 rounded-lg card-raised px-3.5 py-2.5 shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)] sm:flex">
-        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-accent/10"><Heart className="h-4 w-4 text-accent" /></span>
+        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary-soft"><Heart className="h-4 w-4 text-primary" /></span>
         <div>
           <p className="text-[11px] font-semibold leading-tight">Service animal</p>
           <p className="text-[10px] text-muted-foreground">Verified · Unit 708</p>
@@ -833,11 +810,11 @@ function PanelHeader({
 }
 
 function Tone({ tone, children }: { tone: string; children: React.ReactNode }) {
-  const map: Record<string, string> = {
-    info: "bg-info/10 text-info",
-    destructive: "bg-destructive/10 text-destructive",
-    success: "bg-success/10 text-success-strong",
-    warning: "bg-warning/15 text-warning-strong",
+  const map: Record<string, "info" | "danger" | "success" | "warning"> = {
+    info: "info",
+    destructive: "danger",
+    success: "success",
+    warning: "warning",
   }
-  return <span className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${map[tone] ?? map.info}`}>{children}</span>
+  return <Badge variant={map[tone] ?? "info"}>{children}</Badge>
 }

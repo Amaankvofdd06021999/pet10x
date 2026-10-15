@@ -89,7 +89,7 @@ export function SiteFooter() {
             </div>
           ))}
         </div>
-        <div className="mt-12 flex flex-col gap-3 border-t border-background/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-3 border-t border-muted-foreground pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[12px] text-background/55">© 2026 Park10x Services Inc. All rights reserved.</p>
           <p className="text-[12px] text-background/55">
             A governance &amp; management tool — not legal advice or a life-safety system.
