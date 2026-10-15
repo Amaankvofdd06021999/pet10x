@@ -2,11 +2,13 @@
 
 import { useId, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { OTHER_SPECIES, addPet, nextStepAfterPet, requestBuildingLink, setPetPhoto, useMyCompleteness } from "@/lib/data"
+import { OTHER_SPECIES, addPet, nextStepAfterPet, requestBuildingLink, setPetPhoto, useMyCompleteness, usePets } from "@/lib/data"
 import type { Gap, Species } from "@/lib/data"
 import { setMyUnit } from "@/lib/data/account"
 import { routeToSearch } from "@/lib/app-route"
 import { PERSONA_LABEL } from "@/lib/rbac"
+import { existingPetForDone, type DonePet } from "@/lib/onboarding-pet"
+import { userError } from "@/lib/user-error"
 import { SpeciesTiles } from "@/components/screens/pet/species-tiles"
 import { RequiredTag } from "@/components/screens/pet/required-tag"
 import { toast } from "sonner"
@@ -23,6 +25,7 @@ import {
   Dog,
   Cat,
 } from "lucide-react"
+import { historyStateWithout } from "@/lib/history-state"
 
 /* "unit" sits between code and linked: the manager needs a unit to place the
    request, and asking later means the request lands incomplete and has to be
@@ -34,7 +37,7 @@ import {
 type Step = "intro" | "code" | "unit" | "linked" | "standalone" | "pet" | "done"
 
 /** What the done screen's pet card shows; the photo is the local preview. */
-type AddedPet = { name: string; species: Species; photo: string | null }
+type AddedPet = DonePet
 
 export function OnboardingFlow() {
   const { user, markOnboarded, personas, setActivePersona } = useAuth()
@@ -49,6 +52,13 @@ export function OnboardingFlow() {
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [addedPet, setAddedPet] = useState<AddedPet | null>(null)
+  /* Onboarding running again for an owner who already has a pet (the
+     onboarded flag failed to save last time) skips the pet step: derived, not
+     an effect, so it holds even if their pets arrive after "Continue". */
+  const { data: pets } = usePets()
+  const existingPet = existingPetForDone(pets)
+  const shownStep: Step = step === "pet" && existingPet ? "done" : step
+  const donePet = addedPet ?? existingPet
   const photoInput = useRef<HTMLInputElement>(null)
   const petNameId = useId()
   const firstName = (user?.name || "there").split(" ")[0]
@@ -133,8 +143,7 @@ export function OnboardingFlow() {
    */
   async function finishAt(target: Gap["target"]) {
     if (!(await completeOnboarding())) return
-    const data: Record<string, unknown> = { ...(window.history.state ?? {}) }
-    for (const k of ["__NA", "pet10x", "route", "activeTab", "depth"]) delete data[k]
+    const data = historyStateWithout(window.history.state, ["pet10x", "route", "activeTab", "depth"])
     // Replaces the whole query, a pending `target=` link included: tapping
     // "Do it now" is an explicit choice, and it wins.
     window.history.replaceState(data, "", "/app" + routeToSearch(target))
@@ -149,12 +158,16 @@ export function OnboardingFlow() {
     if (e || !pet) {
       // The step stays, with everything typed, so trying again is one tap.
       setLoading(false)
-      setError(e ?? "Couldn't add your pet. Please try again.")
+      setError(userError(e, "Couldn't add your pet. Please try again.") ?? "Couldn't add your pet. Please try again.")
       return
     }
     if (photoFile) {
       const up = await setPetPhoto(pet.id, photoFile)
-      if (up.error) toast("Pet saved — photo upload failed", { description: up.error })
+      if (up.error) {
+        toast("Pet saved — photo upload failed", {
+          description: userError(up.error, "Add the photo from the pet's profile."),
+        })
+      }
     }
     setLoading(false)
     setAddedPet({ name, species, photo: photoFile ? photoPreview : null })
@@ -415,7 +428,7 @@ export function OnboardingFlow() {
       {/* Pet — the minimum to put a pet on the account. Breed, weight and the
           rest live on Add pet's "More details"; asking them here would turn the
           last step of signing up into a form. */}
-      {step === "pet" && (
+      {shownStep === "pet" && (
         <div className="flex flex-1 flex-col">
           <h1 className="mt-6 text-[24px] font-semibold text-foreground">Tell us about your pet</h1>
           <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
@@ -504,8 +517,8 @@ export function OnboardingFlow() {
         </div>
       )}
 
-      {step === "done" && addedPet && (
-        <PetAdded pet={addedPet} busy={loading} error={error} onDoItNow={finishAt} onLater={finish} />
+      {shownStep === "done" && donePet && (
+        <PetAdded pet={donePet} busy={loading} error={error} onDoItNow={finishAt} onLater={finish} />
       )}
     </div>
   )

@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react"
 import type { User } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client"
 import { unsubscribePushOnSignOut } from "@/lib/push"
@@ -28,6 +28,7 @@ import {
   type PersonaGrants,
 } from "@/lib/rbac"
 import { parseDbDate } from "@/lib/dates"
+import { userToKeepOnLoadError } from "@/lib/auth/user-fallback"
 import { personasStatus as derivePersonasStatus, type PersonasStatus } from "@/lib/data/building-scope"
 
 export type AuthMode = "full" | "guest"
@@ -424,6 +425,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      on the object, each refresh re-asked my_personas() and flipped the manager
      lists to "loading" — blanking them and closing open dialogs mid-task. */
   const authUserId = authUser?.id ?? null
+  // The latest auth user, for effects keyed on authUserId that still need the
+  // object (its email). Written in an effect, before the effects that read it.
+  const authUserRef = useRef<User | null>(null)
+  useEffect(() => {
+    authUserRef.current = authUser
+  }, [authUser])
+  // The user on screen, for the load-error path to keep.
+  const userRef = useRef<AppUser | null>(null)
+  useEffect(() => {
+    userRef.current = user
+  }, [user])
 
   useEffect(() => {
     if (!SUPABASE_ENABLED || !authUserId) {
@@ -576,10 +588,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [restoreGuest])
 
-  // Load the app user whenever the Supabase auth user changes.
+  /* Load the app user whenever the signed-in ACCOUNT changes. Keyed on the id,
+     not the object: onAuthStateChange hands over a new `session.user` on every
+     TOKEN_REFRESHED, and each one re-ran my_app_user — and, on a slow answer,
+     replaced a loaded user with the error fallback below. */
   useEffect(() => {
     if (!SUPABASE_ENABLED) return
-    if (!authUser) return
+    const authUser = authUserRef.current
+    if (!authUserId || !authUser || authUser.id !== authUserId) return
     const supabase = getSupabaseBrowserClient()!
     let active = true
 
@@ -625,6 +641,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // more likely to be what stalled); only default to pet-owner if that
         // also fails, so a manager account doesn't get silently misrouted.
         console.error("loadAppUser failed, using fallback profile:", err)
+        // Whatever this account already had on screen or in the cache beats a
+        // rebuilt guess (onboarded: false would send them back to onboarding).
+        const keep = userToKeepOnLoadError(authUser.id, userRef.current, cachedAppUser)
+        if (keep) {
+          setUser(keep)
+          setAuthMode("full")
+          return
+        }
         let role: UserRole = "pet-owner"
         try {
           const { data: p } = await Promise.race([
@@ -655,6 +679,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isSuperAdmin: false,
           isSuspended: false,
         }
+        // Shown for this session only: never cached or persisted, so the next
+        // load asks my_app_user again rather than trusting a guess.
         setUser(fallback)
         setAuthMode("full")
       })
@@ -662,7 +688,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false
     }
-  }, [authUser])
+  }, [authUserId])
 
   const signIn = useCallback((role: DemoRole) => {
     if (SUPABASE_ENABLED) return // demo sign-in is mock-mode only
@@ -765,13 +791,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  /* Local state flips only once the profile row has. A swallowed failure here
+     used to drop the owner into the app for this session and back into
+     onboarding on the next load — where the pet step added their pet again.
+     Throwing lets completeOnboarding show "Couldn't finish setting up". */
   const markOnboarded = useCallback(async () => {
-    const supabase = getSupabaseBrowserClient()
-    if (supabase) {
+    if (SUPABASE_ENABLED) {
+      const supabase = getSupabaseBrowserClient()
+      if (!supabase) throw new Error("Not configured.")
       const {
         data: { user: au },
       } = await supabase.auth.getUser()
-      if (au) await supabase.from("profiles").update({ onboarded: true }).eq("id", au.id)
+      if (!au) throw new Error("Not signed in.")
+      const { error } = await supabase.from("profiles").update({ onboarded: true }).eq("id", au.id)
+      if (error) throw new Error(error.message)
     }
     setUser((prev) => {
       if (!prev) return prev

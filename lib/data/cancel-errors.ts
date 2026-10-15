@@ -61,6 +61,27 @@ const ESTIMATE: Sentences = {
   retry: "Couldn't decline the estimate. Try again.",
 }
 
+/** customer_cancel_booking's refusals (cancelBooking in bookings.ts). */
+export const CUSTOMER_CANCEL = {
+  tooLate: "This booking can't be cancelled any more — contact the business.",
+  notYours: "That booking isn't yours to cancel.",
+  retry: "Couldn't cancel the booking. Try again.",
+} as const
+
+/** The insert guard's refusal (20261012000008), raised in plain English. */
+export const SERVICE_UNAVAILABLE = "That service isn't available to book"
+
+const all = (s: Sentences) => [...Object.values(s.raise), ...Object.values(s.answer), s.retry]
+
+/** Every sentence this file can return, for lib/user-error.ts. */
+export const CANCEL_SENTENCES: readonly string[] = [
+  ...all(BOOKING),
+  ...all(APPOINTMENT),
+  ...all(ESTIMATE),
+  ...Object.values(CUSTOMER_CANCEL),
+  SERVICE_UNAVAILABLE,
+]
+
 /** business_cancel_booking, as a sentence. Null when it went through. */
 export const bookingCancelError = (e: CancelRaise, r: CancelAnswer) => sentence(BOOKING, e, r)
 

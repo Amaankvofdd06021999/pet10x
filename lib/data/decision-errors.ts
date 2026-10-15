@@ -25,6 +25,9 @@ const NOT_YOURS = "You don't manage this building any more."
 const GONE = "That request no longer exists."
 const RETRY = "Couldn't save that. Try again."
 
+/** Every sentence this file can return (lib/user-error.ts lists them). */
+export const DECISION_SENTENCES: readonly string[] = [ALREADY_DECIDED, ALREADY_MEMBER, NOT_YOURS, GONE, RETRY]
+
 /** The fields of a Postgrest error this reads. `message` is never shown. */
 export type DecisionRaise = { code?: string | null; details?: string | null; message?: string } | null
 

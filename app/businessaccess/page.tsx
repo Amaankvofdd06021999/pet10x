@@ -34,6 +34,7 @@ import {
   ArrowLeft,
   MailCheck,
 } from "lucide-react"
+import { historyStateWithout } from "@/lib/history-state"
 
 /** The server validates against the same list (lib/auth/signup-intent.ts). */
 const CATEGORIES = BUSINESS_CATEGORIES
@@ -438,7 +439,7 @@ function Portal() {
     if (!target) return
     const url = new URL(window.location.href)
     url.searchParams.delete("target")
-    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash)
+    window.history.replaceState(historyStateWithout(window.history.state), "", url.pathname + url.search + url.hash)
     const route = resolveConsoleTarget(target)
     const match = route?.console === "business" ? TABS.find((t) => t.id === route.tab) : undefined
     if (match) setTab(match.id)

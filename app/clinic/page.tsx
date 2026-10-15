@@ -29,6 +29,7 @@ import { HelpLegalLinks } from "@/components/legal/help-legal-section"
 import { NotificationSettingsSheet } from "@/components/notification-settings-sheet"
 import { ConsoleInbox } from "@/components/notifications/console-inbox"
 import { CLINIC_TABS, readTargetParam, resolveConsoleTarget } from "@/lib/navigation"
+import { historyStateWithout } from "@/lib/history-state"
 
 export type ClinicTab =
   | "today" | "calendar" | "customers" | "reminders"
@@ -97,7 +98,7 @@ function Console() {
     if (!target) return
     const url = new URL(window.location.href)
     url.searchParams.delete("target")
-    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash)
+    window.history.replaceState(historyStateWithout(window.history.state), "", url.pathname + url.search + url.hash)
     const route = resolveConsoleTarget(target)
     if (route?.console === "clinic" && route.tab) openTab(route.tab)
   }, [authLoading, isAuthenticated])

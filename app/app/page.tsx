@@ -57,6 +57,7 @@ import {
 } from "@/lib/app-route"
 import { UnsavedGuardProvider, useUnsavedShellGuard } from "@/components/use-unsaved-guard"
 import { Loader2, PawPrint } from "lucide-react"
+import { historyStateWithout } from "@/lib/history-state"
 
 /**
  * Desktop content max-width per screen — owner/overview read as a column, data
@@ -257,13 +258,8 @@ function AppContent() {
   const writeHistory = useCallback((route: AppRoute, tab: ScreenKey, entryDepth: number, replace: boolean) => {
     const state: AppHistoryState = { pet10x: true, route, activeTab: tab, depth: entryDepth }
     const url = "/app" + replaceRouteParams(replace ? window.location.search : "", route) + (replace ? window.location.hash : "")
-    /* Next's keys are kept, all but `__NA`: Next's patched pushState and
-     * replaceState skip their own bookkeeping for data carrying it, and that
-     * bookkeeping is what copies the router tree into the entry AND tells the
-     * router the URL changed — without it a later router update rewrites the
-     * bar back to the URL it last knew. Without `__NA` it re-adds both. */
-    const data: Record<string, unknown> = { ...(window.history.state ?? {}), ...state }
-    delete data.__NA
+    // Next's keys are kept, all but `__NA` (lib/history-state.ts says why).
+    const data: Record<string, unknown> = { ...historyStateWithout(window.history.state), ...state }
     if (replace) window.history.replaceState(data, "", url)
     else window.history.pushState(data, "", url)
     depth.current = entryDepth
@@ -409,7 +405,16 @@ function AppContent() {
   const onboardingPending = viewAs === "pet-owner" && !!user && !user.onboarded
   /* One switch per cold load, so a link can never bounce between personas. */
   const deepLinkSwitched = useRef(false)
+  /* Onboarding can start AFTER the read (a manager switching to a resident
+   * view that has not onboarded). Its "Do it now" writes the route into the
+   * URL as it finishes; re-arming the read when onboarding ends opens that
+   * route — with the tab root beneath, as any cold link — instead of leaving
+   * it in the bar unread. A fresh mount reads once onboarding ends anyway. */
+  const wasOnboardingPending = useRef(false)
   useEffect(() => {
+    const finishedOnboarding = wasOnboardingPending.current && !onboardingPending
+    wasOnboardingPending.current = onboardingPending
+    if (finishedOnboarding) deepLinkDone.current = false
     if (deepLinkDone.current || !userReady || onboardingPending) return
     /* A notification link for the OTHER persona someone holds (XC-5). It used
      * to resolve to nothing here and land on the tab root without a word.

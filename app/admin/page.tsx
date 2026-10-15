@@ -81,6 +81,7 @@ import {
 } from "lucide-react"
 import { municipalTypeLabel } from "@/lib/data/municipal"
 import { adminConfirmationMatches, personaLabels, type AdminUser } from "@/lib/data/admin-users"
+import { historyStateWithout } from "@/lib/history-state"
 
 export default function SuperAdminAccessPage() {
   return (
@@ -220,7 +221,7 @@ function Portal() {
     setTab(t)
     const url = new URL(window.location.href)
     url.searchParams.set("tab", t)
-    window.history.replaceState(window.history.state, "", url)
+    window.history.replaceState(historyStateWithout(window.history.state), "", url)
   }
 
   return (

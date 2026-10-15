@@ -13,7 +13,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import type { LiveResult } from "./live"
-import { bookingCancelError, parseBookingContact, type BookingContact, type CancelAnswer } from "./cancel-errors"
+import { CUSTOMER_CANCEL, bookingCancelError, parseBookingContact, type BookingContact, type CancelAnswer } from "./cancel-errors"
 
 /** Platform take rate applied when a booking is created. */
 export const COMMISSION_RATE = 0.15
@@ -476,11 +476,9 @@ export async function cancelBooking(id: string): Promise<{ error: string | null;
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.rpc("customer_cancel_booking", { p_booking: id })
   if (!error) return { error: null }
-  if (error.code === "22023") {
-    return { error: "This booking can't be cancelled any more — contact the business.", contactBusiness: true }
-  }
-  if (error.code === "42501") return { error: "That booking isn't yours to cancel." }
-  return { error: "Couldn't cancel the booking. Try again." }
+  if (error.code === "22023") return { error: CUSTOMER_CANCEL.tooLate, contactBusiness: true }
+  if (error.code === "42501") return { error: CUSTOMER_CANCEL.notYours }
+  return { error: CUSTOMER_CANCEL.retry }
 }
 
 /* ------------------------------------------------------------------ */
