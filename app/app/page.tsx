@@ -32,7 +32,16 @@ import { ManagerIncidentsScreen } from "@/components/screens/manager/incidents-s
 import { ManagerSettingsScreen } from "@/components/screens/manager/settings-screen"
 import { MyVetsScreen } from "@/components/screens/my-vets-screen"
 import { AccommodationRequestScreen } from "@/components/screens/accommodation-request-screen"
-import { isScreenKey, type ScreenKey, type Surface } from "@/lib/navigation"
+import {
+  APPROVALS_TABS,
+  isScreenKey,
+  readTargetParam,
+  resolveActionTarget,
+  type ScreenKey,
+  type Surface,
+} from "@/lib/navigation"
+import { personaForTarget, surfaceForPersona } from "@/lib/navigation-persona"
+import type { Persona } from "@/lib/rbac"
 import {
   FORM_SCREENS,
   backTarget,
@@ -131,9 +140,9 @@ function AppContent() {
    * `viewAs` resolves the fallback centrally so the tab bar, the sidebar and
    * this router cannot reach different answers.
    */
-  const { isAuthenticated, isGuest, isLoading, user, viewAs, activePersona } = useAuth()
-  const isManager = viewAs === "building-manager"
-  const surface: Surface = isManager ? "manager" : "resident"
+  const { isAuthenticated, isGuest, isLoading, user, viewAs, activePersona, personas, setActivePersona } = useAuth()
+  const surface: Surface = surfaceForPersona(viewAs)
+  const isManager = surface === "manager"
   const [activeTab, setActiveTab] = useState<ScreenKey>("home")
   const [currentScreen, setCurrentScreen] = useState("home")
   const [selectedPetId, setSelectedPetId] = useState<string | undefined>(undefined)
@@ -293,13 +302,22 @@ function AppContent() {
   const handleNavigate = (screen: string, id?: string, petId?: string, tab?: string) =>
     leaving(() => navigateNow(screen, id, petId, tab))
 
+  /* A notification for the other persona, waiting for the switch to it
+   * (`switchAndOpen`). Opened by the reset below once the surface has flipped,
+   * and only if the persona worn by then is the one it waited for — a switch
+   * that never happened must not open it on some later, unrelated flip. */
+  const pendingOpen = useRef<{ persona: Persona; target: string } | null>(null)
+
   /* Reset tabs when user/role changes (e.g. after sign-in, or a persona
    * switch). Before the first read of the URL it touches only React state —
    * the read below runs after it in the same commit and decides the screen.
    * After it, the entry the viewer is on belongs to the other surface, so it
    * is replaced with the new tab root and the history behind it disowned. */
   useEffect(() => {
-    const tab = isManager ? "dashboard" : "home"
+    const tab = defaultTab(surface)
+    // Taken on every flip, used or not, so it can never outlive the one it waited for.
+    const pending = pendingOpen.current
+    pendingOpen.current = null
     if (!deepLinkDone.current) {
       setActiveTab(tab)
       setCurrentScreen(tab)
@@ -308,8 +326,29 @@ function AppContent() {
     }
     applyRoute({ screen: tab }, tab)
     writeHistory({ screen: tab }, tab, 0, true)
+    /* The switch was to follow a notification: open it on top of the new tab
+     * root, so Back lands on that root rather than on the other persona's
+     * Notifications, which no longer exists here. */
+    const resolved = pending && pending.persona === viewAs ? resolveActionTarget(pending.target, surface) : null
+    if (resolved) {
+      const route: AppRoute = { screen: resolved.screen, id: resolved.id, tab: resolved.tab }
+      const routeTab = tabForRoute(route, tab, surface)
+      applyRoute(route, routeTab)
+      writeHistory(route, routeTab, 1, false)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the persona alone, as it always was
   }, [isManager])
+
+  /* "Switch to {persona}" on a notification the worn persona cannot open.
+   * Only to a persona `personaForTarget` names, which is always a granted one
+   * (and `setActivePersona` refuses anything else regardless). The navigation
+   * waits for the surface to flip — see `pendingOpen` — because the screen it
+   * names is not rendered by the surface showing now. */
+  const switchAndOpen = (persona: Persona, target: string) => {
+    if (personaForTarget(target, personas, viewAs) !== persona || persona === viewAs) return
+    pendingOpen.current = { persona, target }
+    setActivePersona(persona)
+  }
 
   /* Browser / phone Back and Forward. An entry this shell wrote restores its
    * route, tab and depth; anything else (Next's initial entry, an entry from
@@ -368,8 +407,28 @@ function AppContent() {
   }, [])
   const userReady = !isLoading && isAuthenticated && !isGuest && !!user && (activePersona !== null || personaWaitOver)
   const onboardingPending = viewAs === "pet-owner" && !!user && !user.onboarded
+  /* One switch per cold load, so a link can never bounce between personas. */
+  const deepLinkSwitched = useRef(false)
   useEffect(() => {
     if (deepLinkDone.current || !userReady || onboardingPending) return
+    /* A notification link for the OTHER persona someone holds (XC-5). It used
+     * to resolve to nothing here and land on the tab root without a word.
+     * Switch to the granted persona that renders it and stop, WITHOUT marking
+     * the read done: the switch flips `isManager`, the reset above runs
+     * against the new surface while `deepLinkDone` is still false (state
+     * only, no history), and this effect runs again and opens the link there.
+     * Marking it done now would read the URL against the old surface and drop
+     * the route. `setActivePersona` accepts the persona because
+     * `personaForTarget` only names one from the same grants. */
+    const target = readTargetParam(window.location.search)
+    if (target && !deepLinkSwitched.current && !initialRoute(window.location.search, window.history.state, surface)) {
+      const persona = personaForTarget(target, personas, viewAs)
+      if (persona && persona !== viewAs) {
+        deepLinkSwitched.current = true
+        setActivePersona(persona)
+        return
+      }
+    }
     deepLinkDone.current = true
     // No route in the URL: what is showing — the tab root, or a screen tapped
     // while the persona was still resolving — so Back to it restores it and
@@ -462,6 +521,9 @@ function AppContent() {
       writeHistory(target, activeTab, 0, true)
     })
 
+  // Only a tab the Approvals screen lists; anything else opens on its default.
+  const approvalsTab = APPROVALS_TABS.find((t) => t === screenTab)
+
   const contentMax = isScreenKey(currentScreen) ? CONTENT_MAX[currentScreen] : "max-w-2xl"
   // A form takes the whole phone screen: no tab bar to tap away from it by
   // accident. The desktop sidebar stays (and is guarded like everything else).
@@ -530,7 +592,11 @@ function AppContent() {
               {currentScreen === "dashboard" && <ManagerDashboardScreen onNavigate={handleNavigate} />}
               {currentScreen === "residents" && <ManagerResidentsScreen />}
               {currentScreen === "violations" && <ManagerViolationsScreen onNavigate={handleNavigate} />}
-              {currentScreen === "approvals" && <ManagerApprovalsScreen onNavigate={handleNavigate} />}
+              {/* Keyed on the tab a notification asked for, so it wins even
+                  over a tab the manager tapped on an earlier visit. */}
+              {currentScreen === "approvals" && (
+                <ManagerApprovalsScreen key={approvalsTab ?? "default"} onNavigate={handleNavigate} initialTab={approvalsTab} />
+              )}
               {currentScreen === "incidents" && <ManagerIncidentsScreen />}
               {currentScreen === "community" && <CommunityScreen initialTab={screenTab} />}
               {currentScreen === "settings" && <ManagerSettingsScreen
@@ -540,14 +606,18 @@ function AppContent() {
                 />}
               {/* Managers have no Alerts tab, but the dashboard bell routes
                   here — without this the screen renders blank. */}
-              {currentScreen === "alerts" && <AlertsScreen onNavigate={handleNavigate} onBack={handleBack} />}
+              {currentScreen === "alerts" && (
+                <AlertsScreen onNavigate={handleNavigate} onBack={handleBack} onSwitchAndOpen={switchAndOpen} />
+              )}
             </>
           ) : (
             <>
               {currentScreen === "home" && <HomeScreen onNavigate={handleNavigate} />}
               {currentScreen === "community" && <CommunityScreen initialTab={screenTab} />}
               {currentScreen === "services" && <ServicesScreen onNavigate={handleNavigate} />}
-              {currentScreen === "alerts" && <AlertsScreen onNavigate={handleNavigate} onBack={handleBack} />}
+              {currentScreen === "alerts" && (
+                <AlertsScreen onNavigate={handleNavigate} onBack={handleBack} onSwitchAndOpen={switchAndOpen} />
+              )}
               {currentScreen === "profile" && <ProfileScreen onNavigate={handleNavigate} />}
               {/* A resident surface: it shows the case from its subject's side,
                   so it does not go in the manager block above. */}

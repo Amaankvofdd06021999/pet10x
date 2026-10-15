@@ -222,8 +222,18 @@ export const ID_REQUIRED: readonly ScreenKey[] = ["pet-detail", "business-detail
 export const MY_VETS_TABS = ["sharing", "records", "visits", "bills"] as const
 export type MyVetsTab = (typeof MY_VETS_TABS)[number]
 
+/**
+ * The Approvals screen's tabs (`ApprovalsTabId` in lib/data/approvals-view.ts).
+ * Every writer of `approvals` emits it bare today, which opens on whichever
+ * tab needs a decision first; `approvals:accommodations` opens on the queue it
+ * names instead of making the manager find it (BM-15).
+ */
+export const APPROVALS_TABS = ["registrations", "documents", "accommodations", "incidents"] as const
+export type ApprovalsTab = (typeof APPROVALS_TABS)[number]
+
 export const TAB_BEARING: Partial<Record<ScreenKey, readonly string[]>> = {
   "my-vets": MY_VETS_TABS,
+  approvals: APPROVALS_TABS,
 }
 
 export interface ActionRoute {
@@ -365,4 +375,15 @@ export function readTargetParam(search: string): string | null {
   const t = value?.trim()
   if (!t || t.length > MAX_TARGET_LENGTH) return null
   return t
+}
+
+/**
+ * The clinic sign-in's "Create an account" link. Signing up happens on
+ * /login, which returns to `next`; carrying the console's `?target=` inside
+ * it means a notification link opened while signed out still opens what it
+ * named once the account exists, instead of being dropped at sign-up.
+ */
+export function clinicSignupHref(target: string | null): string {
+  const next = target ? `/clinic?target=${encodeURIComponent(target)}` : "/clinic"
+  return `/login?mode=signup&next=${encodeURIComponent(next)}`
 }

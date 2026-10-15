@@ -4,8 +4,10 @@ import { describe, expect, it } from "vitest"
 import {
   BUSINESS_TABS,
   CLINIC_TABS,
+  APPROVALS_TABS,
   MY_VETS_TABS,
   SCREEN_SURFACES,
+  clinicSignupHref,
   isScreenKey,
   readTargetParam,
   resolveActionTarget,
@@ -337,5 +339,29 @@ describe("CLINIC_TABS matches the clinic console", () => {
   it("lists exactly the tabs MODULE_TABS can render, in order", () => {
     expect(tabs.length).toBeGreaterThan(5)
     expect([...CLINIC_TABS]).toEqual(tabs)
+  })
+})
+
+describe("approvals targets carry a tab (BM-15)", () => {
+  it("passes a tab the Approvals screen lists through, and drops any other", () => {
+    expect(APPROVALS_TABS).toEqual(["registrations", "documents", "accommodations", "incidents"])
+    expect(resolveActionTarget("approvals:accommodations", "manager")).toEqual({
+      screen: "approvals",
+      tab: "accommodations",
+    })
+    expect(resolveActionTarget("approvals:abc", "manager")).toEqual({ screen: "approvals" })
+    expect(resolveActionTarget("approvals:accommodations", "resident")).toBeNull()
+  })
+})
+
+describe("clinicSignupHref", () => {
+  it("comes back to /clinic after Create account", () => {
+    expect(clinicSignupHref(null)).toBe("/login?mode=signup&next=%2Fclinic")
+  })
+  it("carries the notification link the console was opened from, encoded inside next", () => {
+    expect(clinicSignupHref("clinic:billing")).toBe("/login?mode=signup&next=%2Fclinic%3Ftarget%3Dclinic%253Abilling")
+    const next = new URLSearchParams(clinicSignupHref("clinic:billing").split("?")[1]).get("next")
+    expect(next).toBe("/clinic?target=clinic%3Abilling")
+    expect(readTargetParam(next!.slice("/clinic".length))).toBe("clinic:billing")
   })
 })

@@ -23,5 +23,8 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/app?auth_error=callback`)
+  /* Straight to /login, which says the link expired and points to a new one.
+     It went to /app, where nothing read it: a signed-out reader was bounced
+     on to a plain sign-in form with the reason buried inside `next`. */
+  return NextResponse.redirect(`${origin}/login?auth_error=callback`)
 }

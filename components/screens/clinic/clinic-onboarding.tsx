@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { Button, Field, TextInput, Select, SectionCard, Spinner } from "@/components/screens/shared/ui"
 import { useBusinessTypes } from "@/lib/data/business-types"
+import { clinicSignupHref, readTargetParam } from "@/lib/navigation"
 
 /** Plain-English names for the console modules a type turns on. */
 const MODULE_BLURB: Record<string, string> = {
@@ -35,6 +36,16 @@ export function ClinicSignIn() {
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  /* Create account comes back to /clinic afterwards — with the notification
+     link this console was opened from, which waits in `?target=` until the
+     reader is signed in (app/clinic/page.tsx). Read at the tap, not at render,
+     so the server and the first client render agree on the plain href. */
+  const openSignup = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    const target = readTargetParam(window.location.search)
+    if (!target) return
+    e.preventDefault()
+    window.location.assign(clinicSignupHref(target))
+  }
 
   // The same reset email /login sends (lib/auth-context resetPassword).
   async function forgot() {
@@ -107,7 +118,7 @@ export function ClinicSignIn() {
           </button>
           <p className="text-center text-[12.5px] text-muted-foreground">
             New here?{" "}
-            <Link href="/login?mode=signup&next=%2Fclinic" className="font-semibold text-primary-text">
+            <Link href={clinicSignupHref(null)} onClick={openSignup} className="font-semibold text-primary-text">
               Create an account
             </Link>
             , then register your practice on the next screen.

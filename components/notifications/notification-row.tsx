@@ -36,11 +36,15 @@ export function NotificationRow({
   notification: n,
   onOpen,
   onAction,
+  actionLabel,
   className = "rounded-2xl card-raised p-3.5",
 }: {
   notification: AppNotification
   onOpen: () => void
   onAction?: () => void
+  /** Replaces the notification's own label — "Switch to Pet owner" when the
+      button changes persona first, which the stored label cannot say. */
+  actionLabel?: string
   className?: string
 }) {
   const style = SEVERITY_STYLES[n.severity]
@@ -84,7 +88,7 @@ export function NotificationRow({
             >
               {/* A target with no label is a real case, not an oversight —
                   Phase 6 writes one on purpose. "Open" is the honest generic. */}
-              {n.actionLabel ?? "Open"}
+              {actionLabel ?? n.actionLabel ?? "Open"}
             </button>
           )}
         </div>

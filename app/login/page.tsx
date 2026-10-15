@@ -5,9 +5,9 @@ import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { SignInScreen } from "@/components/screens/sign-in-screen"
 import { GuestReportScreen } from "@/components/screens/guest-report-screen"
 import { getHomeRouteForRole, canAccessRoute } from "@/lib/rbac"
-import { readLoginMode } from "@/lib/auth/login-mode"
+import { readAuthError, readLoginMode } from "@/lib/auth/login-mode"
 import { safeNextPath } from "@/lib/safe-next"
-import { Loader2, PawPrint, Ban } from "lucide-react"
+import { Loader2, PawPrint, Ban, LinkIcon } from "lucide-react"
 
 function LoginContent() {
   const { user, isAuthenticated, isGuest, isLoading } = useAuth()
@@ -24,6 +24,8 @@ function LoginContent() {
 
   const suspended = params?.get("suspended") === "1"
   const next = params?.get("next") ?? null
+  // An email link that could not be exchanged (app/auth/callback/route.ts).
+  const linkExpired = params ? readAuthError(params.toString()) === "callback" : false
 
   // Send each role to its own home (super admin → /admin, business →
   // /businessaccess, owner/manager → /app), honouring ?next= when the user was
@@ -81,7 +83,25 @@ function LoginContent() {
           <span>Your account has been suspended. Contact your Pet10x administrator for help.</span>
         </div>
       )}
-      <SignInScreen initialMode={readLoginMode(params.toString())} />
+      {/* Said, rather than a plain sign-in form that leaves the reader guessing
+          why the link they tapped did nothing. The way to a new one is the
+          form's own "Forgot password?" — the form opens on Sign in, where it
+          lives, whatever `mode` the link carried. */}
+      {linkExpired && (
+        <div
+          role="alert"
+          className="mx-4 mb-4 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning/10 p-3.5 text-[13px] text-foreground"
+        >
+          <LinkIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning-strong" aria-hidden="true" />
+          <span>
+            That link has expired or was already used. Request a new one.{" "}
+            <span className="text-muted-foreground">
+              Enter your email below and tap “Forgot password?” to get a new link.
+            </span>
+          </span>
+        </div>
+      )}
+      <SignInScreen initialMode={linkExpired ? "signin" : readLoginMode(params.toString())} />
     </div>
   )
 }

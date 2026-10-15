@@ -13,6 +13,8 @@ import {
 } from "@/lib/data"
 import { useAuth } from "@/lib/auth-context"
 import { resolveActionTarget } from "@/lib/navigation"
+import { personaForTarget, surfaceForPersona } from "@/lib/navigation-persona"
+import { PERSONA_LABEL, type Persona } from "@/lib/rbac"
 import { AlertTriangle, ChevronRight, BellOff, CheckCheck } from "lucide-react"
 import { NotificationRow } from "@/components/notifications/notification-row"
 
@@ -42,6 +44,7 @@ const ALL_TABS: { id: AlertTab; label: string; category: NotificationCategory }[
 export function AlertsScreen({
   onNavigate,
   onBack,
+  onSwitchAndOpen,
 }: {
   /** `id` is the second half of a `screen:id` action target — a pet id, or a
       care kind for the tracker. `tab` is that half instead for a tab-bearing
@@ -49,6 +52,9 @@ export function AlertsScreen({
   onNavigate?: (screen: string, id?: string, petId?: string, tab?: string) => void
   /** Returns to the tab the viewer came from — managers have no "home". */
   onBack?: () => void
+  /** Switches to `persona` and opens `target` once its surface is showing
+      (`switchAndOpen` in app/app/page.tsx). */
+  onSwitchAndOpen?: (persona: Persona, target: string) => void
 }) {
   const [activeTab, setActiveTab] = useState<AlertTab>("all")
   const { data: alerts, error: loadError, isLoading } = useNotifications()
@@ -56,13 +62,13 @@ export function AlertsScreen({
   useEffect(() => {
     void refreshNotifications()
   }, [])
-  const { activePersona, viewAs } = useAuth()
+  const { activePersona, viewAs, personas } = useAuth()
 
-  /* Which half of the router will be rendering when we navigate. Read from
-     `viewAs`, character for character the same expression `app/app/page.tsx:67`
-     uses, because a target this screen offers and that router will not render
-     is a blank screen — the failure the toast was at least honest about. */
-  const surface = viewAs === "building-manager" ? "manager" : "resident"
+  /* Which half of the router will be rendering when we navigate. The same
+     function `app/app/page.tsx` picks its surface with, because a target this
+     screen offers and that router will not render is a blank screen — the
+     failure the toast was at least honest about. */
+  const surface = surfaceForPersona(viewAs)
 
   // Only the categories this viewer actually receives, plus All.
   const present = new Set(alerts.map((a) => a.category))
@@ -199,18 +205,31 @@ export function AlertsScreen({
                there is a button: its rule-publish notification deliberately
                writes a target and NO label. See NotificationRow. */
             const route = resolveActionTarget(alert.actionTarget, surface)
+            /* A target only the OTHER persona renders (XC-5): someone who is
+               both a manager and a resident gets "Switch to Pet owner" rather
+               than no button, as long as that persona was granted to them.
+               With no `route`, the worn persona cannot render it, so any
+               persona named here is the other one. */
+            const target = alert.actionTarget
+            const other = !route && target && onSwitchAndOpen ? personaForTarget(target, personas, viewAs) : null
             return (
               <NotificationRow
                 key={alert.id}
                 notification={alert}
                 onOpen={() => open(alert.id)}
+                actionLabel={other ? `Switch to ${PERSONA_LABEL[other]}` : undefined}
                 onAction={
                   route
                     ? () => {
                         open(alert.id)
                         onNavigate?.(route.screen, route.id, undefined, route.tab)
                       }
-                    : undefined
+                    : other && target
+                      ? () => {
+                          open(alert.id)
+                          onSwitchAndOpen?.(other, target)
+                        }
+                      : undefined
                 }
               />
             )

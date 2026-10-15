@@ -85,9 +85,14 @@ function Console() {
   }
 
   /* `?target=clinic:billing` — the link a notification's email or push opens
-     (`targetHref` in lib/navigation.ts). Removed from the address bar once
-     read; a tab this practice does not show falls back to Today below. */
+     (`targetHref` in lib/navigation.ts). Read only once signed in: it used to
+     be read and stripped on mount, so a signed-out reader who reloaded the
+     sign-in form, or left for Create account or a reset email, came back to
+     Today with the link gone. Until then it stays in the address bar, which
+     is where the sign-in form's links pick it up. Removed once read; a tab
+     this practice does not show falls back to Today below. */
   useEffect(() => {
+    if (authLoading || !isAuthenticated) return
     const target = readTargetParam(window.location.search)
     if (!target) return
     const url = new URL(window.location.href)
@@ -95,7 +100,7 @@ function Console() {
     window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash)
     const route = resolveConsoleTarget(target)
     if (route?.console === "clinic" && route.tab) openTab(route.tab)
-  }, [])
+  }, [authLoading, isAuthenticated])
 
   function openTab(t: string) {
     const match = CLINIC_TABS.find((x) => x === t)
