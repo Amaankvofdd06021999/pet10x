@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { PERSONA_LABEL, PERSONA_ROUTE, type Persona } from "@/lib/rbac"
-import { Portal } from "@/components/ui/portal"
+import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { Building2, Check, ChevronsUpDown, Dog, Layers, Shield, X } from "lucide-react"
 
 /**
@@ -107,30 +107,23 @@ export function PersonaSwitcher({
         <ChevronsUpDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
       </button>
 
-      {open && (
-        /* Portalled: the sheet must sit above the fixed tab bar, and any
-           ancestor with a transform or an opacity animation would trap a
-           z-index here inside its stacking context. */
-        <Portal>
-          <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
-            <button
-              aria-label="Close"
-              onClick={() => setOpen(false)}
-              className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]"
-            />
-            <div
-              role="dialog"
-              aria-label="Switch view"
-              className="relative w-full max-w-md rounded-t-3xl bg-card shadow-float p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-3xl sm:pb-5"
-            >
+      {/* A Radix dialog, portalled to <body>: the sheet must sit above the
+          fixed tab bar, and any ancestor with a transform or an opacity
+          animation would trap a z-index here inside its stacking context. */}
+      <DialogLayer
+        open={open}
+        onOpenChange={setOpen}
+        overlayClassName="flex items-end justify-center bg-foreground/40 backdrop-blur-[2px] sm:items-center"
+        className="relative w-full max-w-md rounded-t-3xl bg-card shadow-float p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-3xl sm:pb-5"
+      >
               <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-[17px] font-semibold text-foreground">Switch view</h2>
+                <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Switch view</DialogTitle>
                 <button
                   onClick={() => setOpen(false)}
                   aria-label="Close"
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-foreground"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
 
@@ -207,10 +200,7 @@ export function PersonaSwitcher({
               <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">
                 Switching changes what you see, not what you can access. Your permissions are unchanged.
               </p>
-            </div>
-          </div>
-        </Portal>
-      )}
+      </DialogLayer>
     </>
   )
 }

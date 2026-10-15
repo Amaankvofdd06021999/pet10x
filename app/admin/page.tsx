@@ -147,26 +147,47 @@ function AdminLogin() {
           <p className="mt-1 text-[13px] text-muted-foreground sm:text-[14px]">Super-admin access only</p>
         </div>
         <div className="rounded-2xl card-raised p-5 shadow-xl shadow-foreground/5 sm:p-7">
-        <div className="flex flex-col gap-3">
+        {/* A real form: Enter submits from either field and password managers
+            recognise the pair. Labels are sr-only; the placeholders show. */}
+        <form
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault()
+            void submit()
+          }}
+          className="flex flex-col gap-3"
+        >
+          <label htmlFor="admin-email" className="sr-only">
+            Email
+          </label>
           <input
+            id="admin-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
+            autoComplete="email"
             autoCapitalize="none"
             className="w-full rounded-xl border border-border bg-background px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
-          <PasswordField value={password} onChange={setPassword} onEnter={submit} />
-          {error && <p className="text-[13px] text-destructive">{error}</p>}
+          <label htmlFor="admin-password" className="sr-only">
+            Password
+          </label>
+          <PasswordField id="admin-password" value={password} onChange={setPassword} autoComplete="current-password" />
+          {error && (
+            <p role="alert" className="text-[13px] text-destructive">
+              {error}
+            </p>
+          )}
           <button
-            onClick={submit}
+            type="submit"
             disabled={loading}
             className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Sign in
           </button>
-        </div>
+        </form>
         </div>
       </div>
     </div>

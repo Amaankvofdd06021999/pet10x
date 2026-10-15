@@ -123,10 +123,18 @@ export default function SetPasswordPage() {
           <div>
             <h1 className="text-[20px] font-semibold tracking-tight">Set your password</h1>
             <p className="mt-1 text-[14px] text-muted-foreground">Choose a password to finish setting up your account.</p>
-            <div className="mt-5 flex flex-col gap-3">
+            <form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault()
+                void submit()
+              }}
+              className="mt-5 flex flex-col gap-3"
+            >
               {/* Also a creation flow (invite acceptance, password reset), so
                   it gets the same checklist and the same rules as signup. */}
               <PasswordField
+                ariaLabel="New password"
                 value={password}
                 onChange={setPassword}
                 placeholder="New password"
@@ -134,21 +142,25 @@ export default function SetPasswordPage() {
                 showRules
               />
               <PasswordField
+                ariaLabel="Confirm password"
                 value={confirm}
                 onChange={setConfirm}
                 placeholder="Confirm password"
                 autoComplete="new-password"
-                onEnter={submit}
               />
-              {error && <p className="text-[13px] text-destructive">{error}</p>}
+              {error && (
+                <p role="alert" className="text-[13px] text-destructive">
+                  {error}
+                </p>
+              )}
               <button
-                onClick={submit}
+                type="submit"
                 disabled={saving}
                 className="mt-1 w-full rounded-lg bg-primary-strong py-2.5 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong-hover disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Set password & continue"}
               </button>
-            </div>
+            </form>
           </div>
         )}
       </div>

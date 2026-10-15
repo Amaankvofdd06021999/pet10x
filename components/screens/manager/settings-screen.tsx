@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
-import { Portal } from "@/components/ui/portal"
+import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { PersonaSwitcher } from "@/components/persona-switcher"
 import { PERSONA_LABEL } from "@/lib/rbac"
@@ -334,7 +334,7 @@ function BuildingProfileSheet({
   }
 
   return (
-    <Sheet title="Building Profile" onClose={onClose}>
+    <Sheet title="Building Profile" onClose={onClose} busy={busy}>
       <Field label="Building name" value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} />
 
       {/* Address is the resident-facing one too: a linked resident's profile
@@ -417,7 +417,7 @@ function BylawsSheet({
   }
 
   return (
-    <Sheet title="Pet Bylaws & Policies" onClose={onClose}>
+    <Sheet title="Pet Bylaws & Policies" onClose={onClose} busy={busy}>
       <p className="mb-3 text-[12px] text-muted-foreground">
         These drive every compliance check in the app. Turning one on immediately affects each resident&apos;s score.
       </p>
@@ -457,6 +457,8 @@ function BylawsSheet({
           <button
             key={r.key}
             onClick={() => setRules((p) => ({ ...p, [r.key]: !p[r.key] }))}
+            role="switch"
+            aria-checked={Boolean(rules[r.key])}
             className="flex items-center justify-between rounded-xl bg-muted px-3 py-2.5 text-left"
           >
             <span className="text-[13px] text-foreground">{r.label}</span>
@@ -481,8 +483,11 @@ function BylawsSheet({
         onChange={(v) => setRules((p) => ({ ...p, max_weight_kg: v ? Number(v.replace(/\D/g, "")) : null }))}
       />
       <div className="mb-3">
-        <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">Notes / bylaw reference</label>
+        <label htmlFor="bylaw-notes" className="mb-1 block text-[12px] font-semibold text-muted-foreground">
+          Notes / bylaw reference
+        </label>
         <textarea
+          id="bylaw-notes"
           value={rules.notes ?? ""}
           onChange={(e) => setRules((p) => ({ ...p, notes: e.target.value }))}
           rows={4}
@@ -645,32 +650,55 @@ function MenuRow({
   )
 }
 
-function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+/**
+ * Mounted only while open (the `sheet` state, which `initialTab` may set on
+ * arrival). Escape, a tap outside and X all close it — except while `busy`,
+ * so a save in flight is never abandoned with the sheet gone. A ConfirmDialog
+ * opened from inside (the fine schedule's) portals later and sits on top.
+ */
+function Sheet({
+  title,
+  onClose,
+  busy = false,
+  children,
+}: {
+  title: string
+  onClose: () => void
+  busy?: boolean
+  children: React.ReactNode
+}) {
   return (
-    <Portal>
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
-      <div
-        className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-card p-5 sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next && !busy) onClose()
+      }}
+      overlayClassName="flex items-end justify-center bg-black/50 sm:items-center"
+      className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-card p-5 sm:rounded-2xl"
+    >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-[17px] font-semibold text-foreground">{title}</h3>
-          <button onClick={onClose} className="rounded-lg p-1 text-muted-foreground active:bg-muted">
-            <X className="h-5 w-5" />
+          <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">{title}</DialogTitle>
+          <button
+            onClick={onClose}
+            disabled={busy}
+            aria-label="Close"
+            className="rounded-lg p-1 text-muted-foreground active:bg-muted disabled:opacity-50"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
         {children}
-      </div>
-    </div>
-    </Portal>
+    </DialogLayer>
   )
 }
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const id = useId()
   return (
     <div className="mb-3">
-      <label className="mb-1 block text-[12px] font-semibold text-muted-foreground">{label}</label>
+      <label htmlFor={id} className="mb-1 block text-[12px] font-semibold text-muted-foreground">{label}</label>
       <input
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-xl border border-border bg-background px-3 py-2 text-[14px] text-foreground focus:border-primary focus:outline-none"

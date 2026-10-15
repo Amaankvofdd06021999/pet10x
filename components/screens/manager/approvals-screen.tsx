@@ -44,7 +44,7 @@ import {
   AlertTriangle,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Portal } from "@/components/ui/portal"
+import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
 
 type ApprovalTab = ApprovalsTabId
 
@@ -828,20 +828,24 @@ function DecisionSheet({
   const needsNote = outcome === "denied"
   const hasNote = /\S/.test(note)
   return (
-    <Portal>
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onCancel}>
-        <div
-          className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-card p-5 sm:rounded-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <h3 className="text-[17px] font-semibold text-foreground">
+    // Escape and a tap outside cancel it — not while the decision is saving.
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next && !busy) onCancel()
+      }}
+      described
+      overlayClassName="flex items-end justify-center bg-black/50 sm:items-center"
+      className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-card p-5 sm:rounded-2xl"
+    >
+          <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">
             {outcome === "denied" ? "Deny this request" : "Ask for more information"}
-          </h3>
-          <p className="mt-1 break-words text-[12px] leading-relaxed text-muted-foreground">
+          </DialogTitle>
+          <DialogDescription className="mt-1 break-words text-[12px] leading-relaxed text-muted-foreground">
             {outcome === "denied"
               ? "The reasoning is what defends this decision. The resident will be able to read it."
               : "Say what is still needed. The resident will be able to read it."}
-          </p>
+          </DialogDescription>
           <label htmlFor="accom-decision-note" className="mt-3 mb-1 block text-[11px] font-semibold text-muted-foreground">
             {needsNote ? "Reason (required)" : "What is needed"}
           </label>
@@ -868,8 +872,6 @@ function DecisionSheet({
               {outcome === "denied" ? "Deny" : "Send"}
             </button>
           </div>
-        </div>
-      </div>
-    </Portal>
+    </DialogLayer>
   )
 }

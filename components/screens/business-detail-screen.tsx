@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Portal } from "@/components/ui/portal"
+import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { usePublicBusiness, DAY_KEYS, DAY_LABEL, formatAddress, mapsUrl, formatPrice } from "@/lib/data/business"
 import { useBusinessServices, useBusinessReviews, createBooking, type ServiceItem } from "@/lib/data/bookings"
@@ -302,18 +302,22 @@ function BookSheet({
   }
 
   return (
-    <Portal>
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 sm:items-center" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-t-3xl bg-card shadow-float p-5 sm:rounded-3xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    // Escape and a tap outside close it like Cancel — but not while the
+    // request is sending.
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next && !busy) onClose()
+      }}
+      overlayClassName="flex items-end justify-center bg-foreground/40 sm:items-center"
+      className="w-full max-w-md rounded-t-3xl bg-card shadow-float p-5 sm:rounded-3xl"
+    >
         {done ? (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-success/15">
               <Check className="h-6 w-6 text-success" />
             </span>
-            <p className="text-[16px] font-semibold text-foreground">Booking requested</p>
+            <DialogTitle className="text-[16px] font-semibold leading-normal text-foreground">Booking requested</DialogTitle>
             <p className="text-[13px] text-muted-foreground">
               {business} has your request for {service.name}. You&apos;ll see it under My bookings.
             </p>
@@ -323,7 +327,7 @@ function BookSheet({
           </div>
         ) : (
           <>
-            <h3 className="text-[17px] font-semibold text-foreground">Book {service.name}</h3>
+            <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Book {service.name}</DialogTitle>
             <p className="mt-0.5 text-[13px] text-muted-foreground">
               {business} · {formatPrice(service.priceCents, service.currency)}
               {service.durationMin ? ` · ${service.durationMin} min` : ""}
@@ -331,8 +335,9 @@ function BookSheet({
 
             <div className="mt-4 flex flex-col gap-3">
               <div>
-                <p className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Which pet?</p>
+                <label htmlFor="book-pet" className="mb-1.5 block text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Which pet?</label>
                 <select
+                  id="book-pet"
                   value={petId}
                   onChange={(e) => setPetId(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground focus:border-accent focus:outline-none"
@@ -347,10 +352,11 @@ function BookSheet({
               </div>
 
               <div>
-                <p className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <label htmlFor="book-slot" className="mb-1.5 block text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Preferred date &amp; time
-                </p>
+                </label>
                 <input
+                  id="book-slot"
                   type="datetime-local"
                   value={slot}
                   onChange={(e) => setSlot(e.target.value)}
@@ -359,10 +365,11 @@ function BookSheet({
               </div>
 
               <div>
-                <p className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <label htmlFor="book-note" className="mb-1.5 block text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Anything they should know?
-                </p>
+                </label>
                 <textarea
+                  id="book-note"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={2}
@@ -395,8 +402,6 @@ function BookSheet({
             </div>
           </>
         )}
-      </div>
-    </div>
-    </Portal>
+    </DialogLayer>
   )
 }

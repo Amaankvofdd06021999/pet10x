@@ -60,7 +60,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
-import { Portal } from "@/components/ui/portal"
+import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 
 type FeedTab = "feed" | "lost" | "events"
 
@@ -160,31 +160,30 @@ function Sheet({
   children: React.ReactNode
 }) {
   return (
-    <Portal>
-      <div
-        className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:px-6"
-        onClick={() => !busy && onClose()}
-      >
-        {/* max-h + its own scroll: a composer taller than the viewport must
-            scroll INSIDE the sheet, not push its buttons under the tab bar.
-            pb-[max(1.25rem,env(safe-area-inset-bottom))] keeps the last control
-            above the home indicator on a notched phone. */}
-        <div
-          className="flex max-h-[85vh] w-full max-w-sm flex-col rounded-t-2xl bg-card sm:rounded-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
+    // Mounted only while open. Escape and a tap outside close it like X —
+    // never while a post is saving.
+    /* max-h + its own scroll: a composer taller than the viewport must
+       scroll INSIDE the sheet, not push its buttons under the tab bar.
+       pb-[max(1.25rem,env(safe-area-inset-bottom))] keeps the last control
+       above the home indicator on a notched phone. */
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next && !busy) onClose()
+      }}
+      overlayClassName="flex items-end justify-center bg-black/40 sm:items-center sm:px-6"
+      className="flex max-h-[85vh] w-full max-w-sm flex-col rounded-t-2xl bg-card sm:rounded-2xl"
+    >
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <h3 className="text-[17px] font-semibold text-foreground">{title}</h3>
+            <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">{title}</DialogTitle>
             <button onClick={onClose} disabled={busy} className="p-1 disabled:opacity-50" aria-label="Close">
-              <X className="h-5 w-5 text-muted-foreground" />
+              <X className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
             </button>
           </div>
           <div className="ios-scroll flex-1 overflow-y-auto px-5 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             {children}
           </div>
-        </div>
-      </div>
-    </Portal>
+    </DialogLayer>
   )
 }
 
@@ -1138,17 +1137,16 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
       )}
 
       {commentsFor && (
-        <Portal>
-          <div
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:px-6"
-            onClick={() => setCommentsFor(null)}
-          >
-            <div
-              className="flex max-h-[70vh] w-full max-w-sm flex-col rounded-t-2xl bg-card sm:rounded-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
+        <DialogLayer
+          open
+          onOpenChange={(next) => {
+            if (!next) setCommentsFor(null)
+          }}
+          overlayClassName="flex items-end justify-center bg-black/40 sm:items-center sm:px-6"
+          className="flex max-h-[70vh] w-full max-w-sm flex-col rounded-t-2xl bg-card sm:rounded-2xl"
+        >
               <div className="border-b border-border p-4">
-                <h3 className="text-[17px] font-semibold text-foreground">Comments</h3>
+                <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Comments</DialogTitle>
               </div>
               <div className="ios-scroll flex-1 overflow-y-auto p-4">
                 {commentsLoading && (
@@ -1214,9 +1212,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                   )}
                 </button>
               </div>
-            </div>
-          </div>
-        </Portal>
+        </DialogLayer>
       )}
     </div>
   )

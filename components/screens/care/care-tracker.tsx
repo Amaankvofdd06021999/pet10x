@@ -14,7 +14,7 @@ import type { CareEntry, CareEntryKind, CareTarget, Pet, Species } from "@/lib/d
 import { careKindsFor, unitById, type CareKindSpec, type CareUnit } from "@/lib/data/care-catalog"
 import { DIET_TYPES } from "@/lib/data/pet-attributes"
 import { toast } from "sonner"
-import { Portal } from "@/components/ui/portal"
+import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { ScheduleTab } from "@/components/screens/care/schedule-tab"
 import {
   Utensils,
@@ -583,30 +583,32 @@ function TargetSheet({
   }
 
   return (
-    /* Portalled to <body>: every screen in /app is wrapped in `animate-in
-       fade-in`, which animates opacity and creates a stacking context, so a
-       z-index set inside it cannot beat the tab bar outside it. */
-    <Portal>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]" />
-        <div
-          role="dialog"
-          /* Was `for ${spec.label}` — the KIND, not the animal, so a screen
-             reader heard "Daily target for Food" in a three-pet household and
-             was told nothing it did not already know. */
-          aria-label={`${spec.targetLabel} for ${petName}`}
-          className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-card shadow-float p-5 shadow-xl"
-        >
+    /* A Radix dialog, portalled to <body>: every screen in /app is wrapped in
+       `animate-in fade-in`, which animates opacity and creates a stacking
+       context, so a z-index set inside it cannot beat the tab bar outside it.
+       Escape and a tap outside close it — not mid-save. */
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next && !saving) onClose()
+      }}
+      /* Was `for ${spec.label}` — the KIND, not the animal, so a screen
+         reader heard "Daily target for Food" in a three-pet household and
+         was told nothing it did not already know. */
+      aria-label={`${spec.targetLabel} for ${petName}`}
+      overlayClassName="flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[2px]"
+      className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-card shadow-float p-5 shadow-xl"
+    >
           <div className="mb-1 flex items-center justify-between gap-3">
-            <h2 className="text-[17px] font-semibold text-foreground">
+            <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">
               {`${spec.targetLabel} · ${petName}`}
-            </h2>
+            </DialogTitle>
             <button
               onClick={onClose}
               aria-label="Close"
               className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-foreground"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
           {spec.multi && (
@@ -648,6 +650,7 @@ function TargetSheet({
                     min="0"
                     value={row.amount}
                     onChange={(e) => patch(i, { amount: e.target.value })}
+                    aria-label="Amount"
                     placeholder="Amount"
                     className="min-w-0 flex-1 rounded-lg border border-input bg-card px-3 py-2 text-[14px] focus:border-primary focus:outline-none"
                   />
@@ -694,9 +697,7 @@ function TargetSheet({
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Save
           </button>
-        </div>
-      </div>
-    </Portal>
+    </DialogLayer>
   )
 }
 

@@ -121,7 +121,7 @@ export function ClinicCustomersScreen({
           customers.refetch()
         }}
         onArchive={(c) => {
-          // The edit modal (z-[100]) would cover the confirmation (z-50).
+          // One dialog at a time: the edit modal closes before the confirmation opens.
           setEditing(null)
           setArchiving(c)
         }}

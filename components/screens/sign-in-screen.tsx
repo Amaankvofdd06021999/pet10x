@@ -420,6 +420,8 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
                   strength checklist over a sign-in field would imply the
                   existing password is being judged. */}
               <PasswordField
+                id="auth-password"
+                ariaLabel="Password"
                 value={password}
                 onChange={setPassword}
                 autoComplete={mode === "signin" ? "current-password" : "new-password"}

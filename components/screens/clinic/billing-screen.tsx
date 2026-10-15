@@ -82,8 +82,8 @@ export function ClinicBillingScreen({
     invoiceActions(i, { invoiced: i.visitId === null || invoiced.has(i.visitId) })
 
   async function run(bill: Invoice, action: InvoiceAction) {
-    // The sheet (a Modal, z-[100]) would sit above the confirmation dialog
-    // (z-50), so it closes before payment or voiding asks anything.
+    // One dialog at a time: the invoice sheet closes before payment or
+    // voiding asks anything, so the question is never stacked over it.
     if (action === "record_payment" || action === "void") setOpenId(null)
     if (action === "record_payment") return setPaying(bill)
     if (action === "void") return setVoiding(bill)

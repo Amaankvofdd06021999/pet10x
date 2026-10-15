@@ -29,7 +29,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
-import { Portal } from "@/components/ui/portal"
+import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { DonateSpcaCard } from "@/components/donate-spca"
 import { PetPickerSheet } from "@/components/pet-picker-sheet"
 import { pickPet } from "@/lib/data/pet-picker"
@@ -477,13 +477,15 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
         )}
 
         {editing && (
-          <Portal>
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6"
-            onClick={() => !savingProfile && setEditing(false)}
+          <DialogLayer
+            open
+            onOpenChange={(next) => {
+              if (!next && !savingProfile) setEditing(false)
+            }}
+            overlayClassName="flex items-center justify-center bg-black/40 px-6"
+            className="w-full max-w-sm rounded-2xl bg-card p-5"
           >
-            <div className="w-full max-w-sm rounded-2xl bg-card p-5" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-[17px] font-semibold text-foreground">Edit profile</h3>
+              <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Edit profile</DialogTitle>
 
               <div className="mt-4 flex justify-center">
                 <button
@@ -545,22 +547,24 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                   {savingProfile && <Loader2 className="h-4 w-4 animate-spin" />} Save
                 </button>
               </div>
-            </div>
-          </div>
-          </Portal>
+          </DialogLayer>
         )}
 
         {confirmDelete && (
-          <Portal>
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6"
-            onClick={() => busy === null && setConfirmDelete(false)}
+          <DialogLayer
+            open
+            onOpenChange={(next) => {
+              if (!next && busy === null) setConfirmDelete(false)
+            }}
+            described
+            role="alertdialog"
+            overlayClassName="flex items-center justify-center bg-black/40 px-6"
+            className="w-full max-w-sm rounded-2xl bg-card p-5"
           >
-            <div className="w-full max-w-sm rounded-2xl bg-card p-5" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-[17px] font-semibold text-foreground">Delete your account?</h3>
-              <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
+              <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Delete your account?</DialogTitle>
+              <DialogDescription className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
                 This permanently deletes your profile, pets, documents and care history. This can&apos;t be undone.
-              </p>
+              </DialogDescription>
               <div className="mt-5 flex gap-2">
                 <button
                   onClick={() => setConfirmDelete(false)}
@@ -577,9 +581,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                   {busy === "delete" && <Loader2 className="h-4 w-4 animate-spin" />} Delete
                 </button>
               </div>
-            </div>
-          </div>
-          </Portal>
+          </DialogLayer>
         )}
 
         {/* Sign Out */}

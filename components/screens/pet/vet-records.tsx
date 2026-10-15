@@ -4,7 +4,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { CalendarClock, Loader2, Plus, Stethoscope, Trash2, X } from "lucide-react"
 import { usePetVetVisits, addVetVisit, deleteVetVisit } from "@/lib/data"
-import { Portal } from "@/components/ui/portal"
+import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 /* `visited_on` and `follow_up_on` are `date` columns. This screen already got
  * the rule right with a `T00:00:00` splice; it is the SAME rule, so it reads it
  * from the one module that states it. The en-CA presentation is unchanged —
@@ -137,24 +137,25 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
   }
 
   return (
-    /* Portalled: every screen in /app animates opacity, which creates a
-       stacking context that would trap this behind the tab bar. */
-    <Portal>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]" />
-        <div
-          role="dialog"
-          aria-label="Add a vet visit"
-          className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-card shadow-float p-5 shadow-xl"
-        >
+    /* A Radix dialog, portalled: every screen in /app animates opacity, which
+       creates a stacking context that would trap this behind the tab bar.
+       Escape and a tap outside close it — not mid-save. */
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next && !saving) onClose()
+      }}
+      overlayClassName="flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[2px]"
+      className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-card shadow-float p-5 shadow-xl"
+    >
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-[17px] font-semibold text-foreground">Add a vet visit</h2>
+            <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Add a vet visit</DialogTitle>
             <button
               onClick={onClose}
               aria-label="Close"
               className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-foreground"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
@@ -223,9 +224,7 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save visit
           </button>
-        </div>
-      </div>
-    </Portal>
+    </DialogLayer>
   )
 }
 

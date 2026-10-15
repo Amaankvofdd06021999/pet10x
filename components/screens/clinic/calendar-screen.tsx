@@ -44,7 +44,7 @@ export function ClinicCalendarScreen({ clinic }: { clinic: ClinicMembership }) {
   const [selected, setSelected] = useState<Appointment | null>(null)
 
   // Cancelled and No-show are confirmed in their own dialog. The appointment
-  // modal closes first: ConfirmDialog (z-50) would open under the Modal (z-[100]).
+  // modal closes first, so only one dialog is ever open at a time.
   const [pending, setPending] = useState<{ appt: Appointment; status: "cancelled" | "no_show" } | null>(null)
 
   // One predicate for "can take bookings": deactivated clinicians keep

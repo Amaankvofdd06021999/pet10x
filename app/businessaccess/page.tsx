@@ -219,8 +219,18 @@ function BusinessAuth() {
 
         <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm sm:p-7">
           {step === "code" ? (
-            <div className="flex flex-col">
+            // A form, so Enter in the code field verifies once (the field's
+            // own onEnter is a no-op here — the form owns submit).
+            <form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (!loading && otp.length === 6 && !codeExpired) void verify()
+              }}
+              className="flex flex-col"
+            >
               <button
+                type="button"
                 onClick={() => {
                   // Back, not cancel: the details are kept so a mistyped
                   // address can be corrected without retyping everything.
@@ -248,7 +258,7 @@ function BusinessAuth() {
                     setOtp(code)
                     setError(null)
                   }}
-                  onEnter={verify}
+                  onEnter={() => {}}
                   inputRef={otpInputRef}
                   invalid={!!error}
                   msLeft={msLeft}
@@ -258,23 +268,33 @@ function BusinessAuth() {
                   onResend={resend}
                 />
               </div>
-              {error && <p className="mt-3 text-[13px] text-destructive">{error}</p>}
-              {info && <p className="mt-3 text-[13px] text-success-strong">{info}</p>}
+              {error && (
+                <p role="alert" className="mt-3 text-[13px] text-destructive">
+                  {error}
+                </p>
+              )}
+              {info && (
+                <p role="status" className="mt-3 text-[13px] text-success-strong">
+                  {info}
+                </p>
+              )}
               <button
-                onClick={verify}
+                type="submit"
                 disabled={loading || otp.length !== 6 || codeExpired}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 Verify &amp; create business account
               </button>
-            </div>
+            </form>
           ) : (
             <>
               <div className="mb-4 flex rounded-xl bg-muted p-1">
                 {(["signin", "signup"] as const).map((m) => (
                   <button
                     key={m}
+                    type="button"
+                    aria-pressed={mode === m}
                     onClick={() => {
                       setMode(m)
                       setError(null)
@@ -289,11 +309,28 @@ function BusinessAuth() {
                 ))}
               </div>
 
-              <div className="flex flex-col gap-3">
+              <form
+                noValidate
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void submit()
+                }}
+                className="flex flex-col gap-3"
+              >
                 {mode === "signup" && (
                   <>
-                    <Input placeholder="Business name" value={f.businessName} onChange={(v) => set("businessName", v)} />
+                    <Input
+                      id="biz-name"
+                      label="Business name"
+                      autoComplete="organization"
+                      value={f.businessName}
+                      onChange={(v) => set("businessName", v)}
+                    />
+                    <label htmlFor="biz-category" className="sr-only">
+                      Category
+                    </label>
                     <select
+                      id="biz-category"
                       value={f.category}
                       onChange={(e) => set("category", e.target.value)}
                       className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none"
@@ -302,23 +339,47 @@ function BusinessAuth() {
                         <option key={c}>{c}</option>
                       ))}
                     </select>
-                    <Input placeholder="Your name" value={f.fullName} onChange={(v) => set("fullName", v)} />
+                    <Input
+                      id="biz-full-name"
+                      label="Your name"
+                      autoComplete="name"
+                      value={f.fullName}
+                      onChange={(v) => set("fullName", v)}
+                    />
                   </>
                 )}
-                <Input placeholder="Email" type="email" value={f.email} onChange={(v) => set("email", v)} />
+                <Input
+                  id="biz-email"
+                  label="Email"
+                  type="email"
+                  autoComplete="email"
+                  value={f.email}
+                  onChange={(v) => set("email", v)}
+                />
+                <label htmlFor="biz-password" className="sr-only">
+                  Password
+                </label>
                 {/* Business signup creates an account too, so it gets the same
                     checklist; signing in does not. */}
                 <PasswordField
+                  id="biz-password"
                   value={f.password}
                   onChange={(v) => set("password", v)}
                   autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                  onEnter={submit}
                   showRules={mode === "signup"}
                 />
-                {error && <p className="text-[13px] text-destructive">{error}</p>}
-                {info && <p className="text-[13px] text-success-strong">{info}</p>}
+                {error && (
+                  <p role="alert" className="text-[13px] text-destructive">
+                    {error}
+                  </p>
+                )}
+                {info && (
+                  <p role="status" className="text-[13px] text-success-strong">
+                    {info}
+                  </p>
+                )}
                 <button
-                  onClick={submit}
+                  type="submit"
                   disabled={loading}
                   className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
                 >
@@ -343,7 +404,7 @@ function BusinessAuth() {
                     </button>
                   </>
                 )}
-              </div>
+              </form>
             </>
           )}
         </div>
@@ -470,28 +531,37 @@ function Portal() {
   )
 }
 
+/** A text field with an sr-only label; the label doubles as the placeholder. */
 function Input({
+  id,
+  label,
   value,
   onChange,
-  placeholder,
   type = "text",
-  onEnter,
+  autoComplete,
 }: {
+  id: string
+  label: string
   value: string
   onChange: (v: string) => void
-  placeholder?: string
   type?: string
-  onEnter?: () => void
+  autoComplete?: string
 }) {
   return (
-    <input
+    <>
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+      <input
+      id={id}
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      onKeyDown={(e) => e.key === "Enter" && onEnter?.()}
-      placeholder={placeholder}
+      placeholder={label}
+      autoComplete={autoComplete}
       autoCapitalize={type === "email" ? "none" : undefined}
       className="w-full min-w-0 rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-    />
+      />
+    </>
   )
 }

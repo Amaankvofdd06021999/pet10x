@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react"
 import { usePortfolioBuildings, type PortfolioBuilding } from "@/lib/data/portfolio"
 import { Building2, Check, ChevronDown } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface StrataCtx {
   buildings: PortfolioBuilding[]
@@ -58,45 +59,50 @@ export function BuildingSwitcher() {
       ? `All buildings (${buildings.length})`
       : buildings.find((b) => b.id === selectedBuildingId)?.name ?? "Building"
 
+  // A Radix popover rather than a click-catcher backdrop: Escape closes it,
+  // focus moves into the list and returns to the button afterwards.
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-lg card-interactive px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:shadow-float"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          aria-label={`Building: ${current}`}
+          className="flex items-center gap-2 rounded-lg card-interactive px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:shadow-float"
+        >
+          <Building2 className="h-4 w-4 text-info" aria-hidden="true" />
+          <span className="max-w-[180px] truncate">{current}</span>
+          <ChevronDown
+            className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="max-h-80 w-64 overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-xl"
       >
-        <Building2 className="h-4 w-4 text-info" />
-        <span className="max-w-[180px] truncate">{current}</span>
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-1 max-h-80 w-64 overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-xl">
-            <SwitcherItem
-              label={`All buildings (${buildings.length})`}
-              active={selectedBuildingId === "all"}
-              onClick={() => {
-                setSelectedBuildingId("all")
-                setOpen(false)
-              }}
-            />
-            <div className="my-1 h-px bg-border" />
-            {buildings.map((b) => (
-              <SwitcherItem
-                key={b.id}
-                label={b.name}
-                sub={b.code}
-                active={selectedBuildingId === b.id}
-                onClick={() => {
-                  setSelectedBuildingId(b.id)
-                  setOpen(false)
-                }}
-              />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+        <SwitcherItem
+          label={`All buildings (${buildings.length})`}
+          active={selectedBuildingId === "all"}
+          onClick={() => {
+            setSelectedBuildingId("all")
+            setOpen(false)
+          }}
+        />
+        <div className="my-1 h-px bg-border" />
+        {buildings.map((b) => (
+          <SwitcherItem
+            key={b.id}
+            label={b.name}
+            sub={b.code}
+            active={selectedBuildingId === b.id}
+            onClick={() => {
+              setSelectedBuildingId(b.id)
+              setOpen(false)
+            }}
+          />
+        ))}
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -114,6 +120,7 @@ function SwitcherItem({
   return (
     <button
       onClick={onClick}
+      aria-current={active ? "true" : undefined}
       className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] transition-colors ${
         active ? "bg-info/10 text-info" : "text-foreground hover:bg-muted"
       }`}

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
-import { Portal } from "@/components/ui/portal"
+import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { archivePet } from "@/lib/data"
 import { ARCHIVE_REASONS, ARCHIVE_REASON_HINT, ARCHIVE_REASON_LABEL, type ArchiveReason } from "@/lib/data/pet-archive"
 
@@ -47,24 +47,20 @@ export function RemovePetSheet({
   }
 
   return (
-    <Portal>
-      <div
-        className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 sm:items-center"
-        onClick={() => !busy && onClose()}
-      >
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="remove-pet-title"
-          className="w-full max-w-md rounded-t-3xl bg-card p-5 shadow-float sm:rounded-3xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <h3 id="remove-pet-title" className="text-[17px] font-semibold text-foreground">
-            Remove {petName}?
-          </h3>
-          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+    // Escape and a tap outside cancel it — never mid-removal.
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next && !busy) onClose()
+      }}
+      described
+      overlayClassName="flex items-end justify-center bg-foreground/40 sm:items-center"
+      className="w-full max-w-md rounded-t-3xl bg-card p-5 shadow-float sm:rounded-3xl"
+    >
+          <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Remove {petName}?</DialogTitle>
+          <DialogDescription className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
             {petName} will leave your pets, and their care reminders and any records you share with a vet will stop.
-          </p>
+          </DialogDescription>
 
           <div role="radiogroup" aria-label="Reason" className="mt-4 flex flex-col gap-2">
             {ARCHIVE_REASONS.map((r) => (
@@ -100,8 +96,6 @@ export function RemovePetSheet({
               {busy && <Loader2 className="h-4 w-4 animate-spin" />} Remove
             </button>
           </div>
-        </div>
-      </div>
-    </Portal>
+    </DialogLayer>
   )
 }

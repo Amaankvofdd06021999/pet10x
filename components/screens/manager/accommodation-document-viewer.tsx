@@ -49,7 +49,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react"
-import { Portal } from "@/components/ui/portal"
+import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { Loader2, Lock, X, FileText, CheckCircle2, XCircle } from "lucide-react"
 import { signAccommodationDoc } from "@/lib/data/accommodation-docs"
 import { fileSize, DOC_KIND_LABEL, type AccommodationDocumentRow } from "@/lib/data/accommodations"
@@ -92,34 +92,35 @@ export function AccommodationDocumentViewer({ document, onVerdict, onClose }: Ac
   }, [mint])
 
   return (
-    <Portal>
-      <div
-        className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
-        onClick={onClose}
-      >
-        <div
-          className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-card sm:rounded-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
+    // Escape and a tap outside close it like X — not while a verdict saves.
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next && !busy) onClose()
+      }}
+      described
+      overlayClassName="flex items-end justify-center bg-black/50 sm:items-center"
+      className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-card sm:rounded-2xl"
+    >
           <div className="flex items-start justify-between gap-3 border-b border-border p-4">
             <div className="min-w-0">
-              <h3 className="text-[17px] font-semibold text-foreground break-words">
+              <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground break-words">
                 {DOC_KIND_LABEL[document.kind]}
-              </h3>
+              </DialogTitle>
               {/* break-words on the FILENAME as well as the body. `pre-wrap`
                   wraps at spaces only, and an uploaded file can easily be named
                   one 200-character unbroken token. */}
-              <p className="mt-0.5 text-[12px] text-muted-foreground break-words">
+              <DialogDescription className="mt-0.5 text-[12px] text-muted-foreground break-words">
                 {document.label ?? "Untitled"} · {fileSize(document.sizeBytes)}
                 {document.uploadedAt ? ` · uploaded ${shortDate(document.uploadedAt)}` : ""}
-              </p>
+              </DialogDescription>
             </div>
             <button
               onClick={onClose}
               aria-label="Close document"
               className="flex-shrink-0 rounded-lg p-1 text-muted-foreground active:bg-muted"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
 
@@ -227,8 +228,6 @@ export function AccommodationDocumentViewer({ document, onVerdict, onClose }: Ac
               </div>
             </div>
           )}
-        </div>
-      </div>
-    </Portal>
+    </DialogLayer>
   )
 }

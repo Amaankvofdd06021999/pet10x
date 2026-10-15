@@ -129,8 +129,61 @@ function DialogDescription({
   )
 }
 
+/**
+ * A Radix dialog that keeps a hand-built overlay's own look: the backdrop
+ * (`overlayClassName`) doubles as the flex container that places the panel
+ * (`className`), so a sheet that was `fixed inset-0 flex items-end …` around
+ * a panel keeps exactly those classes. Radix supplies Escape, the focus trap,
+ * focus return, scroll lock and portal-order stacking — a ConfirmDialog
+ * opened from inside one portals later and so sits on top of it.
+ *
+ * Pass `title` for a visually hidden name when the design has no heading;
+ * otherwise wrap the visible heading in `<DialogTitle asChild>`. Set
+ * `described` when the panel renders a `<DialogDescription>`.
+ */
+function DialogLayer({
+  open,
+  onOpenChange,
+  title,
+  described = false,
+  overlayClassName,
+  className,
+  children,
+  ...props
+}: Omit<React.ComponentProps<typeof DialogPrimitive.Content>, 'title'> & {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title?: string
+  described?: boolean
+  overlayClassName?: string
+}) {
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay
+          data-slot="dialog-overlay"
+          className={cn('fixed inset-0 z-50', overlayClassName)}
+        >
+          <DialogPrimitive.Content
+            data-slot="dialog-content"
+            // Most of these overlays have no separate description; an explicit
+            // undefined tells Radix that is deliberate (and silences its warning).
+            {...(described ? {} : { 'aria-describedby': undefined })}
+            className={cn('outline-none', className)}
+            {...props}
+          >
+            {title && <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>}
+            {children}
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Overlay>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  )
+}
+
 export {
   Dialog,
+  DialogLayer,
   DialogClose,
   DialogContent,
   DialogDescription,

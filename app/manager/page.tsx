@@ -79,37 +79,63 @@ function ManagerLogin() {
         </div>
 
         <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm sm:p-7">
-        <div className="flex flex-col gap-3">
+        {/* A real form: Enter submits from either field, and password managers
+            recognise the pair. The labels are sr-only — the placeholders and
+            icons already say it to sighted users. */}
+        <form
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault()
+            void submit()
+          }}
+          className="flex flex-col gap-3"
+        >
           <div className="relative">
-            <Mail className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
+            <label htmlFor="manager-email" className="sr-only">
+              Email
+            </label>
+            <Mail className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <input
+              id="manager-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
+              autoComplete="email"
               autoCapitalize="none"
               className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
-          <PasswordField
-            value={password}
-            onChange={setPassword}
-            onEnter={submit}
-          />
-          {error && <p className="text-[13px] text-destructive">{error}</p>}
-          {info && <p className="text-[13px] text-success-strong">{info}</p>}
+          <label htmlFor="manager-password" className="sr-only">
+            Password
+          </label>
+          <PasswordField id="manager-password" value={password} onChange={setPassword} autoComplete="current-password" />
+          {error && (
+            <p role="alert" className="text-[13px] text-destructive">
+              {error}
+            </p>
+          )}
+          {info && (
+            <p role="status" className="text-[13px] text-success-strong">
+              {info}
+            </p>
+          )}
           <button
-            onClick={submit}
+            type="submit"
             disabled={loading}
             className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-info py-3 text-[15px] font-semibold text-info-foreground disabled:opacity-60"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Sign in
           </button>
-          <button onClick={forgot} className="text-center text-[13px] font-medium text-primary-text transition-colors hover:text-primary-text/80">
+          <button
+            type="button"
+            onClick={forgot}
+            className="text-center text-[13px] font-medium text-primary-text transition-colors hover:text-primary-text/80"
+          >
             Forgot password?
           </button>
-        </div>
+        </form>
         </div>
         <p className="mt-6 text-center text-[12px] leading-relaxed text-muted-foreground">
           Managers are added by invitation. Ask your Pet10x admin if you don&apos;t have an account.

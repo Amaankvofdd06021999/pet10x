@@ -121,33 +121,62 @@ function StrataLogin() {
           <p className="mt-1 text-[13px] text-muted-foreground sm:text-[14px]">One login for your whole portfolio</p>
         </div>
         <div className="rounded-2xl card-raised p-5 shadow-xl shadow-foreground/5 sm:p-7">
-          <div className="flex flex-col gap-3">
+          {/* A real form: Enter submits from either field and password
+              managers recognise the pair. Labels are sr-only; placeholders show. */}
+          <form
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault()
+              void submit()
+            }}
+            className="flex flex-col gap-3"
+          >
             <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <label htmlFor="strata-email" className="sr-only">
+                Email
+              </label>
+              <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <input
+                id="strata-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
+                autoComplete="email"
                 autoCapitalize="none"
                 className="w-full rounded-xl border border-border bg-background py-3 pl-10 pr-4 text-[15px] text-foreground focus:border-info focus:outline-none focus:ring-2 focus:ring-info/20"
               />
             </div>
-            <PasswordField value={password} onChange={setPassword} onEnter={submit} />
-            {error && <p className="text-[13px] text-destructive">{error}</p>}
-            {info && <p className="text-[13px] text-success-strong">{info}</p>}
+            <label htmlFor="strata-password" className="sr-only">
+              Password
+            </label>
+            <PasswordField id="strata-password" value={password} onChange={setPassword} autoComplete="current-password" />
+            {error && (
+              <p role="alert" className="text-[13px] text-destructive">
+                {error}
+              </p>
+            )}
+            {info && (
+              <p role="status" className="text-[13px] text-success-strong">
+                {info}
+              </p>
+            )}
             <button
-              onClick={submit}
+              type="submit"
               disabled={loading}
               className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-info py-3 text-[15px] font-semibold text-info-foreground disabled:opacity-60"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Sign in
             </button>
-            <button onClick={forgot} className="text-center text-[13px] font-medium text-info transition-colors hover:opacity-80">
+            <button
+              type="button"
+              onClick={forgot}
+              className="text-center text-[13px] font-medium text-info transition-colors hover:opacity-80"
+            >
               Forgot password?
             </button>
-          </div>
+          </form>
         </div>
         <Link href="/app" className="mx-auto mt-6 flex w-fit items-center gap-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" /> Back to the single-building app

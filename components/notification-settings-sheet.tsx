@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Loader2, Mail, Smartphone, X } from "lucide-react"
-import { Portal } from "@/components/ui/portal"
+import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { useNotificationPrefs, setNotificationPref, hasOtherPushDevices } from "@/lib/data/notification-prefs"
 import { disablePush, enablePush, getPushState, isPushConfigured, type PushState } from "@/lib/push"
@@ -96,24 +96,25 @@ export function NotificationSettingsSheet({ onClose }: { onClose: () => void }) 
   const showPush = isPushConfigured()
 
   return (
-    <Portal>
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 sm:items-center" onClick={onClose}>
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Notifications"
-          className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-card p-5 shadow-float sm:rounded-3xl"
-          onClick={(e) => e.stopPropagation()}
-        >
+    // Mounted only while open; Escape, a tap outside, X and Done all close it.
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose()
+      }}
+      described
+      overlayClassName="flex items-end justify-center bg-foreground/40 sm:items-center"
+      className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-card p-5 shadow-float sm:rounded-3xl"
+    >
           <div className="mb-1 flex items-center justify-between">
-            <h3 className="text-[17px] font-semibold text-foreground">Notifications</h3>
+            <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Notifications</DialogTitle>
             <button onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-muted-foreground active:bg-muted">
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
-          <p className="mb-4 text-[12.5px] leading-relaxed text-muted-foreground">
+          <DialogDescription className="mb-4 text-[12.5px] leading-relaxed text-muted-foreground">
             Everything still arrives in the app. These choose where else it reaches you.
-          </p>
+          </DialogDescription>
 
           {prefs.isLoading ? (
             <div className="flex justify-center py-8">
@@ -192,8 +193,6 @@ export function NotificationSettingsSheet({ onClose }: { onClose: () => void }) 
           <button onClick={onClose} className="mt-4 w-full rounded-xl bg-muted py-3 text-[15px] font-semibold text-foreground">
             Done
           </button>
-        </div>
-      </div>
-    </Portal>
+    </DialogLayer>
   )
 }

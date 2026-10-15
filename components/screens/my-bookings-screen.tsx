@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Portal } from "@/components/ui/portal"
+import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import {
@@ -235,14 +235,19 @@ function ReviewSheet({
   }
 
   return (
-    <Portal>
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 sm:items-center" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-t-3xl bg-card shadow-float p-5 sm:rounded-3xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-[17px] font-semibold text-foreground">Review {booking.businessName}</h3>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">{booking.serviceName}</p>
+    // Escape and a tap outside close it like "Not now" — but not mid-post,
+    // so a slow save can't be abandoned half-way.
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next && !busy) onClose()
+      }}
+      described
+      overlayClassName="flex items-end justify-center bg-foreground/40 sm:items-center"
+      className="w-full max-w-md rounded-t-3xl bg-card shadow-float p-5 sm:rounded-3xl"
+    >
+        <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Review {booking.businessName}</DialogTitle>
+        <DialogDescription className="mt-0.5 text-[13px] text-muted-foreground">{booking.serviceName}</DialogDescription>
 
         <div className="mt-4 flex justify-center gap-2">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -256,6 +261,7 @@ function ReviewSheet({
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={3}
+          aria-label="Your review"
           placeholder="How did it go?"
           className="mt-4 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground focus:border-accent focus:outline-none"
         />
@@ -272,8 +278,6 @@ function ReviewSheet({
             {busy && <Loader2 className="h-4 w-4 animate-spin" />} Post review
           </button>
         </div>
-      </div>
-    </div>
-    </Portal>
+    </DialogLayer>
   )
 }

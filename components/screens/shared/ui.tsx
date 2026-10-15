@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useId, useRef, type ReactNode } from "react"
-import { createPortal } from "react-dom"
+import { useId, type ReactNode } from "react"
 import { Loader2, X, AlertTriangle, Inbox } from "lucide-react"
+import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
 
 /**
   * The shared pattern layer for record-heavy console screens.
@@ -309,8 +309,13 @@ export function SegmentedTabs<T extends string>({
 /* -------------------------------- dialog -------------------------------- */
 
 /**
- * One dialog for the whole console: focus trap, Escape, scroll lock, focus
- * restore, aria-modal and a labelled title. Every overlay in /clinic uses it.
+ * One dialog for the whole console, built on Radix (components/ui/dialog):
+ * focus trap, Escape, scroll lock, focus restore, aria-modal and a labelled
+ * title. Every overlay in /clinic uses it.
+ *
+ * It stacks at z-50 like every other Radix layer, so order is portal order:
+ * a ConfirmDialog opened from inside a Modal mounts later and sits on top.
+ * (It used to be z-[100] with its own trap, which covered the confirmation.)
  */
 export function Modal({
   open,
@@ -329,107 +334,46 @@ export function Modal({
   footer?: ReactNode
   wide?: boolean
 }) {
-  const panelRef = useRef<HTMLDivElement | null>(null)
-  const restoreRef = useRef<HTMLElement | null>(null)
-  const titleId = useId()
-  const descId = useId()
-
-  // The latest onClose, kept current after each render so the keydown
-  // listener below never needs re-binding.
-  const onCloseRef = useRef(onClose)
-  useEffect(() => {
-    onCloseRef.current = onClose
-  })
-
-  const trap = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.stopPropagation()
-      onCloseRef.current()
-      return
-    }
-    if (e.key !== "Tab" || !panelRef.current) return
-    const focusables = panelRef.current.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
-    )
-    if (focusables.length === 0) return
-    const first = focusables[0]
-    const last = focusables[focusables.length - 1]
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault()
-      last.focus()
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault()
-      first.focus()
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!open) return
-    restoreRef.current = document.activeElement as HTMLElement | null
-    const overflow = document.body.style.overflow
-    document.body.style.overflow = "hidden"
-    document.addEventListener("keydown", trap, true)
-    const t = window.setTimeout(() => {
-      const first = panelRef.current?.querySelector<HTMLElement>(
-        'input, textarea, select, button:not([data-close])',
-      )
-      ;(first ?? panelRef.current)?.focus()
-    }, 20)
-    return () => {
-      document.removeEventListener("keydown", trap, true)
-      document.body.style.overflow = overflow
-      window.clearTimeout(t)
-      restoreRef.current?.focus?.()
-    }
-  }, [open, trap])
-
-  if (!open || typeof document === "undefined") return null
-
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
-      <button
-        type="button"
-        data-close
-        aria-label="Close dialog"
-        onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-foreground/40 backdrop-blur-[2px]"
-      />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={description ? descId : undefined}
-        tabIndex={-1}
-        className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-border bg-card shadow-float sm:rounded-3xl ${
-          wide ? "sm:max-w-3xl" : "sm:max-w-lg"
-        }`}
-      >
-        <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
-          <div className="min-w-0">
-            <h2 id={titleId} className="text-[16px] font-semibold text-foreground">
-              {title}
-            </h2>
-            {description && (
-              <p id={descId} className="mt-0.5 text-[12.5px] text-muted-foreground">
-                {description}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </header>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <footer className="flex flex-wrap justify-end gap-2 border-t border-border px-5 py-3">{footer}</footer>}
-      </div>
-    </div>,
-    document.body,
+  return (
+    <DialogLayer
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose()
+      }}
+      described={Boolean(description)}
+      overlayClassName="flex items-end justify-center bg-foreground/40 backdrop-blur-[2px] sm:items-center"
+      className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-border bg-card shadow-float sm:rounded-3xl ${
+        wide ? "sm:max-w-3xl" : "sm:max-w-lg"
+      }`}
+      // Land on the first field, as before, rather than the header's close button.
+      onOpenAutoFocus={(e) => {
+        const panel = e.currentTarget as HTMLElement | null
+        const field = panel?.querySelector<HTMLElement>("input, textarea, select")
+        if (field) {
+          e.preventDefault()
+          field.focus()
+        }
+      }}
+    >
+      <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+        <div className="min-w-0">
+          <DialogTitle className="text-[16px] font-semibold leading-normal text-foreground">{title}</DialogTitle>
+          {description && (
+            <DialogDescription className="mt-0.5 text-[12.5px] text-muted-foreground">{description}</DialogDescription>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </header>
+      <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+      {footer && <footer className="flex flex-wrap justify-end gap-2 border-t border-border px-5 py-3">{footer}</footer>}
+    </DialogLayer>
   )
 }
 

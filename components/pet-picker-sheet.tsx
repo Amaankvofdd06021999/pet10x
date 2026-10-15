@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { Cat, ChevronRight, Dog } from "lucide-react"
-import { Portal } from "@/components/ui/portal"
+import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import type { Pet } from "@/lib/data"
 
 /**
@@ -25,16 +25,17 @@ export function PetPickerSheet({
   onClose: () => void
 }) {
   return (
-    <Portal>
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 sm:items-center" onClick={onClose}>
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-          className="w-full max-w-md rounded-t-3xl bg-card p-5 shadow-float sm:rounded-3xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <h3 className="text-[17px] font-semibold text-foreground">{title}</h3>
+    // Mounted only while open, so Radix's open is always true; Escape, a tap
+    // outside and Cancel all route to onClose.
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose()
+      }}
+      overlayClassName="flex items-end justify-center bg-foreground/40 sm:items-center"
+      className="w-full max-w-md rounded-t-3xl bg-card p-5 shadow-float sm:rounded-3xl"
+    >
+          <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">{title}</DialogTitle>
           <div className="mt-3 overflow-hidden rounded-2xl border border-border">
             {pets.map((pet, idx) => {
               const SpeciesIcon = pet.species === "dog" ? Dog : Cat
@@ -64,8 +65,6 @@ export function PetPickerSheet({
           <button onClick={onClose} className="mt-3 w-full rounded-xl bg-muted py-3 text-[15px] font-semibold text-foreground">
             Cancel
           </button>
-        </div>
-      </div>
-    </Portal>
+    </DialogLayer>
   )
 }

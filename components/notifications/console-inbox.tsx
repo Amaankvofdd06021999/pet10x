@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Bell, BellOff, CheckCheck, Settings2, X } from "lucide-react"
 import { toast } from "sonner"
-import { Portal } from "@/components/ui/portal"
+import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { NotificationRow } from "@/components/notifications/notification-row"
 import {
   markAllNotificationsRead,
@@ -76,17 +76,15 @@ export function ConsoleInbox({
         )}
       </button>
 
-      {open && (
-        <Portal>
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-start sm:justify-end sm:p-4" onClick={() => setOpen(false)}>
-            <div
-              role="dialog"
-              aria-label="Notifications"
-              className="flex max-h-[85dvh] w-full flex-col rounded-t-2xl bg-card shadow-float sm:mt-12 sm:w-[400px] sm:rounded-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
+      {/* Escape, a tap outside and X close it; focus returns to the bell. */}
+      <DialogLayer
+        open={open}
+        onOpenChange={setOpen}
+        overlayClassName="flex items-end justify-center bg-black/40 sm:items-start sm:justify-end sm:p-4"
+        className="flex max-h-[85dvh] w-full flex-col rounded-t-2xl bg-card shadow-float sm:mt-12 sm:w-[400px] sm:rounded-2xl"
+      >
               <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-                <h2 className="text-[15px] font-semibold text-foreground">Notifications</h2>
+                <DialogTitle className="text-[15px] font-semibold leading-normal text-foreground">Notifications</DialogTitle>
                 <div className="flex items-center gap-1">
                   {unread > 0 && (
                     <button
@@ -104,10 +102,10 @@ export function ConsoleInbox({
                     aria-label="Email and push settings"
                     className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground"
                   >
-                    <Settings2 className="h-4 w-4" />
+                    <Settings2 className="h-4 w-4" aria-hidden="true" />
                   </button>
                   <button onClick={() => setOpen(false)} aria-label="Close" className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground">
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -153,10 +151,7 @@ export function ConsoleInbox({
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-        </Portal>
-      )}
+      </DialogLayer>
     </>
   )
 }

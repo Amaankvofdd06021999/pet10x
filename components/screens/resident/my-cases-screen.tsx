@@ -37,7 +37,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
-import { Portal } from "@/components/ui/portal"
+import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { useMyCases, fileDispute } from "@/lib/data/live"
@@ -608,16 +608,19 @@ function DisputeSheet({
   }
 
   return (
-    <Portal>
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose}>
-        <div
-          className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-card p-5 sm:rounded-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
+    // Escape and a tap outside close it like X — not while the appeal is filing.
+    <DialogLayer
+      open
+      onOpenChange={(next) => {
+        if (!next && !busy) onClose()
+      }}
+      overlayClassName="flex items-end justify-center bg-black/50 sm:items-center"
+      className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-card p-5 sm:rounded-2xl"
+    >
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-[17px] font-semibold text-foreground">Dispute this finding</h3>
-            <button onClick={onClose} className="rounded-lg p-1 text-muted-foreground active:bg-muted">
-              <X className="h-5 w-5" />
+            <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Dispute this finding</DialogTitle>
+            <button onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-muted-foreground active:bg-muted">
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
 
@@ -673,9 +676,7 @@ function DisputeSheet({
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             Submit appeal
           </button>
-        </div>
-      </div>
-    </Portal>
+    </DialogLayer>
   )
 }
 
