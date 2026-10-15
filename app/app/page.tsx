@@ -1,37 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
+import dynamic from "next/dynamic"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { IOSTabBar } from "@/components/ios-tab-bar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Toaster } from "@/components/ui/sonner"
+import { ScreenLoading } from "@/components/screen-loading"
 import { SignInScreen } from "@/components/screens/sign-in-screen"
-import { GuestReportScreen } from "@/components/screens/guest-report-screen"
 import { HomeScreen } from "@/components/screens/home-screen"
-import { CommunityScreen } from "@/components/screens/community-screen"
-import { ServicesScreen } from "@/components/screens/services-screen"
-import { AlertsScreen } from "@/components/screens/alerts-screen"
-import { ProfileScreen } from "@/components/screens/profile-screen"
-import { MyCasesScreen } from "@/components/screens/resident/my-cases-screen"
-import { PetDetailScreen } from "@/components/screens/pet-detail-screen"
-import { AddPetScreen } from "@/components/screens/add-pet-screen"
-import { PetCareScreen } from "@/components/screens/pet-care-screen"
-import { AiChatScreen } from "@/components/screens/ai-chat-screen"
-import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
-import { LinkBuildingScreen } from "@/components/screens/link-building-screen"
-import { BusinessDetailScreen } from "@/components/screens/business-detail-screen"
-import { ShopScreen } from "@/components/screens/shop-screen"
-import { BuildingRulesScreen } from "@/components/screens/building-rules-screen"
-import { ReportScreen } from "@/components/screens/report/report-screen"
-import { MyBookingsScreen } from "@/components/screens/my-bookings-screen"
-import { ManagerDashboardScreen } from "@/components/screens/manager/dashboard-screen"
-import { ManagerResidentsScreen } from "@/components/screens/manager/residents-screen"
-import { ManagerViolationsScreen } from "@/components/screens/manager/violations-table-screen"
-import { ManagerApprovalsScreen } from "@/components/screens/manager/approvals-screen"
-import { ManagerIncidentsScreen } from "@/components/screens/manager/incidents-screen"
-import { ManagerSettingsScreen } from "@/components/screens/manager/settings-screen"
-import { MyVetsScreen } from "@/components/screens/my-vets-screen"
-import { AccommodationRequestScreen } from "@/components/screens/accommodation-request-screen"
 import {
   APPROVALS_TABS,
   isScreenKey,
@@ -58,6 +35,35 @@ import {
 import { UnsavedGuardProvider, useUnsavedShellGuard } from "@/components/use-unsaved-guard"
 import { Loader2, PawPrint } from "lucide-react"
 import { historyStateWithout } from "@/lib/history-state"
+
+// Every screen except Home downloads when first opened, so the first /app load
+// carries only the shell and Home. `loading` is what a deep link or a slow
+// connection shows meanwhile.
+const GuestReportScreen = dynamic(() => import("@/components/screens/guest-report-screen").then((m) => m.GuestReportScreen), { loading: () => <ScreenLoading /> })
+const CommunityScreen = dynamic(() => import("@/components/screens/community-screen").then((m) => m.CommunityScreen), { loading: () => <ScreenLoading /> })
+const ServicesScreen = dynamic(() => import("@/components/screens/services-screen").then((m) => m.ServicesScreen), { loading: () => <ScreenLoading /> })
+const AlertsScreen = dynamic(() => import("@/components/screens/alerts-screen").then((m) => m.AlertsScreen), { loading: () => <ScreenLoading /> })
+const ProfileScreen = dynamic(() => import("@/components/screens/profile-screen").then((m) => m.ProfileScreen), { loading: () => <ScreenLoading /> })
+const MyCasesScreen = dynamic(() => import("@/components/screens/resident/my-cases-screen").then((m) => m.MyCasesScreen), { loading: () => <ScreenLoading /> })
+const PetDetailScreen = dynamic(() => import("@/components/screens/pet-detail-screen").then((m) => m.PetDetailScreen), { loading: () => <ScreenLoading /> })
+const AddPetScreen = dynamic(() => import("@/components/screens/add-pet-screen").then((m) => m.AddPetScreen), { loading: () => <ScreenLoading /> })
+const PetCareScreen = dynamic(() => import("@/components/screens/pet-care-screen").then((m) => m.PetCareScreen), { loading: () => <ScreenLoading /> })
+const AiChatScreen = dynamic(() => import("@/components/screens/ai-chat-screen").then((m) => m.AiChatScreen), { loading: () => <ScreenLoading /> })
+const OnboardingFlow = dynamic(() => import("@/components/onboarding/onboarding-flow").then((m) => m.OnboardingFlow), { loading: () => <ScreenLoading /> })
+const LinkBuildingScreen = dynamic(() => import("@/components/screens/link-building-screen").then((m) => m.LinkBuildingScreen), { loading: () => <ScreenLoading /> })
+const BusinessDetailScreen = dynamic(() => import("@/components/screens/business-detail-screen").then((m) => m.BusinessDetailScreen), { loading: () => <ScreenLoading /> })
+const ShopScreen = dynamic(() => import("@/components/screens/shop-screen").then((m) => m.ShopScreen), { loading: () => <ScreenLoading /> })
+const BuildingRulesScreen = dynamic(() => import("@/components/screens/building-rules-screen").then((m) => m.BuildingRulesScreen), { loading: () => <ScreenLoading /> })
+const ReportScreen = dynamic(() => import("@/components/screens/report/report-screen").then((m) => m.ReportScreen), { loading: () => <ScreenLoading /> })
+const MyBookingsScreen = dynamic(() => import("@/components/screens/my-bookings-screen").then((m) => m.MyBookingsScreen), { loading: () => <ScreenLoading /> })
+const ManagerDashboardScreen = dynamic(() => import("@/components/screens/manager/dashboard-screen").then((m) => m.ManagerDashboardScreen), { loading: () => <ScreenLoading /> })
+const ManagerResidentsScreen = dynamic(() => import("@/components/screens/manager/residents-screen").then((m) => m.ManagerResidentsScreen), { loading: () => <ScreenLoading /> })
+const ManagerViolationsScreen = dynamic(() => import("@/components/screens/manager/violations-table-screen").then((m) => m.ManagerViolationsScreen), { loading: () => <ScreenLoading /> })
+const ManagerApprovalsScreen = dynamic(() => import("@/components/screens/manager/approvals-screen").then((m) => m.ManagerApprovalsScreen), { loading: () => <ScreenLoading /> })
+const ManagerIncidentsScreen = dynamic(() => import("@/components/screens/manager/incidents-screen").then((m) => m.ManagerIncidentsScreen), { loading: () => <ScreenLoading /> })
+const ManagerSettingsScreen = dynamic(() => import("@/components/screens/manager/settings-screen").then((m) => m.ManagerSettingsScreen), { loading: () => <ScreenLoading /> })
+const MyVetsScreen = dynamic(() => import("@/components/screens/my-vets-screen").then((m) => m.MyVetsScreen), { loading: () => <ScreenLoading /> })
+const AccommodationRequestScreen = dynamic(() => import("@/components/screens/accommodation-request-screen").then((m) => m.AccommodationRequestScreen), { loading: () => <ScreenLoading /> })
 
 /**
  * Desktop content max-width per screen — owner/overview read as a column, data
