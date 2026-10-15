@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { ErrorText } from '@/components/ui/error-text'
 
 const REASON_ERRORS = {
   required: 'Add a reason — the person affected will see it.',
@@ -127,9 +128,7 @@ function ConfirmDialog({
           </div>
         )}
         {error && (
-          <p role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
+          <ErrorText className="text-sm">{error}</ErrorText>
         )}
         <AlertDialogFooter>
           {secondaryAction && (

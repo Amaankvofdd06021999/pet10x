@@ -2,6 +2,8 @@
 
 import { useId, type ReactNode } from 'react'
 
+import { ErrorText } from '@/components/ui/error-text'
+
 /**
  * A labelled control. The label is a real <label htmlFor>, and the hint and
  * error are bound to the control through aria-describedby, so a screen reader
@@ -29,6 +31,7 @@ export function Field({
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-caption font-semibold text-foreground">
         {label}
+        {/* A mark, not text, so it may stay red. */}
         {required && <span className="ml-0.5 text-destructive">*</span>}
       </label>
       {children({ id, 'aria-describedby': described, 'aria-invalid': error ? true : undefined })}
@@ -38,9 +41,9 @@ export function Field({
         </p>
       )}
       {error && (
-        <p id={errId} role="alert" className="text-caption font-medium text-destructive">
+        <ErrorText id={errId} className="text-caption font-medium">
           {error}
-        </p>
+        </ErrorText>
       )}
     </div>
   )

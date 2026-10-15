@@ -4,6 +4,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { ChevronRight, Loader2 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { loadingProps } from '@/lib/loading-props'
 
 /*
  * The one button (spec §2). Five looks, three sizes.
@@ -58,7 +59,7 @@ const buttonVariants = cva(
       },
     },
     // A link sits flush with the text around it at any size.
-    compoundVariants: [{ variant: 'link', class: 'px-0 has-[>svg]:px-0' }],
+    compoundVariants: [{ variant: 'link', class: 'h-auto min-h-0 px-0 has-[>svg]:px-0' }],
     defaultVariants: {
       variant: 'primary',
       size: 'md',
@@ -90,8 +91,7 @@ function Button({
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
-      disabled={loading || disabled}
-      aria-busy={loading || undefined}
+      {...loadingProps(loading, disabled)}
       {...props}
     >
       {loading && <Loader2 className="animate-spin" aria-hidden="true" />}

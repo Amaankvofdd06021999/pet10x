@@ -14,6 +14,7 @@ import {
 } from 'react-hook-form'
 
 import { cn } from '@/lib/utils'
+import { ErrorText } from '@/components/ui/error-text'
 import { Label } from '@/components/ui/label'
 
 const Form = FormProvider
@@ -97,7 +98,7 @@ function FormLabel({
     <Label
       data-slot="form-label"
       data-error={!!error}
-      className={cn('data-[error=true]:text-destructive', className)}
+      className={cn(className)}
       htmlFor={formItemId}
       {...props}
     />
@@ -144,14 +145,14 @@ function FormMessage({ className, ...props }: React.ComponentProps<'p'>) {
   }
 
   return (
-    <p
+    <ErrorText
       data-slot="form-message"
       id={formMessageId}
-      className={cn('text-destructive text-sm', className)}
+      className={cn('text-sm', className)}
       {...props}
     >
       {body}
-    </p>
+    </ErrorText>
   )
 }
 
