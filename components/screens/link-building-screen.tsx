@@ -10,7 +10,9 @@ interface LinkBuildingScreenProps {
 }
 
 export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
-  const { data: link, isLoading, refetch } = useMyBuildingLink()
+  // requestBuildingLink and leaveBuilding refresh the shared link themselves,
+  // so this screen (and Home) re-render from the store when they return.
+  const { data: link, isLoading } = useMyBuildingLink()
   const [code, setCode] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -30,7 +32,6 @@ export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
     }
     toast.success("Request sent", { description: `${res.buildingName ?? "Your building"} will review it.` })
     setCode("")
-    refetch()
   }
 
   async function leave() {
@@ -39,7 +40,6 @@ export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
     setLoading(false)
     if (e) return toast.error("Couldn't leave", { description: e })
     toast("You've left the building")
-    refetch()
   }
 
   return (

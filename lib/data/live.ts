@@ -11,7 +11,7 @@
  * navigation, so cross-screen freshness comes "for free" — no global cache.
  */
 
-import { useCallback, useEffect, useReducer, useState } from "react"
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client"
 import { petFileSignedUrls, signedUrlsIn, isStoragePath, uploadPetFile, deletePetFile } from "@/lib/supabase/storage"
 import type { Database } from "@/lib/supabase/database.types"
@@ -23,6 +23,8 @@ import { toViolationStage } from "./violations"
 import { formatReward } from "./community"
 import { uploadCommunityImage } from "./community-media"
 import { createNotificationStore, type NotificationLoad } from "./notification-store"
+import { careLogged, onCareLogged } from "./care-log-signal"
+import { createBuildingLinkStore, createLinkDecisionWatch, type BuildingLinkLoad } from "./building-link-store"
 import { computeCompliance, type BuildingRules } from "./compliance"
 import { archiveErrorSentence, memorialYears, type ArchiveReason } from "./pet-archive"
 import { decisionError, decisionResultError, type DecisionResult } from "./decision-errors"
@@ -881,6 +883,107 @@ export function useCareEntries(petId: string | undefined, kind: CareEntryKind): 
   return { data, isLoading, error, refetch }
 }
 
+/**
+ * One pet's care for Home's goal tiles: every target, and the recent entries
+ * for the tile kinds — two queries, sent together.
+ *
+ * Each tile used to call `useCareEntries(petId, kind)` and `useCareTargets(petId)`
+ * itself, so three tiles cost six requests and fetched the same targets three
+ * times. `useCareEntries`/`useCareTargets` stay as they are for the tracker
+ * and pet detail; this is Home's.
+ *
+ * SAME ROWS AS `useCareEntries`. That hook reads the newest 100 per kind with
+ * no date window; one `.in("kind", kinds)` query keeps the same budget —
+ * 100 × the number of kinds — newest first. Every entry from today sorts ahead
+ * of every older one, so a tile (which counts only today) misses nothing unless
+ * one day holds more entries than the whole budget.
+ *
+ * Re-reads when any writer announces a change to this pet's entries
+ * (`./care-log-signal`) — ticking a schedule row that logs food updates the
+ * Food tile without leaving Home.
+ */
+export function usePetCareToday(
+  petId: string | undefined,
+  kinds: CareEntryKind[],
+): {
+  entriesByKind: Record<CareEntryKind, CareEntry[]>
+  targets: CareTarget[]
+  isLoading: boolean
+  error: string | null
+  refetch: () => void
+} {
+  const [entries, setEntries] = useState<CareEntry[]>([])
+  const [targets, setTargets] = useState<CareTarget[]>([])
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  /* Keyed on the joined string, not the array: callers build `kinds` inline,
+     and a new array identity each render would re-create `refetch` and loop
+     the effect below — the trap useHouseholdCareTasks documents. */
+  const kindKey = kinds.join(",")
+  /* Only the newest request may write. A pet switch while the previous pet's
+     read is in flight must not paint the old pet's numbers on the new chip. */
+  const ticket = useRef(0)
+
+  const refetch = useCallback(async () => {
+    const mine = ++ticket.current
+    const wanted = (kindKey ? kindKey.split(",") : []) as CareEntryKind[]
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase || !petId || wanted.length === 0) {
+      setEntries([])
+      setTargets([])
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    const [entryRes, targetRes] = await Promise.all([
+      supabase
+        .from("care_entries")
+        .select("id, pet_id, kind, label, amount, unit, note, logged_at")
+        .eq("pet_id", petId)
+        .in("kind", wanted)
+        .order("logged_at", { ascending: false })
+        .limit(100 * wanted.length),
+      supabase
+        .from("care_targets")
+        .select("id, pet_id, kind, label, target_amount, unit, period, sort_order, is_active")
+        .eq("pet_id", petId)
+        .order("kind")
+        .order("sort_order")
+        .order("label"),
+    ])
+    if (mine !== ticket.current) return
+    if (entryRes.error || targetRes.error) {
+      console.error("[care] today's read failed", entryRes.error ?? targetRes.error)
+      setError(dbErrorMessage(entryRes.error ?? targetRes.error, "Couldn't load the care log. Try again."))
+      setEntries([])
+      setTargets([])
+    } else {
+      setEntries((entryRes.data ?? []).map((r) => mapCareEntry(r as CareEntryRow)))
+      setTargets((targetRes.data ?? []).map((r) => mapCareTarget(r as CareTargetRow)))
+      setError(null)
+    }
+    setLoading(false)
+  }, [petId, kindKey])
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+
+  useEffect(() => {
+    if (!petId) return
+    return onCareLogged(petId, () => void refetch())
+  }, [petId, refetch])
+
+  const entriesByKind = useMemo(() => {
+    const out = {} as Record<CareEntryKind, CareEntry[]>
+    for (const k of (kindKey ? kindKey.split(",") : []) as CareEntryKind[]) out[k] = []
+    for (const e of entries) (out[e.kind] ??= []).push(e)
+    return out
+  }, [entries, kindKey])
+
+  return { entriesByKind, targets, isLoading, error, refetch }
+}
+
 export async function addCareEntry(input: {
   petId: string
   kind: CareEntryKind
@@ -903,14 +1006,18 @@ export async function addCareEntry(input: {
     note: input.note || null,
     logged_by: user?.id ?? null,
   })
-  return { error: error ? dbErrorMessage(error, "Couldn't save the care entry. Try again.") : null }
+  if (error) return { error: dbErrorMessage(error, "Couldn't save the care entry. Try again.") }
+  careLogged(input.petId)
+  return { error: null }
 }
 
 export async function deleteCareEntry(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("care_entries").delete().eq("id", id)
-  return { error: error ? dbErrorMessage(error, "Couldn't delete the care entry. Try again.") : null }
+  if (error) return { error: dbErrorMessage(error, "Couldn't delete the care entry. Try again.") }
+  careLogged(undefined) // only the id is known here
+  return { error: null }
 }
 
 /* ----------------------------- care targets ----------------------------- */
@@ -1045,76 +1152,111 @@ export async function requestBuildingLink(
       error: r.error === "invalid_code" ? "That building code wasn't found — check with your management." : "Couldn't link to that building.",
     }
   }
+  // The shared link is now stale for every reader — Home included.
+  await refreshMyBuildingLink()
   return { ok: true, buildingName: r.building_name, status: r.status, already: r.already }
 }
 
+/**
+ * The resident's link, loaded once and shared — see `./building-link-store`.
+ * Home and its CaseCard each used to run this RPC on every visit.
+ */
+async function loadMyBuildingLink(): Promise<BuildingLinkLoad<BuildingLink>> {
+  // Offline/mock mode has no link; a fixed owner lets the answer cache.
+  if (!ENABLED) return { data: null, error: null, profileId: "offline" }
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { data: null, error: null, profileId: "offline" }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { data: null, error: null, profileId: null }
+  const { data: json, error: err } = await supabase.rpc("my_building_link")
+  if (err) {
+    return { data: null, error: dbErrorMessage(err, "Couldn't load your building. Try again."), profileId: user.id }
+  }
+  if (!json) return { data: null, error: null, profileId: user.id }
+  const j = json as {
+    link_id: string
+    building_id: string
+    building_name: string
+    status: ResidentLinkStatus
+    unit: string | null
+    requested_at: string
+    building_address: string | null
+    building_city: string | null
+    building_region: string | null
+    building_postal_code: string | null
+  }
+  return {
+    data: {
+      linkId: j.link_id,
+      buildingId: j.building_id,
+      buildingName: j.building_name,
+      status: j.status,
+      unit: j.unit,
+      requestedAt: j.requested_at,
+      buildingAddress: j.building_address,
+      buildingCity: j.building_city,
+      buildingRegion: j.building_region,
+      buildingPostalCode: j.building_postal_code,
+    },
+    error: null,
+    profileId: user.id,
+  }
+}
+
+const buildingLinkStore = createBuildingLinkStore<BuildingLink>({ load: loadMyBuildingLink })
+
+/**
+ * Re-read the link now. Every writer that changes it — requesting a building,
+ * leaving one, setting the unit — awaits this after it succeeds, so every
+ * mounted reader (Home included) shows the new state without a reload.
+ */
+export function refreshMyBuildingLink(): Promise<void> {
+  return buildingLinkStore.refresh()
+}
+
+/** Clear on sign-out, beside `clearPetsCache()`. */
+export function clearBuildingLinkCache() {
+  buildingLinkStore.clear()
+  linkDecisionArrived.reset()
+}
+
+/**
+ * Called by the auth context whenever the Supabase user changes: a link loaded
+ * for anyone else is dropped and re-read for this account, so a reader that is
+ * already mounted does not sit on an empty cache.
+ */
+export function syncBuildingLinkAccount(profileId: string | null) {
+  if (buildingLinkStore.resetUnless(profileId)) {
+    linkDecisionArrived.reset()
+    if (profileId !== null) void buildingLinkStore.refresh()
+  }
+}
+
 export function useMyBuildingLink(): LiveResult<BuildingLink | null> {
-  const [data, setData] = useState<BuildingLink | null>(null)
-  const [isLoading, setLoading] = useState(ENABLED)
-  const [error, setError] = useState<string | null>(null)
-  const refetch = useCallback(async () => {
-    if (!ENABLED) {
-      setLoading(false)
-      return
-    }
-    const supabase = getSupabaseBrowserClient()
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      setData(null)
-      setLoading(false)
-      return
-    }
-    const { data: json, error: err } = await supabase.rpc("my_building_link")
-    if (err) {
-      setError(dbErrorMessage(err, "Couldn't load your building. Try again."))
-      setData(null)
-    } else if (json) {
-      const j = json as {
-        link_id: string
-        building_id: string
-        building_name: string
-        status: ResidentLinkStatus
-        unit: string | null
-        requested_at: string
-        building_address: string | null
-        building_city: string | null
-        building_region: string | null
-        building_postal_code: string | null
-      }
-      setData({
-        linkId: j.link_id,
-        buildingId: j.building_id,
-        buildingName: j.building_name,
-        status: j.status,
-        unit: j.unit,
-        requestedAt: j.requested_at,
-        buildingAddress: j.building_address,
-        buildingCity: j.building_city,
-        buildingRegion: j.building_region,
-        buildingPostalCode: j.building_postal_code,
-      })
-    } else {
-      setData(null)
-    }
-    setLoading(false)
-  }, [])
+  // Forced re-render on any store change, as usePets and useNotifications do.
+  const [, force] = useReducer((c: number) => c + 1, 0)
   useEffect(() => {
-    void refetch()
-  }, [refetch])
-  return { data, isLoading, error, refetch }
+    const unsubscribe = buildingLinkStore.subscribe(force)
+    buildingLinkStore.ensure()
+    return unsubscribe
+  }, [])
+  return {
+    data: buildingLinkStore.get(),
+    isLoading: ENABLED && buildingLinkStore.isLoading(),
+    error: buildingLinkStore.error(),
+    refetch: refreshMyBuildingLink,
+  }
 }
 
 export async function leaveBuilding(): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.rpc("leave_my_building_link")
-  return { error: error ? dbErrorMessage(error, "Couldn't leave the building. Try again.") : null }
+  if (error) return { error: dbErrorMessage(error, "Couldn't leave the building. Try again.") }
+  await refreshMyBuildingLink()
+  return { error: null }
 }
 
 /* -------------------- manager: resident link queue ---------------------- */
@@ -1383,6 +1525,16 @@ const notificationStore = createNotificationStore<AppNotification>({
   load: loadNotifications,
   persistRead: persistNotificationRead,
   persistAllRead: persistAllNotificationsRead,
+})
+
+/* A manager decides the link from their own device, so nothing in this tab
+ * writes it. Their decision notifies the resident; when the inbox first shows
+ * a link notification we had not seen (a focus refresh, opening Alerts), the
+ * cached link is stale and is re-read. */
+const linkDecisionArrived = createLinkDecisionWatch()
+notificationStore.subscribe(() => {
+  const list = notificationStore.get()
+  if (list && linkDecisionArrived(list)) void buildingLinkStore.refresh()
 })
 
 /** Clear on sign-out, beside `clearPetsCache()`, so the next account starts empty. */
@@ -2618,6 +2770,11 @@ export function useMyCases(): LiveResult<ResidentCase[]> {
       )
       .eq("resident_id", user.id)
       .order("created_at", { ascending: false })
+      /* Bounded: newest 50. Every embed above multiplies the payload per
+         case, and Home's CaseCard reads this on every visit. My Cases shares
+         the hook, so it lists the newest 50 too — no resident on this
+         platform is near that, and an unbounded select would only grow. */
+      .limit(50)
 
     if (err) {
       setError(dbErrorMessage(err, "Couldn't load your cases. Try again."))

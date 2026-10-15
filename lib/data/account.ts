@@ -6,6 +6,7 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { dbErrorMessage } from "@/lib/data/db-error"
+import { refreshMyBuildingLink } from "@/lib/data/live"
 
 /**
  * WHAT THIS DOES NOT EXPORT, REPORTED RATHER THAN QUIETLY LEFT OUT.
@@ -138,6 +139,8 @@ export async function setMyUnit(unit: string): Promise<{ error: string | null; u
           : "Couldn't save your unit.",
     }
   }
+  // The unit is part of the shared building link every reader shows.
+  await refreshMyBuildingLink()
   return { error: null, unit: r.unit ?? null }
 }
 

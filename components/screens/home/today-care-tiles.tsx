@@ -1,7 +1,7 @@
 "use client"
 
 import { Croissant, Footprints, Pill } from "lucide-react"
-import { useCareEntries, useCareTargets, type CareEntryKind, type Species } from "@/lib/data"
+import { usePetCareToday, type CareEntry, type CareEntryKind, type CareTarget, type Species } from "@/lib/data"
 import { careKindsFor, unitById } from "@/lib/data/care-catalog"
 
 /**
@@ -30,24 +30,26 @@ function startOfToday(): number {
   return d.getTime()
 }
 
+/* A tile renders what it is handed. The read is made once, by TodayCareTiles:
+   each tile used to fetch its own entries AND every target for the pet, so the
+   strip cost six requests and read the same targets three times. */
 function CareTile({
-  petId,
   species,
   kind,
   label,
   icon: Icon,
+  entries,
+  allTargets,
   onOpen,
 }: {
-  petId?: string
   species?: Species
   kind: CareEntryKind
   label: string
   icon: typeof Croissant
+  entries: CareEntry[]
+  allTargets: CareTarget[]
   onOpen?: (kind: CareEntryKind) => void
 }) {
-  const { data: entries } = useCareEntries(petId, kind)
-  const { data: allTargets } = useCareTargets(petId)
-
   const today = entries.filter((e) => new Date(e.loggedAt).getTime() >= startOfToday())
   const loggedTotal = today.reduce((sum, e) => sum + (e.amount ?? 0), 0)
 
@@ -112,12 +114,28 @@ export function TodayCareTiles({
     ] as Tile[]
   ).filter((t) => available.includes(t.kind))
 
+  /* One read for the strip: the targets, and the entries for these kinds. It
+     re-reads itself when an entry for this pet is logged anywhere — ticking a
+     schedule row above updates the tile without leaving Home. Called before
+     the early return below so the hook order never changes. */
+  const { entriesByKind, targets } = usePetCareToday(
+    petId,
+    tiles.map((t) => t.kind),
+  )
+
   if (tiles.length === 0) return null
 
   return (
     <div className={`grid gap-3 ${tiles.length === 3 ? "grid-cols-3" : tiles.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
       {tiles.map((t) => (
-        <CareTile key={t.kind} petId={petId} species={species} onOpen={onOpen} {...t} />
+        <CareTile
+          key={t.kind}
+          species={species}
+          onOpen={onOpen}
+          entries={entriesByKind[t.kind] ?? []}
+          allTargets={targets}
+          {...t}
+        />
       ))}
     </div>
   )

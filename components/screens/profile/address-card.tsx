@@ -26,7 +26,9 @@ import {
  * themselves into a building's register.
  */
 export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => void }) {
-  const { data: link, refetch: refetchLink } = useMyBuildingLink()
+  // setMyUnit refreshes the shared link itself, so the new unit shows here and
+  // on Home when it returns.
+  const { data: link } = useMyBuildingLink()
   const [address, setAddress] = useState<MyAddress | null>(null)
   const [matches, setMatches] = useState<string[]>([])
   const [editing, setEditing] = useState(false)
@@ -72,7 +74,6 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
     if (error) return toast.error("Couldn't save", { description: error })
     toast.success(unit ? `Unit set to ${unit}` : "Unit cleared")
     setEditingUnit(false)
-    refetchLink()
   }
 
   if (loading) return null

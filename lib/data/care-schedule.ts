@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { dbErrorMessage } from "@/lib/data/db-error"
+import { careLogged } from "./care-log-signal"
 
 /** The vocabulary of `public.care_kind` — older and narrower than care_entry_kind. */
 export type CareTaskKind = "meal" | "medication" | "water" | "walk" | "grooming" | "other"
@@ -182,6 +183,10 @@ export function useHouseholdCareTasks(petIds: string[], dateKey = localDateKey()
     const rows = (tasks ?? []) as TaskRow[]
     const taskIds = rows.map((r) => r.id)
 
+    /* Sequential on purpose. `pet_care_log` has no pet_id — a log row knows
+       only its task — so the day's log can be asked for only once the task
+       ids are known. Running it alongside would need an `!inner` embed
+       through pet_care_tasks, a different query for the same answer. */
     let doneIds = new Set<string>()
     if (taskIds.length > 0) {
       const { data: log } = await supabase
@@ -483,8 +488,11 @@ export async function setCareTaskDone(
       unit: target.unit,
       source_task_id: taskId,
     })
+    // Home's goal tiles read this pet's entries; tell them to re-read.
+    careLogged(task.pet_id)
   } else if ((existing ?? []).length > 0) {
     await supabase.from("care_entries").delete().in("id", (existing ?? []).map((e) => e.id))
+    careLogged(task.pet_id)
   }
 
   return { error: null }

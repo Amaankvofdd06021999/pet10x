@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { hasRabies } from "./vaccines"
+import { useMyBuildingLink, usePets } from "./live"
 import type { ScreenKey } from "@/lib/navigation"
 
 /** The five flags a building may enforce, from `buildings.pet_rules`. */
@@ -290,10 +291,32 @@ export interface CompletenessResult {
   refetch: () => void
 }
 
-/** The signed-in resident's own outstanding items. */
+/**
+ * The signed-in resident's own outstanding items.
+ *
+ * Pet identity comes from the shared pets cache and the building from the
+ * shared link store, both of which Home has already loaded. This used to
+ * re-select every pet with three embeds and then, once the link came back,
+ * make a second round trip for `buildings.pet_rules`. Now every read it still
+ * needs — vaccinations, documents and contacts for those pet ids, the profile,
+ * the link's unit, and the building's rules — goes out in one `Promise.all`.
+ *
+ * The pets cache lists non-deleted pets of this owner, the same rows the old
+ * select read; the link store answers from `my_building_link()`, which filters
+ * resident_links exactly as the query below does (pending or approved, not
+ * left), so the building whose rules are read is the same building.
+ */
 export function useMyCompleteness(): CompletenessResult {
   const [result, setResult] = useState<{ heading: string; gaps: Gap[] }>({ heading: "", gaps: [] })
   const [isLoading, setLoading] = useState(true)
+  const pets = usePets()
+  const link = useMyBuildingLink()
+  const ready = !pets.isLoading && !link.isLoading
+  const buildingId = link.data?.buildingId ?? null
+  /* Keyed on a string of what is read from each pet, not on the array: the
+     cache hands over a new array after any pet mutation, and a rename or a
+     neutered toggle must re-run this while an unrelated re-render must not. */
+  const petKey = JSON.stringify(pets.data.map((p) => [p.id, p.name, p.neutered ?? null]))
 
   const refetch = useCallback(async () => {
     const supabase = getSupabaseBrowserClient()
@@ -301,6 +324,7 @@ export function useMyCompleteness(): CompletenessResult {
       setLoading(false)
       return
     }
+    if (!ready) return
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -310,42 +334,40 @@ export function useMyCompleteness(): CompletenessResult {
       return
     }
 
-    const [{ data: profile }, { data: link }, { data: pets }] = await Promise.all([
-      supabase.from("profiles").select("phone, street_address, postal_code").eq("id", user.id).maybeSingle(),
-      supabase
-        .from("resident_links")
-        .select("unit_id, building_id, status")
-        .eq("profile_id", user.id)
-        .in("status", ["pending", "approved"])
-        .is("left_at", null)
-        .maybeSingle(),
-      supabase
-        .from("pets")
-        .select(
-          "id, name, neutered, pet_vaccinations(name, status), pet_documents(kind), pet_emergency_contacts(id)",
-        )
-        .eq("owner_id", user.id)
-        .is("deleted_at", null),
-    ])
+    const petList = JSON.parse(petKey) as [string, string, boolean | null][]
+    const ids = petList.map(([id]) => id)
+    /* PostgREST renders `.in("pet_id", [])` as `in.()`, a syntax error rather
+       than an empty result — with no pets there is nothing to ask. */
+    const none = Promise.resolve({ data: [] as never[], error: null })
 
-    let rules: BuildingPetRules = {}
-    if (link?.building_id) {
-      const { data: building } = await supabase
-        .from("buildings")
-        .select("pet_rules")
-        .eq("id", link.building_id)
-        .maybeSingle()
-      rules = ((building?.pet_rules ?? {}) as BuildingPetRules) || {}
-    }
+    const [{ data: profile }, { data: linkRow }, { data: vaccinations }, { data: documents }, { data: contacts }, { data: building }] =
+      await Promise.all([
+        supabase.from("profiles").select("phone, street_address, postal_code").eq("id", user.id).maybeSingle(),
+        supabase
+          .from("resident_links")
+          .select("unit_id, building_id, status")
+          .eq("profile_id", user.id)
+          .in("status", ["pending", "approved"])
+          .is("left_at", null)
+          .maybeSingle(),
+        ids.length ? supabase.from("pet_vaccinations").select("pet_id, name, status").in("pet_id", ids) : none,
+        ids.length ? supabase.from("pet_documents").select("pet_id, kind").in("pet_id", ids) : none,
+        ids.length ? supabase.from("pet_emergency_contacts").select("pet_id").in("pet_id", ids) : none,
+        buildingId
+          ? supabase.from("buildings").select("pet_rules").eq("id", buildingId).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ])
 
-    type PetRow = {
-      id: string
-      name: string
-      neutered: boolean | null
-      pet_vaccinations: { name: string; status: string }[] | null
-      pet_documents: { kind: string }[] | null
-      pet_emergency_contacts: { id: string }[] | null
+    const rules: BuildingPetRules = ((building?.pet_rules ?? {}) as BuildingPetRules) || {}
+
+    const byPet = <T extends { pet_id: string }>(rows: T[] | null) => {
+      const m = new Map<string, T[]>()
+      for (const r of rows ?? []) m.set(r.pet_id, [...(m.get(r.pet_id) ?? []), r])
+      return m
     }
+    const vaxByPet = byPet(vaccinations as { pet_id: string; name: string; status: string }[] | null)
+    const docsByPet = byPet(documents as { pet_id: string; kind: string }[] | null)
+    const contactsByPet = byPet(contacts as { pet_id: string }[] | null)
 
     // Rule flags the building enforces, as the names computeGaps reads.
     const requirements = Object.entries(REQUIREMENT_FLAG_TO_GAP_KIND)
@@ -354,22 +376,22 @@ export function useMyCompleteness(): CompletenessResult {
 
     setResult(
       computeGaps({
-        linked: link?.status === "approved",
-        hasUnit: Boolean(link?.unit_id),
+        linked: linkRow?.status === "approved",
+        hasUnit: Boolean(linkRow?.unit_id),
         hasAddress: Boolean(profile?.street_address?.trim() || profile?.postal_code?.trim()),
         requirements,
-        pets: ((pets ?? []) as PetRow[]).map((p) => ({
-          id: p.id,
-          name: p.name,
-          neutered: p.neutered,
-          vaccinationNames: (p.pet_vaccinations ?? []).filter((v) => !BAD_VAX.includes(v.status)).map((v) => v.name),
-          documentKinds: (p.pet_documents ?? []).map((d) => d.kind),
-          contacts: (p.pet_emergency_contacts ?? []).length,
+        pets: petList.map(([id, name, neutered]) => ({
+          id,
+          name,
+          neutered,
+          vaccinationNames: (vaxByPet.get(id) ?? []).filter((v) => !BAD_VAX.includes(v.status)).map((v) => v.name),
+          documentKinds: (docsByPet.get(id) ?? []).map((d) => d.kind),
+          contacts: (contactsByPet.get(id) ?? []).length,
         })),
       }),
     )
     setLoading(false)
-  }, [])
+  }, [ready, petKey, buildingId])
 
   useEffect(() => {
     void refetch()

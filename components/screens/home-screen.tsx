@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { usePets, useNotifications, refreshNotifications, useMyBuildingLink, useSelectedPet } from "@/lib/data"
+import { usePets, useNotifications, useMyBuildingLink, useSelectedPet } from "@/lib/data"
 import { useAiSuggestions } from "@/lib/ai/client"
 import { SuggestionCard } from "@/components/ai/suggestion-card"
 import { TodayCareTiles } from "@/components/screens/home/today-care-tiles"
@@ -102,11 +102,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   /* One read of the shared notification store feeds both the bell and Recent
      Activity. That block used to read `useHomeAlerts()`, a stub that returned
      [] — so it had never rendered for anybody. */
+  /* No forced re-read on mount: the store's `ensure()` loads it once per
+     session, and the window regaining focus refreshes it. Re-reading on every
+     landing fetched the inbox a second time on each visit to Home. */
   const { data: notifications } = useNotifications()
-  // Home carries the bell and Recent Activity; landing here re-reads the inbox.
-  useEffect(() => {
-    void refreshNotifications()
-  }, [])
   const alerts = notifications.slice(0, 3)
   const { data: buildingLink, isLoading: linkLoading } = useMyBuildingLink()
   // Alerts is no longer a tab (the assistant took the slot), so the unread

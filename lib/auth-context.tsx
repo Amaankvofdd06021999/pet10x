@@ -9,10 +9,13 @@ import {
   MOCK_USERS,
   VALID_BUILDING_CODES,
   resolveBuildingCode,
+  clearBuildingLinkCache,
   clearNotificationsCache,
   clearPetsCache,
   clearSelectedPet,
+  refreshMyBuildingLink,
   refreshPets,
+  syncBuildingLinkAccount,
   syncNotificationsAccount,
   type AppUser,
   type DemoRole,
@@ -183,16 +186,18 @@ async function loadAppUser(authUser: User): Promise<AppUser> {
 let cachedAppUser: AppUser | null = null
 
 /**
- * Whose session the module-level data caches (pets, notifications) were last
- * filled under. A session can end WITHOUT this tab's signOut() running — signed
- * out in another tab, a refresh token that expired — and the next person to
- * sign in here inline must not be shown the previous one's pets or inbox.
+ * Whose session the module-level data caches (pets, notifications, building
+ * link) were last filled under. A session can end WITHOUT this tab's signOut()
+ * running — signed out in another tab, a refresh token that expired — and the
+ * next person to sign in here inline must not be shown the previous one's pets,
+ * inbox or building.
  */
 let cachesFilledFor: string | null = null
 
 function dropAccountCaches() {
   clearPetsCache()
   clearNotificationsCache()
+  clearBuildingLinkCache()
   // Same reason signOut() gives: not bleed (the key carries the profile id),
   // but not leaving the previous person's pet named in storage either.
   clearSelectedPet()
@@ -605,15 +610,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setGuestSession(null)
 
     /* A different account from the one the caches were filled under: drop
-       them and reload pets for this one (a mounted usePets would otherwise
-       sit on an empty cache). The notification store also checks the
-       profile id on every load; this is the eager half. */
+       them and reload pets and the building link for this one (a mounted
+       reader would otherwise sit on an empty cache). The notification and
+       link stores also check the profile id; this is the eager half. */
     if (cachesFilledFor !== null && cachesFilledFor !== authUser.id) {
       dropAccountCaches()
       void refreshPets()
+      void refreshMyBuildingLink()
     }
     cachesFilledFor = authUser.id
     syncNotificationsAccount(authUser.id)
+    syncBuildingLinkAccount(authUser.id)
 
     // Same user we already resolved before → paint from cache now and revalidate
     // below, instead of blocking the screen on a cross-region round trip.
@@ -844,6 +851,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (supabase) await supabase.auth.signOut().catch(() => {})
     clearPetsCache()
     clearNotificationsCache()
+    clearBuildingLinkCache()
     cachesFilledFor = null
     // The pets are gone, so the id remembered against them names nothing. The
     // storage key already carries the profile id, so this is not about bleed
