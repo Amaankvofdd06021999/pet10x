@@ -1,24 +1,21 @@
 "use client"
 
 import { toast } from "sonner"
-import { useOwnerBookings, computeEarnings, BOOKING_STATUS_LABEL } from "@/lib/data/bookings"
+import { useOwnerBookings, BOOKING_STATUS_LABEL } from "@/lib/data/bookings"
 import { formatPrice } from "@/lib/data/business"
-import { feeOwedCents, feePercentLabel } from "@/lib/data/fees"
+import { earningsSummary, feePercentLabel } from "@/lib/data/fees"
 import { toCsv, downloadCsv } from "@/lib/csv"
 import { StatTile, SectionCard, Spinner, EmptyState } from "./business-ui"
 import { Download, DollarSign } from "lucide-react"
 
 export function EarningsTab({ businessId }: { businessId: string }) {
   const { data: bookings, isLoading } = useOwnerBookings(businessId)
-  const e = computeEarnings(bookings)
+  const e = earningsSummary(bookings)
   const ledger = bookings.filter((b) => ["completed", "paid"].includes(b.status))
-  // The customer pays the business directly, so Pet10x's fee is something the
-  // business owes, not something withheld — summed from the stored fees.
-  const owed = feeOwedCents(bookings)
   // A business prices in one currency; its bookings carry it. CAD is the
   // column default when there are no bookings yet.
   const currency = bookings[0]?.currency ?? "cad"
-  const money = (dollars: number) => formatPrice(Math.round(dollars * 100), currency)
+  const money = (cents: number) => formatPrice(cents, currency)
 
   function exportCsv() {
     const rows = ledger.map((b) => ({
@@ -52,10 +49,12 @@ export function EarningsTab({ businessId }: { businessId: string }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Gross collected" value={money(e.grossPaid)} sub={`${e.paidCount} paid booking${e.paidCount === 1 ? "" : "s"}`} />
-        <StatTile label="Pet10x fee owed" value={formatPrice(owed, currency)} sub="Pet10x invoices this separately." tone="destructive" />
-        <StatTile label="Net to you" value={money(e.netPaid)} sub={`after the ${feePercentLabel()} Pet10x fee`} tone="success" />
-        <StatTile label="Pipeline" value={money(e.pipeline)} sub={`${e.completedAwaitingPayment} awaiting payment`} tone="accent" />
+        {/* Gross, fee and net are one set (completed + paid), so Gross − Fee = Net.
+            The customer pays the business directly, so the fee is owed, not withheld. */}
+        <StatTile label="Gross collected" value={money(e.grossCents)} sub={`${e.countedBookings} completed booking${e.countedBookings === 1 ? "" : "s"}`} />
+        <StatTile label="Pet10x fee owed" value={money(e.feeCents)} sub="Pet10x invoices this separately." tone="destructive" />
+        <StatTile label="Net to you" value={money(e.netCents)} sub={`after the ${feePercentLabel()} Pet10x fee`} tone="success" />
+        <StatTile label="Waiting for payment" value={money(e.waitingCents)} sub={`${e.waitingCount} completed, not yet paid · included above`} tone="accent" />
       </div>
 
       <SectionCard

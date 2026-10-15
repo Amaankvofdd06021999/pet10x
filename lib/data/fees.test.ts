@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { COMMISSION_RATE } from "./bookings"
-import { feeCents, feeOwedCents, feePercentLabel, parsePriceCents, validateServiceInput, youReceiveCents } from "./fees"
+import { COMMISSION_RATE, type BookingStatus } from "./bookings"
+import { feeCents, earningsSummary, feeOwedCents, feePercentLabel, parsePriceCents, validateServiceInput, youReceiveCents } from "./fees"
 
 describe("parsePriceCents", () => {
   it("reads a dollar sign and whole dollars", () => {
@@ -86,5 +86,44 @@ describe("feeOwedCents", () => {
     ]
     expect(feeOwedCents(rows)).toBe(2783)
     expect(feeOwedCents([])).toBe(0)
+  })
+})
+
+describe("earningsSummary", () => {
+  const b = (status: BookingStatus, amountCents: number, commissionCents: number) => ({ status, amountCents, commissionCents })
+  const mix = [
+    b("requested", 10_000, 1_500),
+    b("confirmed", 20_000, 3_000),
+    b("in_progress", 5_000, 750),
+    b("completed", 8_333, 1_250),
+    b("completed", 4_001, 600),
+    b("paid", 9_999, 1_500),
+    b("paid", 12_345, 1_852),
+    b("cancelled", 7_000, 1_050),
+    b("declined", 3_000, 450),
+  ]
+
+  it("counts gross, fee and net over the same completed + paid set", () => {
+    const s = earningsSummary(mix)
+    expect(s.grossCents).toBe(8_333 + 4_001 + 9_999 + 12_345)
+    expect(s.feeCents).toBe(1_250 + 600 + 1_500 + 1_852)
+    expect(s.countedBookings).toBe(4)
+  })
+  it("reconciles exactly: gross minus fee is net", () => {
+    const s = earningsSummary(mix)
+    expect(s.grossCents - s.feeCents).toBe(s.netCents)
+  })
+  it("reports completed-but-unpaid gross as its own line, and the paid count", () => {
+    const s = earningsSummary(mix)
+    expect(s.waitingCents).toBe(8_333 + 4_001)
+    expect(s.waitingCount).toBe(2)
+    expect(s.paidCount).toBe(2)
+  })
+  it("ignores requested, confirmed, in-progress, cancelled and declined", () => {
+    const s = earningsSummary([b("requested", 1, 1), b("confirmed", 1, 1), b("in_progress", 1, 1), b("cancelled", 1, 1), b("declined", 1, 1)])
+    expect(s).toEqual({ grossCents: 0, feeCents: 0, netCents: 0, waitingCents: 0, waitingCount: 0, paidCount: 0, countedBookings: 0 })
+  })
+  it("is all zero for no bookings", () => {
+    expect(earningsSummary([]).netCents).toBe(0)
   })
 })

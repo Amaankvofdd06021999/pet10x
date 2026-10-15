@@ -2,7 +2,8 @@
 
 import { useMemo } from "react"
 import { profileCompleteness, formatPrice, type MyBusiness } from "@/lib/data/business"
-import { useOwnerBookings, useBusinessServices, useBusinessReviews, computeEarnings } from "@/lib/data/bookings"
+import { useOwnerBookings, useBusinessServices, useBusinessReviews } from "@/lib/data/bookings"
+import { earningsSummary } from "@/lib/data/fees"
 import { StatTile, SectionCard, Spinner, Stars } from "./business-ui"
 import { BadgeCheck, AlertTriangle, Inbox, CalendarDays, DollarSign, MessageSquare, ChevronRight, Clock } from "lucide-react"
 
@@ -19,7 +20,7 @@ export function DashboardTab({
 
   // Archived services are hidden from customers, so they don't count toward a bookable profile.
   const completeness = profileCompleteness(business, services.filter((s) => s.active).length)
-  const earnings = computeEarnings(bookings)
+  const earnings = earningsSummary(bookings)
 
   const requests = bookings.filter((b) => b.status === "requested")
   const todayJobs = useMemo(() => {
@@ -98,7 +99,7 @@ export function DashboardTab({
           <StatTile
             label="Booked (30d)"
             value={formatPrice(Math.round(booked30d * 100), currency)}
-            sub={`${formatPrice(Math.round(earnings.netPaid * 100), currency)} earned after Pet10x fee`}
+            sub={`${formatPrice(earnings.netCents, currency)} earned after Pet10x fee`}
             tone="accent"
           />
         </button>

@@ -720,30 +720,3 @@ export async function deleteCampaign(id: string): Promise<{ error: string | null
   const { error } = await supabase.from("business_listings").delete().eq("id", id)
   return { error: error?.message ?? null }
 }
-
-/* ------------------------------------------------------------------ */
-/* Earnings (derived from the bookings the owner already has)          */
-/* ------------------------------------------------------------------ */
-
-export interface Earnings {
-  grossPaid: number
-  commissionPaid: number
-  netPaid: number
-  pipeline: number
-  paidCount: number
-  completedAwaitingPayment: number
-}
-
-export function computeEarnings(bookings: OwnerBooking[]): Earnings {
-  const paid = bookings.filter((b) => b.status === "paid")
-  const completed = bookings.filter((b) => b.status === "completed")
-  const upcoming = bookings.filter((b) => b.status === "confirmed" || b.status === "in_progress")
-  return {
-    grossPaid: paid.reduce((s, b) => s + b.amount, 0),
-    commissionPaid: paid.reduce((s, b) => s + b.commission, 0),
-    netPaid: paid.reduce((s, b) => s + b.net, 0),
-    pipeline: [...completed, ...upcoming].reduce((s, b) => s + b.net, 0),
-    paidCount: paid.length,
-    completedAwaitingPayment: completed.length,
-  }
-}

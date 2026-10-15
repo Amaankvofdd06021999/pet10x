@@ -354,6 +354,19 @@ describe("approvals targets carry a tab (BM-15)", () => {
   })
 })
 
+describe("manager targets written by the join-request and accommodation notifications", () => {
+  it("opens Residents for a manager, bare, and nothing for a resident", () => {
+    expect(resolveActionTarget("residents", "manager")).toEqual({ screen: "residents" })
+    expect(resolveActionTarget("residents", "resident")).toBeNull()
+    // Residents takes no id: a stray one is dropped, not stashed as a pet.
+    expect(resolveActionTarget("residents:abc", "manager")).toEqual({ screen: "residents" })
+  })
+  it("opens the accommodations queue, and a legacy bare approvals still opens the default tab", () => {
+    expect(resolveActionTarget("approvals:accommodations", "manager")).toEqual({ screen: "approvals", tab: "accommodations" })
+    expect(resolveActionTarget("approvals", "manager")).toEqual({ screen: "approvals" })
+  })
+})
+
 describe("clinicSignupHref", () => {
   it("comes back to /clinic after Create account", () => {
     expect(clinicSignupHref(null)).toBe("/login?mode=signup&next=%2Fclinic")

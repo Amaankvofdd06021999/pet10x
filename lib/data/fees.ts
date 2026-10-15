@@ -44,6 +44,59 @@ export function feeOwedCents(bookings: { status: BookingStatus; commissionCents:
     .reduce((sum, b) => sum + b.commissionCents, 0)
 }
 
+export interface EarningsSummary {
+  /** Price of every completed and paid booking. */
+  grossCents: number
+  /** Pet10x's stored fee on those same bookings. */
+  feeCents: number
+  /** grossCents − feeCents, by construction. */
+  netCents: number
+  /** Gross of completed bookings the customer has not yet paid for — a subset of grossCents. */
+  waitingCents: number
+  waitingCount: number
+  paidCount: number
+  /** Completed + paid bookings: the set the three money figures are over. */
+  countedBookings: number
+}
+
+/**
+ * Every money tile on Earnings and the Dashboard, from one pass over one set.
+ *
+ * Gross, fee and net are all taken over completed + paid bookings (the set
+ * `feeOwedCents` already bills against), so Gross − Fee = Net holds exactly and
+ * the tiles can never be read against different sets. "Waiting for payment" is
+ * the completed, not-yet-paid part of that same set, shown as its own line.
+ * Stored amount_cents and commission_cents are summed, never recomputed.
+ */
+export function earningsSummary(
+  bookings: { status: BookingStatus; amountCents: number; commissionCents: number }[],
+): EarningsSummary {
+  let grossCents = 0
+  let feeCents = 0
+  let waitingCents = 0
+  let waitingCount = 0
+  let paidCount = 0
+  for (const b of bookings) {
+    if (b.status !== "completed" && b.status !== "paid") continue
+    grossCents += b.amountCents
+    feeCents += b.commissionCents
+    if (b.status === "paid") paidCount += 1
+    else {
+      waitingCents += b.amountCents
+      waitingCount += 1
+    }
+  }
+  return {
+    grossCents,
+    feeCents,
+    netCents: grossCents - feeCents,
+    waitingCents,
+    waitingCount,
+    paidCount,
+    countedBookings: paidCount + waitingCount,
+  }
+}
+
 /*
  * The only shapes a price may take: an optional dollar sign, 1–5 digits, and
  * optionally a dot or comma with one or two decimals. Anything else — a minus
