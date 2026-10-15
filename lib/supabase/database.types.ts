@@ -2843,6 +2843,65 @@ export type Database = {
           },
         ]
       }
+      invoice_payments: {
+        Row: {
+          amount_cents: number
+          business_id: string
+          created_at: string
+          id: string
+          invoice_id: string
+          method: string
+          recorded_by: string | null
+        }
+        Insert: {
+          amount_cents: number
+          business_id: string
+          created_at?: string
+          id?: string
+          invoice_id: string
+          method: string
+          recorded_by?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          business_id?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          method?: string
+          recorded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payments_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payments_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "user_entitlements"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           business_id: string
@@ -6817,6 +6876,10 @@ export type Database = {
         Args: { p_patient: string; p_source_id: string; p_source_kind: string }
         Returns: Json
       }
+      clinic_record_payment: {
+        Args: { p_amount_cents: number; p_invoice: string; p_method: string }
+        Returns: Json
+      }
       clinic_redeem_desk_code: {
         Args: { p_business: string; p_code: string; p_patient?: string }
         Returns: Json
@@ -6849,6 +6912,10 @@ export type Database = {
       }
       clinic_set_invoice_status: {
         Args: { p_invoice: string; p_paid_cents?: number; p_status: string }
+        Returns: Json
+      }
+      clinic_void_invoice: {
+        Args: { p_invoice: string; p_reason: string }
         Returns: Json
       }
       clinic_withdraw_publication: {

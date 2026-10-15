@@ -219,12 +219,14 @@ begin
   if not coalesce((res->>'ok')::boolean, false) then
     raise exception 'FAIL: clinic could not send its draft estimate: %', res;
   end if;
-  -- A move that is not draft -> sent notifies nobody.
-  res := public.clinic_set_invoice_status(current_setting('part_e.inv')::uuid, 'paid');
+  -- A move that is not draft -> sent notifies nobody. (sent -> approved since
+  -- 20261016000001: paying is clinic_record_payment now, and this zero-total
+  -- invoice has nothing to pay.)
+  res := public.clinic_set_invoice_status(current_setting('part_e.inv')::uuid, 'approved');
   if not coalesce((res->>'ok')::boolean, false) then
-    raise exception 'FAIL: clinic could not mark its sent invoice paid: %', res;
+    raise exception 'FAIL: clinic could not mark its sent invoice approved: %', res;
   end if;
-  raise notice 'ok: clinic sent a draft estimate and marked an invoice paid';
+  raise notice 'ok: clinic sent a draft estimate and marked an invoice approved';
 end $$;
 reset role;
 
