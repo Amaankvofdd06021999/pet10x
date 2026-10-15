@@ -35,3 +35,6 @@ DEMO_DATA.html
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Subagent-driven-development scratch (ledgers, briefs, reports)
+.superpowers/sdd/
