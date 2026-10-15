@@ -19,7 +19,7 @@ import { appointmentLabel, appointmentTone, canOwnerCancel } from "@/lib/data/ap
 import type { Slot } from "@/lib/data/clinic/schedule"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
-  groupBills, billLabel, billStatusLabel, billStatusTone, isUnpaid, lineTotalCents,
+  groupBills, billLabel, ownerBillStatus, isUnpaid, lineTotalCents,
   type OwnerBill,
 } from "@/lib/data/owner-bills"
 import { MY_VETS_TABS, type MyVetsTab } from "@/lib/navigation"
@@ -583,13 +583,14 @@ function BillRow({
 }) {
   const [open, setOpen] = useState(defaultOpen)
   const linesId = `bill-lines-${b.id}`
+  const status = ownerBillStatus(b)
   return (
     <li className="rounded-2xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-foreground">
             {billLabel(b)}
-            <Pill tone={billStatusTone(b.status)}>{billStatusLabel(b.status)}</Pill>
+            <Pill tone={status.tone}>{status.label}</Pill>
             <Pill tone="accent">{b.petName}</Pill>
           </p>
           <p className="mt-0.5 text-[12px] text-muted-foreground">

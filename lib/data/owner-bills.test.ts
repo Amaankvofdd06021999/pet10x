@@ -6,6 +6,7 @@ import {
   groupBills,
   isUnpaid,
   lineTotalCents,
+  ownerBillStatus,
   type OwnerBill,
 } from "./owner-bills"
 
@@ -48,6 +49,39 @@ describe("billStatusLabel", () => {
     expect(billStatusTone("approved")).toBe("info")
     expect(billStatusTone("declined")).toBe("neutral")
     expect(billStatusTone("whatever")).toBe("neutral")
+  })
+})
+
+describe("ownerBillStatus", () => {
+  it("shows an invoice paid in part as Partly paid, with what is paid of the total", () => {
+    expect(ownerBillStatus(bill({ id: "1", status: "sent", totalCents: 10000, paidCents: 4000 }))).toEqual({
+      label: "Partly paid — $40.00 of $100.00",
+      tone: "warn",
+    })
+    expect(
+      ownerBillStatus(bill({ id: "2", status: "approved", totalCents: 10000, paidCents: 2550, currency: "usd" })),
+    ).toEqual({ label: "Partly paid — US$25.50 of US$100.00", tone: "warn" })
+  })
+
+  it("shows a voided bill as Void, whatever was paid on it", () => {
+    expect(ownerBillStatus(bill({ id: "3", status: "void", totalCents: 10000, paidCents: 10000 }))).toEqual({
+      label: "Void",
+      tone: "neutral",
+    })
+    expect(ownerBillStatus(bill({ id: "4", kind: "estimate", status: "void" }))).toEqual({ label: "Void", tone: "neutral" })
+  })
+
+  it("uses the plain status when nothing, or everything, is paid", () => {
+    expect(ownerBillStatus(bill({ id: "5", status: "sent", paidCents: 0 }))).toEqual({ label: "Sent", tone: "warn" })
+    expect(ownerBillStatus(bill({ id: "6", status: "paid", totalCents: 1000, paidCents: 1000 }))).toEqual({
+      label: "Paid",
+      tone: "good",
+    })
+    // An estimate is never paid in part.
+    expect(ownerBillStatus(bill({ id: "7", kind: "estimate", status: "approved", paidCents: 300 }))).toEqual({
+      label: "Approved",
+      tone: "info",
+    })
   })
 })
 

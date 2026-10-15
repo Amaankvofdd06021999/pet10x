@@ -1,34 +1,36 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useId, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Receipt, Plus } from "lucide-react"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
 import {
-  useInvoices, setInvoiceStatus, invoiceFromVisit, useBillableVisits, type Invoice,
+  useInvoices, setInvoiceStatus, recordPayment, voidInvoice, usePaymentsSince, invoiceFromVisit,
+  useBillableVisits, type Invoice,
 } from "@/lib/data/clinic/shop"
 import {
-  invoiceStatusLabel, INVOICE_STATUS_TONE, invoiceActions, invoicesForView, billingViewFor,
-  liveInvoiceByVisit, convertedTotalNote, takenTodayCents, validatePayment, PAYMENT_METHODS,
-  type BillingView, type InvoiceAction, type PaymentErrors, type PaymentMethod, type InvoiceStatus,
+  invoiceStatusView, invoiceActions, invoicesForView, billingViewFor, isPartlyPaid, paymentProgress,
+  remainingCents, paymentRows, paymentMethodLabel, liveInvoiceByVisit, convertedTotalNote, takenTodayCents,
+  validatePayment, PAYMENT_METHODS, type BillingView, type InvoiceAction, type PaymentErrors, type PaymentMethodCode,
 } from "@/lib/data/clinic/billing"
-import { formatMoney, formatDateShort } from "@/lib/data/clinic/time"
+import { formatMoney, formatDateShort, dayBounds, todayISO } from "@/lib/data/clinic/time"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal, Field, TextInput, Select,
+  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal, Field, TextInput,
   SegmentedTabs, Toolbar, StatTile,
 } from "@/components/screens/shared/ui"
 
 const ACTION_LABEL: Record<InvoiceAction, string> = {
   send: "Send",
   record_payment: "Record payment",
+  settle: "Mark settled",
   convert: "Convert to invoice",
   void: "Void",
 }
 
-function StatusPill({ status }: { status: string }) {
-  const tone = INVOICE_STATUS_TONE[status as InvoiceStatus] ?? "neutral"
-  return <Pill tone={tone}>{invoiceStatusLabel(status)}</Pill>
+function StatusPill({ bill }: { bill: Invoice }) {
+  const { label, tone } = invoiceStatusView(bill)
+  return <Pill tone={tone}>{label}</Pill>
 }
 
 export function ClinicBillingScreen({
@@ -47,7 +49,7 @@ export function ClinicBillingScreen({
   const [openId, setOpenId] = useState<string | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const [paying, setPaying] = useState<Invoice | null>(null)
-  const [reviewing, setReviewing] = useState<{ bill: Invoice; paidCents: number; method: PaymentMethod } | null>(null)
+  const [reviewing, setReviewing] = useState<{ bill: Invoice; amountCents: number; method: PaymentMethodCode } | null>(null)
   const [voiding, setVoiding] = useState<Invoice | null>(null)
   // The draft a Convert to invoice just made, and the approved estimate's
   // total to compare it with before it is sent.
@@ -73,13 +75,24 @@ export function ClinicBillingScreen({
   const rows = invoicesForView(invoices.data, view)
   const outstanding = invoices.data
     .filter((i) => i.kind === "invoice" && (i.status === "sent" || i.status === "approved"))
-    .reduce((sum, i) => sum + i.totalCents - i.paidCents, 0)
-  const takenToday = takenTodayCents(invoices.data, new Date(), clinic.timezone)
+    .reduce((sum, i) => sum + remainingCents(i), 0)
+  // Today's payments, read from the start of the practice's day; the helper
+  // re-checks each one's day in the practice's zone. The string changes at
+  // the practice's midnight, which refetches.
+  const todayStart = dayBounds(todayISO(new Date(), clinic.timezone), clinic.timezone).from
+  const payments = usePaymentsSince(clinic.businessId, todayStart)
+  const takenToday = takenTodayCents(payments.data, new Date(), clinic.timezone)
   const openBill = openId ? invoices.data.find((i) => i.id === openId) ?? null : null
 
   const actionsFor = (i: Invoice) =>
     // An estimate with no visit has nothing to convert from, so it reads as already invoiced.
     invoiceActions(i, { invoiced: i.visitId === null || invoiced.has(i.visitId) })
+
+  // A payment or a void changes both the bills and today's takings.
+  function refetchMoney() {
+    invoices.refetch()
+    payments.refetch()
+  }
 
   async function run(bill: Invoice, action: InvoiceAction) {
     // One dialog at a time: the invoice sheet closes before payment or
@@ -88,6 +101,16 @@ export function ClinicBillingScreen({
     if (action === "record_payment") return setPaying(bill)
     if (action === "void") return setVoiding(bill)
     setBusy(bill.id)
+    if (action === "settle") {
+      // Nothing is owed (a $0 bill): a payment of 0 is the RPC's one way to
+      // close it as paid. No money changed hands, so no payment row is made.
+      const res = await recordPayment(bill.id, 0, "other", bill.currency)
+      setBusy(null)
+      if (res.error) return toast.error(res.error)
+      toast.success("Invoice settled")
+      refetchMoney()
+      return
+    }
     if (action === "send") {
       const res = await setInvoiceStatus(bill.id, "sent")
       setBusy(null)
@@ -157,14 +180,14 @@ export function ClinicBillingScreen({
                   >
                     <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-foreground">
                       {i.patientName} · {i.customerName}
-                      <StatusPill status={i.status} />
+                      <StatusPill bill={i} />
                       {i.kind === "estimate" && <Pill tone="info">Estimate</Pill>}
                       {i.ownerApprovedAt && <Pill tone="good">Owner approved</Pill>}
                     </p>
                     <p className="text-[12px] text-muted-foreground">
                       {formatDateShort(i.issuedOn ?? i.createdAt)} · {i.lines.length} line
                       {i.lines.length === 1 ? "" : "s"}
-                      {i.status === "paid" && i.paidCents < i.totalCents ? ` · ${formatMoney(i.paidCents, i.currency)} received` : ""}
+                      {isPartlyPaid(i) ? ` · ${formatMoney(i.paidCents, i.currency)} paid, ${formatMoney(remainingCents(i), i.currency)} left` : ""}
                     </p>
                   </button>
                   <div className="flex flex-wrap items-center gap-2">
@@ -205,7 +228,7 @@ export function ClinicBillingScreen({
           ) : (
             <div className="flex flex-col gap-3">
               <p className="flex flex-wrap items-center gap-2 text-[12.5px] text-muted-foreground">
-                <StatusPill status={openBill.status} />
+                <StatusPill bill={openBill} />
                 {openBill.ownerApprovedAt && <Pill tone="good">Owner approved</Pill>}
                 {openBill.issuedOn ? `Sent ${formatDateShort(openBill.issuedOn)}` : `Created ${formatDateShort(openBill.createdAt)}`}
               </p>
@@ -241,10 +264,23 @@ export function ClinicBillingScreen({
                 <span>Total</span>
                 <span className="tabular-nums">{formatMoney(openBill.totalCents, openBill.currency)}</span>
               </p>
-              {openBill.status === "paid" && (
-                <p className="text-[12.5px] text-muted-foreground">
-                  {formatMoney(openBill.paidCents, openBill.currency)} received.
-                </p>
+              {isPartlyPaid(openBill) && (
+                <p className="text-[12.5px] text-muted-foreground">{paymentProgress(openBill)}</p>
+              )}
+              {openBill.payments.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-[12px] font-semibold text-foreground">Payments</p>
+                  <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
+                    {paymentRows(openBill.payments, clinic.timezone, openBill.currency).map((p) => (
+                      <li key={p.id} className="flex items-center justify-between gap-2 px-3 py-2 text-[13px]">
+                        <span className="text-foreground">
+                          {p.date} · {p.method}
+                        </span>
+                        <span className="tabular-nums text-foreground">{p.amount}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
               {openBill.status === "declined" && (
                 <p className="text-[12.5px] text-muted-foreground">
@@ -279,8 +315,8 @@ export function ClinicBillingScreen({
           key={paying.id}
           bill={paying}
           onClose={() => setPaying(null)}
-          onReview={(paidCents, method) => {
-            setReviewing({ bill: paying, paidCents, method })
+          onReview={(amountCents, method) => {
+            setReviewing({ bill: paying, amountCents, method })
             setPaying(null)
           }}
         />
@@ -291,11 +327,15 @@ export function ClinicBillingScreen({
         onOpenChange={(open) => {
           if (!open) setReviewing(null)
         }}
-        title={reviewing ? `Record ${formatMoney(reviewing.paidCents, reviewing.bill.currency)} by ${reviewing.method}?` : "Record payment?"}
+        title={
+          reviewing
+            ? `Record ${formatMoney(reviewing.amountCents, reviewing.bill.currency)} by ${paymentMethodLabel(reviewing.method)}?`
+            : "Record payment?"
+        }
         description={
           reviewing
-            ? reviewing.paidCents < reviewing.bill.totalCents
-              ? `The invoice is marked paid with ${formatMoney(reviewing.paidCents, reviewing.bill.currency)} of ${formatMoney(reviewing.bill.totalCents, reviewing.bill.currency)} received. The rest isn't tracked after this.`
+            ? reviewing.amountCents < remainingCents(reviewing.bill)
+              ? `${formatMoney(remainingCents(reviewing.bill) - reviewing.amountCents, reviewing.bill.currency)} will still be owed on ${reviewing.bill.customerName}'s invoice.`
               : `${reviewing.bill.customerName}'s invoice is marked paid in full.`
             : ""
         }
@@ -303,12 +343,10 @@ export function ClinicBillingScreen({
         onConfirm={async () => {
           const r = reviewing
           if (!r) return { error: null }
-          const res = await setInvoiceStatus(r.bill.id, "paid", r.paidCents, r.method)
-          invoices.refetch()
+          const res = await recordPayment(r.bill.id, r.amountCents, r.method, r.bill.currency)
+          refetchMoney()
           if (res.error) return { error: res.error }
-          // The payment stands even if its method note didn't save.
-          if (res.warning) toast.warning(res.warning)
-          else toast.success("Payment recorded")
+          toast.success(res.status === "paid" ? "Payment recorded. The invoice is paid." : "Payment recorded")
           return { error: null }
         }}
       />
@@ -319,16 +357,28 @@ export function ClinicBillingScreen({
           if (!open) setVoiding(null)
         }}
         title={`Void this ${voiding?.kind === "estimate" ? "estimate" : "invoice"}?`}
-        description="It stays on record, but it can't be sent, approved or paid again. This can't be undone."
+        description={
+          <>
+            It stays on record, but it can&apos;t be sent, approved or paid again. This can&apos;t be undone. The
+            owner sees this reason if the bill already reached them.
+            {voiding && voiding.paidCents > 0 ? " Payments already recorded stay on the bill." : ""}
+          </>
+        }
+        reason={{
+          label: "Reason",
+          required: true,
+          placeholder: "For example, billed to the wrong visit",
+          requiredMessage: "Add a reason for voiding it.",
+        }}
         confirmLabel="Void"
         tone="danger"
-        onConfirm={async () => {
+        onConfirm={async (reason) => {
           const bill = voiding
-          if (!bill) return { error: null }
-          const res = await setInvoiceStatus(bill.id, "void")
+          if (!bill || !reason) return { error: null }
+          const res = await voidInvoice(bill.id, reason)
+          refetchMoney()
           if (res.error) return { error: res.error }
           toast.success(bill.kind === "estimate" ? "Estimate voided" : "Invoice voided")
-          invoices.refetch()
           return { error: null }
         }}
       />
@@ -362,22 +412,27 @@ function BillActions({
   )
 }
 
-/** Amount and method. Checking happens here; the confirmation is the parent's. */
+/**
+ * Amount and method for one payment — part of what is owed or all of it.
+ * Checking happens here; the confirmation is the parent's.
+ */
 function PaymentModal({
   bill, onClose, onReview,
 }: {
   bill: Invoice
   onClose: () => void
-  onReview: (paidCents: number, method: PaymentMethod) => void
+  onReview: (amountCents: number, method: PaymentMethodCode) => void
 }) {
-  const [amount, setAmount] = useState((bill.totalCents / 100).toFixed(2))
+  const remaining = remainingCents(bill)
+  const [amount, setAmount] = useState((remaining / 100).toFixed(2))
   const [method, setMethod] = useState("")
   const [errors, setErrors] = useState<PaymentErrors>({})
+  const methodLabelId = useId()
 
   function review() {
-    const checked = validatePayment({ amount, method, totalCents: bill.totalCents })
+    const checked = validatePayment({ amount, method, remainingCents: remaining, currency: bill.currency })
     if (!checked.ok) return setErrors(checked.errors)
-    onReview(checked.value.paidCents, checked.value.method)
+    onReview(checked.value.amountCents, checked.value.method)
   }
 
   return (
@@ -385,7 +440,7 @@ function PaymentModal({
       open
       onClose={onClose}
       title="Record payment"
-      description={`${bill.patientName} · ${bill.customerName} · ${formatMoney(bill.totalCents, bill.currency)}`}
+      description={`${bill.patientName} · ${bill.customerName}`}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
@@ -393,24 +448,38 @@ function PaymentModal({
         </>
       }
     >
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="flex flex-col gap-3">
+        <p className="text-[13px] font-medium tabular-nums text-foreground">{paymentProgress(bill)}</p>
         <Field label="Amount received (dollars)" required error={errors.amount}>
           {(p) => <TextInput {...p} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}
         </Field>
-        <Field label="How they paid" required error={errors.method}>
-          {(p) => (
-            <Select {...p} value={method} onChange={(e) => setMethod(e.target.value)}>
-              <option value="" disabled>
-                Choose…
-              </option>
-              {PAYMENT_METHODS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </Select>
+        <div className="flex flex-col gap-1">
+          <p id={methodLabelId} className="text-[12px] font-semibold text-foreground">
+            How they paid<span className="ml-0.5 text-destructive">*</span>
+          </p>
+          <div role="group" aria-labelledby={methodLabelId} className="flex flex-wrap gap-1.5">
+            {PAYMENT_METHODS.map((m) => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={method === m}
+                onClick={() => setMethod(m)}
+                className={`rounded-full border px-3 py-1.5 text-[13px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+                  method === m
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-foreground hover:bg-muted"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+          {errors.method && (
+            <p role="alert" className="text-[11.5px] font-medium text-destructive">
+              {errors.method}
+            </p>
           )}
-        </Field>
+        </div>
       </div>
     </Modal>
   )

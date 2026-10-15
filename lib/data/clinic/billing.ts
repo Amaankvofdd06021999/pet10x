@@ -3,11 +3,14 @@
  * offers, which tab it lives on, what counts as "taken today", and what a
  * recorded payment may be.
  *
- * The buttons mirror clinic_set_invoice_status's transition table
- * (20261010000001) — draft → sent|void, sent → approved|paid|void|draft,
- * approved → paid|void, paid → void — narrowed by what each kind of bill is
- * for: an estimate is never paid (it is converted into an invoice once the
- * owner approves), and a declined estimate is final (20261015000005).
+ * Since 20261016000001 a bill moves through three doors, and the buttons
+ * mirror them: clinic_set_invoice_status (draft → sent, sent → approved|draft),
+ * clinic_record_payment (a sent or approved invoice takes payment in parts and
+ * becomes paid only when the total is reached), and clinic_void_invoice
+ * (draft, sent, approved or paid → void, with a reason). Narrowed by what each
+ * kind of bill is for: an estimate is never paid (it is converted into an
+ * invoice once the owner approves), and a declined estimate is final
+ * (20261015000005).
  */
 
 import { parsePriceCents } from "@/lib/data/fees"
@@ -32,7 +35,9 @@ export function invoiceStatusLabel(status: string): string {
   return isStatus(status) ? INVOICE_STATUS_LABEL[status] : "Unknown"
 }
 
-export const INVOICE_STATUS_TONE: Record<InvoiceStatus, "neutral" | "good" | "warn" | "bad" | "info"> = {
+export type StatusTone = "neutral" | "good" | "warn" | "bad" | "info"
+
+export const INVOICE_STATUS_TONE: Record<InvoiceStatus, StatusTone> = {
   draft: "neutral",
   sent: "warn",
   approved: "info",
@@ -41,16 +46,51 @@ export const INVOICE_STATUS_TONE: Record<InvoiceStatus, "neutral" | "good" | "wa
   declined: "bad",
 }
 
+type Money = { totalCents: number; paidCents: number }
+
+/**
+ * What is still owed. Never negative: a total edited below what was already
+ * paid owes nothing — the same greatest(…, 0) clinic_record_payment measures by.
+ */
+export const remainingCents = (b: Money) => Math.max(b.totalCents - b.paidCents, 0)
+
+/**
+ * An open invoice that has taken some money but not all of it. There is no
+ * such status in the database — the bill stays sent or approved until
+ * clinic_record_payment reaches the total — so it is derived here.
+ */
+export function isPartlyPaid(b: { kind: string; status: string } & Money): boolean {
+  return (
+    b.kind === "invoice" &&
+    (b.status === "sent" || b.status === "approved") &&
+    b.paidCents > 0 &&
+    b.paidCents < b.totalCents
+  )
+}
+
+/** The pill a bill wears in Billing: its status, or "Partly paid" when it is. */
+export function invoiceStatusView(b: { kind: string; status: string } & Money): { label: string; tone: StatusTone } {
+  if (isPartlyPaid(b)) return { label: "Partly paid", tone: "warn" }
+  return { label: invoiceStatusLabel(b.status), tone: isStatus(b.status) ? INVOICE_STATUS_TONE[b.status] : "neutral" }
+}
+
+/** "$40.00 of $100.00 paid · $60.00 left" — the line over Record payment's amount. */
+export function paymentProgress(b: Money & { currency: string }): string {
+  const m = (c: number) => formatMoney(c, b.currency)
+  return `${m(b.paidCents)} of ${m(b.totalCents)} paid · ${m(remainingCents(b))} left`
+}
+
 /* ------------------------------- actions -------------------------------- */
 
-export type InvoiceAction = "send" | "record_payment" | "convert" | "void"
+/** `settle`: an open invoice with nothing left to pay (a $0 bill) is closed with a payment of 0. */
+export type InvoiceAction = "send" | "record_payment" | "settle" | "convert" | "void"
 
 /**
  * @param invoiced — the estimate's visit already has a live invoice, so
  *   converting again would bill the owner twice.
  */
 export function invoiceActions(
-  bill: { kind: string; status: string },
+  bill: { kind: string; status: string } & Money,
   { invoiced }: { invoiced: boolean },
 ): InvoiceAction[] {
   if (bill.kind === "estimate") {
@@ -61,7 +101,13 @@ export function invoiceActions(
   }
   if (bill.kind === "invoice") {
     if (bill.status === "draft") return ["send", "void"]
-    if (bill.status === "sent" || bill.status === "approved") return ["record_payment", "void"]
+    if (bill.status === "sent" || bill.status === "approved") {
+      // clinic_record_payment takes 0 only when nothing is owed; asking for an
+      // amount there would offer a form whose only valid answer is refused.
+      return remainingCents(bill) === 0 ? ["settle", "void"] : ["record_payment", "void"]
+    }
+    // A paid invoice can still be voided; its payments stay on record.
+    if (bill.status === "paid") return ["void"]
   }
   return []
 }
@@ -127,23 +173,20 @@ export function convertedTotalNote(estimateTotalCents: number, invoiceTotalCents
 /* ----------------------------- taken today ------------------------------ */
 
 /**
- * Money recorded as paid today, in the practice's timezone.
- *
- * Approximation: invoices has no paid_at column, so the payment date is
- * `updated_at` on a row whose status is `paid`. Recording a payment is the
- * last write a paid invoice gets — the only move out of `paid` is `void`,
- * which takes it out of this sum anyway — so updated_at is when it was paid.
- * `issued_on` (what this used to read) is the day it was sent, not paid.
+ * Money taken today, in the practice's timezone: every invoice_payments row
+ * recorded today, part payments included. A payment on a bill voided since is
+ * left out — the money goes back to the owner outside the app, so it was not
+ * really taken.
  */
 export function takenTodayCents(
-  rows: Array<{ kind: string; status: string; paidCents: number; updatedAt: string }>,
+  payments: Array<{ amountCents: number; createdAt: string; invoiceStatus: string }>,
   now: Date,
   tz: string,
 ): number {
   const today = todayISO(now, tz)
-  return rows
-    .filter((r) => r.kind === "invoice" && r.status === "paid" && todayISO(new Date(r.updatedAt), tz) === today)
-    .reduce((sum, r) => sum + r.paidCents, 0)
+  return payments
+    .filter((p) => p.invoiceStatus !== "void" && todayISO(new Date(p.createdAt), tz) === today)
+    .reduce((sum, p) => sum + p.amountCents, 0)
 }
 
 /* ------------------------------- payment -------------------------------- */
@@ -151,25 +194,119 @@ export function takenTodayCents(
 export const PAYMENT_METHODS = ["Cash", "Card", "E-transfer", "Other"] as const
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
+/** What clinic_record_payment's p_method accepts, one for each label. */
+export type PaymentMethodCode = "cash" | "card" | "e_transfer" | "other"
+export const PAYMENT_METHOD_CODE: Record<PaymentMethod, PaymentMethodCode> = {
+  Cash: "cash",
+  Card: "card",
+  "E-transfer": "e_transfer",
+  Other: "other",
+}
+
 function isMethod(m: string): m is PaymentMethod {
   return (PAYMENT_METHODS as readonly string[]).includes(m)
 }
 
+export function paymentMethodLabel(code: string): string {
+  for (const m of PAYMENT_METHODS) if (PAYMENT_METHOD_CODE[m] === code) return m
+  return "Unknown"
+}
+
+const overBalance = (remaining: number, currency = "cad") =>
+  `That's more than the ${formatMoney(remaining, currency)} still owed.`
+
 export type PaymentErrors = { amount?: string; method?: string }
 
+/** One payment against what is still owed — part of the bill or all of it. */
 export function validatePayment(input: {
   amount: string
   method: string
-  totalCents: number
-}): { ok: true; value: { paidCents: number; method: PaymentMethod } } | { ok: false; errors: PaymentErrors } {
+  remainingCents: number
+  currency?: string
+}): { ok: true; value: { amountCents: number; method: PaymentMethodCode } } | { ok: false; errors: PaymentErrors } {
   const errors: PaymentErrors = {}
   const parsed = parsePriceCents(input.amount)
   if (!parsed.ok) errors.amount = "Enter an amount like 85 or 85.50."
   else if (parsed.cents === 0) errors.amount = "Enter an amount above zero."
-  else if (parsed.cents > input.totalCents) {
-    errors.amount = `That's more than the ${formatMoney(input.totalCents)} this invoice is for.`
-  }
+  else if (parsed.cents > input.remainingCents) errors.amount = overBalance(input.remainingCents, input.currency)
   if (!isMethod(input.method)) errors.method = "Choose how they paid."
   if (Object.keys(errors).length > 0 || !parsed.ok || !isMethod(input.method)) return { ok: false, errors }
-  return { ok: true, value: { paidCents: parsed.cents, method: input.method } }
+  return { ok: true, value: { amountCents: parsed.cents, method: PAYMENT_METHOD_CODE[input.method] } }
+}
+
+/** A payment as the invoice sheet lists it: the day in the practice's zone, method, amount. Oldest first. */
+export function paymentRows(
+  payments: Array<{ id: string; amountCents: number; method: string; createdAt: string }>,
+  tz: string,
+  currency: string,
+): Array<{ id: string; date: string; method: string; amount: string }> {
+  const day = new Intl.DateTimeFormat("en-GB", { timeZone: tz, day: "numeric", month: "short", year: "numeric" })
+  return [...payments]
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0))
+    .map((p) => ({
+      id: p.id,
+      date: day.format(new Date(p.createdAt)),
+      method: paymentMethodLabel(p.method),
+      amount: formatMoney(p.amountCents, currency),
+    }))
+}
+
+/* -------------------------------- errors -------------------------------- */
+
+/*
+ * clinic_record_payment and clinic_void_invoice refuse in two ways: a raise
+ * (22023 — the amount, the method or the reason) and an `{ok:false, error}`
+ * answer. Neither reaches the screen as written. The codes are an allow-list:
+ * anything this file has not been taught reads as the one "try again"
+ * sentence, never the database's text (the rule cancel-errors.ts follows).
+ */
+
+/** The fields of a Postgrest error this reads. `message` is never shown. */
+export type BillingRaise = { code?: string | null; message?: string } | null
+/** The jsonb the RPCs return. */
+export type BillingAnswer = { ok?: boolean; error?: string; remaining?: unknown; [key: string]: unknown } | null
+
+const RETRY = "Couldn't save that. Try again."
+
+const SHARED_ANSWERS: Record<string, string> = {
+  forbidden: "Only staff at this practice can change its bills.",
+  not_found: "That bill no longer exists.",
+}
+
+const PAYMENT_ANSWERS: Record<string, string> = {
+  ...SHARED_ANSWERS,
+  not_payable: "This invoice can't take a payment any more. Refresh to see where it stands.",
+  not_an_invoice: "Only an invoice takes payment. Convert the estimate to an invoice first.",
+}
+
+const VOID_ANSWERS: Record<string, string> = {
+  ...SHARED_ANSWERS,
+  not_voidable: "This bill can't be voided any more. Refresh to see where it stands.",
+}
+
+const has = (o: Record<string, string>, k: string | undefined | null): k is string =>
+  typeof k === "string" && Object.prototype.hasOwnProperty.call(o, k)
+
+/** clinic_record_payment, as a sentence. Null when it went through. */
+export function recordPaymentError(e: BillingRaise, r: BillingAnswer, currency = "cad"): string | null {
+  if (e) return e.code === "22023" ? "Enter an amount above zero and choose how they paid." : RETRY
+  if (r?.ok) return null
+  if (r?.error === "over_balance") {
+    const left = r.remaining
+    return typeof left === "number" && Number.isInteger(left) && left >= 0
+      ? overBalance(left, currency)
+      : "That's more than is still owed on this invoice."
+  }
+  return has(PAYMENT_ANSWERS, r?.error) ? PAYMENT_ANSWERS[r.error as string] : RETRY
+}
+
+/** clinic_void_invoice, as a sentence. Null when it went through. */
+export function voidInvoiceError(e: BillingRaise, r: BillingAnswer): string | null {
+  if (e) {
+    return e.code === "22023"
+      ? "Add a reason of 2000 characters or fewer. The owner sees it if they already have the bill."
+      : RETRY
+  }
+  if (r?.ok) return null
+  return has(VOID_ANSWERS, r?.error) ? VOID_ANSWERS[r.error as string] : RETRY
 }

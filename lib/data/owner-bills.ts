@@ -5,8 +5,13 @@
  *
  * An owner never sees a draft: `invoices_owner_read` requires
  * `status <> 'draft'` (20261010000001). Pet10x takes no payment — "paid" is a
- * status the practice records — so nothing here offers to pay.
+ * status the practice records — so nothing here offers to pay. A practice may
+ * record payment in parts (clinic_record_payment, 20261016000001); the bill
+ * stays sent or approved until the total is reached, so "Partly paid" is
+ * derived from paid_cents, not stored.
  */
+
+import { formatMoney } from "@/lib/data/clinic/time"
 
 export interface OwnerBillLine {
   id: string
@@ -52,6 +57,23 @@ const TONE: Record<string, BillTone> = {
 
 export const billStatusLabel = (status: string) => LABEL[status] ?? status
 export const billStatusTone = (status: string): BillTone => TONE[status] ?? "neutral"
+
+/**
+ * The pill on a bill: its status, or "Partly paid — $40.00 of $100.00" on an
+ * open invoice with some of its total paid. A voided bill reads "Void" whatever
+ * was paid on it — the practice's notice tells the owner what happens to that.
+ */
+export function ownerBillStatus(
+  b: Pick<OwnerBill, "kind" | "status" | "totalCents" | "paidCents" | "currency">,
+): { label: string; tone: BillTone } {
+  if (isUnpaid(b) && b.paidCents > 0 && b.paidCents < b.totalCents) {
+    return {
+      label: `Partly paid — ${formatMoney(b.paidCents, b.currency)} of ${formatMoney(b.totalCents, b.currency)}`,
+      tone: "warn",
+    }
+  }
+  return { label: billStatusLabel(b.status), tone: billStatusTone(b.status) }
+}
 
 export const billLabel = (b: Pick<OwnerBill, "kind" | "number">) =>
   `${b.kind === "estimate" ? "Estimate" : "Invoice"}${b.number ? ` ${b.number}` : ""}`

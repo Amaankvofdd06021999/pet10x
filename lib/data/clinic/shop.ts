@@ -3,7 +3,7 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./use-live"
-import type { PaymentMethod } from "./billing"
+import { recordPaymentError, voidInvoiceError, type PaymentMethodCode } from "./billing"
 
 export interface Product {
   id: string
@@ -104,6 +104,14 @@ export interface InvoiceLine {
   unitPriceCents: number
 }
 
+export interface InvoicePayment {
+  id: string
+  amountCents: number
+  /** cash | card | e_transfer | other (paymentMethodLabel names it). */
+  method: string
+  createdAt: string
+}
+
 export interface Invoice {
   id: string
   kind: string
@@ -114,23 +122,24 @@ export interface Invoice {
   currency: string
   issuedOn: string | null
   createdAt: string
-  /** When it last changed — for a paid invoice, when the payment was recorded (see takenTodayCents). */
-  updatedAt: string
   patientId: string | null
   visitId: string | null
   patientName: string
   customerName: string
   ownerApprovedAt: string | null
   lines: InvoiceLine[]
+  /** Every payment recorded against it (invoice_payments), oldest first. */
+  payments: InvoicePayment[]
 }
 
 const INVOICE_SELECT =
-  "*, clinic_patients(id, name), clinic_customers(first_name, last_name), invoice_lines(id, description, quantity, unit_price_cents)"
+  "*, clinic_patients(id, name), clinic_customers(first_name, last_name), invoice_lines(id, description, quantity, unit_price_cents), invoice_payments(id, amount_cents, method, created_at)"
 
 type InvoiceJoined = Database["public"]["Tables"]["invoices"]["Row"] & {
   clinic_patients: { id: string; name: string } | null
   clinic_customers: { first_name: string; last_name: string | null } | null
   invoice_lines: Array<{ id: string; description: string; quantity: number; unit_price_cents: number }>
+  invoice_payments: Array<{ id: string; amount_cents: number; method: string; created_at: string }> | null
 }
 
 function mapInvoice(r: InvoiceJoined): Invoice {
@@ -144,7 +153,6 @@ function mapInvoice(r: InvoiceJoined): Invoice {
     currency: r.currency,
     issuedOn: r.issued_on,
     createdAt: r.created_at,
-    updatedAt: r.updated_at,
     patientId: r.patient_id,
     visitId: r.visit_id,
     patientName: r.clinic_patients?.name ?? "—",
@@ -158,6 +166,9 @@ function mapInvoice(r: InvoiceJoined): Invoice {
       quantity: Number(l.quantity),
       unitPriceCents: l.unit_price_cents,
     })),
+    payments: (r.invoice_payments ?? [])
+      .map((p) => ({ id: p.id, amountCents: p.amount_cents, method: p.method, createdAt: p.created_at }))
+      .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0)),
   }
 }
 
@@ -231,37 +242,108 @@ export async function invoiceFromVisit(
   return { error: null, invoiceId: inv.id }
 }
 
+const SAVE_FAILED = "Couldn't save that. Try again."
+
 /**
- * Move a bill through clinic_set_invoice_status. Recording a payment passes
- * `paidCents` and the `method`; the RPC has no method parameter, so the
- * method is appended to invoices.note afterwards (invoices_staff lets staff
- * write it), keeping whatever is already there — an owner's decline note, a
- * practice's own words. If only that second write fails the payment still
- * stands: that comes back as a `warning`, not an `error`.
+ * Move a bill through clinic_set_invoice_status: send a draft, or (from sent)
+ * approve it or take it back to draft. Paying and voiding have their own
+ * doors since 20261016000001 — recordPayment and voidInvoice.
  */
 export async function setInvoiceStatus(
   invoiceId: string,
-  status: string,
-  paidCents?: number,
-  method?: PaymentMethod,
-): Promise<{ error: string | null; warning?: string }> {
+  status: "sent" | "approved" | "draft",
+): Promise<{ error: string | null }> {
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
-  const { data, error } = await db.rpc("clinic_set_invoice_status", {
-    p_invoice: invoiceId,
-    p_status: status,
-    p_paid_cents: paidCents ?? undefined,
-  })
-  if (error) return { error: error.message }
+  const { data, error } = await db.rpc("clinic_set_invoice_status", { p_invoice: invoiceId, p_status: status })
+  if (error) {
+    console.error("clinic_set_invoice_status failed", error)
+    return { error: SAVE_FAILED }
+  }
   const out = readOutcome(data)
   if (!out.ok) return { error: sentenceFor(out.error) }
-  if (status === "paid" && method) {
-    const { data: row } = await db.from("invoices").select("note").eq("id", invoiceId).single()
-    const note = [row?.note, `Paid by ${method}.`].filter(Boolean).join("\n")
-    const { error: nErr } = await db.from("invoices").update({ note }).eq("id", invoiceId)
-    if (nErr) return { error: null, warning: "Payment recorded. The method note didn't save." }
-  }
   return { error: null }
+}
+
+/**
+ * Record one payment — part of what is owed or all of it — through
+ * clinic_record_payment. The bill becomes paid only when the total is
+ * reached. An amount of 0 settles a bill with nothing left to pay (the
+ * "Mark settled" button); the RPC refuses 0 anywhere else.
+ */
+export async function recordPayment(
+  invoiceId: string,
+  amountCents: number,
+  method: PaymentMethodCode,
+  currency = "cad",
+): Promise<{ error: string | null; status?: string }> {
+  const db = getSupabaseBrowserClient()
+  if (!db) return { error: "Not configured." }
+  const { data, error } = await db.rpc("clinic_record_payment", {
+    p_invoice: invoiceId,
+    p_amount_cents: amountCents,
+    p_method: method,
+  })
+  const answer = error ? null : (readOutcome(data) as Parameters<typeof recordPaymentError>[1])
+  const sentence = recordPaymentError(error, answer, currency)
+  if (sentence) {
+    console.error("clinic_record_payment refused", error ?? answer)
+    return { error: sentence }
+  }
+  return { error: null, status: typeof answer?.status === "string" ? answer.status : undefined }
+}
+
+/**
+ * Void a bill with a reason, through clinic_void_invoice. Payments already
+ * recorded stay on it; the owner is told (with the reason) if the bill had
+ * reached them.
+ */
+export async function voidInvoice(
+  invoiceId: string,
+  reason: string,
+): Promise<{ error: string | null; ownerNotified?: boolean }> {
+  const db = getSupabaseBrowserClient()
+  if (!db) return { error: "Not configured." }
+  const { data, error } = await db.rpc("clinic_void_invoice", { p_invoice: invoiceId, p_reason: reason })
+  const answer = error ? null : (readOutcome(data) as Parameters<typeof voidInvoiceError>[1])
+  const sentence = voidInvoiceError(error, answer)
+  if (sentence) {
+    console.error("clinic_void_invoice refused", error ?? answer)
+    return { error: sentence }
+  }
+  return { error: null, ownerNotified: answer?.owner_notified === true }
+}
+
+/**
+ * The practice's payments since a moment (Billing passes the start of the
+ * practice's today), with each one's bill status — what Taken today sums
+ * (takenTodayCents). Read on its own rather
+ * than from useInvoices, whose 150-bill window could miss a payment on an
+ * older bill.
+ */
+export function usePaymentsSince(
+  businessId: string | null,
+  sinceISO: string,
+): LiveResult<Array<{ amountCents: number; createdAt: string; invoiceStatus: string }>> {
+  return useLive<Array<{ amountCents: number; createdAt: string; invoiceStatus: string }>>(
+    [],
+    async (db) => {
+      const rows = must(
+        await db
+          .from("invoice_payments")
+          .select("amount_cents, created_at, invoices(status)")
+          .eq("business_id", businessId as string)
+          .gte("created_at", sinceISO),
+      ) as Array<{ amount_cents: number; created_at: string; invoices: { status: string } | null }>
+      return rows.map((r) => ({
+        amountCents: r.amount_cents,
+        createdAt: r.created_at,
+        invoiceStatus: r.invoices?.status ?? "unknown",
+      }))
+    },
+    [businessId, sinceISO],
+    Boolean(businessId),
+  )
 }
 
 /**
