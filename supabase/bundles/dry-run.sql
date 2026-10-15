@@ -1,4 +1,4 @@
--- DRY RUN — generated 2026-10-14 from branch ux-followups by bundles/build.sh.
+-- DRY RUN — generated 2026-10-15 from branch ux-followups by bundles/build.sh.
 -- Applies every migration from 20261016000001 on, runs supabase/tests/part-*.sql,
 -- then RAISES ON PURPOSE so the whole transaction rolls back. Nothing is saved.
 -- SUCCESS looks like the error:  DRY RUN OK — ...
@@ -96,9 +96,8 @@ set local lock_timeout = '5s';
 --      invoice_payments. An INSERT must be a draft with nothing paid and zero
 --      totals (42501), which is exactly what invoiceFromVisit sends (status
 --      'draft', every money column left to its default of 0); the totals then
---      arrive through invoice_recalc as the lines are inserted. Note-only
---      updates (what the app writes after a payment today) and line edits keep
---      working.
+--      arrive through invoice_recalc as the lines are inserted. Note edits
+--      and line edits keep working.
 --
 -- WHAT THIS DOES NOT TOUCH
 --   * The invoices status CHECK (draft, sent, approved, declined, paid, void,
@@ -4765,7 +4764,7 @@ begin
   -- An estimate the owner has — never takes payment.
   insert into public.invoices (business_id, customer_id, patient_id, kind, number, status, total_cents)
   values (v_clinic, v_cust, v_patient, 'estimate', 'PH-E', 'sent', 8000) returning id into v_est;
-  -- C: approved, $20.00 — paid in one go, then a note-only update.
+  -- C: approved, $20.00 — paid in one go, then a note edit.
   insert into public.invoices (business_id, customer_id, patient_id, kind, number, status, total_cents)
   values (v_clinic, v_cust, v_patient, 'invoice', 'PH-C', 'approved', 2000) returning id into v_inv_c;
   -- S: sent, $25.00, nothing paid — voided; the owner's notice has no
@@ -5031,7 +5030,7 @@ begin
   exception when insufficient_privilege then null;
   end;
 
-  -- What the app writes after a payment today: the note, and nothing else.
+  -- A note edit, and nothing else, goes through.
   update public.invoices set note = 'Paid at the front desk.' where id = current_setting('part_h.inv_c')::uuid;
   if not found then raise exception 'FAIL: the note-only update matched no row'; end if;
 

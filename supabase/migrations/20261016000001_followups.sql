@@ -87,9 +87,8 @@
 --      invoice_payments. An INSERT must be a draft with nothing paid and zero
 --      totals (42501), which is exactly what invoiceFromVisit sends (status
 --      'draft', every money column left to its default of 0); the totals then
---      arrive through invoice_recalc as the lines are inserted. Note-only
---      updates (what the app writes after a payment today) and line edits keep
---      working.
+--      arrive through invoice_recalc as the lines are inserted. Note edits
+--      and line edits keep working.
 --
 -- WHAT THIS DOES NOT TOUCH
 --   * The invoices status CHECK (draft, sent, approved, declined, paid, void,
