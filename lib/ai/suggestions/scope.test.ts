@@ -56,7 +56,15 @@ function recordingClient(petsByOwner: Record<string, Array<{ id: string; name: s
       }
       builder.then = (resolve: (v: unknown) => unknown) =>
         resolve({
-          data: table === "pets" ? (petsByOwner[entry.ownerEq as string] ?? []) : [],
+          data:
+            table === "pets"
+              ? (petsByOwner[entry.ownerEq as string] ?? [])
+              : table === "pet_documents" && entry.pets
+                ? // One row per scoped pet that the document rule will turn into a hit.
+                  (entry.pets as string[]).map((pet_id) => ({ id: `doc-${pet_id}`, pet_id, kind: "vaccination", name: "Record", status: "missing" }))
+                : table === "ai_suggestions" && entry.written.length > 0
+                  ? entry.written.map((r, i) => ({ id: `s${i}`, title: "t", body: "b", action_label: null, action_target: null, severity: "info", ...r }))
+                  : [],
           error: null,
         })
       return builder
@@ -97,7 +105,8 @@ describe("suggestion rules are scoped to the owner's pets", () => {
       expect(entry.pets).toEqual(["a1", "a2"])
       expect(entry.pets).not.toContain("b1")
     }
-    // Whatever it writes belongs to A and to A's pets.
+    // Whatever it writes belongs to A and to A's pets — and something is written.
+    expect(log.flatMap((e) => e.written).length).toBeGreaterThan(0)
     for (const row of log.flatMap((e) => e.written)) {
       expect(row.profile_id).toBe("A")
       if (row.pet_id) expect(["a1", "a2"]).toContain(row.pet_id)

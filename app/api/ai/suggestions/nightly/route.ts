@@ -26,8 +26,12 @@ export const maxDuration = 300
 const CURSOR_NAME = "suggestions_nightly"
 /** Pet rows read per page; at most this many owners per page. */
 const PAGE = 200
-/** Stop starting new profiles after this long, leaving room inside maxDuration. */
-const BUDGET_MS = 240_000
+/**
+ * Stop starting new profiles after this long. One profile can spend up to
+ * AI_TIMEOUT_MS (60 s) per Groq call plus its reads and writes, so 200 s leaves
+ * room to finish a profile that starts at the limit, inside maxDuration (300 s).
+ */
+const BUDGET_MS = 200_000
 
 /** Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. */
 function isAuthorised(request: Request): boolean {
@@ -57,8 +61,24 @@ export async function GET(request: Request) {
   let failed = 0
   let done = false
   let timedOut = false
-  /** Last profile that finished, or null if none did this run. */
-  let lastCompleted: string | null = null
+  /** A later page or a cursor save failed: logged, and reported in the summary. */
+  let errored = false
+  let firstPage = true
+
+  /**
+   * Written after EVERY finished profile, not once at the end: if the platform
+   * kills the function mid-run, the night's progress is already stored and the
+   * next run resumes after the last profile that finished.
+   */
+  const saveCursor = async (value: string | null) => {
+    const { error } = await admin
+      .from("cron_cursors")
+      .upsert({ name: CURSOR_NAME, cursor: value, updated_at: new Date().toISOString() })
+    if (error) {
+      console.error("[ai] nightly suggestions: couldn't save the cursor", error)
+      errored = true
+    }
+  }
 
   while (!done && !timedOut) {
     // Owners of at least one live pet, in id order, above the cursor. A pet row
@@ -68,8 +88,11 @@ export async function GET(request: Request) {
     const { data: rows, error } = await query
     if (error) {
       console.error("[ai] nightly suggestions: couldn't list owners", error)
+      if (firstPage) return NextResponse.json({ error: "The job couldn't finish. The server log has the detail." }, { status: 500 })
+      errored = true
       break
     }
+    firstPage = false
 
     const owners = [...new Set((rows ?? []).map((r) => r.owner_id))]
     const pageExhausted = (rows ?? []).length < PAGE
@@ -81,7 +104,7 @@ export async function GET(request: Request) {
         break
       }
       try {
-        await runSuggestions(admin, id)
+        await runSuggestions(admin, id, admin)
         processed += 1
       } catch (err) {
         console.error("[ai] nightly suggestions failed for a profile", id, err)
@@ -89,23 +112,17 @@ export async function GET(request: Request) {
       }
       // A profile that threw has still been attempted; resuming past it keeps
       // one broken account from being retried first every night.
-      lastCompleted = id
       cursor = id
+      await saveCursor(advanceCursor([id], false))
     }
 
     if (!timedOut && pageExhausted) done = true
-    // A full page whose last owner was processed carries on from there.
+    // Defensive: a non-empty page always yields a batch, but never spin on one that doesn't.
     if (!timedOut && !pageExhausted && batch.length === 0) break
   }
 
-  const nextCursor = advanceCursor(lastCompleted ? [lastCompleted] : [], done)
-  // Nothing finished and the sweep isn't over: leave the stored cursor alone.
-  if (done || lastCompleted !== null) {
-    const { error } = await admin
-      .from("cron_cursors")
-      .upsert({ name: CURSOR_NAME, cursor: nextCursor, updated_at: new Date().toISOString() })
-    if (error) console.error("[ai] nightly suggestions: couldn't save the cursor", error)
-  }
+  // A finished sweep resets the cursor so the next night starts from the top.
+  if (done) await saveCursor(advanceCursor([], true))
 
-  return NextResponse.json({ ok: true, processed, failed, done })
+  return NextResponse.json({ ok: true, processed, failed, done, ...(errored ? { error: true } : {}) })
 }

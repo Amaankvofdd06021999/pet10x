@@ -33,7 +33,8 @@ export async function GET() {
   // Home builds suggestions itself only on a resident's first visit; the
   // nightly sweep does the rest. Null means no run has ever stamped this
   // profile. If the read fails, say "not first" — the nightly run will catch up.
-  const { data: profile } = await supabase.from("profiles").select("suggestions_last_run_at").eq("id", user.id).maybeSingle()
+  const { data: profile, error: profileErr } = await supabase.from("profiles").select("suggestions_last_run_at").eq("id", user.id).maybeSingle()
+  if (profileErr) console.error("[ai] couldn't read suggestions_last_run_at", profileErr)
   const firstRun = profile ? profile.suggestions_last_run_at === null : false
 
   const suggestions: AiSuggestion[] = (data ?? []).map((row) => ({

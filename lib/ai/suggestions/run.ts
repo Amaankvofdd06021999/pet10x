@@ -160,12 +160,17 @@ async function evaluateAndWrite(supabase: Client, ownerId: string): Promise<RunR
  * including zero hits, or every visit by an owner with nothing to say would
  * rebuild again. The stamp goes through the admin client because the column is
  * not one a resident may write; a failed stamp is logged, never thrown, since
- * the suggestions themselves already landed.
+ * the suggestions themselves already landed. The nightly route passes its own
+ * admin client as `stampClient` so no client is built per profile.
  */
-export async function runSuggestions(supabase: Client, ownerId: string): Promise<RunResult> {
+export async function runSuggestions(
+  supabase: Client,
+  ownerId: string,
+  stampClient?: Client,
+): Promise<RunResult> {
   const result = await evaluateAndWrite(supabase, ownerId)
   try {
-    const { error } = await getSupabaseAdmin()
+    const { error } = await (stampClient ?? getSupabaseAdmin())
       .from("profiles")
       .update({ suggestions_last_run_at: new Date().toISOString() })
       .eq("id", ownerId)
