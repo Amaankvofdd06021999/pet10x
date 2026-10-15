@@ -644,7 +644,7 @@ function Stepper({ step }: { step: 1 | 2 }) {
           <li key={label} className="flex flex-1 items-center gap-2">
             <span
               className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                done ? "bg-success-strong text-white" : on ? "bg-primary-strong text-primary-foreground" : "bg-secondary text-muted-foreground"
+                done ? "bg-success-strong text-success-foreground" : on ? "bg-primary-strong text-primary-foreground" : "bg-secondary text-muted-foreground"
               }`}
             >
               {done ? "✓" : n}

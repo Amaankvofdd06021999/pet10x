@@ -157,7 +157,7 @@ export function SetupCard({
               >
                 <span
                   className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border ${
-                    row.done ? "border-success-strong bg-success-strong text-white" : "border-border"
+                    row.done ? "border-success-strong bg-success-strong text-success-foreground" : "border-border"
                   }`}
                   aria-hidden
                 >

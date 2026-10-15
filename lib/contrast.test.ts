@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { contrastRatio } from './contrast'
@@ -47,12 +47,35 @@ describe.each([':root', '.dark'] as const)('AA contrast tokens (%s)', (theme) =>
     expect(contrastRatio(t('primary-strong-hover'), t('primary-foreground'))).toBeGreaterThanOrEqual(4.5)
   })
   it('success-strong fill carries white text', () => {
-    // The check badges use a fixed white, not --success-foreground.
-    const white = theme === ':root' ? '#FFFFFF' : t('success-foreground')
-    expect(contrastRatio(t('success-strong'), white)).toBeGreaterThanOrEqual(4.5)
+    // Components pair this fill with text-success-foreground, never a fixed white.
+    expect(contrastRatio(t('success-strong'), t('success-foreground'))).toBeGreaterThanOrEqual(4.5)
   })
   it('muted-foreground placeholder reads on the page ground and on cards', () => {
     expect(contrastRatio(t('muted-foreground'), t('background'))).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio(t('muted-foreground'), t('card'))).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+// A fixed text-white on a theme-aware fill passes in light and fails in dark
+// (success-strong and primary-strong turn light there), so the pair is banned.
+function sources(dir: string): string[] {
+  return readdirSync(dir).flatMap((n) => {
+    const p = join(dir, n)
+    if (statSync(p).isDirectory()) return n === 'node_modules' || n === '.next' ? [] : sources(p)
+    return /\.tsx?$/.test(n) ? [p] : []
+  })
+}
+
+describe('no fixed white text on theme-aware strong fills', () => {
+  it('never pairs bg-*-strong with text-white in one string', () => {
+    const root = join(__dirname, '..')
+    const bad: string[] = []
+    for (const f of [...sources(join(root, 'app')), ...sources(join(root, 'components'))]) {
+      const src = readFileSync(f, 'utf8')
+      for (const str of src.match(/(["'`])(?:(?!\1)[^\n])*\1/g) ?? []) {
+        if (/\bbg-(success|primary)-strong\b/.test(str) && /\btext-white\b/.test(str)) bad.push(`${f}: ${str.slice(0, 80)}`)
+      }
+    }
+    expect(bad).toEqual([])
   })
 })
