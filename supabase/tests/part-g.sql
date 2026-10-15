@@ -455,6 +455,37 @@ begin
 end $$;
 
 -- ===========================================================================
+-- 5b. Permission helpers answer false, never NULL (20261015000001)
+-- ===========================================================================
+-- staff_role_in is NULL for a stranger; a bare `not helper(x)` guard would then
+-- skip its IF. The outsider has no staff row and does not own biz_clinic
+-- (their staff row is in biz_empty only), so both must be exactly false.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
+do $$
+begin
+  if not (public.can_admin_business(current_setting('part_g.biz_clinic')::uuid) is false) then
+    raise exception 'FAIL: can_admin_business is not exactly false for a stranger';
+  end if;
+  if not (public.can_read_shared_records(current_setting('part_g.biz_clinic')::uuid) is false) then
+    raise exception 'FAIL: can_read_shared_records is not exactly false for a stranger';
+  end if;
+  raise notice 'ok: the helpers return false, not NULL, for a stranger';
+end $$;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.owner'), 'role', 'authenticated')::text, true);
+do $$
+begin
+  if not (public.can_admin_business(current_setting('part_g.biz_clinic')::uuid) is true) then
+    raise exception 'FAIL: the owner cannot administer their own business';
+  end if;
+  raise notice 'ok: the owner administers their business';
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+-- ===========================================================================
 -- 6. A non-admin neither counts nor deletes — not even the owner
 -- ===========================================================================
 set local role authenticated;

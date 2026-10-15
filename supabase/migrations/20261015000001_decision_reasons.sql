@@ -1,6 +1,21 @@
 -- Pet10x — a denied registration or a refused link says why, and the person
 -- it is about is told either way.
 --
+-- PERMISSION HELPERS ANSWER false, NEVER NULL (added 2026-10-14, found by the
+-- production dry run of this set). public.staff_role_in(p) returns NULL for a
+-- caller with no relation to the business, and `NULL in ('owner','manager')`
+-- is NULL, as is `NULL or false`. So can_admin_business and
+-- can_read_shared_records returned NULL — not false — for a stranger, and a
+-- PL/pgSQL guard written `if not public.can_admin_business(x) then raise`
+-- evaluates `not NULL` = NULL, skips the IF, and lets the stranger through.
+-- Live functions only use `not staff_of_business(...)` (built from EXISTS,
+-- never NULL), so production is safe today; the migrations after this one
+-- (20261015000003, 20261015000005) are the first to negate these helpers.
+-- Both are redefined here, first in the set, with identical meaning but
+-- wrapped in coalesce(..., false). Attributes (sql, stable, security definer,
+-- search_path) are as live; create or replace keeps the existing grants.
+-- Call sites also coalesce, so they stay correct against an older helper.
+--
 -- THE GAP. Two manager decisions recorded nothing about themselves:
 --
 --   * manager_decide_registration(p_pet, p_approve) flipped
@@ -63,6 +78,26 @@
 --   * The direct UPDATE path on resident_links stays open (its RLS policies
 --     are unchanged); the client simply stops using it for these decisions.
 --   * request_building_link, info_requested_at, and the registration enum.
+
+-- ---------------------------------------------------------------------------
+-- 0. NULL-safe permission helpers (see the header)
+-- ---------------------------------------------------------------------------
+create or replace function public.can_admin_business(p_business uuid)
+returns boolean language sql stable security definer set search_path = public, pg_temp as $$
+  select coalesce(
+    public.staff_role_in(p_business) in ('owner','manager')
+      or exists (
+        select 1 from public.businesses b
+        join public.profiles pr on pr.id = b.owner_id
+        where b.id = p_business and b.owner_id = auth.uid() and not pr.is_suspended
+      ),
+    false);
+$$;
+
+create or replace function public.can_read_shared_records(p_business uuid)
+returns boolean language sql stable security definer set search_path = public, pg_temp as $$
+  select coalesce(public.staff_role_in(p_business) in ('owner','veterinarian','nurse'), false);
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 1. Registration decisions

@@ -10,6 +10,21 @@ set local lock_timeout = '5s';
 -- Pet10x — a denied registration or a refused link says why, and the person
 -- it is about is told either way.
 --
+-- PERMISSION HELPERS ANSWER false, NEVER NULL (added 2026-10-14, found by the
+-- production dry run of this set). public.staff_role_in(p) returns NULL for a
+-- caller with no relation to the business, and `NULL in ('owner','manager')`
+-- is NULL, as is `NULL or false`. So can_admin_business and
+-- can_read_shared_records returned NULL — not false — for a stranger, and a
+-- PL/pgSQL guard written `if not public.can_admin_business(x) then raise`
+-- evaluates `not NULL` = NULL, skips the IF, and lets the stranger through.
+-- Live functions only use `not staff_of_business(...)` (built from EXISTS,
+-- never NULL), so production is safe today; the migrations after this one
+-- (20261015000003, 20261015000005) are the first to negate these helpers.
+-- Both are redefined here, first in the set, with identical meaning but
+-- wrapped in coalesce(..., false). Attributes (sql, stable, security definer,
+-- search_path) are as live; create or replace keeps the existing grants.
+-- Call sites also coalesce, so they stay correct against an older helper.
+--
 -- THE GAP. Two manager decisions recorded nothing about themselves:
 --
 --   * manager_decide_registration(p_pet, p_approve) flipped
@@ -72,6 +87,26 @@ set local lock_timeout = '5s';
 --   * The direct UPDATE path on resident_links stays open (its RLS policies
 --     are unchanged); the client simply stops using it for these decisions.
 --   * request_building_link, info_requested_at, and the registration enum.
+
+-- ---------------------------------------------------------------------------
+-- 0. NULL-safe permission helpers (see the header)
+-- ---------------------------------------------------------------------------
+create or replace function public.can_admin_business(p_business uuid)
+returns boolean language sql stable security definer set search_path = public, pg_temp as $$
+  select coalesce(
+    public.staff_role_in(p_business) in ('owner','manager')
+      or exists (
+        select 1 from public.businesses b
+        join public.profiles pr on pr.id = b.owner_id
+        where b.id = p_business and b.owner_id = auth.uid() and not pr.is_suspended
+      ),
+    false);
+$$;
+
+create or replace function public.can_read_shared_records(p_business uuid)
+returns boolean language sql stable security definer set search_path = public, pg_temp as $$
+  select coalesce(public.staff_role_in(p_business) in ('owner','veterinarian','nurse'), false);
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 1. Registration decisions
@@ -669,7 +704,7 @@ begin
   if not found then
     raise exception 'That request no longer exists' using errcode = 'P0002';
   end if;
-  if auth.uid() is null or not public.can_admin_business(v_req.business_id) then
+  if auth.uid() is null or not coalesce(public.can_admin_business(v_req.business_id), false) then
     raise exception 'Only the practice''s owner or a manager can answer a verification request'
       using errcode = '42501';
   end if;
@@ -1045,7 +1080,7 @@ begin
   -- A missing booking reads the same as someone else's: nothing to learn.
   if not found
      or v_row.business_id is null
-     or not public.can_admin_business(v_row.business_id)
+     or not coalesce(public.can_admin_business(v_row.business_id), false)
      or exists (select 1 from public.profiles where id = v_me and is_suspended) then
     raise exception 'Only the business can cancel this booking' using errcode = '42501';
   end if;
@@ -1240,7 +1275,7 @@ begin
   select * into v_row from public.service_bookings where id = p_booking;
   if not found or v_row.customer_id is null or v_row.business_id is null then return v_nothing; end if;
   if v_row.status not in ('confirmed', 'in_progress', 'completed', 'paid') then return v_nothing; end if;
-  if not public.can_admin_business(v_row.business_id)
+  if not coalesce(public.can_admin_business(v_row.business_id), false)
      or exists (select 1 from public.profiles where id = auth.uid() and is_suspended) then
     return v_nothing;
   end if;
@@ -4661,6 +4696,37 @@ begin
   raise notice 'fixtures: admin % businesses empty % clinic % booked % patient %',
     v_admin, v_empty, v_clinic, v_booked, v_patient;
 end $$;
+
+-- ===========================================================================
+-- 5b. Permission helpers answer false, never NULL (20261015000001)
+-- ===========================================================================
+-- staff_role_in is NULL for a stranger; a bare `not helper(x)` guard would then
+-- skip its IF. The outsider has no staff row and does not own biz_clinic
+-- (their staff row is in biz_empty only), so both must be exactly false.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
+do $$
+begin
+  if not (public.can_admin_business(current_setting('part_g.biz_clinic')::uuid) is false) then
+    raise exception 'FAIL: can_admin_business is not exactly false for a stranger';
+  end if;
+  if not (public.can_read_shared_records(current_setting('part_g.biz_clinic')::uuid) is false) then
+    raise exception 'FAIL: can_read_shared_records is not exactly false for a stranger';
+  end if;
+  raise notice 'ok: the helpers return false, not NULL, for a stranger';
+end $$;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.owner'), 'role', 'authenticated')::text, true);
+do $$
+begin
+  if not (public.can_admin_business(current_setting('part_g.biz_clinic')::uuid) is true) then
+    raise exception 'FAIL: the owner cannot administer their own business';
+  end if;
+  raise notice 'ok: the owner administers their business';
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
 
 -- ===========================================================================
 -- 6. A non-admin neither counts nor deletes — not even the owner

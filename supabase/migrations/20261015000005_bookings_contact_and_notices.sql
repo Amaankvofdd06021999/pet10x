@@ -276,7 +276,7 @@ begin
   -- A missing booking reads the same as someone else's: nothing to learn.
   if not found
      or v_row.business_id is null
-     or not public.can_admin_business(v_row.business_id)
+     or not coalesce(public.can_admin_business(v_row.business_id), false)
      or exists (select 1 from public.profiles where id = v_me and is_suspended) then
     raise exception 'Only the business can cancel this booking' using errcode = '42501';
   end if;
@@ -471,7 +471,7 @@ begin
   select * into v_row from public.service_bookings where id = p_booking;
   if not found or v_row.customer_id is null or v_row.business_id is null then return v_nothing; end if;
   if v_row.status not in ('confirmed', 'in_progress', 'completed', 'paid') then return v_nothing; end if;
-  if not public.can_admin_business(v_row.business_id)
+  if not coalesce(public.can_admin_business(v_row.business_id), false)
      or exists (select 1 from public.profiles where id = auth.uid() and is_suspended) then
     return v_nothing;
   end if;

@@ -111,7 +111,7 @@ begin
   if not found then
     raise exception 'That request no longer exists' using errcode = 'P0002';
   end if;
-  if auth.uid() is null or not public.can_admin_business(v_req.business_id) then
+  if auth.uid() is null or not coalesce(public.can_admin_business(v_req.business_id), false) then
     raise exception 'Only the practice''s owner or a manager can answer a verification request'
       using errcode = '42501';
   end if;
