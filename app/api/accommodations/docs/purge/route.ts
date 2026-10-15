@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
+import { CronStageError, cronFailure, cronFailureOf, inStage } from "@/lib/cron-failure"
 import {
   classify,
   MIN_AGE_HOURS,
@@ -127,7 +128,7 @@ async function listObjects(admin: Admin, prefix: string, depth: number, out: Evi
       .from(BUCKET)
       .list(prefix, { limit: PAGE, offset, sortBy: { column: "name", order: "asc" } })
     // A listing that half-worked must not become a delete list.
-    if (error) throw new Error(`Couldn't list ${prefix || "/"}: ${error.message}`)
+    if (error) throw new CronStageError("list_objects", error)
 
     const page = (data ?? []) as StorageEntry[]
     for (const entry of page) {
@@ -289,7 +290,7 @@ async function deleteAbandonedDrafts(admin: Admin, ids: string[], now: number): 
       .in("id", group)
       .eq("status", "draft")
       .lt("created_at", cutoff)
-    if (error) throw new Error(error.message)
+    if (error) throw new CronStageError("delete_drafts", error)
     deleted += count ?? 0
   }
   return deleted
@@ -320,7 +321,10 @@ interface Summary {
    */
   draftsSelected: number
   draftsDeleted: number
+  /** Set when the sweep stopped or skipped a stage: the fixed sentence, the stage and its code (lib/cron-failure.ts). */
   error?: string
+  step?: string
+  code?: string | null
 }
 
 async function purge(request: Request): Promise<Summary> {
@@ -331,7 +335,7 @@ async function purge(request: Request): Promise<Summary> {
 
   const objects: EvidenceObject[] = []
   await listObjects(admin, "", 0, objects)
-  const { documents, requests } = await referenceSet(admin)
+  const { documents, requests } = await inStage("read_references", () => referenceSet(admin))
 
   const now = Date.now()
   const result = classify(objects, requests, documents, now)
@@ -363,7 +367,7 @@ async function purge(request: Request): Promise<Summary> {
 
   // Asked and acted on regardless of what the object sweep found, because a
   // draft with no documents has no object to be found by.
-  const staleDrafts = await abandonedDraftIds(admin, now)
+  const staleDrafts = await inStage("read_drafts", () => abandonedDraftIds(admin, now))
   summary.draftsSelected = staleDrafts.length
 
   if (dryRun) return summary
@@ -374,8 +378,8 @@ async function purge(request: Request): Promise<Summary> {
     } catch (err) {
       // Nothing irreversible has happened to a FILE yet, so this is reportable
       // rather than fatal: carry on and sweep the objects.
-      summary.error = "Abandoned drafts could not be deleted."
-      console.error("[accommodations] purge left abandoned drafts alone", logView(summary), err)
+      Object.assign(summary, cronFailureOf(err))
+      console.error("[accommodations] purge left abandoned drafts alone", logView(summary))
     }
   }
 
@@ -392,7 +396,7 @@ async function purge(request: Request): Promise<Summary> {
     // the length of one query.
     let live: Set<string>
     try {
-      const fresh = await referenceSet(admin)
+      const fresh = await inStage("recheck_references", () => referenceSet(admin))
       const stillClassified = classify(
         group.map((path) => ({ path, createdAt: new Date(0).toISOString() })),
         fresh.requests,
@@ -401,8 +405,8 @@ async function purge(request: Request): Promise<Summary> {
       )
       live = new Set(stillClassified.remove.map((v) => v.path))
     } catch (err) {
-      summary.error = "Couldn't re-check which documents are still attached, so the sweep stopped."
-      console.error("[accommodations] purge stopped mid-sweep", logView(summary), err)
+      Object.assign(summary, cronFailureOf(err))
+      console.error("[accommodations] purge stopped mid-sweep", logView(summary))
       return summary
     }
     const batch = group.filter((p) => live.has(p))
@@ -425,8 +429,8 @@ async function purge(request: Request): Promise<Summary> {
       // body, and the deletion cannot be undone, so what already went is only
       // knowable from the log and this summary.
       // The response carries a sentence; Storage's own text goes to the log.
-      summary.error = "Couldn't remove documents."
-      console.error("[accommodations] purge stopped mid-sweep", logView(summary), error)
+      Object.assign(summary, cronFailure("remove_files", error))
+      console.error("[accommodations] purge stopped mid-sweep", logView(summary))
       return summary
     }
     const gone = (data ?? []).map((object) => object.name)
@@ -452,7 +456,7 @@ async function purge(request: Request): Promise<Summary> {
         .from("accommodation_documents")
         .update({ storage_path: null, purged_at: new Date().toISOString() })
         .in("id", expired.map((v) => v.documentId as string))
-      if (error) throw new Error(error.message)
+      if (error) throw new CronStageError("update_rows", error)
       summary.rowsPurged = expired.length
     }
 
@@ -462,7 +466,7 @@ async function purge(request: Request): Promise<Summary> {
         .from("accommodation_documents")
         .delete()
         .in("id", abandoned.map((v) => v.documentId as string))
-      if (error) throw new Error(error.message)
+      if (error) throw new CronStageError("update_rows", error)
       summary.rowsDeleted = abandoned.length
     }
 
@@ -474,7 +478,7 @@ async function purge(request: Request): Promise<Summary> {
       (id) => !staleDrafts.includes(id),
     )
     if (emptied.length > 0) {
-      const stillEmpty = await abandonedDraftIds(admin, now)
+      const stillEmpty = await inStage("read_drafts", () => abandonedDraftIds(admin, now))
       const nowGone = emptied.filter((id) => stillEmpty.includes(id))
       if (nowGone.length > 0) {
         summary.draftsSelected += nowGone.length
@@ -484,8 +488,9 @@ async function purge(request: Request): Promise<Summary> {
   } catch (err) {
     // The files are gone either way. Report the bookkeeping failure rather
     // than discarding the account of what was destroyed.
-    summary.error = "Files removed, but the rows could not be updated."
-    console.error("[accommodations] purge left rows out of step", logView(summary), err)
+    // The step says which: update_rows is "files removed, rows not amended".
+    Object.assign(summary, cronFailure(err instanceof CronStageError ? err.step : "update_rows", err instanceof CronStageError ? err.detail : err))
+    console.error("[accommodations] purge left rows out of step", logView(summary))
     return summary
   }
 
@@ -501,8 +506,7 @@ export async function POST(request: Request) {
     // Reached only when the run failed BEFORE its first removal — the listing
     // and the pre-loop reference read throw. Once the removal loop is running,
     // every failure inside it returns a partial summary instead of throwing.
-    console.error("[accommodations] purge failed", err)
-    return NextResponse.json({ error: "The purge couldn't start. The server log has the detail." }, { status: 500 })
+    return NextResponse.json(cronFailureOf(err), { status: 500 })
   }
 }
 

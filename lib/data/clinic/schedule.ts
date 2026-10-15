@@ -116,6 +116,7 @@ function mapAppointment(r: ApptJoined): Appointment {
 
 export function useAppointmentTypes(businessId: string | null): LiveResult<AppointmentType[]> {
   return useLive<AppointmentType[]>(
+    "appointment types",
     [],
     async (db) => {
       const rows = must(
@@ -148,6 +149,7 @@ export function useDayAppointments(
   tz: string,
 ): LiveResult<Appointment[]> {
   return useLive<Appointment[]>(
+    "the day's appointments",
     [],
     async (db) => {
       const { from, to } = dayBounds(dateISO, tz)
@@ -170,6 +172,7 @@ export function useDayAppointments(
 /** Everything still open, whatever day it sits on — drives the Today board. */
 export function useOpenAppointments(businessId: string | null, tz: string): LiveResult<Appointment[]> {
   return useLive<Appointment[]>(
+    "open appointments",
     [],
     async (db) => {
       const { from, to } = dayBounds(new Date().toISOString().slice(0, 10), tz)
@@ -192,6 +195,7 @@ export function useOpenAppointments(businessId: string | null, tz: string): Live
 
 export function usePatientAppointments(patientId: string | null): LiveResult<Appointment[]> {
   return useLive<Appointment[]>(
+    "this patient's appointments",
     [],
     async (db) => {
       const rows = must(
@@ -321,6 +325,7 @@ export function useAvailableSlots(
   dateISO: string,
 ): LiveResult<Slot[]> {
   return useLive<Slot[]>(
+    "available times",
     [],
     async (db) => {
       const { data, error } = await db.rpc("clinic_available_slots", {
@@ -380,6 +385,7 @@ export async function saveAppointmentType(input: {
 /** Every clinician's weekly sessions, keyed by business_staff id. */
 export function useStaffHours(businessId: string | null): LiveResult<Record<string, HoursRow[]>> {
   return useLive<Record<string, HoursRow[]>>(
+    "staff hours",
     {},
     async (db) => {
       const rows = must(

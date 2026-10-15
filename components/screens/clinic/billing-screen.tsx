@@ -10,7 +10,7 @@ import {
 } from "@/lib/data/clinic/shop"
 import {
   invoiceStatusView, invoiceActions, invoicesForView, billingViewFor, isPartlyPaid, shortPaidNote, paymentProgress,
-  remainingCents, paymentRows, paymentMethodLabel, liveInvoiceByVisit, convertedTotalNote, takenTodayCents,
+  remainingCents, paymentRows, paymentMethodLabel, liveInvoiceByVisit, convertedTotalNote, takenTodayByCurrency, takenTodayText,
   validatePayment, PAYMENT_METHODS, type BillingView, type InvoiceAction, type PaymentErrors, type PaymentMethodCode,
 } from "@/lib/data/clinic/billing"
 import { formatMoney, formatDateShort, dayBounds, todayISO } from "@/lib/data/clinic/time"
@@ -81,7 +81,7 @@ export function ClinicBillingScreen({
   // the practice's midnight, which refetches.
   const todayStart = dayBounds(todayISO(new Date(), clinic.timezone), clinic.timezone).from
   const payments = usePaymentsSince(clinic.businessId, todayStart)
-  const takenToday = takenTodayCents(payments.data, new Date(), clinic.timezone)
+  const takenToday = takenTodayByCurrency(payments.data, new Date(), clinic.timezone)
   const openBill = openId ? invoices.data.find((i) => i.id === openId) ?? null : null
 
   const actionsFor = (i: Invoice) =>
@@ -135,7 +135,7 @@ export function ClinicBillingScreen({
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Outstanding" value={formatMoney(outstanding)} tone={outstanding > 0 ? "warn" : "good"} />
         <TakenTodayTile
-          cents={takenToday}
+          totals={takenToday}
           loading={payments.isLoading && payments.data.length === 0}
           failed={payments.error !== null}
           onRetry={payments.refetch}
@@ -401,9 +401,9 @@ export function ClinicBillingScreen({
  * takes only a string hint, so this tile is its own markup in the same style.
  */
 function TakenTodayTile({
-  cents, loading, failed, onRetry,
+  totals, loading, failed, onRetry,
 }: {
-  cents: number
+  totals: Array<{ currency: string; cents: number }>
   loading: boolean
   failed: boolean
   onRetry: () => void
@@ -416,7 +416,7 @@ function TakenTodayTile({
         aria-describedby={hintId}
         className="mt-1 text-[26px] font-semibold leading-none tabular-nums text-success-strong"
       >
-        {failed ? "—" : loading ? "…" : formatMoney(cents)}
+        {failed ? "—" : loading ? "…" : takenTodayText(totals)}
       </p>
       {failed ? (
         <p role="alert" className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-destructive">

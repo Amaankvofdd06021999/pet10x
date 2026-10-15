@@ -45,6 +45,7 @@ const STAGE_WORD: Record<string, string> = {
 
 export function useCaseTimeline(violationId: string | null): LiveResult<CaseEvent[]> {
   return useLive<CaseEvent[]>(
+    "this case's timeline",
     [],
     async (db) => {
       const [violation, events, notices, disputes, fines] = await Promise.all([

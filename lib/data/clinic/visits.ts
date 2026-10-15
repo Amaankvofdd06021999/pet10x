@@ -81,6 +81,7 @@ function mapVisit(r: VisitJoined, published: Map<string, string>): Visit {
 
 export function usePatientVisits(patientId: string | null): LiveResult<Visit[]> {
   return useLive<Visit[]>(
+    "this patient's visits",
     [],
     async (db) => {
       const rows = must(
@@ -110,6 +111,7 @@ export function usePatientVisits(patientId: string | null): LiveResult<Visit[]> 
 
 export function useVisit(visitId: string | null): LiveResult<Visit | null> {
   return useLive<Visit | null>(
+    "this visit",
     null,
     async (db) => {
       const rows = must(
@@ -134,6 +136,7 @@ export function useVisit(visitId: string | null): LiveResult<Visit | null> {
 
 export function usePatientVaccinations(patientId: string | null): LiveResult<PatientVaccination[]> {
   return useLive<PatientVaccination[]>(
+    "vaccinations",
     [],
     async (db) => {
       const rows = must(

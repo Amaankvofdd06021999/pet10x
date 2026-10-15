@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
 import { runSuggestions } from "@/lib/ai/suggestions/run"
+import { cronFailure } from "@/lib/cron-failure"
 import { advanceCursor, nextBatch } from "@/lib/ai/suggestions/nightly"
 
 /**
@@ -51,18 +52,15 @@ export async function GET(request: Request) {
     .select("cursor")
     .eq("name", CURSOR_NAME)
     .maybeSingle()
-  if (cursorErr) {
-    console.error("[ai] nightly suggestions: couldn't read the cursor", cursorErr)
-    return NextResponse.json({ error: "Couldn't start the nightly run." }, { status: 500 })
-  }
+  if (cursorErr) return NextResponse.json(cronFailure("read_cursor", cursorErr), { status: 500 })
 
   let cursor: string | null = cursorRow?.cursor ?? null
   let processed = 0
   let failed = 0
   let done = false
   let timedOut = false
-  /** A later page or a cursor save failed: logged, and reported in the summary. */
-  let errored = false
+  /** A later page or a cursor save failed: logged, and the first one is reported in the summary. */
+  let stageFailure: ReturnType<typeof cronFailure> | null = null
   let firstPage = true
 
   /**
@@ -74,10 +72,7 @@ export async function GET(request: Request) {
     const { error } = await admin
       .from("cron_cursors")
       .upsert({ name: CURSOR_NAME, cursor: value, updated_at: new Date().toISOString() })
-    if (error) {
-      console.error("[ai] nightly suggestions: couldn't save the cursor", error)
-      errored = true
-    }
+    if (error) stageFailure ??= cronFailure("save_cursor", error)
   }
 
   while (!done && !timedOut) {
@@ -87,9 +82,9 @@ export async function GET(request: Request) {
     if (cursor !== null) query = query.gt("owner_id", cursor)
     const { data: rows, error } = await query
     if (error) {
-      console.error("[ai] nightly suggestions: couldn't list owners", error)
-      if (firstPage) return NextResponse.json({ error: "The job couldn't finish. The server log has the detail." }, { status: 500 })
-      errored = true
+      const failure = cronFailure("list_owners", error)
+      if (firstPage) return NextResponse.json(failure, { status: 500 })
+      stageFailure ??= failure
       break
     }
     firstPage = false
@@ -124,5 +119,5 @@ export async function GET(request: Request) {
   // A finished sweep resets the cursor so the next night starts from the top.
   if (done) await saveCursor(advanceCursor([], true))
 
-  return NextResponse.json({ ok: true, processed, failed, done, ...(errored ? { error: true } : {}) })
+  return NextResponse.json({ ok: true, processed, failed, done, ...(stageFailure ?? {}) })
 }

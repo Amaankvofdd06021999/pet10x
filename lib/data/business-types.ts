@@ -73,6 +73,7 @@ function mapType(r: BusinessTypeRow): BusinessType {
 /** The signup picker and the admin registry both read this. */
 export function useBusinessTypes(): LiveResult<BusinessType[]> {
   return useLive<BusinessType[]>(
+    "business types",
     [],
     async (db) => {
       const rows = must(
@@ -90,6 +91,7 @@ export function useBusinessTypes(): LiveResult<BusinessType[]> {
 
 export function useBusinessType(code: string | null): LiveResult<BusinessType | null> {
   return useLive<BusinessType | null>(
+    "this business type",
     null,
     async (db) => {
       const rows = must(

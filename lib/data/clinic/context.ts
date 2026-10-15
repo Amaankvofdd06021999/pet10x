@@ -45,6 +45,7 @@ const ACTIVE_KEY = "pet10x.clinic.active"
 /** Every practice this person works at. Owners appear even with no staff row. */
 export function useMyClinics(): LiveResult<ClinicMembership[]> {
   return useLive<ClinicMembership[]>(
+    "your clinics",
     [],
     async (db) => {
       const { data: auth } = await db.auth.getUser()
@@ -123,6 +124,7 @@ export function useActiveClinic() {
 
 export function useClinicLocations(businessId: string | null): LiveResult<ClinicLocation[]> {
   return useLive<ClinicLocation[]>(
+    "locations",
     [],
     async (db) => {
       const rows = must(
@@ -167,6 +169,7 @@ export interface ClinicStaffMember {
 
 export function useClinicStaff(businessId: string | null): LiveResult<ClinicStaffMember[]> {
   return useLive<ClinicStaffMember[]>(
+    "staff",
     [],
     async (db) => {
       const rows = must(

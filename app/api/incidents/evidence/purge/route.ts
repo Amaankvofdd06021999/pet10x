@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
+import { CronStageError, cronFailure, cronFailureOf } from "@/lib/cron-failure"
 import { ageEligible, unclaimed, type EvidenceObject } from "@/lib/data/evidence-purge"
 
 /**
@@ -101,7 +102,7 @@ async function listObjects(admin: Admin, prefix: string, depth: number, out: Evi
     // means the run fails and nothing is removed, which is the safe direction:
     // an object missing from a truncated listing is merely swept tomorrow,
     // whereas acting on a partial view of *claims* would delete live evidence.
-    if (error) throw new Error(`Couldn't list ${prefix || "/"}: ${error.message}`)
+    if (error) throw new CronStageError("list_objects", error)
 
     const page = (data ?? []) as StorageEntry[]
     for (const entry of page) {
@@ -158,7 +159,7 @@ async function claimedAmong(admin: Admin, paths: readonly string[]): Promise<Set
     const { data, error } = await admin.from("incident_reports").select("evidence_paths").overlaps("evidence_paths", group)
     // Same rule as the listing, and it matters more here: not knowing which
     // paths are claimed must never be read as "none of them are".
-    if (error) throw new Error(`Couldn't check which paths are claimed: ${error.message}`)
+    if (error) throw new CronStageError("check_claims", error)
     for (const row of data ?? []) {
       for (const path of row.evidence_paths ?? []) claimed.add(path)
     }
@@ -179,7 +180,10 @@ interface Summary {
   paths: string[]
   /** Confirmed gone, as storage reported it back. The only record that exists. */
   removed: string[]
+  /** Set when the sweep stopped: the fixed sentence, the stage and its code (lib/cron-failure.ts). */
   error?: string
+  step?: string
+  code?: string | null
 }
 
 async function purge(request: Request): Promise<Summary> {
@@ -242,8 +246,8 @@ async function purge(request: Request): Promise<Summary> {
     try {
       stillClaimed = await claimedAmong(admin, group)
     } catch (err) {
-      summary.error = "Couldn't re-check which evidence is still attached, so the sweep stopped."
-      console.error("[incidents] evidence purge stopped mid-sweep", summary, err)
+      Object.assign(summary, cronFailureOf(err))
+      console.error("[incidents] evidence purge stopped mid-sweep", summary)
       return summary
     }
     const { remove: batch, spared: lateClaims } = unclaimed(group, stillClaimed)
@@ -263,9 +267,9 @@ async function purge(request: Request): Promise<Summary> {
       // is only knowable from the log and the returned summary. Throwing here
       // would discard both and leave an operator investigating a missing photo
       // with nothing at all to read.
-      // The response carries a sentence; Storage's own text goes to the log.
-      summary.error = "Couldn't remove evidence."
-      console.error("[incidents] evidence purge stopped mid-sweep", summary, error)
+      // The response carries the stage and code; Storage's own text goes to the log.
+      Object.assign(summary, cronFailure("remove_evidence", error))
+      console.error("[incidents] evidence purge stopped mid-sweep", summary)
       return summary
     }
     // What storage says it removed, not what was asked for — a path that had
@@ -292,8 +296,7 @@ export async function POST(request: Request) {
     // here. That is a property of the loop, not of this handler: a new
     // throwing call added inside it would silently move back into this branch
     // and take the account of an irreversible delete with it.
-    console.error("[incidents] evidence purge failed", err)
-    return NextResponse.json({ error: "The purge couldn't start. The server log has the detail." }, { status: 500 })
+    return NextResponse.json(cronFailureOf(err), { status: 500 })
   }
 }
 

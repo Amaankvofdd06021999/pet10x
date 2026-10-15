@@ -188,19 +188,37 @@ export function convertedTotalNote(estimateTotalCents: number, invoiceTotalCents
 
 /**
  * Money taken today, in the practice's timezone: every invoice_payments row
- * recorded today, part payments included. A payment on a bill voided since is
- * left out — the money goes back to the owner outside the app, so it was not
- * really taken.
+ * recorded today, part payments included, totalled per currency — a practice
+ * can bill in more than one, and adding CAD to USD gives a number that is
+ * neither. A payment on a bill voided since is left out — the money goes back
+ * to the owner outside the app, so it was not really taken. Sorted by code.
  */
-export function takenTodayCents(
-  payments: Array<{ amountCents: number; createdAt: string; invoiceStatus: string }>,
+export function takenTodayByCurrency(
+  payments: Array<{ amountCents: number; currency: string; createdAt: string; invoiceStatus: string }>,
   now: Date,
   tz: string,
-): number {
+): Array<{ currency: string; cents: number }> {
   const today = todayISO(now, tz)
-  return payments
-    .filter((p) => p.invoiceStatus !== "void" && todayISO(new Date(p.createdAt), tz) === today)
-    .reduce((sum, p) => sum + p.amountCents, 0)
+  const totals = new Map<string, number>()
+  for (const p of payments) {
+    if (p.invoiceStatus === "void" || todayISO(new Date(p.createdAt), tz) !== today) continue
+    const currency = p.currency.toUpperCase()
+    totals.set(currency, (totals.get(currency) ?? 0) + p.amountCents)
+  }
+  return [...totals]
+    .map(([currency, cents]) => ({ currency, cents }))
+    .sort((a, b) => (a.currency < b.currency ? -1 : a.currency > b.currency ? 1 : 0))
+}
+
+/**
+ * What the Taken today tile shows. One currency reads as a plain amount;
+ * several are joined, each with its code so none can be mistaken for another
+ * ("$120.00 CAD · $40.00 USD"). Nothing taken is zero.
+ */
+export function takenTodayText(totals: Array<{ currency: string; cents: number }>): string {
+  if (totals.length === 0) return formatMoney(0)
+  if (totals.length === 1) return formatMoney(totals[0].cents, totals[0].currency)
+  return totals.map((t) => `${formatMoney(t.cents, t.currency)} ${t.currency}`).join(" · ")
 }
 
 /* ------------------------------- payment -------------------------------- */

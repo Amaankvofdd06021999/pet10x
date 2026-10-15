@@ -29,6 +29,7 @@ export interface NoticeKind {
 
 export function useNoticeKinds(): LiveResult<NoticeKind[]> {
   return useLive<NoticeKind[]>(
+    "notice types",
     [],
     async (db) => {
       const rows = must(
@@ -65,6 +66,7 @@ export interface ViolationNotice {
 
 export function useViolationNotices(violationId: string | null): LiveResult<ViolationNotice[]> {
   return useLive<ViolationNotice[]>(
+    "this case's notices",
     [],
     async (db) => {
       const rows = must(
@@ -113,6 +115,7 @@ export function useViolationNotices(violationId: string | null): LiveResult<Viol
  */
 export function useMyNotices(): LiveResult<Array<ViolationNotice & { violationId: string }>> {
   return useLive<Array<ViolationNotice & { violationId: string }>>(
+    "your notices",
     [],
     async (db) => {
       const { data: auth } = await db.auth.getUser()

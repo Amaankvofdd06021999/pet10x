@@ -24,6 +24,7 @@ export interface VerificationRequest {
  */
 export function useLatestVerification(businessId: string | null): LiveResult<VerificationRequest | null> {
   return useLive<VerificationRequest | null>(
+    "your verification request",
     null,
     async (db) => {
       const rows = must(

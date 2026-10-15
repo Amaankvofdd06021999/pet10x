@@ -24,6 +24,7 @@ export interface EmergencyArrival {
 /** Inbound "I am on my way" alerts, newest first. */
 export function useEmergencyArrivals(businessId: string | null): LiveResult<EmergencyArrival[]> {
   return useLive<EmergencyArrival[]>(
+    "emergency arrivals",
     [],
     async (db) => {
       const rows = must(
@@ -74,6 +75,7 @@ export interface EmergencyPullRecord {
 
 export function useEmergencyPulls(businessId: string | null): LiveResult<EmergencyPullRecord[]> {
   return useLive<EmergencyPullRecord[]>(
+    "emergency lookups",
     [],
     async (db) => {
       const rows = must(
@@ -148,6 +150,7 @@ export interface OnCallShift {
 
 export function useOnCall(businessId: string | null): LiveResult<OnCallShift[]> {
   return useLive<OnCallShift[]>(
+    "the on-call schedule",
     [],
     async (db) => {
       const rows = must(

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   invoiceStatusLabel, INVOICE_STATUS_LABEL, PAYMENT_METHODS, validatePayment,
-  invoiceActions, takenTodayCents, billingViewFor, invoicesForView, liveInvoiceByVisit,
+  invoiceActions, takenTodayByCurrency, takenTodayText, billingViewFor, invoicesForView, liveInvoiceByVisit,
   checkoutCompletes, convertedTotalNote, PAYMENT_METHOD_CODE, paymentMethodLabel, remainingCents,
   isPartlyPaid, shortPaidNote, invoiceStatusView, paymentProgress, paymentRows, recordPaymentError, voidInvoiceError,
 } from "./billing"
@@ -153,44 +153,70 @@ describe("invoiceActions", () => {
   })
 })
 
-describe("takenTodayCents", () => {
+describe("takenTodayByCurrency", () => {
   const tz = "America/Vancouver"
   // 2026-10-14 10:00 in Vancouver (PDT, UTC-7).
   const now = new Date("2026-10-14T17:00:00Z")
+  const pay = (amountCents: number, currency: string, createdAt: string, invoiceStatus = "paid") => ({
+    amountCents, currency, createdAt, invoiceStatus,
+  })
 
-  it("sums the payments recorded today in the practice's timezone, partial ones included", () => {
+  it("totals each currency separately: today only, void bills left out", () => {
     expect(
-      takenTodayCents(
+      takenTodayByCurrency(
         [
-          { amountCents: 5000, createdAt: "2026-10-14T16:00:00Z", invoiceStatus: "paid" },
+          pay(5000, "CAD", "2026-10-14T16:00:00Z"),
           // A part payment: the invoice is still open, but the money came in today.
-          { amountCents: 1200, createdAt: "2026-10-14T18:00:00Z", invoiceStatus: "sent" },
-          // 23:30 on the 14th in Vancouver, though already the 15th in UTC.
-          { amountCents: 2500, createdAt: "2026-10-15T06:30:00Z", invoiceStatus: "approved" },
-          // 23:30 on the 13th in Vancouver, though the 14th in UTC.
-          { amountCents: 9900, createdAt: "2026-10-14T06:30:00Z", invoiceStatus: "paid" },
+          pay(1200, "CAD", "2026-10-14T18:00:00Z", "sent"),
+          pay(4000, "USD", "2026-10-14T19:00:00Z"),
+          // Yesterday in Vancouver, though the 14th in UTC.
+          pay(9900, "CAD", "2026-10-14T06:30:00Z"),
+          // A payment on a bill voided since: the money goes back outside the app.
+          pay(7000, "CAD", "2026-10-14T16:30:00Z", "void"),
         ],
         now,
         tz,
       ),
-    ).toBe(8700)
+    ).toEqual([
+      { currency: "CAD", cents: 6200 },
+      { currency: "USD", cents: 4000 },
+    ])
   })
 
-  it("leaves out a payment on a bill voided since — the money goes back outside the app", () => {
+  it("sorts by currency whatever the order paid, and reads a lowercase code", () => {
     expect(
-      takenTodayCents([{ amountCents: 4000, createdAt: "2026-10-14T16:00:00Z", invoiceStatus: "void" }], now, tz),
-    ).toBe(0)
+      takenTodayByCurrency([pay(100, "usd", "2026-10-14T16:00:00Z"), pay(200, "CAD", "2026-10-14T16:00:00Z")], now, tz),
+    ).toEqual([
+      { currency: "CAD", cents: 200 },
+      { currency: "USD", cents: 100 },
+    ])
   })
 
   it("reads today in the practice's zone, not the viewer's", () => {
-    const row = [{ amountCents: 700, createdAt: "2026-10-14T06:30:00Z", invoiceStatus: "paid" }]
+    const row = [pay(700, "CAD", "2026-10-14T06:30:00Z")]
     // 02:30 on the 14th in Toronto; 23:30 on the 13th in Vancouver.
-    expect(takenTodayCents(row, now, "America/Toronto")).toBe(700)
-    expect(takenTodayCents(row, now, tz)).toBe(0)
+    expect(takenTodayByCurrency(row, now, "America/Toronto")).toEqual([{ currency: "CAD", cents: 700 }])
+    expect(takenTodayByCurrency(row, now, tz)).toEqual([])
   })
 
-  it("is zero with nothing paid", () => {
-    expect(takenTodayCents([], now, tz)).toBe(0)
+  it("is empty with nothing paid", () => {
+    expect(takenTodayByCurrency([], now, tz)).toEqual([])
+  })
+})
+
+describe("takenTodayText", () => {
+  it("shows one currency as a plain amount, and zero when nothing was taken", () => {
+    expect(takenTodayText([{ currency: "CAD", cents: 12000 }])).toBe("$120.00")
+    expect(takenTodayText([])).toBe("$0.00")
+  })
+
+  it("joins several currencies, each with its code", () => {
+    expect(
+      takenTodayText([
+        { currency: "CAD", cents: 12000 },
+        { currency: "USD", cents: 4000 },
+      ]),
+    ).toMatch(/^\$120\.00 CAD · .*40\.00 USD$/)
   })
 })
 

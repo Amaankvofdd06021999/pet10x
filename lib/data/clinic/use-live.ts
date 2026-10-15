@@ -4,10 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
-import { dbErrorMessage } from "@/lib/data/db-error"
-import { userError } from "@/lib/user-error"
-
-const LOAD_FAILED = "Couldn't load this. Try again."
+import { loadErrorSentence } from "./load-error"
 
 export type Db = SupabaseClient<Database>
 
@@ -26,9 +23,13 @@ export interface LiveResult<T> {
  * types under one barrel and a dozen screens that silently drop `error`.
  * Everything here returns the same object, so a screen can rely on it.
  *
+ * `what` is a plain noun phrase ("patients", "the schedule") that names the
+ * read in its error: "Couldn't load patients. Try again."
+ *
  * `load` is expected to THROW on failure — use `must()` below.
  */
 export function useLive<T>(
+  what: string,
   initial: T,
   load: (db: Db) => Promise<T>,
   deps: readonly unknown[],
@@ -62,11 +63,7 @@ export function useLive<T>(
       })
       .catch((err: unknown) => {
         if (cancelled) return
-        // A loader throws either a sentence (sentenceFor, or a dbErrorMessage
-        // it already logged) or something unexpected, which is logged here
-        // and never shown as written.
-        const sentence = err instanceof Error ? userError(err.message, "") : ""
-        setError(sentence || dbErrorMessage(err, LOAD_FAILED))
+        setError(loadErrorSentence(what, err))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -80,9 +77,13 @@ export function useLive<T>(
   return { data, isLoading, error, refetch }
 }
 
-/** Unwrap a PostgREST result, throwing a sentence `useLive` can show (never the raw message). */
-export function must<T>(res: { data: T | null; error: { message: string } | null }): T {
-  if (res.error) throw new Error(dbErrorMessage(res.error, LOAD_FAILED))
+/**
+ * Unwrap a PostgREST result. On failure it throws the error with its SQLSTATE
+ * kept, and `useLive` turns it into a sentence naming what failed (the raw
+ * message is logged there and never shown).
+ */
+export function must<T>(res: { data: T | null; error: { message: string; code?: string } | null }): T {
+  if (res.error) throw Object.assign(new Error(res.error.message), { code: res.error.code })
   return (res.data ?? []) as T
 }
 

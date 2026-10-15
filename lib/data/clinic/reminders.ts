@@ -71,6 +71,7 @@ export function useReminderQueue(
   status: string[] = ["pending", "snoozed"],
 ): LiveResult<ReminderItem[]> {
   return useLive<ReminderItem[]>(
+    "the reminder queue",
     [],
     async (db) => {
       const rows = must(
@@ -100,6 +101,7 @@ export interface ReminderRule {
 
 export function useReminderRules(businessId: string | null): LiveResult<ReminderRule[]> {
   return useLive<ReminderRule[]>(
+    "reminder rules",
     [],
     async (db) => {
       const rows = must(
@@ -195,6 +197,7 @@ export interface ClinicTask {
 
 export function useClinicTasks(businessId: string | null): LiveResult<ClinicTask[]> {
   return useLive<ClinicTask[]>(
+    "tasks",
     [],
     async (db) => {
       const rows = must(
@@ -257,6 +260,7 @@ export interface CommunicationEntry {
 
 export function useCommunicationLog(customerId: string | null): LiveResult<CommunicationEntry[]> {
   return useLive<CommunicationEntry[]>(
+    "the message log",
     [],
     async (db) => {
       const rows = must(

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
 import { addCalendarDays, calendarDaysBetween } from "@/lib/dates"
-import { dbErrorMessage } from "@/lib/data/db-error"
+import { cronFailure } from "@/lib/cron-failure"
 
 /**
  * Raise reminders for care tasks that are due and not yet done.
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     // flea, six-month heartworm) is due on a DATE, not at a time of day, and
     // that filter excluded every one of them.
 
-  if (error) return NextResponse.json({ error: dbErrorMessage(error, "Couldn't read the care tasks, so no reminders were sent.") }, { status: 500 })
+  if (error) return NextResponse.json(cronFailure("read_tasks", error), { status: 500 })
 
   const due: {
     taskId: string

@@ -56,6 +56,7 @@ export interface VetShare {
 /** Every practice that can currently see something, per pet. */
 export function useMyVetShares(): LiveResult<VetShare[]> {
   return useLive<VetShare[]>(
+    "your shared records",
     [],
     async (db) => {
       const { data: auth } = await db.auth.getUser()
@@ -128,6 +129,7 @@ const DIRECTORY_COLUMNS = "id, name, city, address, is_open, rating_avg, rating_
  */
 export function useVetDirectory(search: string, pinnedId?: string | null): LiveResult<VetDirectoryEntry[]> {
   return useLive<VetDirectoryEntry[]>(
+    "the vet directory",
     [],
     async (db) => {
       let q = db
@@ -227,6 +229,7 @@ export interface PendingLinkRequest {
 
 export function usePendingLinkRequests(): LiveResult<PendingLinkRequest[]> {
   return useLive<PendingLinkRequest[]>(
+    "your link requests",
     [],
     async (db) => {
       const { data: auth } = await db.auth.getUser()
@@ -284,6 +287,7 @@ export interface PendingShareRequest {
 
 export function usePendingShareRequests(): LiveResult<PendingShareRequest[]> {
   return useLive<PendingShareRequest[]>(
+    "your share requests",
     [],
     async (db) => {
       const { data: auth } = await db.auth.getUser()
@@ -348,6 +352,7 @@ export interface ClinicRecord {
 /** What practices have handed back — the attested half of the timeline. */
 export function useClinicRecords(petId?: string | null): LiveResult<ClinicRecord[]> {
   return useLive<ClinicRecord[]>(
+    "your clinic records",
     [],
     async (db) => {
       const { data: auth } = await db.auth.getUser()
@@ -397,6 +402,7 @@ export interface OwnerAppointment {
 
 export function useMyVetAppointments(): LiveResult<OwnerAppointment[]> {
   return useLive<OwnerAppointment[]>(
+    "your vet appointments",
     [],
     async (db) => {
       const { data: auth } = await db.auth.getUser()
@@ -513,6 +519,7 @@ export const ARRIVAL_FAILED = "Couldn't reach them through Pet10x."
  */
 export function useMyInvoices(): LiveResult<OwnerBill[]> {
   return useLive<OwnerBill[]>(
+    "your bills",
     [],
     async (db) => {
       const { data: auth } = await db.auth.getUser()

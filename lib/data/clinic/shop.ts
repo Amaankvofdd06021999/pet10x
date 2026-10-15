@@ -19,6 +19,7 @@ export interface Product {
 
 export function useProducts(businessId: string | null): LiveResult<Product[]> {
   return useLive<Product[]>(
+    "products",
     [],
     async (db) => {
       const rows = must(
@@ -175,6 +176,7 @@ function mapInvoice(r: InvoiceJoined): Invoice {
 
 export function useInvoices(businessId: string | null): LiveResult<Invoice[]> {
   return useLive<Invoice[]>(
+    "invoices",
     [],
     async (db) => {
       const rows = must(
@@ -318,26 +320,29 @@ export async function voidInvoice(
 /**
  * The practice's payments since a moment (Billing passes the start of the
  * practice's today), with each one's bill status — what Taken today sums
- * (takenTodayCents). Read on its own rather
+ * (takenTodayByCurrency). Read on its own rather
  * than from useInvoices, whose 150-bill window could miss a payment on an
  * older bill.
  */
 export function usePaymentsSince(
   businessId: string | null,
   sinceISO: string,
-): LiveResult<Array<{ amountCents: number; createdAt: string; invoiceStatus: string }>> {
-  return useLive<Array<{ amountCents: number; createdAt: string; invoiceStatus: string }>>(
+): LiveResult<Array<{ amountCents: number; currency: string; createdAt: string; invoiceStatus: string }>> {
+  return useLive<Array<{ amountCents: number; currency: string; createdAt: string; invoiceStatus: string }>>(
+    "payments",
     [],
     async (db) => {
       const rows = must(
         await db
           .from("invoice_payments")
-          .select("amount_cents, created_at, invoices(status)")
+          .select("amount_cents, created_at, invoices(status, currency)")
           .eq("business_id", businessId as string)
           .gte("created_at", sinceISO),
-      ) as Array<{ amount_cents: number; created_at: string; invoices: { status: string } | null }>
+      ) as Array<{ amount_cents: number; created_at: string; invoices: { status: string; currency: string } | null }>
       return rows.map((r) => ({
         amountCents: r.amount_cents,
+        // A payment is in its bill's currency; "cad" only if the join came back empty.
+        currency: r.invoices?.currency ?? "cad",
         createdAt: r.created_at,
         invoiceStatus: r.invoices?.status ?? "unknown",
       }))
@@ -355,6 +360,7 @@ export function usePatientInvoices(
   patientId: string | null,
 ): LiveResult<Array<{ id: string; kind: string; status: string; visitId: string | null }>> {
   return useLive<Array<{ id: string; kind: string; status: string; visitId: string | null }>>(
+    "this patient's invoices",
     [],
     async (db) => {
       const rows = must(
@@ -384,6 +390,7 @@ export interface BillableVisit {
  */
 export function useBillableVisits(businessId: string | null, enabled = true): LiveResult<BillableVisit[]> {
   return useLive<BillableVisit[]>(
+    "visits to bill",
     [],
     async (db) => {
       const since = new Date(Date.now() - 60 * 86_400_000).toISOString().slice(0, 10)

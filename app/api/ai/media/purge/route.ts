@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
+import { CronStageError, cronFailureOf } from "@/lib/cron-failure"
 
 /**
  * Pet10x — retention sweep for assistant photo attachments.
@@ -43,7 +44,7 @@ async function purge() {
     p_days: days,
     p_limit: BATCH,
   })
-  if (error) throw new Error(`Couldn't list expired media: ${error.message}`)
+  if (error) throw new CronStageError("list_expired", error)
 
   const paths = (expired ?? []).map((row: { path: string }) => row.path)
   if (paths.length === 0) return { retentionDays: days, deleted: 0, messagesUpdated: 0 }
@@ -51,7 +52,7 @@ async function purge() {
   // Storage first. Deleting the rows in storage.objects directly would orphan
   // the underlying files, so this has to go through the Storage API.
   const { error: removeError } = await admin.storage.from("pet-media").remove(paths)
-  if (removeError) throw new Error(`Couldn't remove media: ${removeError.message}`)
+  if (removeError) throw new CronStageError("remove_files", removeError)
 
   // Then drop the dead paths from the messages that referenced them, so the
   // thread renders as text instead of trying to sign a file that is gone.
@@ -66,8 +67,7 @@ export async function POST(request: Request) {
   try {
     return NextResponse.json({ ok: true, ...(await purge()) })
   } catch (err) {
-    console.error("[ai] media purge failed", err)
-    return NextResponse.json({ error: "The purge couldn't finish. The server log has the detail." }, { status: 500 })
+    return NextResponse.json(cronFailureOf(err), { status: 500 })
   }
 }
 

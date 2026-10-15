@@ -58,6 +58,7 @@ function fullName(r: { first_name: string; last_name: string | null }): string {
 /** Search tolerates what reception hears on the phone: name, phone, or chip. */
 export function useClinicCustomers(businessId: string | null, search: string): LiveResult<ClinicCustomer[]> {
   return useLive<ClinicCustomer[]>(
+    "customers",
     [],
     async (db) => {
       let q = db
@@ -108,6 +109,7 @@ export function useClinicCustomers(businessId: string | null, search: string): L
 
 export function useClinicPatient(patientId: string | null): LiveResult<ClinicPatient | null> {
   return useLive<ClinicPatient | null>(
+    "this patient",
     null,
     async (db) => {
       const rows = must(
@@ -150,6 +152,7 @@ export function useClinicPatient(patientId: string | null): LiveResult<ClinicPat
 
 export function useClinicPatients(businessId: string | null, search: string): LiveResult<ClinicPatient[]> {
   return useLive<ClinicPatient[]>(
+    "patients",
     [],
     async (db) => {
       let q = db
@@ -335,6 +338,7 @@ export interface SharedRecord {
  */
 export function useSharedRecord(patientId: string | null): LiveResult<SharedRecord | null> {
   return useLive<SharedRecord | null>(
+    "this shared record",
     null,
     async (db) => {
       const { data, error } = await db.rpc("clinic_fetch_shared_record", { p_patient: patientId as string })

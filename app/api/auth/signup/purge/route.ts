@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdmin } from "@/lib/supabase/admin"
+import { cronFailure } from "@/lib/cron-failure"
 
 /**
  * Pet10x — daily sweep of unverified signups whose code has expired.
@@ -29,8 +30,7 @@ export async function POST(request: Request) {
   if (!isAuthorised(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { data, error } = await getSupabaseAdmin().rpc("purge_expired_pending_signups")
   if (error) {
-    console.error("[signup] pending-signup purge failed", error)
-    return NextResponse.json({ error: "Purge failed." }, { status: 500 })
+    return NextResponse.json(cronFailure("purge_pending", error), { status: 500 })
   }
   return NextResponse.json({ ok: true, deleted: data ?? 0 })
 }
