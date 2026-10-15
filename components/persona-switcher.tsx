@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { PERSONA_LABEL, PERSONA_ROUTE, type Persona } from "@/lib/rbac"
 import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
+import { useUnsavedShellGuard } from "@/components/use-unsaved-guard"
 import { Building2, Check, ChevronsUpDown, Dog, Layers, Shield, X } from "lucide-react"
 
 /**
@@ -58,6 +59,8 @@ export function PersonaSwitcher({
   } = useAuth()
   const [open, setOpen] = useState(false)
   const router = useRouter()
+  // A switch swaps the whole surface, so a half-filled form asks first.
+  const guard = useUnsavedShellGuard()
 
   // The whole control is absent for single-persona accounts, which is most of
   // them. Nothing to explain, nothing to dismiss.
@@ -67,14 +70,18 @@ export function PersonaSwitcher({
   const CurrentIcon = PERSONA_ICON[current]
 
   const choose = (p: Persona) => {
-    setActivePersona(p)
+    // The sheet closes first, so "Discard this form?" is the only dialog up.
     setOpen(false)
-    // Personas live on different routes; staying put would show the old
-    // surface until the next navigation.
-    const target = PERSONA_ROUTE[p]
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith(target)) {
-      router.push(target)
-    }
+    void guard.confirmLeave().then((ok) => {
+      if (!ok) return
+      setActivePersona(p)
+      // Personas live on different routes; staying put would show the old
+      // surface until the next navigation.
+      const target = PERSONA_ROUTE[p]
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith(target)) {
+        router.push(target)
+      }
+    })
   }
 
   return (

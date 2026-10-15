@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/auth-context"
 import { PERSONA_LABEL } from "@/lib/rbac"
 import { PersonaSwitcher } from "@/components/persona-switcher"
+import { useUnsavedShellGuard } from "@/components/use-unsaved-guard"
 import { useUnreadNotificationCount } from "@/lib/data"
 import {
   Home,
@@ -57,6 +58,13 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
   // Mirrors the mobile tab bar: nav follows the persona being worn, not the
   // role column, so switching view actually changes the menu.
   const { user, signOut, viewAs, canSwitch } = useAuth()
+  // Signing out leaves every screen at once: a half-filled form asks first.
+  const guard = useUnsavedShellGuard()
+  const handleSignOut = () => {
+    void guard.confirmLeave().then((ok) => {
+      if (ok) void signOut()
+    })
+  }
   const isManager = viewAs === "building-manager"
   const unreadCount = useUnreadNotificationCount()
   const badges: Record<string, number> = { alerts: unreadCount }
@@ -136,7 +144,7 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
           </div>
         </div>
         <button
-          onClick={signOut}
+          onClick={handleSignOut}
           className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/5"
         >
           <LogOut className="h-5 w-5" />
