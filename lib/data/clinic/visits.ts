@@ -3,6 +3,7 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./use-live"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 type VisitRow = Database["public"]["Tables"]["visits"]["Row"]
 
@@ -188,7 +189,7 @@ export async function createVisit(input: {
     })
     .select("id")
     .single()
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't start the visit. Try again.") }
   return { error: null, visitId: data?.id }
 }
 
@@ -199,7 +200,7 @@ export async function updateVisit(
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { error } = await db.from("visits").update(patch).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the visit. Try again.") : null }
 }
 
 export async function addVisitService(
@@ -219,14 +220,14 @@ export async function addVisitService(
     quantity,
     unit_price_cents: Math.max(0, Math.round(unitPriceCents)),
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't add the service. Try again.") : null }
 }
 
 export async function removeVisitService(id: string): Promise<{ error: string | null }> {
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { error } = await db.from("visit_services").delete().eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't remove the service. Try again.") : null }
 }
 
 export async function recordVaccination(input: {
@@ -258,7 +259,7 @@ export async function recordVaccination(input: {
     })
     .select("id")
     .single()
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't record the vaccination. Try again.") }
   return { error: null, id: data?.id }
 }
 
@@ -278,7 +279,7 @@ export async function publishRecord(
     p_source_kind: sourceKind,
     p_source_id: sourceId,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't send the record. Try again.") }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
 }
@@ -293,7 +294,7 @@ export async function withdrawPublication(
     p_publication: publicationId,
     p_reason: reason ?? undefined,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't withdraw the record. Try again.") }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
 }

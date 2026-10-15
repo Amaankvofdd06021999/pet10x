@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 const ENABLED = isSupabaseConfigured()
 type BizRow = Database["public"]["Tables"]["businesses"]["Row"]
@@ -196,7 +197,7 @@ export function useMyBusiness() {
       .eq("owner_id", user.id)
       .limit(1)
       .maybeSingle()
-    if (err) setError(err.message)
+    if (err) setError(dbErrorMessage(err, "Couldn't load your business. Try again."))
     else setData(row ? mapMine(row) : null)
     setLoading(false)
   }, [])
@@ -252,7 +253,7 @@ export async function updateBusiness(
   }
   // is_verified is deliberately absent — a DB trigger blocks self-verification.
   const { error } = await supabase.from("businesses").update(db).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save your business. Try again.") : null }
 }
 
 /* ------------------------------- nearby --------------------------------- */
@@ -320,7 +321,7 @@ export function useNearbyBusinesses(origin: { lat: number; lng: number } | null)
       )
       .eq("is_verified", true)
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load nearby businesses. Try again."))
       setData([])
       setLoading(false)
       return
@@ -404,7 +405,7 @@ export function usePublicBusiness(businessId?: string) {
       .eq("id", businessId)
       .maybeSingle()
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load this business. Try again."))
       setData(null)
     } else if (r) {
       const hours = (r.hours as BusinessHours) ?? null
@@ -569,5 +570,5 @@ export async function setMyLocation(
     .from("profiles")
     .update({ latitude: lat, longitude: lng, location_label: label, location_source: source })
     .eq("id", user.id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save your location. Try again.") : null }
 }

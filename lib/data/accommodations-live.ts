@@ -26,6 +26,7 @@ import {
   type AccommodationType,
   type DocKind,
 } from "./accommodations"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /** One request as the screens read it. `legalNote` is manager-authored guidance. */
 export interface AccommodationRequestView {
@@ -125,7 +126,7 @@ export function useMyAccommodations(): LiveResult<AccommodationRequestView[]> {
       .eq("resident_id", user.id)
       .order("created_at", { ascending: false })
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load your accommodation requests. Try again."))
       setData([])
       setLoading(false)
       return
@@ -169,7 +170,7 @@ export function useAccommodationsLive(): LiveResult<AccommodationRequestView[]> 
       .neq("status", "draft")
       .order("submitted_at", { ascending: false, nullsFirst: false })
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load accommodation requests. Try again."))
       setData([])
       setLoading(false)
       return
@@ -247,7 +248,7 @@ export function useAccommodationDocuments(requestId: string | undefined): LiveRe
       .eq("request_id", requestId)
       .order("uploaded_at", { ascending: true })
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the documents. Try again."))
       setData([])
       setLoading(false)
       return
@@ -265,11 +266,6 @@ export function useAccommodationDocuments(requestId: string | undefined): LiveRe
 
 /* ----------------------------- the four RPCs ----------------------------- */
 
-function transportError(e: { message: string; hint?: string | null } | null): string | null {
-  if (!e) return null
-  const hint = e.hint?.trim()
-  return hint ? `${e.message} ${hint}` : e.message
-}
 
 /**
  * Every structured `error` code the five RPCs return, mapped to a sentence.
@@ -307,7 +303,7 @@ export async function submitAccommodationRequest(id: string): Promise<RpcOutcome
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { ok: false, error: "Not configured." }
   const { data, error } = await supabase.rpc("submit_accommodation_request", { p_request: id })
-  if (error) return { ok: false, error: transportError(error) }
+  if (error) return { ok: false, error: dbErrorMessage(error, "Couldn't send your request. Try again.") }
   const r = data as unknown as { ok: boolean; error?: string; missing?: string[] }
   if (!r.ok) return { ok: false, error: sentenceFor(r.error), missing: r.missing }
   return { ok: true, error: null }
@@ -322,7 +318,7 @@ export async function withdrawAccommodationRequest(id: string, reason?: string):
     // also work but undefined keeps the default where it is written.
     p_reason: reason ?? undefined,
   })
-  if (error) return { ok: false, error: transportError(error) }
+  if (error) return { ok: false, error: dbErrorMessage(error, "Couldn't withdraw the request. Try again.") }
   const r = data as unknown as { ok: boolean; error?: string }
   if (!r.ok) return { ok: false, error: sentenceFor(r.error) }
   return { ok: true, error: null }
@@ -340,7 +336,7 @@ export async function decideAccommodation(
     p_outcome: outcome,
     p_note: note ?? undefined,
   })
-  if (error) return { ok: false, error: transportError(error) }
+  if (error) return { ok: false, error: dbErrorMessage(error, "Couldn't save the decision. Try again.") }
   const r = data as unknown as { ok: boolean; error?: string; pet_registration_approved?: boolean }
   if (!r.ok) return { ok: false, error: sentenceFor(r.error) }
   return { ok: true, error: null, petRegistrationApproved: r.pet_registration_approved ?? false }
@@ -358,7 +354,7 @@ export async function verifyAccommodationDocument(
     p_verified: verified,
     p_note: note ?? undefined,
   })
-  if (error) return { ok: false, error: transportError(error) }
+  if (error) return { ok: false, error: dbErrorMessage(error, "Couldn't save the document review. Try again.") }
   const r = data as unknown as { ok: boolean; error?: string }
   if (!r.ok) return { ok: false, error: sentenceFor(r.error) }
   return { ok: true, error: null }
@@ -393,7 +389,7 @@ export async function createAccommodationDraft(
     .insert({ building_id: buildingId, resident_id: user.id, type, status: "draft" })
     .select("id")
     .single()
-  if (error) return { id: null, error: transportError(error) }
+  if (error) return { id: null, error: dbErrorMessage(error, "Couldn't save the draft. Try again.") }
   return { id: data.id, error: null }
 }
 
@@ -426,7 +422,7 @@ export async function updateAccommodationDraft(
     .from("accommodation_requests")
     .update(row, { count: "exact" })
     .eq("id", id)
-  if (error) return { error: transportError(error) }
+  if (error) return { error: dbErrorMessage(error, "Couldn't save the draft. Try again.") }
   // RLS filters rather than raises. Zero rows means the window closed — the
   // request was submitted or decided while this form was open — and reporting
   // success would leave the resident believing an edit landed that did not.

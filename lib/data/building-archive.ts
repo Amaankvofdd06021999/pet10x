@@ -10,6 +10,8 @@
  * same advice, never the constraint name.
  */
 
+import { dbErrorMessage } from "@/lib/data/db-error"
+
 export const HAS_HISTORY_MESSAGE =
   "This building has history (fines, notifications…) and can't be deleted. Archive it instead."
 
@@ -24,7 +26,7 @@ export function buildingHasHistory(total: number | undefined): boolean {
 }
 
 export function buildingDeleteError(err: { code?: string; message: string }): string {
-  return err.code === "23503" ? HAS_HISTORY_MESSAGE : err.message
+  return err.code === "23503" ? HAS_HISTORY_MESSAGE : dbErrorMessage(err, "Couldn't delete the building. Try again.")
 }
 
 export interface BuildingActivity {

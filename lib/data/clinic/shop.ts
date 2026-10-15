@@ -4,6 +4,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./use-live"
 import { recordPaymentError, voidInvoiceError, type PaymentMethodCode } from "./billing"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 export interface Product {
   id: string
@@ -69,7 +70,7 @@ export async function saveProduct(input: {
   const { error } = input.id
     ? await db.from("products").update(payload).eq("id", input.id)
     : await db.from("products").insert(payload)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the product. Try again.") : null }
 }
 
 export async function setStock(
@@ -92,7 +93,7 @@ export async function setStock(
       },
       { onConflict: "product_id,location_id" },
     )
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't update the stock. Try again.") : null }
 }
 
 /* ------------------------------ invoices -------------------------------- */
@@ -207,7 +208,7 @@ export async function invoiceFromVisit(
     .select("*, visit_services(name, quantity, unit_price_cents)")
     .eq("id", visitId)
     .single()
-  if (vErr || !visit) return { error: vErr?.message ?? "Visit not found." }
+  if (vErr || !visit) return { error: dbErrorMessage(vErr, "Couldn't find that visit. Refresh and try again.") }
   const services = (visit.visit_services ?? []) as Array<{
     name: string
     quantity: number
@@ -227,7 +228,7 @@ export async function invoiceFromVisit(
     })
     .select("id")
     .single()
-  if (iErr || !inv) return { error: iErr?.message ?? "Could not create the invoice." }
+  if (iErr || !inv) return { error: dbErrorMessage(iErr, "Couldn't create the invoice. Try again.") }
 
   const { error: lErr } = await db.from("invoice_lines").insert(
     services.map((s) => ({
@@ -238,7 +239,7 @@ export async function invoiceFromVisit(
       unit_price_cents: s.unit_price_cents,
     })),
   )
-  if (lErr) return { error: lErr.message, invoiceId: inv.id }
+  if (lErr) return { error: dbErrorMessage(lErr, "The invoice was created, but its lines couldn't be added. Open it and add them."), invoiceId: inv.id }
   return { error: null, invoiceId: inv.id }
 }
 

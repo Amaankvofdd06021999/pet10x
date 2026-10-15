@@ -3,6 +3,7 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./use-live"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /**
  * What a manager issues on a bylaw case.
@@ -174,7 +175,7 @@ export async function issueNotice(
     p_visible: input.visibleToResident ?? undefined,
     p_notify: input.notify ?? true,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't issue the notice. Try again.") }
   const out = readOutcome(data)
   if (!out.ok) return { error: noticeSentence(out.error) }
   return { error: null, stage: out.stage as string }

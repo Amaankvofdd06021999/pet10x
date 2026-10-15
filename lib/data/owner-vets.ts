@@ -5,6 +5,7 @@ import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./clinic/use-live"
 import type { OwnerBill } from "./owner-bills"
 import { appointmentCancelError, estimateDeclineError, type CancelAnswer } from "./cancel-errors"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /**
  * The owner's side of the veterinary module.
@@ -594,7 +595,7 @@ export async function unlinkPatient(patientId: string): Promise<{ error: string 
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { data, error } = await db.rpc("owner_unlink_patient", { p_patient: patientId })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't unlink the pet. Try again.") }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
 }

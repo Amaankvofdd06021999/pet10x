@@ -51,6 +51,7 @@ import type {
   Species,
   ViolationStage,
 } from "./types"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /* Moved to ./compliance (pure, so the compliance report's builder and its
    tests can import it without this module's Supabase client). Re-exported so
@@ -80,7 +81,7 @@ export function useBuildingPets(): LiveResult<ManagerPet[]> {
       .not("building_id", "is", null)
       .is("deleted_at", null)
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the building's pets. Try again."))
       setData([])
       setLoading(false)
       return
@@ -277,7 +278,7 @@ async function loadPetsInto(): Promise<void> {
      * lists first and which pet a lost selection falls back to. */
     .order("id", { ascending: true })
   if (error) {
-    petsError = error.message
+    petsError = dbErrorMessage(error, "Couldn't load your pets. Try again.")
     petsCache = []
   } else {
     const mapped = (rows ?? []).map(mapPet)
@@ -379,7 +380,7 @@ export async function addPet(input: AddPetInput): Promise<{ error: string | null
     })
     .select()
     .single()
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't add the pet. Try again.") }
 
   /* Seed the tracker so it is not empty on first open.
    *
@@ -494,7 +495,7 @@ export async function updatePet(
   }
   const { error } = await supabase.from("pets").update(db).eq("id", petId)
   if (!error) await refreshPets()
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the pet's details. Try again.") : null }
 }
 
 export async function setPetPhoto(petId: string, file: File): Promise<{ error: string | null }> {
@@ -504,7 +505,7 @@ export async function setPetPhoto(petId: string, file: File): Promise<{ error: s
   if (!supabase) return { error: "Not configured." }
   const { error: uerr } = await supabase.from("pets").update({ image_url: path }).eq("id", petId)
   if (!uerr) await refreshPets()
-  return { error: uerr?.message ?? null }
+  return { error: uerr ? dbErrorMessage(uerr, "Couldn't save the photo. Try again.") : null }
 }
 
 /* ----------------------------- removing a pet ---------------------------- */
@@ -570,7 +571,7 @@ export function useMemorialPets(): LiveResult<MemorialPet[]> {
       .eq("archived_reason", "passed_away")
       .order("deleted_at", { ascending: false })
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load remembered pets. Try again."))
       setData([])
       setLoading(false)
       return
@@ -658,7 +659,7 @@ export function usePetDocuments(petId?: string): LiveResult<PetDoc[]> {
       .select("*")
       .eq("pet_id", petId)
       .order("created_at", { ascending: false })
-    if (err) setError(err.message)
+    if (err) setError(dbErrorMessage(err, "Couldn't load the documents. Try again."))
     else {
       setData(
         (rows ?? []).map((r: DocRow) => ({
@@ -705,7 +706,7 @@ export async function addPetDocument(input: {
     expires_on: input.expiresOn || null,
     status: docStatusFromExpiry(input.expiresOn),
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the document. Try again.") : null }
 }
 
 export async function deletePetDocument(doc: PetDoc): Promise<{ error: string | null }> {
@@ -713,7 +714,7 @@ export async function deletePetDocument(doc: PetDoc): Promise<{ error: string | 
   if (!supabase) return { error: "Not configured." }
   if (doc.storagePath) await deletePetFile(doc.storagePath)
   const { error } = await supabase.from("pet_documents").delete().eq("id", doc.id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't delete the document. Try again.") : null }
 }
 
 export function usePetVaccinations(petId?: string): LiveResult<PetVaccinationRecord[]> {
@@ -732,7 +733,7 @@ export function usePetVaccinations(petId?: string): LiveResult<PetVaccinationRec
       .select("*")
       .eq("pet_id", petId)
       .order("expires_on", { ascending: true, nullsFirst: false })
-    if (err) setError(err.message)
+    if (err) setError(dbErrorMessage(err, "Couldn't load the vaccinations. Try again."))
     else {
       setData(
         (rows ?? []).map((r: VaxRow) => ({
@@ -769,14 +770,14 @@ export async function addPetVaccination(input: {
     expires_on: input.expiresOn || null,
     status: docStatusFromExpiry(input.expiresOn),
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the vaccination. Try again.") : null }
 }
 
 export async function deletePetVaccination(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("pet_vaccinations").delete().eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't delete the vaccination. Try again.") : null }
 }
 
 export function usePetEmergencyContacts(petId?: string): LiveResult<PetContact[]> {
@@ -795,7 +796,7 @@ export function usePetEmergencyContacts(petId?: string): LiveResult<PetContact[]
       .select("*")
       .eq("pet_id", petId)
       .order("sort_order", { ascending: true, nullsFirst: false })
-    if (err) setError(err.message)
+    if (err) setError(dbErrorMessage(err, "Couldn't load the emergency contacts. Try again."))
     else {
       setData(
         (rows ?? []).map((r: ContactRow) => ({
@@ -831,14 +832,14 @@ export async function addPetContact(input: {
     name: input.name,
     phone: input.phone,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the contact. Try again.") : null }
 }
 
 export async function deletePetContact(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("pet_emergency_contacts").delete().eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't delete the contact. Try again.") : null }
 }
 
 /* ------------------------------ care log -------------------------------- */
@@ -864,7 +865,7 @@ export function useCareEntries(petId: string | undefined, kind: CareEntryKind): 
       .order("logged_at", { ascending: false })
       .limit(100)
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the care log. Try again."))
       setData([])
     } else {
       setData((rows ?? []).map(mapCareEntry))
@@ -902,14 +903,14 @@ export async function addCareEntry(input: {
     note: input.note || null,
     logged_by: user?.id ?? null,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the care entry. Try again.") : null }
 }
 
 export async function deleteCareEntry(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("care_entries").delete().eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't delete the care entry. Try again.") : null }
 }
 
 /* ----------------------------- care targets ----------------------------- */
@@ -941,7 +942,7 @@ export function useCareTargets(petId: string | undefined): LiveResult<CareTarget
       .order("sort_order")
       .order("label")
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the care goals. Try again."))
     } else {
       setData((rows ?? []).map(mapCareTarget))
       setError(null)
@@ -1006,7 +1007,7 @@ export async function upsertCareTarget(input: {
         updated_at: new Date().toISOString(),
       })
       .eq("id", hit.id)
-    return { error: error?.message ?? null }
+    return { error: error ? dbErrorMessage(error, "Couldn't save the care goal. Try again.") : null }
   }
 
   const { error } = await supabase.from("care_targets").insert({
@@ -1018,14 +1019,14 @@ export async function upsertCareTarget(input: {
     period: input.period ?? "day",
     sort_order: (existing ?? []).length,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the care goal. Try again.") : null }
 }
 
 export async function deleteCareTarget(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("care_targets").delete().eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't delete the care goal. Try again.") : null }
 }
 
 /* -------------------------- building membership ------------------------- */
@@ -1036,7 +1037,7 @@ export async function requestBuildingLink(
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { ok: false, error: "Not configured." }
   const { data, error } = await supabase.rpc("request_building_link", { p_code: code })
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: dbErrorMessage(error, "Couldn't send the request to your building. Try again.") }
   const r = (data ?? {}) as { ok: boolean; error?: string; building_name?: string; status?: string; already?: boolean }
   if (!r.ok) {
     return {
@@ -1071,7 +1072,7 @@ export function useMyBuildingLink(): LiveResult<BuildingLink | null> {
     }
     const { data: json, error: err } = await supabase.rpc("my_building_link")
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load your building. Try again."))
       setData(null)
     } else if (json) {
       const j = json as {
@@ -1113,7 +1114,7 @@ export async function leaveBuilding(): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.rpc("leave_my_building_link")
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't leave the building. Try again.") : null }
 }
 
 /* -------------------- manager: resident link queue ---------------------- */
@@ -1139,7 +1140,7 @@ export function useBuildingResidents(): LiveResult<ResidentLinkRow[]> {
       .is("left_at", null)
       .order("requested_at", { ascending: false })
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the residents. Try again."))
       setData([])
     } else {
       setData(
@@ -1783,7 +1784,7 @@ export function useCommunityPosts(): LiveResult<CommunityPost[]> {
       .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false })
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the community posts. Try again."))
       setData([])
       setLoading(false)
       return
@@ -1852,7 +1853,7 @@ export function useEvents(): LiveResult<CommunityEvent[]> {
       .gte("starts_at", since)
       .order("starts_at", { ascending: true })
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the events. Try again."))
       setData([])
       setLoading(false)
       return
@@ -1932,7 +1933,7 @@ export function useLostFound(): LiveResult<LostFoundItem[]> {
       .eq("status", "active")
       .order("created_at", { ascending: false })
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load lost and found. Try again."))
       setData([])
       setLoading(false)
       return
@@ -2004,7 +2005,7 @@ export async function createCommunityPost(input: {
     content: input.content,
     image_url: imagePath ?? null,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't post that. Try again.") : null }
 }
 
 /**
@@ -2032,12 +2033,12 @@ export async function togglePostLike(postId: string, currentlyLiked: boolean): P
       .delete()
       .eq("post_id", postId)
       .eq("profile_id", user.id)
-    return { error: error?.message ?? null }
+    return { error: error ? dbErrorMessage(error, "Couldn't update your like. Try again.") : null }
   }
   const { error } = await supabase.from("post_reactions").insert({ post_id: postId, profile_id: user.id })
   /* 23505 — the (post_id, profile_id) primary key. Two taps in flight at once
    * is a no-op, not a failure the resident should read about. */
-  if (error && error.code !== "23505") return { error: error.message }
+  if (error && error.code !== "23505") return { error: dbErrorMessage(error, "Couldn't update your like. Try again.") }
   return { error: null }
 }
 
@@ -2084,7 +2085,7 @@ export async function addPostComment(postId: string, content: string): Promise<{
   } = await supabase.auth.getUser()
   if (!user) return { error: "You must be signed in." }
   const { error } = await supabase.from("post_comments").insert({ post_id: postId, author_id: user.id, content })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't post your comment. Try again.") : null }
 }
 
 /** Removes a comment. The author's own, or any comment in a building you manage. */
@@ -2095,7 +2096,7 @@ export async function deletePostComment(commentId: string): Promise<{ error: str
     .from("post_comments")
     .delete({ count: "exact" })
     .eq("id", commentId)
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't delete the comment. Try again.") }
   /* RLS denies a DELETE by matching NO ROWS, not by erroring. Reporting success
    * for zero rows is how "0 rows, no error" became a bug worth a migration. */
   if (!count) return { error: "You can't remove that comment." }
@@ -2110,7 +2111,7 @@ export async function pinPost(postId: string, pinned: boolean): Promise<{ error:
     .from("community_posts")
     .update({ is_pinned: pinned }, { count: "exact" })
     .eq("id", postId)
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't pin the post. Try again.") }
   if (!count) return { error: "You can't pin that post." }
   return { error: null }
 }
@@ -2139,7 +2140,7 @@ export async function removePost(
       .from("community_posts")
       .update({ deleted_at: new Date().toISOString() }, { count: "exact" })
       .eq("id", postId)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErrorMessage(error, "Couldn't remove the post. Try again.") }
     if (!count) return { error: "You can't remove that post." }
     return { error: null }
   }
@@ -2147,7 +2148,7 @@ export async function removePost(
     p_post: postId,
     p_reason: opts.reason ?? undefined,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't remove the post. Try again.") }
   const r = data as unknown as { ok?: boolean; error?: string } | null
   if (!r?.ok) return { error: MODERATION_ERRORS[r?.error ?? ""] ?? "Couldn't remove that post." }
   return { error: null }
@@ -2176,11 +2177,11 @@ export async function rsvpToEvent(eventId: string, going: boolean): Promise<{ er
       .delete()
       .eq("event_id", eventId)
       .eq("profile_id", user.id)
-    return { error: error?.message ?? null }
+    return { error: error ? dbErrorMessage(error, "Couldn't update your RSVP. Try again.") : null }
   }
   const { error } = await supabase.from("event_rsvps").insert({ event_id: eventId, profile_id: user.id })
   /* 23505 is the (event_id, profile_id) primary key: already going. */
-  if (error && error.code !== "23505") return { error: error.message }
+  if (error && error.code !== "23505") return { error: dbErrorMessage(error, "Couldn't update your RSVP. Try again.") }
   return { error: null }
 }
 
@@ -2212,7 +2213,7 @@ export async function createEvent(input: {
     })
     .select("id")
     .maybeSingle()
-  if (error) return { error: error.message, id: null }
+  if (error) return { error: dbErrorMessage(error, "Couldn't create the event. Try again."), id: null }
   return { error: null, id: data?.id ?? null }
 }
 
@@ -2231,7 +2232,7 @@ export async function publishEvent(eventId: string, note?: string): Promise<{ er
     p_event: eventId,
     p_note: note ?? undefined,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't publish the event. Try again.") }
   const r = data as unknown as { ok?: boolean; error?: string } | null
   if (!r?.ok) return { error: PUBLISH_ERRORS[r?.error ?? ""] ?? "Couldn't announce that event." }
   return { error: null }
@@ -2280,7 +2281,7 @@ export async function reportLostFound(input: {
     p_reward_cents: input.rewardCents ?? undefined,
     p_image_path: imagePath ?? undefined,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't post the report. Try again.") }
   const r = data as unknown as { ok?: boolean; error?: string; field?: string } | null
   if (!r?.ok) {
     if (r?.error === "too_long") return { error: `That ${r.field ?? "field"} is too long.` }
@@ -2308,7 +2309,7 @@ export async function resolveLostFound(id: string): Promise<{ error: string | nu
     .from("lost_found")
     .update({ status: "resolved" }, { count: "exact" })
     .eq("id", id)
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't mark it resolved. Try again.") }
   if (!count) return { error: "You can't resolve that report." }
   return { error: null }
 }
@@ -2351,7 +2352,7 @@ export function usePetPhotos(petId: string | undefined): LiveResult<PetPhoto[]> 
       .order("sort_order")
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the photos. Try again."))
       setData([])
       setLoading(false)
       return
@@ -2397,7 +2398,7 @@ export async function addPetPhoto(petId: string, file: File): Promise<{ error: s
   if (insErr) {
     // Do not leave the file orphaned in storage if the row failed.
     await deletePetFile(path)
-    return { error: insErr.message }
+    return { error: dbErrorMessage(insErr, "Couldn't save the photo. Try again.") }
   }
 
   // First photo becomes the avatar, so a pet is never a placeholder when it
@@ -2415,7 +2416,7 @@ export async function deletePetPhoto(id: string): Promise<{ error: string | null
 
   const { data: row } = await supabase.from("pet_photos").select("pet_id, path").eq("id", id).maybeSingle()
   const { error } = await supabase.from("pet_photos").delete().eq("id", id)
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't delete the photo. Try again.") }
 
   if (row) {
     await deletePetFile(row.path)
@@ -2449,7 +2450,7 @@ export async function updatePetDiet(
     .update({ diet_type: input.dietType || null, diet_notes: input.dietNotes || null })
     .eq("id", petId)
   if (!error) await refreshPets()
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the diet. Try again.") : null }
 }
 
 /* ------------------------------ vet visits ------------------------------- */
@@ -2484,7 +2485,7 @@ export function usePetVetVisits(petId: string | undefined): LiveResult<VetVisit[
       .order("visited_on", { ascending: false })
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the vet visits. Try again."))
       setData([])
     } else {
       setData(
@@ -2535,14 +2536,14 @@ export async function addVetVisit(input: {
     follow_up_on: input.followUpOn || null,
     created_by: user?.id ?? null,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the vet visit. Try again.") : null }
 }
 
 export async function deleteVetVisit(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("pet_vet_visits").delete().eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't delete the vet visit. Try again.") : null }
 }
 
 /* ------------------------------------------------------------------ */
@@ -2619,7 +2620,7 @@ export function useMyCases(): LiveResult<ResidentCase[]> {
       .order("created_at", { ascending: false })
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load your cases. Try again."))
       setData([])
       setLoading(false)
       return
@@ -2759,8 +2760,9 @@ export async function fileDispute(
     p_reason: reason,
   })
   if (error) {
-    const hint = error.hint?.trim()
-    return { error: hint ? `${error.message} ${hint}` : error.message }
+    // Every refusal dispute_violation specifies is an {ok:false} answer
+    // (mapped below); a raise is unexpected, so it reads as the fallback.
+    return { error: dbErrorMessage(error, "Couldn't file your appeal. Try again.") }
   }
 
   const r = data as unknown as {

@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { petFileSignedUrls, isStoragePath } from "@/lib/supabase/storage"
 import type { Database } from "@/lib/supabase/database.types"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /* DERIVED from the generated enums, not retyped from them.
  *
@@ -129,7 +130,7 @@ export async function submitIncident(input: {
     p_evidence_paths: input.evidencePaths ?? undefined,
   })
 
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: dbErrorMessage(error, "Couldn't send the report. Try again.") }
 
   const r = data as unknown as { ok: boolean; reference?: string; error?: string }
   if (!r.ok) {
@@ -283,7 +284,7 @@ export function useIncidents() {
       .order("created_at", { ascending: false })
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load incidents. Try again."))
       setData([])
       setLoading(false)
       return
@@ -376,7 +377,7 @@ export async function setIncidentStatus(id: string, status: IncidentStatus): Pro
     .from("incident_reports")
     .update({ status, triaged_by: user?.id ?? null })
     .eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't update the incident. Try again.") : null }
 }
 
 /** Turn an incident into a violation, atomically, keeping the paper trail linked. */
@@ -385,7 +386,7 @@ export async function escalateIncident(id: string): Promise<{ error: string | nu
   if (!supabase) return { error: "Not configured." }
 
   const { data, error } = await supabase.rpc("escalate_incident_to_violation", { p_incident: id })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't escalate the incident. Try again.") }
 
   const r = data as unknown as { ok: boolean; error?: string; violation_id?: string }
   if (!r.ok) return { error: r.error === "forbidden" ? "You don't manage this building." : "Couldn't escalate." }

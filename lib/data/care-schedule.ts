@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /** The vocabulary of `public.care_kind` — older and narrower than care_entry_kind. */
 export type CareTaskKind = "meal" | "medication" | "water" | "walk" | "grooming" | "other"
@@ -173,7 +174,7 @@ export function useHouseholdCareTasks(petIds: string[], dateKey = localDateKey()
       .order("scheduled_at", { ascending: true, nullsFirst: false })
 
     if (taskErr) {
-      setError(taskErr.message)
+      setError(dbErrorMessage(taskErr, "Couldn't load the care schedule. Try again."))
       setLoading(false)
       return
     }
@@ -357,7 +358,7 @@ export async function addCareTask(input: {
     // Keep the legacy display column consistent for anything still reading it.
     time_label: input.scheduledAt ? formatTime(input.scheduledAt) : "All day",
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't add the care task. Try again.") : null }
 }
 
 export async function updateCareTask(
@@ -408,14 +409,14 @@ export async function updateCareTask(
   }
 
   const { error } = await supabase.from("pet_care_tasks").update(row).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the care task. Try again.") : null }
 }
 
 export async function deleteCareTask(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not removed — backend not configured." }
   const { error } = await supabase.from("pet_care_tasks").delete().eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't delete the care task. Try again.") : null }
 }
 
 /**
@@ -440,7 +441,7 @@ export async function setCareTaskDone(
       { task_id: taskId, on_date: dateKey, completed: done, completed_at: new Date().toISOString() },
       { onConflict: "task_id,on_date" },
     )
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't update the care task. Try again.") }
 
   /* Ticking a linked task logs against its target.
    *

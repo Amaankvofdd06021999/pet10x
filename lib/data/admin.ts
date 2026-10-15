@@ -14,6 +14,7 @@ import { inviteFailureMessage } from "./admin-invite"
 import { businessTierError, isOpenRequest, type BusinessTier } from "./business-tier"
 import { deleteBusinessError, footprintError, parseFootprint, type BusinessFootprint } from "./business-delete"
 import { parsePlatformStats, userFlagsError, type AdminUser, type PlatformStats } from "./admin-users"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 type BuildingRow = Database["public"]["Tables"]["buildings"]["Row"]
 type BusinessRow = Database["public"]["Tables"]["businesses"]["Row"]
@@ -136,7 +137,7 @@ export function useAdminBuildings() {
         supabase.rpc("admin_building_activity"),
       ])
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load buildings. Try again."))
       setData([])
     } else {
       const byId = new Map((history ?? []).map((h) => [h.building_id, h]))
@@ -187,7 +188,7 @@ export async function createBuilding(input: {
     longitude: input.longitude ?? null,
     pet_rules: (input.rules ?? {}) as Database["public"]["Tables"]["buildings"]["Insert"]["pet_rules"],
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't create the building. Try again.") : null }
 }
 
 export async function updateBuildingRules(id: string, rules: PetRules): Promise<{ error: string | null }> {
@@ -197,7 +198,7 @@ export async function updateBuildingRules(id: string, rules: PetRules): Promise<
     .from("buildings")
     .update({ pet_rules: rules as Database["public"]["Tables"]["buildings"]["Update"]["pet_rules"] })
     .eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the building rules. Try again.") : null }
 }
 
 /**
@@ -223,7 +224,7 @@ export async function updateBuildingDetails(
       ...(input.municipalityId !== undefined ? { municipality_id: input.municipalityId } : {}),
     })
     .eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the building details. Try again.") : null }
 }
 
 export interface AdminMunicipality {
@@ -285,7 +286,7 @@ export async function setBuildingArchived(id: string, archived: boolean): Promis
     .update({ archived_at: archived ? new Date().toISOString() : null })
     .eq("id", id)
     .select("id")
-  if (error) return { error: error.code === "42501" ? "Only an admin can archive or restore a building." : error.message }
+  if (error) return { error: error.code === "42501" ? "Only an admin can archive or restore a building." : dbErrorMessage(error, "Couldn't update the building. Try again.") }
   if (!data || data.length === 0) return { error: "That building no longer exists." }
   return { error: null }
 }
@@ -403,7 +404,7 @@ export function useAdminBusinesses() {
         .order("created_at", { ascending: true }),
     ])
     if (err || reqErr) {
-      setError((err ?? reqErr)!.message)
+      setError(dbErrorMessage(err ?? reqErr, "Couldn't load businesses. Try again."))
       setData([])
     } else {
       const open = new Map<string, AdminVerificationRequest>()
@@ -557,7 +558,7 @@ export function useAdminManagers() {
       .order("created_at", { ascending: false })
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load managers. Try again."))
       setData([])
       setLoading(false)
       return
@@ -608,7 +609,7 @@ export async function revokeManagerFromBuilding(linkId: string): Promise<{ error
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("building_managers").delete().eq("id", linkId)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't remove the manager. Try again.") : null }
 }
 
 /**
@@ -759,7 +760,7 @@ export function useAdminMunicipalReports() {
       .order("created_at", { ascending: false })
       .limit(200)
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load municipal reports. Try again."))
       setData([])
     } else {
       type Row = {
@@ -805,7 +806,7 @@ export async function setMunicipalReportStatus(
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { data, error } = await supabase.from("municipal_reports").update({ status }).eq("id", id).select("id")
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't update the report. Try again.") }
   // RLS filters a refused UPDATE to zero rows rather than raising.
   if (!data || data.length === 0) return { error: "Only an admin can change a city report's status." }
   return { error: null }

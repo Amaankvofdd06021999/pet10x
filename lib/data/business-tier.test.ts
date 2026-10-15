@@ -111,6 +111,16 @@ describe("businessTierError", () => {
     )
     expect(businessTierError({ message: "Failed to fetch" })).toBe("Something went wrong. Try again.")
   })
+
+  it("passes a raise through only when it is one of the RPCs' own sentences", () => {
+    expect(businessTierError({ code: "22023", message: 'invalid input syntax for type uuid: "x"' })).toBe(
+      "Something went wrong. Try again.",
+    )
+    expect(businessTierError({ code: "P0002", message: "query returned no rows" })).toBe("Something went wrong. Try again.")
+    expect(
+      businessTierError({ code: "22023", message: "The issuing body needs 2 to 80 characters" }),
+    ).toBe("The issuing body needs 2 to 80 characters.")
+  })
 })
 
 describe("isTierDowngrade", () => {

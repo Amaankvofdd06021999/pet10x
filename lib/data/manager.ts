@@ -11,6 +11,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import type { PetRules } from "@/lib/data/admin"
 import { computeCompliance } from "@/lib/data/live"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 export type { PetRules }
 
@@ -92,7 +93,7 @@ export function useManagerBuilding(preferredId?: string | null) {
       .maybeSingle()
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load your building. Try again."))
       setData(null)
     } else if (b) {
       setData({
@@ -222,7 +223,7 @@ export async function updateMyBuilding(
   if (m.includes("duplicate") || m.includes("unique")) {
     return { error: "That code is already used by another building. Pick a different one." }
   }
-  return { error: error.message }
+  return { error: dbErrorMessage(error, "Couldn't save the building. Try again.") }
 }
 
 /** Publish the building's pet bylaws (the pet_rules JSON the whole app reads). */
@@ -233,7 +234,7 @@ export async function updateMyBuildingRules(id: string, rules: PetRules): Promis
     .from("buildings")
     .update({ pet_rules: rules as Database["public"]["Tables"]["buildings"]["Update"]["pet_rules"] })
     .eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the building rules. Try again.") : null }
 }
 
 /* ------------------------------------------------------------------ */
@@ -288,7 +289,7 @@ export function useEmergencyTokens(buildingId?: string) {
       .limit(10)
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load emergency links. Try again."))
       setData([])
     } else {
       setData((rows ?? []).map(mapToken))
@@ -337,7 +338,7 @@ export async function issueEmergencyToken(
     .select("id, token, expires_at, revoked, created_at")
     .single()
 
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't create the emergency link. Try again.") }
   return { error: null, token: mapToken(data) }
 }
 
@@ -345,5 +346,5 @@ export async function revokeEmergencyToken(id: string): Promise<{ error: string 
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("emergency_access_tokens").update({ revoked: true }).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't revoke the emergency link. Try again.") : null }
 }

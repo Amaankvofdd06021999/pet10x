@@ -14,6 +14,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import type { LiveResult } from "./live"
 import { CUSTOMER_CANCEL, bookingCancelError, parseBookingContact, type BookingContact, type CancelAnswer } from "./cancel-errors"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /** Platform take rate applied when a booking is created. */
 export const COMMISSION_RATE = 0.15
@@ -73,7 +74,7 @@ export function useBusinessServices(businessId?: string): LiveResult<ServiceItem
       .eq("business_id", businessId)
       .order("sort_order", { ascending: true })
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load your services. Try again."))
       setData([])
     } else {
       setData(
@@ -114,7 +115,7 @@ export async function createService(
     duration_min: input.durationMin ?? null,
     sort_order: input.sortOrder ?? 0,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the service. Try again.") : null }
 }
 
 export async function updateService(
@@ -130,7 +131,7 @@ export async function updateService(
   if (patch.durationMin !== undefined) db.duration_min = patch.durationMin
   if (patch.active !== undefined) db.active = patch.active
   const { error } = await supabase.from("business_services").update(db).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the service. Try again.") : null }
 }
 
 /*
@@ -199,7 +200,7 @@ export function useOwnerBookings(businessId?: string): LiveResult<OwnerBooking[]
       .order("created_at", { ascending: false })
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load your bookings. Try again."))
       setData([])
       setLoading(false)
       return
@@ -279,7 +280,7 @@ export async function setBookingStatus(
   if (status === "confirmed" || status === "declined") db.responded_at = new Date().toISOString()
   if (opts?.declinedReason !== undefined) db.declined_reason = opts.declinedReason
   const { error } = await supabase.from("service_bookings").update(db).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't update the booking. Try again.") : null }
 }
 
 /**
@@ -290,7 +291,7 @@ export async function markBookingPaid(id: string): Promise<{ error: string | nul
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.rpc("business_mark_booking_paid", { p_booking: id })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't mark the booking paid. Try again.") : null }
 }
 
 /**
@@ -374,7 +375,7 @@ export function useMyBookings(): LiveResult<CustomerBooking[]> {
       .order("created_at", { ascending: false })
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load your bookings. Try again."))
       setData([])
       setLoading(false)
       return
@@ -459,7 +460,7 @@ export async function createBooking(input: {
     scheduled_for: input.scheduledFor,
     customer_note: input.note || null,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't send the booking request. Try again.") : null }
 }
 
 /**
@@ -512,7 +513,7 @@ export function useBusinessReviews(businessId?: string): LiveResult<ReviewItem[]
       .eq("business_id", businessId)
       .order("created_at", { ascending: false })
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the reviews. Try again."))
       setData([])
     } else {
       setData(
@@ -559,7 +560,7 @@ export async function submitReview(input: {
     rating: input.rating,
     comment: input.comment || null,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't post your review. Try again.") : null }
 }
 
 export async function replyToReview(id: string, reply: string): Promise<{ error: string | null }> {
@@ -569,7 +570,7 @@ export async function replyToReview(id: string, reply: string): Promise<{ error:
     .from("business_reviews")
     .update({ owner_reply: reply, replied_at: new Date().toISOString() })
     .eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't post your reply. Try again.") : null }
 }
 
 /* ------------------------------------------------------------------ */
@@ -614,7 +615,7 @@ export function useTargetBuildings(): LiveResult<TargetBuilding[]> {
     setLoading(true)
     const { data: rows, error: err } = await supabase.rpc("targetable_buildings")
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the buildings. Try again."))
       setData([])
     } else {
       setData(
@@ -655,7 +656,7 @@ export function useCampaigns(businessId?: string): LiveResult<Campaign[]> {
       .eq("business_id", businessId)
       .order("created_at", { ascending: false })
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load your campaigns. Try again."))
       setData([])
     } else {
       setData(
@@ -704,19 +705,19 @@ export async function createCampaign(input: {
     ends_at: end.toISOString(),
     active: true,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't create the campaign. Try again.") : null }
 }
 
 export async function setCampaignActive(id: string, active: boolean): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("business_listings").update({ active }).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't update the campaign. Try again.") : null }
 }
 
 export async function deleteCampaign(id: string): Promise<{ error: string | null }> {
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("business_listings").delete().eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't delete the campaign. Try again.") : null }
 }

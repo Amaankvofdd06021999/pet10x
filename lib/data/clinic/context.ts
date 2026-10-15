@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, type LiveResult } from "./use-live"
+import { dbErrorMessage } from "@/lib/data/db-error"
+import { staffGuardSentence } from "./staff-invite"
 
 export type ClinicRole = Database["public"]["Enums"]["clinic_staff_role"]
 export type BusinessTier = Database["public"]["Enums"]["business_tier"]
@@ -230,7 +232,7 @@ export async function updateLocation(
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { error } = await db.from("business_locations").update(patch).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the location. Try again.") : null }
 }
 
 export async function updateStaff(
@@ -240,7 +242,9 @@ export async function updateStaff(
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { error } = await db.from("business_staff").update(patch).eq("id", id)
-  return { error: error?.message ?? null }
+  if (!error) return { error: null }
+  // business_staff_guard raises 42501 with a sentence of its own; keep it.
+  return { error: staffGuardSentence(error.message) ?? dbErrorMessage(error, "Couldn't save the team member. Try again.") }
 }
 
 export interface InviteStaffResult {

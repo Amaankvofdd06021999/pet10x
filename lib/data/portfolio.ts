@@ -16,6 +16,7 @@ import type { LiveResult } from "./live"
 import type { PetRules, InviteResult } from "./admin"
 import { OUTSTANDING_FINE_STATUSES, type FineStatus } from "./violations"
 import { fineStatusError } from "./fine-actions"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /* ------------------------------------------------------------------ */
 /* Buildings I manage                                                  */
@@ -58,7 +59,7 @@ export function usePortfolioBuildings(): LiveResult<PortfolioBuilding[]> {
       .eq("profile_id", user.id)
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load your buildings. Try again."))
       setData([])
       setLoading(false)
       return
@@ -172,7 +173,7 @@ export function useOutstandingFines(): LiveResult<OutstandingFine[]> {
       .order("created_at", { ascending: true })
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load outstanding fines. Try again."))
       setData([])
       setLoading(false)
       return
@@ -249,7 +250,7 @@ export function useComplianceInputs(): LiveResult<PetComplianceInput[]> {
       .is("deleted_at", null)
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the compliance figures. Try again."))
       setData([])
       setLoading(false)
       return
@@ -326,7 +327,7 @@ export function usePortfolioTeam(buildingIds: string[]): LiveResult<CoManager[]>
       .order("created_at", { ascending: true })
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load your team. Try again."))
       setData([])
       setLoading(false)
       return
@@ -397,7 +398,7 @@ export async function inviteCoManager(input: {
     if (!res.ok || !json.ok) return { error: json.error ?? "Invite failed." }
     return { error: null, emailSent: json.emailSent, existingAccount: json.existingAccount, inviteUrl: json.inviteUrl, emailFailed: json.emailFailed }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Invite failed." }
+    return { error: dbErrorMessage(e, "Couldn't send the invite. Try again.") }
   }
 }
 
@@ -406,7 +407,7 @@ export async function removeCoManager(linkId: string): Promise<{ error: string |
   const supabase = getSupabaseBrowserClient()
   if (!supabase) return { error: "Not configured." }
   const { error } = await supabase.from("building_managers").delete().eq("id", linkId)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't remove the co-manager. Try again.") : null }
 }
 
 /**
@@ -441,7 +442,7 @@ export async function setFineStatus(
     p_status: status,
     p_note: note?.trim() ? note.trim() : undefined,
   })
-  if (error) return { error: error.hint ? `${error.message} ${error.hint}` : error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't update the fine. Try again.") }
   const r = data as unknown as {
     ok: boolean
     error?: string

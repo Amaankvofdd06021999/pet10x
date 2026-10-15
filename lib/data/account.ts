@@ -5,6 +5,7 @@
  */
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /**
  * WHAT THIS DOES NOT EXPORT, REPORTED RATHER THAN QUIETLY LEFT OUT.
@@ -86,7 +87,7 @@ export async function updateMyProfile(patch: {
     const { error: upErr } = await supabase.storage
       .from("avatars")
       .upload(path, patch.avatarFile, { upsert: true, cacheControl: "3600" })
-    if (upErr) return { error: upErr.message }
+    if (upErr) return { error: dbErrorMessage(upErr, "Couldn't upload your photo. Try again.") }
     avatarUrl = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl
   }
 
@@ -96,7 +97,7 @@ export async function updateMyProfile(patch: {
 
   if (Object.keys(update).length > 0) {
     const { error } = await supabase.from("profiles").update(update).eq("id", user.id)
-    if (error) return { error: error.message }
+    if (error) return { error: dbErrorMessage(error, "Couldn't save your profile. Try again.") }
   }
 
   return { error: null, avatarUrl }
@@ -109,7 +110,7 @@ export async function deleteMyAccount(): Promise<{ error: string | null }> {
     if (!res.ok || !json.ok) return { error: json.error ?? "Couldn't delete your account." }
     return { error: null }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Couldn't delete your account." }
+    return { error: dbErrorMessage(e, "Couldn't delete your account.") }
   }
 }
 
@@ -126,7 +127,7 @@ export async function setMyUnit(unit: string): Promise<{ error: string | null; u
   if (!supabase) return { error: "Not configured." }
 
   const { data, error } = await supabase.rpc("set_my_unit", { p_unit: unit })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't save your unit. Try again.") }
 
   const r = (data ?? {}) as { ok?: boolean; error?: string; unit?: string | null }
   if (!r.ok) {
@@ -190,7 +191,7 @@ export async function updateMyAddress(a: MyAddress): Promise<{ error: string | n
       postal_code: a.postalCode?.trim() || null,
     })
     .eq("id", user.id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save your address. Try again.") : null }
 }
 
 /**

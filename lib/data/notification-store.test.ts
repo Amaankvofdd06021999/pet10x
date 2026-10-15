@@ -166,7 +166,8 @@ describe("notification store — freshness", () => {
     const s = storeWith({ load: async () => Promise.reject(new Error("network down")) })
     await s.refresh()
     expect(s.get()).toBeNull()
-    expect(s.error()).toBe("network down")
+    // A sentence, never the thrown text (lib/data/db-error.ts).
+    expect(s.error()).toBe("Couldn't load notifications.")
   })
 
   it("only the newest of two overlapping refreshes may write", async () => {

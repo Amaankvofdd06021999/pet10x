@@ -20,6 +20,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { LiveResult } from "./live"
 import type { BuildingRule, BuildingRuleCategory } from "./building-rules"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 type Row = {
   id: string
@@ -87,7 +88,7 @@ export function useMyBuildingRules(buildingId: string | undefined): LiveResult<B
       .order("created_at")
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load your building rules. Try again."))
       setData([])
     } else {
       setData(((rows ?? []) as Row[]).map(mapRule))
@@ -139,7 +140,7 @@ export function useManagerBuildingRules(buildingId: string | undefined): LiveRes
       .order("created_at")
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the building rules. Try again."))
       setData([])
     } else {
       setData(((rows ?? []) as Row[]).map(mapRule))
@@ -188,7 +189,7 @@ export function useBuildingPetRules(buildingId: string | undefined): LiveResult<
       .maybeSingle()
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the building's pet rules. Try again."))
       setData(null)
     } else {
       setData(row?.pet_rules ?? null)
@@ -274,12 +275,6 @@ export function useApprovedResidentCount(buildingId: string | undefined): number
 /* Mutations — thin wrappers over the three RPCs                             */
 /* ------------------------------------------------------------------------ */
 
-function transportError(e: { message: string; hint?: string | null } | null): string | null {
-  if (!e) return null
-  const hint = e.hint?.trim()
-  return hint ? `${e.message} ${hint}` : e.message
-}
-
 /**
  * Every structured `error` code the three RPCs return, mapped to a sentence.
  *
@@ -335,7 +330,7 @@ export async function saveBuildingRule(
     p_body: input.body,
     p_sort_order: input.sortOrder ?? undefined,
   })
-  if (error) return { id: null, error: transportError(error) }
+  if (error) return { id: null, error: dbErrorMessage(error, "Couldn't save the rule. Try again.") }
 
   const r = data as unknown as { ok: boolean; error?: string; id?: string }
   if (!r.ok) return { id: null, error: sentenceFor(r.error) }
@@ -355,7 +350,7 @@ export async function publishBuildingRule(
     p_published: published,
     p_notify: notify,
   })
-  if (error) return { error: transportError(error), notified: 0 }
+  if (error) return { error: dbErrorMessage(error, "Couldn't publish the rule. Try again."), notified: 0 }
 
   const r = data as unknown as { ok: boolean; error?: string; notified?: number }
   if (!r.ok) return { error: sentenceFor(r.error), notified: 0 }
@@ -388,7 +383,7 @@ export async function setFineSchedule(
     p_fine_2_cents: (input.fine2Cents ?? null) as unknown as number,
     p_currency: input.currency,
   })
-  if (error) return { error: transportError(error) }
+  if (error) return { error: dbErrorMessage(error, "Couldn't save the fine schedule. Try again.") }
 
   const r = data as unknown as { ok: boolean; error?: string }
   if (!r.ok) return { error: sentenceFor(r.error) }

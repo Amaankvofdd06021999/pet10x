@@ -5,6 +5,7 @@ import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./use-live"
 import { dayBounds } from "./time"
 import { validateHours, fromDbTime, collapseHours, type HoursRow } from "./hours"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 type ApptRow = Database["public"]["Tables"]["appointments"]["Row"]
 export type AppointmentStatus = Database["public"]["Enums"]["appointment_status"]
@@ -260,7 +261,7 @@ export async function createAppointment(input: NewAppointmentInput): Promise<{ e
     source: input.source ?? "staff",
     status: "booked",
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't book the appointment. Try again.") : null }
 }
 
 export async function setAppointmentStatus(
@@ -294,7 +295,7 @@ export async function rescheduleAppointment(
     .from("appointments")
     .update({ starts_at: start.toISOString(), ends_at: end.toISOString() })
     .eq("id", appointmentId)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't reschedule the appointment. Try again.") : null }
 }
 
 export async function openVisitForAppointment(
@@ -303,7 +304,7 @@ export async function openVisitForAppointment(
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { data, error } = await db.rpc("clinic_open_visit", { p_appointment: appointmentId })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't open the visit. Try again.") }
   return { error: null, visitId: data as string }
 }
 
@@ -327,7 +328,7 @@ export function useAvailableSlots(
         p_type: typeId as string,
         p_date: dateISO,
       })
-      if (error) throw new Error(error.message)
+      if (error) throw new Error(dbErrorMessage(error, "Couldn't load available times. Try again."))
       const raw = (Array.isArray(data) ? data : []) as Array<Record<string, string>>
       return raw.map((s) => ({
         startsAt: s.starts_at,
@@ -373,7 +374,7 @@ export async function saveAppointmentType(input: {
   const { error } = input.id
     ? await db.from("appointment_types").update(payload).eq("id", input.id)
     : await db.from("appointment_types").insert({ ...payload, sort_order: input.sortOrder ?? 0 })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the appointment type. Try again.") : null }
 }
 
 /** Every clinician's weekly sessions, keyed by business_staff id. */
@@ -421,7 +422,7 @@ export async function replaceStaffHours(
     .select("id")
     .eq("business_id", businessId)
     .eq("staff_id", staffId)
-  if (readErr) return { error: readErr.message }
+  if (readErr) return { error: dbErrorMessage(readErr, "Couldn't save the hours. Try again.") }
   if (rows.length > 0) {
     const { error: insErr } = await db.from("staff_availability").insert(
       rows.map((r) => ({
@@ -433,13 +434,14 @@ export async function replaceStaffHours(
         end_time: r.end,
       })),
     )
-    if (insErr) return { error: insErr.message }
+    if (insErr) return { error: dbErrorMessage(insErr, "Couldn't save the hours. Try again.") }
   }
   const oldIds = (old ?? []).map((r) => r.id)
   if (oldIds.length === 0) return { error: null }
   const { error: delErr } = await db.from("staff_availability").delete().in("id", oldIds)
   if (delErr) {
-    return { error: `The new hours are saved, but the old ones couldn't be removed, so both apply for now. Save again. ${delErr.message}` }
+    console.error("[db] removing replaced staff hours", delErr)
+    return { error: "The new hours are saved, but the old ones couldn't be removed, so both apply for now. Save again." }
   }
   return { error: null }
 }

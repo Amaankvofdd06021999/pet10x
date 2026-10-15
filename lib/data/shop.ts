@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Species } from "./types"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /**
  * Curated affiliate products.
@@ -59,7 +60,7 @@ export function useShopItems(forSpecies?: Species | null): ShopResult {
       .order("title")
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load the shop. Try again."))
       setData([])
     } else {
       const mapped: ShopItem[] = (rows ?? []).map((r) => ({

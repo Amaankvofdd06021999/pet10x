@@ -70,8 +70,13 @@ export function canEditMember(
  * sentence already; RLS refusals and anything else get a generic one.
  */
 export function staffErrorSentence(message: string): string {
+  return staffGuardSentence(message) ?? "Try again, or ask the practice owner."
+}
+
+/** business_staff_guard's own refusal, as a sentence; null for anything else. */
+export function staffGuardSentence(message: string): string | null {
   if (/practice owner can change/i.test(message)) return "Only the practice owner can change their own row."
   if (/own role or access/i.test(message)) return "You cannot change your own role or access."
   if (/owner role|as owner/i.test(message)) return "Nobody can be given the owner role."
-  return "Try again, or ask the practice owner."
+  return null
 }

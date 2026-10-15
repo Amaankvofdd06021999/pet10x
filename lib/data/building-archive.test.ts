@@ -29,8 +29,9 @@ describe("buildingDeleteError", () => {
     expect(msg).not.toMatch(/constraint|buildings"/)
   })
 
-  it("passes other errors through as they are", () => {
-    expect(buildingDeleteError({ code: "42501", message: "permission denied" })).toBe("permission denied")
+  it("never passes the database's own text through", () => {
+    expect(buildingDeleteError({ code: "42501", message: "permission denied" })).toBe("You don't have access to that.")
+    expect(buildingDeleteError({ code: "XX000", message: "internal error" })).toBe("Couldn't delete the building. Try again.")
   })
 })
 

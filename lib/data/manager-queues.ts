@@ -42,6 +42,7 @@ import {
 import { decisionError } from "./decision-errors"
 import { gramsToKg, maxWeightKgOf, weightCheck } from "./weight-flag"
 import { petDocumentReviewError } from "./pet-document-review"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 interface Result<T> {
   data: T
@@ -108,7 +109,7 @@ export function useRegistrationsLive(): Result<Registration[]> {
       .is("deleted_at", null)
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load registrations. Try again."))
       setData([])
       setLoading(false)
       return
@@ -126,7 +127,7 @@ export function useRegistrationsLive(): Result<Registration[]> {
         .select("id, pet_rules")
         .in("id", buildingIds)
       if (bErr) {
-        setError(bErr.message)
+        setError(dbErrorMessage(bErr, "Couldn't load registrations. Try again."))
         setData([])
         setLoading(false)
         return
@@ -271,7 +272,7 @@ export function useDocumentsReviewLive(): Result<DocumentReviewItem[]> {
       .order("expires_on", { ascending: true })
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load documents to review. Try again."))
       setData([])
       setLoading(false)
       return
@@ -347,7 +348,7 @@ export async function reviewPetDocument(
     p_verdict: verdict,
     p_note: note?.trim() ? note.trim() : undefined,
   })
-  if (error) return { error: transportError(error) }
+  if (error) return { error: dbErrorMessage(error, "Couldn't save the document review. Try again.") }
   const r = data as unknown as { ok: boolean; error?: string; status?: string; length?: number; max?: number }
   if (!r.ok) return { error: petDocumentReviewError(r) }
   return { error: null }
@@ -392,7 +393,7 @@ export function useViolationsLive(): Result<Violation[]> {
       .order("created_at", { ascending: false })
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load cases. Try again."))
       setData([])
       setLoading(false)
       return
@@ -520,7 +521,7 @@ export function useResolvedViolationsLive(): Result<ResolvedViolation[]> {
       .order("resolved_at", { ascending: false })
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load resolved cases. Try again."))
       setData([])
       setLoading(false)
       return
@@ -602,19 +603,13 @@ export interface AdvanceOptions {
   dueOn?: string
 }
 
-/**
- * A Postgrest failure, with its hint.
- *
- * The guards this phase added raise 42501 with a `hint` that names the RPC to
- * call instead, or the one column a fine allows to change. Reporting only
- * `message` shows the manager "new row violates row-level security policy" and
- * withholds the sentence written to tell them what to do about it.
+/*
+ * A Postgrest raise goes through dbErrorMessage. The guards this phase added
+ * raise 42501 with a `hint` naming the RPC to call instead — written for the
+ * developer, not the manager — so neither the message nor the hint is shown:
+ * 42501 reads as "You don't have access to that." and the rest as the
+ * action's own fallback. The detail is logged.
  */
-function transportError(e: { message: string; hint?: string | null } | null): string | null {
-  if (!e) return null
-  const hint = e.hint?.trim()
-  return hint ? `${e.message} ${hint}` : e.message
-}
 
 /** The RPC's five rejection codes, turned into something a manager can read. */
 function advanceError(r: { error?: string; from?: string; to?: string }): string {
@@ -681,7 +676,7 @@ export async function advanceViolation(
     p_amount_cents: options.amountCents ?? undefined,
     p_due_on: options.dueOn ?? undefined,
   })
-  if (error) return { error: transportError(error) }
+  if (error) return { error: dbErrorMessage(error, "Couldn't move the case. Try again.") }
 
   const r = data as unknown as {
     ok: boolean
@@ -793,7 +788,7 @@ export async function remindAboutFine(id: string, note?: string): Promise<Remind
     p_violation: id,
     p_note: note?.trim() ? note.trim() : undefined,
   })
-  if (error) return { error: transportError(error) }
+  if (error) return { error: dbErrorMessage(error, "Couldn't send the reminder. Try again.") }
 
   const r = data as unknown as {
     ok: boolean
@@ -886,9 +881,7 @@ export async function resolveDispute(
     p_outcome: outcome,
     p_note: note?.trim() ? note.trim() : undefined,
   })
-  // `transportError` and not `error.message`, so the 42501 hints the guards
-  // raise reach the manager instead of "new row violates row-level security".
-  if (error) return { error: transportError(error) }
+  if (error) return { error: dbErrorMessage(error, "Couldn't resolve the appeal. Try again.") }
 
   const r = data as unknown as {
     ok: boolean
@@ -992,7 +985,7 @@ export function useViolationSubjects(): Result<ViolationSubject[]> {
       .order("name")
 
     if (err) {
-      setError(err.message)
+      setError(dbErrorMessage(err, "Couldn't load residents and pets. Try again."))
       setData([])
       setLoading(false)
       return
@@ -1087,7 +1080,7 @@ export async function openViolation(input: NewViolationInput): Promise<{ error: 
     .select("id")
     .single()
 
-  if (error) return { error: transportError(error) }
+  if (error) return { error: dbErrorMessage(error, "Couldn't open the case. Try again.") }
   return { error: null, id: data?.id }
 }
 
@@ -1154,7 +1147,7 @@ export async function fetchCaseLedger(): Promise<{ error: string | null; rows: L
     )
     .order("created_at", { ascending: false })
 
-  if (err) return { error: err.message, rows: [] }
+  if (err) return { error: dbErrorMessage(err, "Couldn't load the case history. Try again."), rows: [] }
 
   type Row = {
     id: string

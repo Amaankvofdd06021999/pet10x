@@ -30,6 +30,7 @@ import {
 import { parseDbDate } from "@/lib/dates"
 import { userToKeepOnLoadError } from "@/lib/auth/user-fallback"
 import { personasStatus as derivePersonasStatus, type PersonasStatus } from "@/lib/data/building-scope"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 export type AuthMode = "full" | "guest"
 
@@ -804,7 +805,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } = await supabase.auth.getUser()
       if (!au) throw new Error("Not signed in.")
       const { error } = await supabase.from("profiles").update({ onboarded: true }).eq("id", au.id)
-      if (error) throw new Error(error.message)
+      if (error) throw new Error(dbErrorMessage(error, "Couldn't finish setting up your account. Try again."))
     }
     setUser((prev) => {
       if (!prev) return prev

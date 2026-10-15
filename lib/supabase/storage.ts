@@ -8,6 +8,7 @@
  */
 
 import { getSupabaseBrowserClient } from "./client"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 const BUCKET = "pet-media"
 
@@ -35,7 +36,7 @@ export async function uploadPetFile(opts: {
   const rand = Math.random().toString(36).slice(2, 8)
   const path = `${user.id}/${opts.petId}/${opts.prefix ?? "file"}-${Date.now()}-${rand}.${extOf(opts.file.name)}`
   const { error } = await supabase.storage.from(BUCKET).upload(path, opts.file, { upsert: true, cacheControl: "3600" })
-  if (error) return { path: null, error: error.message }
+  if (error) return { path: null, error: dbErrorMessage(error, "Couldn't upload the file. Try again.") }
   return { path, error: null }
 }
 

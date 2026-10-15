@@ -3,6 +3,7 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./use-live"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 export interface EmergencyArrival {
   id: string
@@ -59,7 +60,7 @@ export async function setArrivalStatus(id: string, status: string): Promise<{ er
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { error } = await db.from("emergency_arrivals").update({ status }).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't update the arrival. Try again.") : null }
 }
 
 export interface EmergencyPullRecord {
@@ -130,7 +131,7 @@ export async function emergencyPull(
     p_pet: petId,
     p_reason: reason.trim(),
   })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't open the emergency record. Try again.") }
   const out = readOutcome(data)
   if (!out.ok) return { error: sentenceFor(out.error) }
   return { error: null, data: out.data as EmergencyProjection }
@@ -195,5 +196,5 @@ export async function addOnCallShift(input: {
     ends_at: input.endsAt,
     phone: input.phone ?? null,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't add the on-call shift. Try again.") : null }
 }

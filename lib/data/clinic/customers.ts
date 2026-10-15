@@ -3,6 +3,7 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./use-live"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 type CustomerRow = Database["public"]["Tables"]["clinic_customers"]["Row"]
 type PatientRow = Database["public"]["Tables"]["clinic_patients"]["Row"]
@@ -227,7 +228,7 @@ export async function createCustomerWithPatient(
     })
     .select("id")
     .single()
-  if (cErr || !cust) return { error: cErr?.message ?? "Could not create the customer." }
+  if (cErr || !cust) return { error: dbErrorMessage(cErr, "Couldn't create the customer. Try again.") }
 
   if (!input.petName?.trim()) return { error: null, customerId: cust.id }
 
@@ -242,7 +243,7 @@ export async function createCustomerWithPatient(
     })
     .select("id")
     .single()
-  if (pErr) return { error: pErr.message, customerId: cust.id }
+  if (pErr) return { error: dbErrorMessage(pErr, "The customer is saved, but the pet couldn't be added. Add it from their page."), customerId: cust.id }
   return { error: null, customerId: cust.id, patientId: pat?.id }
 }
 
@@ -276,7 +277,7 @@ export async function addPatientToCustomer(
     })
     .select("id")
     .single()
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't add the pet. Try again.") }
   return { error: null, patientId: data?.id }
 }
 
@@ -285,7 +286,7 @@ export async function archiveCustomer(id: string, archived = true): Promise<{ er
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { error } = await db.from("clinic_customers").update({ is_active: !archived }).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't archive the customer. Try again.") : null }
 }
 
 export async function updatePatient(
@@ -295,7 +296,7 @@ export async function updatePatient(
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { error } = await db.from("clinic_patients").update(patch).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the patient. Try again.") : null }
 }
 
 export async function updateCustomer(
@@ -305,7 +306,7 @@ export async function updateCustomer(
   const db = getSupabaseBrowserClient()
   if (!db) return { error: "Not configured." }
   const { error } = await db.from("clinic_customers").update(patch).eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the customer. Try again.") : null }
 }
 
 /* --------------------------- shared records ----------------------------- */
@@ -337,7 +338,7 @@ export function useSharedRecord(patientId: string | null): LiveResult<SharedReco
     null,
     async (db) => {
       const { data, error } = await db.rpc("clinic_fetch_shared_record", { p_patient: patientId as string })
-      if (error) throw new Error(error.message)
+      if (error) throw new Error(dbErrorMessage(error, "Couldn't load the shared record. Try again."))
       const raw = readOutcome(data)
       if (!raw.ok) throw new Error(sentenceFor(raw.error))
       return {
@@ -372,7 +373,7 @@ export async function requestRecordShare(
     scopes,
     message: message ?? null,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't send the record request. Try again.") : null }
 }
 
 /**
@@ -395,7 +396,7 @@ export async function requestPetDetails(
     p_message: message ?? undefined,
     p_email: email ?? undefined,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't send the request. Try again.") }
   const out = readOutcome(data)
   if (!out.ok) {
     const code = out.error
@@ -424,7 +425,7 @@ export async function redeemDeskCode(
     p_code: code,
     p_patient: patientId ?? undefined,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't check that code. Try again.") }
   const out = readOutcome(data)
   if (!out.ok) return { error: sentenceFor(out.error) }
   return { error: null, petId: out.pet_id as string }

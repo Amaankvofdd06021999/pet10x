@@ -28,6 +28,8 @@
  *      one started here — replaces it rather than being shown to them.
  */
 
+import { dbErrorMessage } from "@/lib/data/db-error"
+
 export interface ReadableItem {
   id: string
   read: boolean
@@ -128,7 +130,7 @@ export function createNotificationStore<T extends ReadableItem>(
       }
     } catch (e) {
       if (ticket !== seq) return
-      error = e instanceof Error ? e.message : "Couldn't load notifications."
+      error = dbErrorMessage(e, "Couldn't load notifications.")
       items = null
       owner = null
     } finally {

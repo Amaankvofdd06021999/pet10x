@@ -3,6 +3,7 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Database } from "@/lib/supabase/database.types"
 import { useLive, must, readOutcome, sentenceFor, type LiveResult } from "./use-live"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 export interface ReminderItem {
   id: string
@@ -179,7 +180,7 @@ export async function saveReminderRule(input: {
   if (error?.message.includes("reminder_rules_channel_not_sms")) {
     return { error: "SMS reminders aren't sent any more. Choose in-app, call list or email." }
   }
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't save the reminder rule. Try again.") : null }
 }
 
 /* ------------------------------ tasks ----------------------------------- */
@@ -229,7 +230,7 @@ export async function addTask(
   const { error } = await db
     .from("clinic_tasks")
     .insert({ business_id: businessId, title: title.trim(), due_on: dueOn || null })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't add the task. Try again.") : null }
 }
 
 export async function completeTask(id: string): Promise<{ error: string | null }> {
@@ -239,7 +240,7 @@ export async function completeTask(id: string): Promise<{ error: string | null }
     .from("clinic_tasks")
     .update({ status: "done", done_at: new Date().toISOString() })
     .eq("id", id)
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't complete the task. Try again.") : null }
 }
 
 /* ------------------------- communication log ---------------------------- */
@@ -301,5 +302,5 @@ export async function logCommunication(input: {
     body: input.body ?? null,
     outcome: input.outcome ?? null,
   })
-  return { error: error?.message ?? null }
+  return { error: error ? dbErrorMessage(error, "Couldn't log the call. Try again.") : null }
 }

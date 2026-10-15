@@ -2,6 +2,7 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { useLive, type LiveResult } from "./clinic/use-live"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /**
  * Reporting an animal to a city rather than to a building.
@@ -125,7 +126,7 @@ export async function submitMunicipalReport(input: {
     p_location: input.location ?? undefined,
     p_anonymous: input.anonymous ?? true,
   })
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: dbErrorMessage(error, "Couldn't send the report. Try again.") }
 
   const r = data as unknown as {
     ok: boolean
@@ -244,7 +245,7 @@ export function useManagerMunicipalReports(
     async (db) => {
       const { data, error } = await db.rpc("manager_municipal_reports", { p_building: buildingId as string })
       if (error) {
-        throw new Error(error.code === "42501" ? "You don't manage this building." : error.message)
+        throw new Error(error.code === "42501" ? "You don't manage this building." : dbErrorMessage(error, "Couldn't load municipal reports. Try again."))
       }
       return (data ?? []).map((r) => ({
         id: r.id,

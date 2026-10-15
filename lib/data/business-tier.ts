@@ -8,6 +8,8 @@
  * one (20261009000002).
  */
 
+import { dbErrorMessage } from "./db-error"
+
 export type BusinessTier = "registered" | "listed" | "verified"
 
 export const BUSINESS_TIERS: readonly BusinessTier[] = ["registered", "listed", "verified"]
@@ -72,8 +74,8 @@ export function verificationBanner(
 
 /**
  * A readable sentence for a failed tier or verification write. The RPCs raise
- * sentences of their own (42501 / P0002 / 22023); anything else is not shown
- * raw.
+ * sentences of their own (42501 / P0002 / 22023), which dbErrorMessage keeps;
+ * anything else is not shown raw.
  */
 export function businessTierError(err: { code?: string; message: string }): string {
   if (err.code === "23505" && /business_verifications_one_open/.test(err.message)) {
@@ -84,9 +86,6 @@ export function businessTierError(err: { code?: string; message: string }): stri
   if (/row-level security/.test(err.message)) {
     return "Only the practice's owner or a manager can request verification."
   }
-  if (err.code === "42501" || err.code === "P0002" || err.code === "22023") {
-    const m = err.message.trim()
-    return /[.!?]$/.test(m) ? m : `${m}.`
-  }
-  return "Something went wrong. Try again."
+  // The RPCs' own raises (db-sentences.ts lists them) pass with a full stop.
+  return dbErrorMessage(err, "Something went wrong. Try again.")
 }

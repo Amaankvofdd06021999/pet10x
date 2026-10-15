@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { INVITABLE_ROLES, STAFF_ROLE_LABEL, parseClinicInvite, canEditMember, staffErrorSentence } from "./staff-invite"
+import { INVITABLE_ROLES, STAFF_ROLE_LABEL, parseClinicInvite, canEditMember, staffErrorSentence, staffGuardSentence } from "./staff-invite"
 
 const BIZ = "0b5b7a3e-6c1f-4c55-9d3e-1f2a3b4c5d6e"
 
@@ -76,5 +76,12 @@ describe("staffErrorSentence", () => {
     expect(staffErrorSentence('new row violates row-level security policy for table "business_staff"')).toBe(
       "Try again, or ask the practice owner.",
     )
+  })
+})
+
+describe("staffGuardSentence", () => {
+  it("is the guard's sentence, or null for anything the guard did not say", () => {
+    expect(staffGuardSentence("You cannot change your own role or access")).toBe("You cannot change your own role or access.")
+    expect(staffGuardSentence('new row violates row-level security policy for table "business_staff"')).toBeNull()
   })
 })
