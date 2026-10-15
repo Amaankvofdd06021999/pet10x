@@ -547,7 +547,7 @@ function EmergencyQrSheet({ buildingId, onClose }: { buildingId: string; onClose
   }
 
   return (
-    <Sheet title="Emergency QR Code" onClose={onClose}>
+    <Sheet title="Emergency QR Code" onClose={onClose} busy={busy}>
       <p className="mb-3 text-[12px] text-muted-foreground">
         Issues a time-boxed, read-only link to this building&apos;s pet directory for first responders. Expires after 4
         hours and can be revoked at any time. Supplementary information only — not a life-safety system.

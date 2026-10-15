@@ -361,3 +361,11 @@ button:disabled,
     margin: 16mm;
   }
 }
+
+/* A Radix modal sets `pointer-events: none` on <body>, and Sonner never sets
+   it back on its toaster — so with a sheet open, a tap on a toast fell
+   through to the sheet's backdrop and dismissed it. Toasts stay tappable;
+   lib/inside-toast.ts keeps that tap from counting as "outside". */
+[data-sonner-toaster] {
+  pointer-events: auto;
+}

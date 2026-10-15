@@ -5,6 +5,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { keepOpenForToasts } from '@/lib/inside-toast'
 
 function Dialog({
   ...props
@@ -50,6 +51,7 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -64,6 +66,7 @@ function DialogContent({
           className,
         )}
         {...props}
+        onInteractOutside={keepOpenForToasts(onInteractOutside)}
       >
         {children}
         {showCloseButton && (
@@ -137,9 +140,10 @@ function DialogDescription({
  * focus return, scroll lock and portal-order stacking — a ConfirmDialog
  * opened from inside one portals later and so sits on top of it.
  *
- * Pass `title` for a visually hidden name when the design has no heading;
- * otherwise wrap the visible heading in `<DialogTitle asChild>`. Set
- * `described` when the panel renders a `<DialogDescription>`.
+ * Name it by rendering the visible heading as `<DialogTitle className=…>`
+ * with the heading's own classes, or pass `title` for a visually hidden name
+ * when the design has none. Set `described` when the panel renders a
+ * `<DialogDescription>`. A tap on a toast never dismisses it (lib/inside-toast).
  */
 function DialogLayer({
   open,
@@ -149,6 +153,7 @@ function DialogLayer({
   overlayClassName,
   className,
   children,
+  onInteractOutside,
   ...props
 }: Omit<React.ComponentProps<typeof DialogPrimitive.Content>, 'title'> & {
   open: boolean
@@ -171,6 +176,7 @@ function DialogLayer({
             {...(described ? {} : { 'aria-describedby': undefined })}
             className={cn('outline-none', className)}
             {...props}
+            onInteractOutside={keepOpenForToasts(onInteractOutside)}
           >
             {title && <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>}
             {children}

@@ -592,14 +592,12 @@ function TargetSheet({
       onOpenChange={(next) => {
         if (!next && !saving) onClose()
       }}
-      /* Was `for ${spec.label}` — the KIND, not the animal, so a screen
-         reader heard "Daily target for Food" in a three-pet household and
-         was told nothing it did not already know. */
-      aria-label={`${spec.targetLabel} for ${petName}`}
       overlayClassName="flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[2px]"
       className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-card shadow-float p-5 shadow-xl"
     >
           <div className="mb-1 flex items-center justify-between gap-3">
+            {/* Names the animal, not just the kind: "Daily target" alone told a
+                screen reader nothing in a three-pet household. */}
             <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">
               {`${spec.targetLabel} · ${petName}`}
             </DialogTitle>

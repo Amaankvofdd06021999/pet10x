@@ -345,13 +345,16 @@ export function Modal({
       className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-border bg-card shadow-float sm:rounded-3xl ${
         wide ? "sm:max-w-3xl" : "sm:max-w-lg"
       }`}
-      // Land on the first field, as before, rather than the header's close button.
+      // As before: the first field, else the first button that isn't the
+      // header's close — never the X, which Radix would pick by default.
       onOpenAutoFocus={(e) => {
         const panel = e.currentTarget as HTMLElement | null
-        const field = panel?.querySelector<HTMLElement>("input, textarea, select")
-        if (field) {
+        const target =
+          panel?.querySelector<HTMLElement>("input, textarea, select") ??
+          panel?.querySelector<HTMLElement>("button:not([data-close]):not([disabled])")
+        if (target) {
           e.preventDefault()
-          field.focus()
+          target.focus()
         }
       }}
     >
@@ -364,6 +367,7 @@ export function Modal({
         </div>
         <button
           type="button"
+          data-close
           onClick={onClose}
           aria-label="Close"
           className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
