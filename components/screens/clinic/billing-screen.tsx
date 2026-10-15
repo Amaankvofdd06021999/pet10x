@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { Receipt, Plus } from "lucide-react"
+import { Receipt, Plus, Ban } from "lucide-react"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
 import {
   useInvoices, setInvoiceStatus, recordPayment, voidInvoice, usePaymentsSince, invoiceFromVisit,
@@ -11,7 +11,7 @@ import {
 import {
   invoiceStatusView, invoiceActions, invoicesForView, billingViewFor, isPartlyPaid, shortPaidNote, paymentProgress,
   remainingCents, paymentRows, paymentMethodLabel, liveInvoiceByVisit, convertedTotalNote, takenTodayByCurrency, takenTodayText,
-  validatePayment, PAYMENT_METHODS, type BillingView, type InvoiceAction, type PaymentErrors, type PaymentMethodCode,
+  validatePayment, PAYMENT_METHODS, type BillingView, type InvoiceAction, type PaymentErrors, type PaymentMethodCode, type StatusTone,
 } from "@/lib/data/clinic/billing"
 import { formatMoney, formatDateShort, dayBounds, todayISO } from "@/lib/data/clinic/time"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -38,14 +38,13 @@ const ACTION_LABEL: Record<InvoiceAction, string> = {
 }
 
 // invoiceStatusView names a tone; the Badge names its variant.
-const STATUS_BADGE = {
+const STATUS_BADGE: Record<StatusTone, "neutral" | "success" | "warning" | "danger" | "info"> = {
   neutral: "neutral",
   good: "success",
   warn: "warning",
   bad: "danger",
   info: "info",
-  accent: "brand",
-} as const
+}
 
 function StatusPill({ bill }: { bill: Invoice }) {
   const { label, tone } = invoiceStatusView(bill)
@@ -436,7 +435,7 @@ function TakenTodayTile({
           {failed ? (
             <ErrorText className="mb-1 flex-wrap items-center">
               Couldn&apos;t load
-              <Button variant="link" size="sm" onClick={onRetry}>
+              <Button variant="link" size="sm" className="text-caption" onClick={onRetry}>
                 Retry
               </Button>
             </ErrorText>
@@ -462,11 +461,12 @@ function BillActions({
         <Button
           key={a}
           size="sm"
-          variant={a === "void" ? "ghost" : "primary"}
+          variant={a === "void" ? "secondary" : "primary"}
           loading={busy && a !== "void"}
           disabled={busy}
           onClick={() => onRun(a)}
         >
+          {a === "void" && <Ban className="h-4 w-4 text-destructive" aria-hidden="true" />}
           {ACTION_LABEL[a]}
         </Button>
       ))}

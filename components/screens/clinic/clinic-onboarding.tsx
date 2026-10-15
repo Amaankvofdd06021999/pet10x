@@ -120,12 +120,12 @@ export function ClinicSignIn() {
             Sign in <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Button>
           {info && <p role="status" className="text-center text-caption text-foreground">{info}</p>}
-          <button type="button" onClick={() => void forgot()} className="text-center text-meta font-medium text-foreground">
+          <button type="button" onClick={() => void forgot()} className="text-center text-meta font-medium text-foreground hover:underline">
             Forgot password?
           </button>
           <p className="text-center text-caption text-muted-foreground">
             New here?{" "}
-            <Link href={clinicSignupHref(null)} onClick={openSignup} className="font-semibold text-foreground">
+            <Link href={clinicSignupHref(null)} onClick={openSignup} className="font-semibold text-foreground hover:underline">
               Create an account
             </Link>
             , then register your practice on the next screen.

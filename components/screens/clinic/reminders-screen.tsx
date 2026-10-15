@@ -190,7 +190,7 @@ export function ClinicRemindersScreen({ clinic }: { clinic: ClinicMembership }) 
                         <Check className="h-3.5 w-3.5" aria-hidden="true" /> Booked
                       </Button>
                       <Button size="sm" variant="quiet" aria-label="Suppress this reminder" onClick={() => void act(r, "suppress")}>
-                        <X className="h-3.5 w-3.5" aria-hidden="true" />
+                        <X className="h-3.5 w-3.5 text-destructive" aria-hidden="true" />
                       </Button>
                     </div>
                   )}

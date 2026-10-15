@@ -494,12 +494,12 @@ function EditCustomerModal({
       footer={
         <>
           <Button
-            variant="quiet"
+            variant="secondary"
             onClick={() => {
               if (customer) onArchive(customer)
             }}
           >
-            <Archive className="h-4 w-4" aria-hidden="true" /> Archive
+            <Archive className="h-4 w-4 text-destructive" aria-hidden="true" /> Archive
           </Button>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button

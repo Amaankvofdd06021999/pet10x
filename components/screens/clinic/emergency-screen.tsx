@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Siren, ShieldAlert, Phone, Clock } from "lucide-react"
+import { Siren, ShieldAlert, Phone, Clock, AlertTriangle } from "lucide-react"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
 import { capabilities } from "@/lib/data/clinic/context"
 import {
@@ -72,7 +72,10 @@ export function ClinicEmergencyScreen({ clinic }: { clinic: ClinicMembership }) 
                         .join(" · ")}
                     </p>
                     {a.allergies && (
-                      <p className="mt-1 text-caption font-semibold text-foreground">Allergies: {a.allergies}</p>
+                      <p className="mt-1 flex items-center gap-1.5 text-caption font-semibold text-foreground">
+                        <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-destructive" aria-hidden="true" />
+                        Allergies: {a.allergies}
+                      </p>
                     )}
                   </div>
                   <div className="flex items-center gap-1.5">

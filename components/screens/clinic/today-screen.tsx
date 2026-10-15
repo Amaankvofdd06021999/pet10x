@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
-import { Phone, Check, AlertTriangle, Clock, CircleCheck, Circle } from "lucide-react"
+import { Phone, Check, X, AlertTriangle, Clock, CircleCheck, Circle } from "lucide-react"
 import type { ClinicMembership } from "@/lib/data/clinic/context"
 import { useClinicLocations, useClinicStaff, capabilities } from "@/lib/data/clinic/context"
 import {
@@ -175,7 +175,10 @@ export function ClinicTodayScreen({
                 </div>
                 <p className="mt-1 text-caption text-muted-foreground">{a.problem}</p>
                 {a.allergies && (
-                  <p className="mt-0.5 text-caption font-semibold text-foreground">Allergies: {a.allergies}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-caption font-semibold text-foreground">
+                    <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-destructive" aria-hidden="true" />
+                    Allergies: {a.allergies}
+                  </p>
                 )}
               </li>
             ))}
@@ -191,7 +194,9 @@ export function ClinicTodayScreen({
                 actions={
                   <>
                     <Button size="sm" onClick={() => void move(a, "booked")}>Confirm</Button>
-                    <Button size="sm" variant="quiet" onClick={() => setDeclining(a)}>Decline request</Button>
+                    <Button size="sm" variant="secondary" onClick={() => setDeclining(a)}>
+                      <X className="h-3.5 w-3.5 text-destructive" aria-hidden="true" /> Decline request
+                    </Button>
                   </>
                 } />
             ))}

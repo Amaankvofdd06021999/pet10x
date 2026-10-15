@@ -464,7 +464,7 @@ function HoursModal({
                       aria-label={`Remove ${WEEKDAY_LABEL[day]} ${r.start}–${r.end}`}
                       onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
                     >
-                      <X className="h-4 w-4" aria-hidden="true" />
+                      <X className="h-4 w-4 text-destructive" aria-hidden="true" />
                     </Button>
                   </li>
                 ))}
