@@ -6,6 +6,7 @@ import { OTHER_SPECIES, OTHER_BREED, breedsFor, addPet, setPetPhoto } from "@/li
 import type { Species } from "@/lib/data"
 import { toast } from "sonner"
 import { isDirty } from "@/lib/unsaved"
+import { userError } from "@/lib/user-error"
 import { useUnsavedGuard } from "@/components/use-unsaved-guard"
 import { WeightInput, useWeightField } from "@/components/screens/pet/weight-input"
 import { RequiredTag } from "@/components/screens/pet/required-tag"
@@ -175,12 +176,16 @@ function AddPetForm({
     })
     if (error || !pet) {
       setSaving(false)
-      toast.error("Couldn't add pet", { description: error ?? "Please try again." })
+      toast.error("Couldn't add pet", { description: userError(error, "Please try again.") ?? "Please try again." })
       return
     }
     if (photoFile) {
       const up = await setPetPhoto(pet.id, photoFile)
-      if (up.error) toast("Pet saved — photo upload failed", { description: up.error })
+      if (up.error) {
+        toast("Pet saved — photo upload failed", {
+          description: userError(up.error, "Add the photo from the pet's profile."),
+        })
+      }
     }
     setSaving(false)
     toast.success(`${name} added`, { description: "Saved to your account." })

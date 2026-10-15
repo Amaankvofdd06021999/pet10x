@@ -4,6 +4,7 @@ import { useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { usePets, useUnreadNotificationCount, useMyBuildingLink, useMemorialPets } from "@/lib/data"
 import { exportMyData, deleteMyAccount, updateMyProfile, setMyUnit } from "@/lib/data/account"
+import { userError } from "@/lib/user-error"
 import { toast } from "sonner"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { PersonaSwitcher } from "@/components/persona-switcher"
@@ -179,7 +180,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
       avatarFile: editAvatarFile ?? undefined,
     })
     setSavingProfile(false)
-    if (error) return toast.error("Couldn't update profile", { description: error })
+    if (error) return toast.error("Couldn't update profile", { description: userError(error, "Try again in a moment.") })
     updateLocalUser({ name: editName.trim(), ...(avatarUrl ? { avatar: avatarUrl } : {}) })
     toast.success("Profile updated")
     setEditing(false)
@@ -205,7 +206,9 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
     const { error } = await deleteMyAccount()
     if (error) {
       setBusy(null)
-      return toast.error("Couldn't delete account", { description: error })
+      return toast.error("Couldn't delete account", {
+        description: userError(error, "Try again, or contact support so we can finish it for you."),
+      })
     }
     toast.success("Account deleted")
     await signOut()

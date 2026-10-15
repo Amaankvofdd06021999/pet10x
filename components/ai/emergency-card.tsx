@@ -15,6 +15,9 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
   const subject = card.petName ? card.petName : "Your pet"
   const [told, setTold] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  // The clinic whose "Tell them I'm coming" failed: shown inline, with its
+  // number, while the button stays for another try.
+  const [failed, setFailed] = useState<string | null>(null)
 
   return (
     <div className="rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-4">
@@ -98,6 +101,7 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
                           onClick={async () => {
                             if (!card.petId) return
                             setBusy(clinic.id)
+                            setFailed(null)
                             const res = await notifyArrival(
                               clinic.id,
                               card.petId,
@@ -105,7 +109,7 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
                               20,
                             )
                             setBusy(null)
-                            if (res.error) window.alert(res.error)
+                            if (res.error) setFailed(clinic.id)
                             else setTold(clinic.id)
                           }}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
@@ -116,6 +120,22 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
                       )
                     )}
                   </div>
+                  {failed === clinic.id && (
+                    <p role="alert" className="mt-2 text-[12px] font-medium text-destructive">
+                      Couldn&apos;t reach them through Pet10x —{" "}
+                      {clinic.phone ? (
+                        <>
+                          call{" "}
+                          <a href={`tel:${clinic.phone.replace(/[^\d+]/g, "")}`} className="font-semibold underline">
+                            {clinic.phone}
+                          </a>{" "}
+                          instead.
+                        </>
+                      ) : (
+                        "try again, or head straight there."
+                      )}
+                    </p>
+                  )}
                 </div>
               )
             })}

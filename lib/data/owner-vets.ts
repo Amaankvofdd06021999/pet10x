@@ -484,10 +484,14 @@ export async function notifyArrival(
     p_problem: problem,
     p_eta_minutes: etaMinutes ?? undefined,
   })
-  if (error) return { error: error.message }
+  // A fixed sentence, never the database's text: the card shows it to an
+  // owner in an emergency, next to the clinic's number.
+  if (error) return { error: ARRIVAL_FAILED }
   const out = readOutcome(data)
   return { error: out.ok ? null : sentenceFor(out.error) }
 }
+
+export const ARRIVAL_FAILED = "Couldn't reach them through Pet10x."
 
 /* -------------------------------- bills --------------------------------- */
 

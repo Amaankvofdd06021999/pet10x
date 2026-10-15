@@ -176,7 +176,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
           <button
             onClick={() => void retry()}
             disabled={retrying}
-            className="min-h-9 flex-shrink-0 rounded-md px-3 text-[13px] font-semibold text-foreground underline disabled:opacity-60"
+            className="min-h-11 flex-shrink-0 rounded-md px-3 text-[13px] font-semibold text-foreground underline disabled:opacity-60"
           >
             Retry
           </button>

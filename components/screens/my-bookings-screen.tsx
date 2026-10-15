@@ -15,6 +15,7 @@ import {
 } from "@/lib/data/bookings"
 import { formatPrice } from "@/lib/data/business"
 import { bookingContactState } from "@/lib/data/business-contact"
+import { userError } from "@/lib/user-error"
 import { ContactLinks } from "@/components/screens/shared/contact-links"
 import { ArrowLeft, CalendarDays, Loader2, Star, Store, Inbox } from "lucide-react"
 
@@ -229,7 +230,7 @@ function ReviewSheet({
       comment,
     })
     setBusy(false)
-    if (error) return toast.error("Couldn't post review", { description: error })
+    if (error) return toast.error("Couldn't post review", { description: userError(error, "Try again in a moment.") })
     toast.success("Thanks for the review!")
     onDone()
   }

@@ -76,12 +76,19 @@ export async function POST(request: Request) {
     const newRole = roleForNewManager(existing.role)
     if (newRole) {
       const { error: roleErr } = await admin.from("profiles").update({ role: newRole }).eq("id", existing.id)
-      if (roleErr) return NextResponse.json({ error: `Couldn't set manager role: ${roleErr.message}` }, { status: 500 })
+      if (roleErr) {
+        // Fixed sentences to the browser; the database's text goes to the log.
+        console.error("[strata/invite] role update failed", roleErr)
+        return NextResponse.json({ error: "Couldn't make them a manager. Try again." }, { status: 500 })
+      }
     }
     const { error: linkErr } = await admin
       .from("building_managers")
       .insert({ building_id: body.buildingId, profile_id: existing.id, granted_by: user.id, is_primary: false })
-    if (linkErr) return NextResponse.json({ error: linkErr.message }, { status: 500 })
+    if (linkErr) {
+      console.error("[strata/invite] building link failed", linkErr)
+      return NextResponse.json({ error: "Couldn't add them to the building. Try again." }, { status: 500 })
+    }
     // The link is already made, so a failed or suppressed email must not fail
     // the invite; `emailSent` is true only when Resend accepted the message.
     // send() has already logged any failure.
@@ -103,7 +110,8 @@ export async function POST(request: Request) {
     },
   })
   if (error || !link?.properties?.action_link) {
-    return NextResponse.json({ error: error?.message ?? "Failed to generate invite" }, { status: 400 })
+    if (error) console.error("[strata/invite] generateLink failed", error)
+    return NextResponse.json({ error: "Couldn't create the invite. Try again." }, { status: 400 })
   }
 
   const invitedId = link.user?.id
@@ -112,13 +120,23 @@ export async function POST(request: Request) {
       .from("profiles")
       .update({ role: "building_manager", full_name: body.fullName ?? null })
       .eq("id", invitedId)
-    if (roleErr) return NextResponse.json({ error: `Invited, but role assignment failed: ${roleErr.message}` }, { status: 500 })
+    if (roleErr) {
+      console.error("[strata/invite] invited user's role update failed", roleErr)
+      return NextResponse.json(
+        { error: "They were invited, but couldn't be made a manager. Contact support." },
+        { status: 500 },
+      )
+    }
 
     const { error: linkErr } = await admin
       .from("building_managers")
       .insert({ building_id: body.buildingId, profile_id: invitedId, granted_by: user.id, is_primary: false })
     if (linkErr) {
-      return NextResponse.json({ error: `Invited, but linking to the building failed: ${linkErr.message}` }, { status: 500 })
+      console.error("[strata/invite] invited user's building link failed", linkErr)
+      return NextResponse.json(
+        { error: "They were invited, but couldn't be added to the building. Contact support." },
+        { status: 500 },
+      )
     }
   }
 

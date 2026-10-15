@@ -7,6 +7,7 @@ import { IOSNavBar } from "@/components/ios-nav-bar"
 import { usePublicBusiness, DAY_KEYS, DAY_LABEL, formatAddress, mapsUrl, formatPrice } from "@/lib/data/business"
 import { useBusinessServices, useBusinessReviews, createBooking, type ServiceItem } from "@/lib/data/bookings"
 import { usePets } from "@/lib/data"
+import { userError } from "@/lib/user-error"
 import { isClinicBusiness } from "@/lib/data/appointment-labels"
 import { ContactLinks } from "@/components/screens/shared/contact-links"
 import {
@@ -296,7 +297,7 @@ function BookSheet({
       note,
     })
     setBusy(false)
-    if (error) return toast.error("Couldn't send request", { description: error })
+    if (error) return toast.error("Couldn't send request", { description: userError(error, "Try again in a moment.") })
     setDone(true)
     toast.success("Request sent", { description: `${business} will confirm shortly.` })
   }
