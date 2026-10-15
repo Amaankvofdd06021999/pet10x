@@ -8,8 +8,12 @@ import { advanceCursor, nextBatch } from "@/lib/ai/suggestions/nightly"
  * Pet10x — the nightly suggestions sweep.
  *
  * Home used to rebuild every resident's suggestions on every visit. They are
- * now built here, once a night (see vercel.json), and once more on a
+ * now built here, once a day (see vercel.json), and once more on a
  * resident's very first visit (the POST in ./run).
+ *
+ * It runs in the morning (15:00 UTC: 08:00 Pacific, 11:00 Eastern in daylight
+ * time) rather than overnight because the notifications it writes are pushed
+ * within minutes, and a nudge should not buzz a phone at 3 AM.
  *
  * Runs with the service role, so RLS does not scope it: `runSuggestions` is
  * what keeps each owner's run to that owner's own pets. Guarded by CRON_SECRET
@@ -77,9 +81,16 @@ export async function GET(request: Request) {
   }
 
   while (!done && !timedOut) {
-    // Owners of at least one live pet, in id order, above the cursor. A pet row
-    // per owner, so the list is de-duplicated below.
-    let query = admin.from("pets").select("owner_id").is("deleted_at", null).order("owner_id").limit(PAGE)
+    // Owners of at least one live pet, in id order, above the cursor, leaving
+    // out suspended accounts. A pet row per owner, so the list is de-duplicated
+    // below.
+    let query = admin
+      .from("pets")
+      .select("owner_id, profiles!inner(is_suspended)")
+      .eq("profiles.is_suspended", false)
+      .is("deleted_at", null)
+      .order("owner_id")
+      .limit(PAGE)
     if (cursor !== null) query = query.gt("owner_id", cursor)
     const { data: rows, error } = await query
     if (error) {

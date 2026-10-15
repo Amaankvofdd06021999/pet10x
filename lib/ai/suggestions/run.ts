@@ -55,11 +55,17 @@ async function writeCopy(hit: RuleHit): Promise<string> {
 }
 
 async function evaluateAndWrite(supabase: Client, ownerId: string): Promise<RunResult> {
-  const { data: pets } = await supabase
+  const { data: pets, error: petsErr } = await supabase
     .from("pets")
     .select("id, name")
     .eq("owner_id", ownerId)
     .is("deleted_at", null)
+  // An empty list from a failed read would look like an owner with nothing to
+  // say, and the run would then be stamped as done.
+  if (petsErr) {
+    console.error("[ai] suggestions couldn't read pets", petsErr)
+    throw new Error("Couldn't read your pets.")
+  }
 
   const hits = await evaluateRules(supabase, pets ?? [])
   if (hits.length === 0) return { evaluated: 0, created: 0, skipped: 0, notified: 0 }
@@ -79,10 +85,15 @@ async function evaluateAndWrite(supabase: Client, ownerId: string): Promise<RunR
   //    was told again about a vet visit whose previous notice was still active
   //    with three weeks left to run. A period boundary is permission to
   //    re-raise a nudge that has LAPSED — not to duplicate a standing one.
-  const { data: existing } = await supabase
+  const { data: existing, error: existingErr } = await supabase
     .from("ai_suggestions")
     .select("dedupe_key, status, valid_until")
     .eq("profile_id", ownerId)
+  // Without what was already raised, every hit would look new and be repeated.
+  if (existingErr) {
+    console.error("[ai] suggestions couldn't read existing suggestions", existingErr)
+    throw new Error("Couldn't read your existing suggestions.")
+  }
 
   const now = Date.now()
   const seen = new Set<string>()

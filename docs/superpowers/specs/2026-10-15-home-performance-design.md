@@ -37,8 +37,9 @@ rather than an unbounded select.
 
 ## 2. Nightly suggestions job
 
-- New cron route `/api/ai/suggestions/nightly`, scheduled `0 7 * * *` (02:00
-  Toronto), guarded by `CRON_SECRET` like the existing crons.
+- New cron route `/api/ai/suggestions/nightly`, scheduled `0 15 * * *` (08:00 Pacific,
+  11:00 Eastern in daylight time), a morning run so the pushes its
+  notifications trigger arrive at a civil hour, guarded by `CRON_SECRET` like the existing crons.
 - Uses the service-role client. `runSuggestions` is refactored to take an
   owner id and a client so the same rules run per resident; behaviour per
   resident is unchanged.

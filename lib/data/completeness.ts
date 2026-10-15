@@ -333,6 +333,13 @@ export function useMyCompleteness(): CompletenessResult {
       return
     }
     if (!ready) return
+    // A failed pets read leaves `data` empty, which computeGaps would read as
+    // an owner with no pets. Keep the last good gaps and say so.
+    if (pets.error) {
+      setError(COMPLETENESS_LOAD_FAILED)
+      setLoading(false)
+      return
+    }
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -410,7 +417,7 @@ export function useMyCompleteness(): CompletenessResult {
     )
     setError(null)
     setLoading(false)
-  }, [ready, petKey])
+  }, [ready, petKey, pets.error])
 
   useEffect(() => {
     void refetch()
