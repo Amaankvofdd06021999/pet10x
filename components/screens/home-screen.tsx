@@ -1,5 +1,6 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
@@ -36,10 +37,10 @@ import {
 import Image from "next/image"
 
 const STATUS_CONFIG = {
-  home: { label: "Home", pill: "bg-success-soft text-foreground" },
-  away: { label: "Away", pill: "bg-muted text-muted-foreground" },
-  "at-vet": { label: "At Vet", pill: "bg-info-soft text-foreground" },
-  vacation: { label: "On Vacation", pill: "bg-primary-soft text-foreground" },
+  home: { label: "Home", pill: "success" },
+  away: { label: "Away", pill: "neutral" },
+  "at-vet": { label: "At Vet", pill: "info" },
+  vacation: { label: "On Vacation", pill: "brand" },
 } as const
 
 /**
@@ -223,7 +224,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex items-center gap-2">
               <GreetingIcon className="h-5 w-5 flex-shrink-0 text-primary" />
-              <h1 className="truncate text-heading font-semibold leading-tight text-foreground">
+              <h1 className="truncate text-[26px] font-semibold leading-tight text-foreground">
                 {greeting}, {user?.name?.split(" ")[0]}
               </h1>
             </div>
@@ -351,11 +352,9 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                           <SpeciesIcon className="h-4 w-4 flex-shrink-0" />
                           <span className="truncate text-caption">{pet.breed || "Pet"}</span>
                         </div>
-                        <span
-                          className={`inline-block w-fit rounded-full px-2 py-0.5 text-caption font-bold uppercase tracking-wider ${status.pill}`}
-                        >
+                        <Badge variant={status.pill} className="uppercase tracking-wider">
                           {status.label}
-                        </span>
+                        </Badge>
                       </div>
                     </button>
                   )

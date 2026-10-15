@@ -82,7 +82,7 @@ export function PetCareScreen({ onBack, onNavigate, initialKind, initialPetId }:
 function ScreenShell({ children, onBack, title }: { children: React.ReactNode; onBack: () => void; title?: string }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-card px-4 pt-safe backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border bg-card px-4 pt-safe">
         <div className="flex h-12 items-center gap-2">
           <button onClick={onBack} className="flex items-center gap-1 text-foreground" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />

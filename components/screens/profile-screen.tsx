@@ -587,7 +587,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
           <Button
             variant="secondary"
             onClick={signOut}
-            className="w-full border-destructive bg-destructive-soft"
+            className="w-full"
           >
             <LogOut className="h-5 w-5 text-destructive" />
             <span className="text-body font-semibold text-foreground">Sign Out</span>

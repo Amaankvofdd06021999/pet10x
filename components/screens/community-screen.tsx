@@ -630,7 +630,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                           size="sm"
                           onClick={() => handlePin(post)}
                           disabled={busyId === post.id}
-                          className="flex-shrink-0 bg-info-soft"
+                          className="flex-shrink-0"
                         >
                           {post.isPinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
                           {post.isPinned ? "Unpin" : "Pin"}
@@ -709,7 +709,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
               return (
                 <div
                   key={item.id}
-                  className={`overflow-hidden rounded-2xl border-2 ${lost ? "border-destructive" : "border-border"}`}
+                  className="overflow-hidden rounded-2xl border-2 border-border"
                 >
                   <div className={`px-3 py-1.5 ${lost ? "bg-destructive-soft" : "bg-success-soft"}`}>
                     <div className="flex items-center gap-2">
@@ -767,7 +767,6 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                         size="sm"
                         onClick={() => handleResolve(item)}
                         disabled={busyId === item.id}
-                        className="bg-success-soft"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" /> Mark resolved
                       </Button>
@@ -1106,7 +1105,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             onClick={() => handleRemovePost(menuFor)}
             className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left text-body font-medium text-foreground"
           >
-            <Trash2 className="h-5 w-5" />
+            <Trash2 className="h-5 w-5 text-destructive" />
             {menuFor.authorId === user?.id ? "Remove my post" : "Remove this post"}
           </button>
           <p className="mt-1 px-2 text-caption leading-relaxed text-muted-foreground">

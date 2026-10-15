@@ -57,7 +57,7 @@ export function IOSTabBar({ activeTab, onTabChange }: TabBarProps) {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card backdrop-blur-xl pb-safe md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card pb-safe md:hidden"
       role="tablist"
       aria-label="Main navigation"
     >

@@ -46,7 +46,7 @@ export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-card px-4 pt-safe backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border bg-card px-4 pt-safe">
         <div className="flex h-12 items-center gap-2">
           <button onClick={onBack} className="flex items-center gap-1 text-foreground" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
@@ -84,9 +84,9 @@ export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
               variant="secondary"
               onClick={leave}
               disabled={loading}
-              className="mt-8 w-full border-destructive bg-destructive-soft"
+              className="mt-8 w-full"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4 text-destructive" />}
               {link.status === "approved" ? "Leave building" : "Cancel request"}
             </Button>
             <p className="mt-3 text-caption text-muted-foreground">Your pets and data stay with you either way.</p>

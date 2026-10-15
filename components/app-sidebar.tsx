@@ -145,7 +145,7 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
           onClick={handleSignOut}
           className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-body font-medium text-foreground transition-colors hover:bg-destructive-soft"
         >
-          <LogOut className="h-5 w-5" />
+          <LogOut className="h-5 w-5 text-destructive" />
           Sign out
         </button>
       </div>

@@ -1,6 +1,5 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
 /**
  * Pet10x — the case against you, as its subject sees it.
  *
@@ -40,6 +39,7 @@ import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
 import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { useMyCases, fileDispute } from "@/lib/data/live"
 import { useMyNotices } from "@/lib/data/clinic/notices"
@@ -66,13 +66,16 @@ const MAX_REASON = 2000
 /** Keyed on the stage enum, never on `string`. A seventh rung is a type error
  *  here rather than a silently missing badge — the `Record<string, X>` defect
  *  Phase 2 found on the manager's dashboard. */
-const STAGE_STYLE: Record<ViolationStage, { color: string; icon: typeof AlertTriangle }> = {
-  open: { color: "bg-muted text-muted-foreground", icon: ShieldCheck },
-  warning: { color: "bg-warning-soft text-foreground", icon: Gavel },
-  fine_1: { color: "bg-destructive-soft text-destructive", icon: DollarSign },
-  fine_2: { color: "bg-destructive-soft text-destructive", icon: DollarSign },
-  resolved: { color: "bg-success-soft text-success", icon: CheckCircle2 },
-  dismissed: { color: "bg-muted text-muted-foreground", icon: XCircle },
+const STAGE_STYLE: Record<
+  ViolationStage,
+  { color: string; badge: "neutral" | "warning" | "danger" | "success"; icon: typeof AlertTriangle }
+> = {
+  open: { color: "bg-muted text-muted-foreground", badge: "neutral", icon: ShieldCheck },
+  warning: { color: "bg-warning-soft text-foreground", badge: "warning", icon: Gavel },
+  fine_1: { color: "bg-destructive-soft text-destructive", badge: "danger", icon: DollarSign },
+  fine_2: { color: "bg-destructive-soft text-destructive", badge: "danger", icon: DollarSign },
+  resolved: { color: "bg-success-soft text-success", badge: "success", icon: CheckCircle2 },
+  dismissed: { color: "bg-muted text-muted-foreground", badge: "neutral", icon: XCircle },
 }
 
 /**
@@ -184,7 +187,7 @@ export function MyCasesScreen({
         )}
 
         {error && (
-          <div className="mb-4 rounded-xl border border-destructive bg-destructive-soft p-3">
+          <div className="mb-4 rounded-xl border border-border bg-destructive-soft p-3">
             <p className="text-caption leading-relaxed text-foreground">
               {error}
             </p>
@@ -307,7 +310,7 @@ function CaseCard({
           {openDispute && (
             <Badge variant="warning">Under appeal</Badge>
           )}
-          <Badge className={style.color}>{STAGE_LABEL[c.stage]}</Badge>
+          <Badge variant={style.badge}>{STAGE_LABEL[c.stage]}</Badge>
           <ChevronDown
             className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
           />
@@ -445,7 +448,7 @@ function Money({ c }: { c: ResidentCase }) {
                   <p className="text-caption text-muted-foreground">{`Due ${longDate(f.dueOn)}`}</p>
                 )}
               </div>
-              <Badge className={words?.tone ?? "bg-muted text-muted-foreground"}>
+              <Badge className={`flex-shrink-0 ${words?.tone ?? "bg-muted text-muted-foreground"}`}>
                 {words?.label ?? f.status.replace(/_/g, " ")}
               </Badge>
             </div>
@@ -702,7 +705,7 @@ function NoticesReceived() {
           <li key={n.id} className={`rounded-2xl border p-3.5 ${tone(n.kind)}`}>
             <p className="flex flex-wrap items-center gap-2 text-body font-semibold text-foreground">
               {n.title ?? n.kindLabel}
-              <Badge variant="secondary">{n.kindLabel}</Badge>
+              <Badge variant="neutral">{n.kindLabel}</Badge>
               {n.amountCents ? (
                 <span className="text-meta font-semibold tabular-nums text-foreground">
                   {new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(

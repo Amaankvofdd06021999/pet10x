@@ -1,5 +1,6 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
 import { ErrorText } from "@/components/ui/error-text"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -21,14 +22,14 @@ import { userError } from "@/lib/user-error"
 import { ContactLinks } from "@/components/screens/shared/contact-links"
 import { ArrowLeft, CalendarDays, Loader2, Star, Store, Inbox } from "lucide-react"
 
-const STATUS_STYLE: Record<BookingStatus, string> = {
-  requested: "bg-warning-soft text-foreground",
-  confirmed: "bg-primary-soft text-foreground",
-  in_progress: "bg-info-soft text-foreground",
-  completed: "bg-success-soft text-foreground",
-  paid: "bg-success-soft text-foreground",
-  declined: "bg-destructive-soft text-foreground",
-  cancelled: "bg-muted text-muted-foreground",
+const STATUS_VARIANT: Record<BookingStatus, "warning" | "brand" | "info" | "success" | "danger" | "neutral"> = {
+  requested: "warning",
+  confirmed: "brand",
+  in_progress: "info",
+  completed: "success",
+  paid: "success",
+  declined: "danger",
+  cancelled: "neutral",
 }
 
 const STATUS_HINT: Partial<Record<BookingStatus, string>> = {
@@ -104,9 +105,7 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-md px-2 py-0.5 text-caption font-semibold ${STATUS_STYLE[b.status]}`}>
-                        {BOOKING_STATUS_LABEL[b.status]}
-                      </span>
+                      <Badge variant={STATUS_VARIANT[b.status]}>{BOOKING_STATUS_LABEL[b.status]}</Badge>
                       <p className="text-body font-semibold text-foreground">{b.serviceName ?? "Service"}</p>
                     </div>
                     <p className="mt-0.5 text-caption text-muted-foreground">
@@ -128,7 +127,7 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
                     {STATUS_HINT[b.status] && (
                       <p className="mt-0.5 text-caption text-muted-foreground">{STATUS_HINT[b.status]}</p>
                     )}
-                    {b.declinedReason && <ErrorText className="mt-1 text-caption">{b.declinedReason}</ErrorText>}
+                    {b.declinedReason && <p className="mt-1 text-caption text-foreground">{b.declinedReason}</p>}
                     {blocked === b.id && (
                       <ErrorText className="mt-1 text-caption">
                         This booking can&apos;t be cancelled any more.{" "}

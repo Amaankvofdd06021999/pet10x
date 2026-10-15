@@ -175,7 +175,7 @@ export function AlertsScreen({
           {/* A failed load is said as one, with a way to try again — never
               as "You're all caught up", which is a claim about the inbox. */}
           {loadError && (
-            <div className="rounded-2xl border border-destructive bg-destructive-soft p-4 text-center">
+            <div className="rounded-2xl border border-border bg-destructive-soft p-4 text-center">
               <p className="text-meta leading-relaxed text-foreground">{loadError}</p>
               <button
                 onClick={() => void refreshNotifications()}

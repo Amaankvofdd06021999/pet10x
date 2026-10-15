@@ -204,9 +204,9 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
                     variant="secondary"
                     size="sm"
                     onClick={() => {
- setMaxKm(null)
- setOnlyServing(false)
- }}
+                      setMaxKm(null)
+                      setOnlyServing(false)
+                    }}
                     className="mt-3"
                   >
                     Clear filters
@@ -235,13 +235,7 @@ export function ServicesScreen({ onNavigate }: { onNavigate?: (screen: string, i
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="truncate text-body font-semibold text-foreground">{b.name}</h3>
-                      <span
-                        className={`flex-shrink-0 rounded-full px-1.5 py-0.5 text-caption font-semibold ${
-                          b.openNow ? "bg-success-soft text-foreground" : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {b.openNow ? "Open" : "Closed"}
-                      </span>
+                      <Badge variant={b.openNow ? "success" : "neutral"}>{b.openNow ? "Open" : "Closed"}</Badge>
                     </div>
                     <p className="mt-0.5 text-caption text-muted-foreground">{b.category}</p>
                     {(b.address || b.city) && (

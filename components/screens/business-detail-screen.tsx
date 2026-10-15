@@ -79,11 +79,7 @@ export function BusinessDetailScreen({
               {biz.priceRange ? ` · ${biz.priceRange}` : ""}
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              <span
-                className={`rounded-full px-2 py-0.5 text-caption font-semibold ${biz.openNow ? "bg-success-soft text-foreground" : "bg-muted text-muted-foreground"}`}
-              >
-                {biz.openNow ? "Open now" : "Closed"}
-              </span>
+              <Badge variant={biz.openNow ? "success" : "neutral"}>{biz.openNow ? "Open now" : "Closed"}</Badge>
               {biz.ratingCount > 0 && (
                 <span className="flex items-center gap-1 text-caption text-foreground">
                   <Star className="h-3.5 w-3.5 fill-warning text-warning" />
@@ -115,8 +111,8 @@ export function BusinessDetailScreen({
                 </span>
               ) : null}
             </span>
-            <span className="flex flex-shrink-0 items-center gap-1 text-caption font-semibold text-primary">
-              <Navigation className="h-3.5 w-3.5" /> Directions
+            <span className="flex flex-shrink-0 items-center gap-1 text-caption font-semibold text-foreground">
+              <Navigation className="h-3.5 w-3.5 text-primary" /> Directions
             </span>
           </a>
         )}

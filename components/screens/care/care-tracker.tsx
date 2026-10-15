@@ -1,6 +1,5 @@
 "use client"
 
-import { ErrorText } from "@/components/ui/error-text"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import {
@@ -233,10 +232,10 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                 size="sm"
                 key={k.kind}
                 onClick={() => {
- setKind(k.kind as CareEntryKind)
- setAmount("")
- setLabel("")
- }}
+                  setKind(k.kind as CareEntryKind)
+                  setAmount("")
+                  setLabel("")
+                }}
                 className="flex-shrink-0"
               >
                 <Icon className="h-4 w-4" /> {k.label}
@@ -307,7 +306,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                           style={{ width: `${pr.pct}%` }}
                         />
                       </div>
-                      {pr.over && <ErrorText className="mt-1.5 text-caption font-medium">Over the daily limit</ErrorText>}
+                      {pr.over && <p className="mt-1.5 text-caption font-medium text-foreground">Over the daily limit</p>}
                     </div>
                   )
                 })}

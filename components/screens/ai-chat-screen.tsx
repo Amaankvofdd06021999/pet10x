@@ -295,7 +295,7 @@ export function AiChatScreen({ onBack, petId, conversationId: initialConversatio
       </div>
 
       {/* Composer */}
-      <div className="shrink-0 border-t border-border bg-card px-3 pb-3 pt-2.5 backdrop-blur-xl">
+      <div className="shrink-0 border-t border-border bg-card px-3 pb-3 pt-2.5">
         <PhotoAttachPreview images={images} onChange={setImages} />
 
         <div className="flex items-end gap-1.5">

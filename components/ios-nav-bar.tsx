@@ -36,7 +36,7 @@ export function IOSNavBar({
     /* The hairline is a warm tint of the brand rather than neutral grey —
        barely there on white, but enough to separate the bar from content
        scrolling beneath the blur. */
-    <header className="sticky top-0 z-40 border-b border-border bg-card backdrop-blur-xl pt-safe">
+    <header className="sticky top-0 z-40 border-b border-border bg-card pt-safe">
       {inlineTitle ? (
         /* Roomier than the stock 44px bar: the branded header carries a
            wordmark rather than a page title, so it wants breathing room above

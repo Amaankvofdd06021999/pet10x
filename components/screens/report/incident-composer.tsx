@@ -495,7 +495,7 @@ export function IncidentComposer({
           feature is for: someone scanning a code in a lobby. It resolves to
           zero everywhere there is no inset, which is why the child keeps the
           `py-3` that sets the bar's height. */}
-      <div className="sticky top-0 z-40 border-b border-border bg-card pt-safe backdrop-blur-xl">
+      <div className="sticky top-0 z-40 border-b border-border bg-card pt-safe">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -886,8 +886,8 @@ export function IncidentComposer({
 
             {/* A failed upload must never cost someone their written account. */}
             {uploadFailed && (
-              <div role="alert" className="mt-4 rounded-xl border border-destructive bg-destructive-soft p-4">
-                <ErrorText className="text-meta font-semibold">{uploadFailed}</ErrorText>
+              <div role="alert" className="mt-4 rounded-xl border border-border bg-destructive-soft p-4">
+                <p className="text-meta font-semibold text-foreground">{uploadFailed}</p>
                 <p className="mt-1 text-caption leading-relaxed text-muted-foreground">
                   {photos.length > 0
                     ? "Your report is still here. Try the photos again, or send what you wrote without them — the manager will still see it."

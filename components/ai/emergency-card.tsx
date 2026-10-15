@@ -103,20 +103,19 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
                           type="button"
                           disabled={busy === clinic.id}
                           onClick={async () => {
- if (!card.petId) return
- setBusy(clinic.id)
- setFailed(null)
- const res = await notifyArrival(
- clinic.id,
- card.petId,
- card.reasons.join("; ") || "Emergency",
- 20,
- )
- setBusy(null)
- if (res.error) setFailed(clinic.id)
- else setTold(clinic.id)
- }}
-                          className="border-destructive"
+                            if (!card.petId) return
+                            setBusy(clinic.id)
+                            setFailed(null)
+                            const res = await notifyArrival(
+                              clinic.id,
+                              card.petId,
+                              card.reasons.join("; ") || "Emergency",
+                              20,
+                            )
+                            setBusy(null)
+                            if (res.error) setFailed(clinic.id)
+                            else setTold(clinic.id)
+                          }}
                         >
                           <Send className="h-3.5 w-3.5" aria-hidden="true" />
                           {busy === clinic.id ? "Telling them…" : "Tell them I'm coming"}

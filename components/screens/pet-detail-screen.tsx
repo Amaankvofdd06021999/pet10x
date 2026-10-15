@@ -1,5 +1,6 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { RequiredTag } from "@/components/screens/pet/required-tag"
 import { useRef, useState } from "react"
@@ -69,20 +70,20 @@ const DOC_KINDS: { value: PetDocKind; label: string }[] = [
   { value: "other", label: "Other" },
 ]
 
-function statusBadge(status: string): string {
+function statusBadge(status: string): "success" | "warning" | "danger" | "neutral" {
   switch (status) {
     case "current":
     case "active":
     case "approved":
-      return "bg-success-soft text-foreground"
+      return "success"
     case "expiring":
-      return "bg-warning-soft text-foreground"
+      return "warning"
     case "expired":
     case "rejected":
     case "missing":
-      return "bg-destructive-soft text-foreground"
+      return "danger"
     default:
-      return "bg-muted text-muted-foreground"
+      return "neutral"
   }
 }
 
@@ -169,11 +170,11 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
         {/* Hero */}
         <div className="relative h-64 w-full bg-muted">
           <Image src={pet.image} alt={pet.name} fill className="object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
           <button
             onClick={() => photoInput.current?.click()}
             disabled={uploadingPhoto}
-            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-card backdrop-blur-sm transition-transform active:scale-95"
+            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-card transition-transform active:scale-95"
             aria-label="Change photo"
           >
             {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4 text-foreground" />}
@@ -182,12 +183,12 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
           <div className="absolute bottom-4 left-4 right-4">
             <h1 className="text-[30px] font-semibold leading-tight text-foreground">{pet.name}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-1 text-caption font-medium text-foreground backdrop-blur-sm">
+              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-1 text-caption font-medium text-foreground">
                 <SpeciesIcon className="h-3.5 w-3.5 text-primary" />
                 {pet.breed || (pet.species === "dog" ? "Dog" : "Cat")}
               </span>
               {pet.age && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-1 text-caption font-medium text-foreground backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-1 text-caption font-medium text-foreground">
                   <Calendar className="h-3.5 w-3.5 text-primary" />
                   {pet.age}
                 </span>
@@ -500,9 +501,9 @@ function EditForm({
       <Button
         variant="secondary"
         onClick={() => setRemoving(true)}
-        className="mt-4 border-destructive bg-destructive-soft"
+        className="mt-4"
       >
-        <Trash2 className="h-4 w-4" /> Remove pet
+        <Trash2 className="h-4 w-4 text-destructive" /> Remove pet
       </Button>
 
       {removing && (
@@ -594,7 +595,7 @@ function VaccinationsTab({ petId, species }: { petId: string; species: string | 
                   {v.expiresOn ? ` · Expires ${v.expiresOn}` : ""}
                 </p>
               </div>
-              <span className={`rounded-full px-2 py-0.5 text-caption font-semibold capitalize ${statusBadge(v.status)}`}>{v.status}</span>
+              <Badge variant={statusBadge(v.status)} className="capitalize">{v.status}</Badge>
               <DeleteBtn onClick={() => remove(v.id)} />
             </div>
           ))}
@@ -715,7 +716,7 @@ function DocumentsTab({ petId }: { petId: string }) {
                 </p>
                 <p className="text-caption text-muted-foreground">{doc.expiresOn ? `Expires ${doc.expiresOn}` : "No expiry"}</p>
               </div>
-              <span className={`rounded-full px-2 py-0.5 text-caption font-semibold capitalize ${statusBadge(doc.status)}`}>{doc.status}</span>
+              <Badge variant={statusBadge(doc.status)} className="capitalize">{doc.status}</Badge>
               {doc.storagePath && (
                 <button onClick={() => view(doc.storagePath)} className="p-1.5 text-primary" aria-label="View document">
                   <ExternalLink className="h-4 w-4" />
@@ -801,7 +802,7 @@ function ContactsTab({ petId }: { petId: string }) {
 function Shell({ children, onBack, action }: { children: React.ReactNode; onBack: () => void; action?: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-40 bg-card pt-safe backdrop-blur-xl">
+      <header className="sticky top-0 z-40 bg-card pt-safe">
         <div className="flex h-11 items-center justify-between px-4">
           <button onClick={onBack} className="flex items-center gap-1 text-foreground">
             <ArrowLeft className="h-5 w-5" />

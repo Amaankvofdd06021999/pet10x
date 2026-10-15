@@ -185,7 +185,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
       </p>
 
       {/* Before the form, not after it. */}
-      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-destructive bg-destructive-soft p-4">
+      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-border bg-destructive-soft p-4">
         <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
         <p className="text-meta leading-relaxed text-foreground">
           <span className="font-semibold">Happening right now?</span> Call 911. Pet10x is not an emergency

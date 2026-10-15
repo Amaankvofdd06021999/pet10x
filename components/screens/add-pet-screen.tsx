@@ -70,9 +70,9 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
               variant="secondary"
               size="lg"
               onClick={() => {
- setAddedName(null)
- setRound((n) => n + 1)
- }}
+                setAddedName(null)
+                setRound((n) => n + 1)
+              }}
               className="w-full"
             >
               Add another pet
@@ -195,7 +195,7 @@ function AddPetForm({
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Nav */}
-      <header className="sticky top-0 z-40 border-b border-border bg-card px-4 pt-safe backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border bg-card px-4 pt-safe">
         <div className="flex h-12 items-center justify-between">
           <button onClick={onBack} className="flex items-center gap-1 text-foreground" aria-label="Cancel">
             <ArrowLeft className="h-5 w-5" />
@@ -441,7 +441,7 @@ function AddPetForm({
                     on ? "border-primary bg-primary-soft" : "border-border bg-card"
                   }`}
                 >
-                  <span className={`block text-body font-semibold ${on ? "text-foreground" : "text-foreground"}`}>
+                  <span className={"block text-body font-semibold text-foreground"}>
                     {r.label}
                   </span>
                   <span className="block text-caption text-muted-foreground">{r.hint}</span>

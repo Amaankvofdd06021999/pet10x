@@ -219,7 +219,7 @@ export function OnboardingFlow() {
           <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary">
             <PawPrint className="h-8 w-8 text-primary-foreground" strokeWidth={2.5} />
           </div>
-          <h1 className="mt-6 text-heading font-semibold leading-tight text-foreground">Welcome, {firstName} 👋</h1>
+          <h1 className="mt-6 text-[26px] font-semibold leading-tight text-foreground">Welcome, {firstName} 👋</h1>
           {/* The strata question is gone. Most people arriving here were
               handed a code by their building and have no idea whether that
               counts as "managing pets, registration, rules or compliance" —

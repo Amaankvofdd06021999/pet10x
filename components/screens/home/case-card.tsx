@@ -73,7 +73,7 @@ export function CaseCard({ onNavigate }: { onNavigate?: (screen: string, id?: st
     <button
       type="button"
       onClick={() => onNavigate?.("my-cases", live.length === 1 ? headline.id : undefined)}
-      className="mb-4 flex w-full items-start gap-3 rounded-2xl border border-border bg-warning-soft p-4 text-left transition-colors active:bg-warning-soft"
+      className="mb-4 flex w-full items-start gap-3 rounded-2xl border border-border bg-warning-soft p-4 text-left transition-colors active:brightness-95"
     >
       <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-warning-soft">
         <Gavel className="h-5 w-5 text-foreground" aria-hidden="true" />
