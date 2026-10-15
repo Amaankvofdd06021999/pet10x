@@ -46,6 +46,7 @@ export function petDocumentReviewError(r: {
     case "already_reviewed":
       return `This document has already been ${r.status ?? "reviewed"}.`
     default:
-      return r.error ? `Couldn't record the decision (${r.error}).` : "Couldn't record the decision."
+      console.error("pet document review: unhandled RPC code", r.error)
+      return "Couldn't record the decision. Try again."
   }
 }

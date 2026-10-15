@@ -818,7 +818,8 @@ export async function remindAboutFine(id: string, note?: string): Promise<Remind
           error: `This case has outstanding fines in more than one currency (${(r.currencies ?? []).map((c) => c.toUpperCase()).join(" and ")}), and Pet10x holds no exchange rate. Settle or reissue them in one currency first.`,
         }
       default:
-        return { error: r.error ? `Couldn't send the reminder (${r.error}).` : "Couldn't send the reminder." }
+        console.error("remind about fine: unhandled RPC code", r.error)
+        return { error: "Couldn't send the reminder. Try again." }
     }
   }
   return {
@@ -915,14 +916,11 @@ export async function resolveDispute(
           error: `Your note is ${r.length ?? 0} characters; the limit is ${r.max ?? 2000}.`,
         }
       default:
-        // Never swallow a code this client has not been taught. A manager
-        // reading "Couldn't record the decision." with no trace of why has
-        // nothing to report and nothing to search for.
-        return {
-          error: r.error
-            ? `Couldn't record the decision (${r.error}).`
-            : "Couldn't record the decision.",
-        }
+        // Never swallow a code this client has not been taught: log it so
+        // there is something to search for, but keep the snake_case code off
+        // the screen.
+        console.error("resolve dispute: unhandled RPC code", r.error)
+        return { error: "Couldn't record the decision. Try again." }
     }
   }
 

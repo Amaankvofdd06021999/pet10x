@@ -87,7 +87,10 @@ export class GroqError extends Error {
 
 async function groqFetch(body: ChatRequest, signal?: AbortSignal): Promise<Response> {
   const apiKey = process.env.GROQ_API_KEY
-  if (!apiKey) throw new GroqError("The assistant isn't configured (GROQ_API_KEY is missing).", 503)
+  if (!apiKey) {
+    console.error("assistant unavailable: GROQ_API_KEY is missing")
+    throw new GroqError("The assistant isn't available right now.", 503)
+  }
 
   // Caller-supplied cancellation (client disconnect) races our own timeout.
   const timeout = AbortSignal.timeout(DEFAULT_TIMEOUT_MS)

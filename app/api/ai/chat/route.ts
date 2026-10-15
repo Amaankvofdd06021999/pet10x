@@ -66,7 +66,8 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   if (!isGroqConfigured()) {
-    return NextResponse.json({ error: "The assistant isn't configured yet (GROQ_API_KEY is missing)." }, { status: 503 })
+    console.error("assistant unavailable: GROQ_API_KEY is missing")
+    return NextResponse.json({ error: "The assistant isn't available right now." }, { status: 503 })
   }
 
   const body = (await request.json().catch(() => ({}))) as ChatBody

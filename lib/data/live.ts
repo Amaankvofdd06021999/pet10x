@@ -2800,9 +2800,8 @@ export async function fileDispute(
           error: `Your reason is ${r.length ?? 0} characters; the limit is ${r.max ?? 2000}.`,
         }
       default:
-        return {
-          error: r.error ? `Couldn't file the dispute (${r.error}).` : "Couldn't file the dispute.",
-        }
+        console.error("file dispute: unhandled RPC code", r.error)
+        return { error: "Couldn't file your appeal. Try again." }
     }
   }
 

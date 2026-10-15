@@ -18,8 +18,8 @@ describe("petDocumentReviewError", () => {
   })
 
   it("never swallows a code it was not taught", () => {
-    expect(petDocumentReviewError({ error: "brand_new" })).toBe("Couldn't record the decision (brand_new).")
-    expect(petDocumentReviewError({})).toBe("Couldn't record the decision.")
+    expect(petDocumentReviewError({ error: "brand_new" })).toBe("Couldn't record the decision. Try again.")
+    expect(petDocumentReviewError({})).toBe("Couldn't record the decision. Try again.")
   })
 })
 
