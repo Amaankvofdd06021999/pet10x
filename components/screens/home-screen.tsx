@@ -129,12 +129,25 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const loadingBasics = petsLoading || linkLoading
   const calm = loadingBasics || noPets
 
-  // Re-evaluate the rules once the owner's pets are known. The runner is
-  // idempotent by dedupe_key, so landing on Home repeatedly costs nothing.
+  // Suggestions are built nightly, not on every visit. The one exception is a
+  // resident who has never had a build (the server says `firstRun`): build once
+  // after paint so their first Home is not held up, then re-read the cards.
+  // `run()` stamps the profile, so the next visit's `firstRun` is false.
+  const { firstRun, run: runSuggestions } = suggestions
+  const firstBuildStarted = useRef(false)
   useEffect(() => {
-    if (pets.length > 0) void suggestions.run()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per pet-set change
-  }, [pets.length])
+    if (!firstRun || pets.length === 0 || firstBuildStarted.current) return
+    const start = () => {
+      firstBuildStarted.current = true
+      void runSuggestions()
+    }
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(start, { timeout: 3000 })
+      return () => window.cancelIdleCallback(handle)
+    }
+    const timer = window.setTimeout(start, 1500)
+    return () => window.clearTimeout(timer)
+  }, [firstRun, pets.length, runSuggestions])
 
   /**
    * Which pet card is centred in the carousel, for the dot indicator. Read

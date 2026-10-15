@@ -182,14 +182,18 @@ export async function uploadChatImages(petId: string, files: File[]): Promise<{ 
 export function useAiSuggestions() {
   const [data, setData] = useState<AiSuggestion[]>([])
   const [isLoading, setLoading] = useState(true)
+  /** True until the first build has stamped this profile; see the GET route. */
+  const [firstRun, setFirstRun] = useState(false)
 
   const refetch = useCallback(async () => {
     try {
       const res = await fetch("/api/ai/suggestions/run")
-      const json = (await res.json()) as { suggestions?: AiSuggestion[] }
+      const json = (await res.json()) as { suggestions?: AiSuggestion[]; firstRun?: boolean }
       setData(json.suggestions ?? [])
+      setFirstRun(json.firstRun === true)
     } catch {
       setData([])
+      setFirstRun(false)
     }
     setLoading(false)
   }, [])
@@ -208,5 +212,5 @@ export function useAiSuggestions() {
     await refetch()
   }, [refetch])
 
-  return { data, isLoading, refetch, dismiss, run }
+  return { data, isLoading, firstRun, refetch, dismiss, run }
 }

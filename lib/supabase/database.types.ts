@@ -2178,6 +2178,24 @@ export type Database = {
           },
         ]
       }
+      cron_cursors: {
+        Row: {
+          cursor: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          cursor?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          cursor?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       emergency_access_tokens: {
         Row: {
           building_id: string
@@ -4633,6 +4651,7 @@ export type Database = {
           street_address: string | null
           suspended_at: string | null
           suspended_by: string | null
+          suggestions_last_run_at: string | null
           timezone: string | null
           updated_at: string
         }
@@ -4665,6 +4684,7 @@ export type Database = {
           street_address?: string | null
           suspended_at?: string | null
           suspended_by?: string | null
+          suggestions_last_run_at?: string | null
           timezone?: string | null
           updated_at?: string
         }
@@ -4697,6 +4717,7 @@ export type Database = {
           street_address?: string | null
           suspended_at?: string | null
           suspended_by?: string | null
+          suggestions_last_run_at?: string | null
           timezone?: string | null
           updated_at?: string
         }

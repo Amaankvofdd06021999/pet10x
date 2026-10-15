@@ -2,6 +2,7 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database, Json } from "@/lib/supabase/database.types"
+import { getSupabaseAdmin } from "@/lib/supabase/admin"
 import { groqComplete } from "../provider"
 import { isGroqConfigured } from "../provider"
 import { SUGGESTION_SYSTEM_PROMPT } from "../prompts"
@@ -53,7 +54,7 @@ async function writeCopy(hit: RuleHit): Promise<string> {
   }
 }
 
-export async function runSuggestions(supabase: Client, ownerId: string): Promise<RunResult> {
+async function evaluateAndWrite(supabase: Client, ownerId: string): Promise<RunResult> {
   const { data: pets } = await supabase
     .from("pets")
     .select("id, name")
@@ -151,4 +152,26 @@ export async function runSuggestions(supabase: Client, ownerId: string): Promise
   }
 
   return { evaluated: hits.length, created: created.length, skipped: hits.length - created.length, notified }
+}
+
+/**
+ * Builds the owner's suggestions, then stamps `profiles.suggestions_last_run_at`
+ * so Home knows the first-visit build has happened — whatever the outcome,
+ * including zero hits, or every visit by an owner with nothing to say would
+ * rebuild again. The stamp goes through the admin client because the column is
+ * not one a resident may write; a failed stamp is logged, never thrown, since
+ * the suggestions themselves already landed.
+ */
+export async function runSuggestions(supabase: Client, ownerId: string): Promise<RunResult> {
+  const result = await evaluateAndWrite(supabase, ownerId)
+  try {
+    const { error } = await getSupabaseAdmin()
+      .from("profiles")
+      .update({ suggestions_last_run_at: new Date().toISOString() })
+      .eq("id", ownerId)
+    if (error) console.error("[ai] couldn't record the suggestions run time", error)
+  } catch (err) {
+    console.error("[ai] couldn't record the suggestions run time", err)
+  }
+  return result
 }
