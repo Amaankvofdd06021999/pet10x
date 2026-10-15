@@ -867,8 +867,9 @@ comment on function public.admin_building_activity() is
 --      setBookingStatus writes: status, responded_at, declined_reason (and
 --      updated_at, which trg_bookings_updated stamps first) — and every other
 --      column must equal OLD (42501). The status may only move
---      requested -> confirmed | declined, confirmed -> in_progress,
---      in_progress -> completed; declined_reason only on the move to
+--      requested -> confirmed | declined, confirmed -> in_progress |
+--      completed (a short job finished without "Start job" — part-d does
+--      this), in_progress -> completed; declined_reason only on the move to
 --      declined. Never to cancelled (the two cancel RPCs are the doors), never
 --      to paid (business_mark_booking_paid writes the payment with it), and
 --      never out of cancelled or declined.
@@ -993,6 +994,7 @@ begin
            ('requested',   'confirmed'),
            ('requested',   'declined'),
            ('confirmed',   'in_progress'),
+           ('confirmed',   'completed'),
            ('in_progress', 'completed')) then
     raise exception 'Only Pet10x can change that'
       using errcode = '42501',
@@ -1010,7 +1012,7 @@ end;
 $guard$;
 
 comment on function public.service_bookings_update_guard() is
-  'BEFORE UPDATE on service_bookings (20261015000005). For authenticated/anon callers only status, responded_at, declined_reason (and updated_at) may change — every other column must equal OLD — and status only requested->confirmed|declined, confirmed->in_progress, in_progress->completed; declined_reason only with declined. Else 42501. Cancelling and paying go through business_cancel_booking / customer_cancel_booking / business_mark_booking_paid. Service role and definer RPCs pass untouched.';
+  'BEFORE UPDATE on service_bookings (20261015000005). For authenticated/anon callers only status, responded_at, declined_reason (and updated_at) may change — every other column must equal OLD — and status only requested->confirmed|declined, confirmed->in_progress|completed, in_progress->completed; declined_reason only with declined. Else 42501. Cancelling and paying go through business_cancel_booking / customer_cancel_booking / business_mark_booking_paid. Service role and definer RPCs pass untouched.';
 
 revoke all on function public.service_bookings_update_guard() from public, anon, authenticated;
 
