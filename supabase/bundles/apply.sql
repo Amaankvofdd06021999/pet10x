@@ -1,6 +1,7 @@
 -- APPLY — generated 2026-10-14 from branch ux-required-fixes by bundles/build.sh. Run dry-run.sql first.
 -- One transaction: either every migration lands or none does.
 begin;
+set local lock_timeout = '5s';
 
 -- ===== migration 20261015000001_decision_reasons.sql =====
 -- Pet10x — a denied registration or a refused link says why, and the person
@@ -343,8 +344,9 @@ grant execute on function public.manager_decide_link(uuid, text, text) to authen
 --      between the count and the delete. Then, in order:
 --        not found                    {ok:false, error:'not_found'}
 --        name does not match          {ok:false, error:'name_mismatch'}
---          — exact after trimming both sides; case-sensitive; a blank name
---            never matches
+--          — exact after trimming both sides of all whitespace (regexp
+--            `\s`, so a pasted tab or newline does not break the match);
+--            case-sensitive; a blank name never matches
 --        patients + visits + invoices > 0, or open_bookings > 0
 --                                     {ok:false, error:'has_records', footprint}
 --        otherwise                    delete, audit_log business.deleted
@@ -503,7 +505,7 @@ set search_path = public, pg_temp
 as $$
 declare
   v_biz   record;
-  v_given text := btrim(coalesce(p_confirm_name, ''));
+  v_given text := regexp_replace(coalesce(p_confirm_name, ''), '^\s+|\s+$', '', 'g');
   v_fp    jsonb;
 begin
   if not public.is_admin() then
@@ -522,7 +524,7 @@ begin
 
   -- Typed name, exact after trimming both sides. Case counts: the point is
   -- that the admin looked at WHICH business this is.
-  if v_given = '' or v_given <> btrim(v_biz.name) then
+  if v_given = '' or v_given <> regexp_replace(coalesce(v_biz.name, ''), '^\s+|\s+$', '', 'g') then
     return jsonb_build_object('ok', false, 'error', 'name_mismatch');
   end if;
 
@@ -579,7 +581,9 @@ grant execute on function public.admin_delete_business(uuid, text) to authentica
 --      Only from 'needs_info' ({ok:false, error:'not_needs_info'} otherwise).
 --      The details are re-checked with the grammar lib/data/verification-form.ts
 --      uses (licence ^[A-Za-z0-9][A-Za-z0-9 ./-]{2,39}$; issuing body 2-80
---      characters; phone empty or ^[+0-9 ()-]{7,20}$), 22023 on anything else.
+--      characters; phone empty or ^[+0-9 ()-]{7,20}$; contact name empty or
+--      at most 80 characters, trimmed of all whitespace like the note, so a
+--      tab alone is no name), 22023 on anything else.
 --      Updates the details, status back to submitted, clears reviewed_by,
 --      reviewed_at and the note (the audit row keeps the admin's question).
 --      audit_log `business.verification_resubmitted`.
@@ -655,7 +659,7 @@ declare
   v_req     record;
   v_licence text := btrim(coalesce(p_licence_number, ''));
   v_body    text := btrim(coalesce(p_issuing_body, ''));
-  v_name    text := nullif(btrim(coalesce(p_contact_name, '')), '');
+  v_name    text := nullif(regexp_replace(coalesce(p_contact_name, ''), '^\s+|\s+$', '', 'g'), '');
   v_phone   text := nullif(btrim(coalesce(p_contact_phone, '')), '');
 begin
   select * into v_req from public.business_verifications where id = p_request for update;
@@ -676,6 +680,9 @@ begin
   end if;
   if length(v_body) not between 2 and 80 then
     raise exception 'The issuing body needs 2 to 80 characters' using errcode = '22023';
+  end if;
+  if length(v_name) > 80 then
+    raise exception 'The contact name is too long (80 characters at most)' using errcode = '22023';
   end if;
   if v_phone is not null and v_phone !~ '^[+0-9 ()-]{7,20}$' then
     raise exception 'The phone number needs 7 to 20 digits, spaces, brackets, dashes or a leading +'
@@ -770,6 +777,9 @@ comment on function public.admin_building_activity() is
 --     up.
 --   * A pet owner could book a vet visit and approve an estimate, but not
 --     cancel the visit or say no to the estimate — both meant phoning.
+--   * bookings_owner_update (20260722000000) lets the business owner update
+--     ANY column of their booking — status to cancelled with no reason (so the
+--     customer is never told), amount_cents, customer_id, payment_id.
 --   * Appointments told nobody anything (VC-3): only trg_appts_updated sits on
 --     the table. A request waited unseen until someone opened Today, and the
 --     owner never heard it was confirmed, declined, cancelled or missed.
@@ -812,7 +822,8 @@ comment on function public.admin_building_activity() is
 --
 --   7. owner_cancel_appointment(p_appointment, p_reason default null) -> jsonb.
 --      Only the pet's owner (appointments -> clinic_patients -> pets.owner_id,
---      the owner_approve_estimate path), else 42501. Only from requested or
+--      the owner_approve_estimate path), and not while suspended (as
+--      business_cancel_booking), else 42501. Only from requested or
 --      booked ({ok:false, error:'not_cancellable'}), and only while the start
 --      is more than 2 hours away ({ok:false, error:'too_late'}) — inside that
 --      the slot cannot be re-used and the owner should phone. Stamps
@@ -830,14 +841,34 @@ comment on function public.admin_building_activity() is
 --      estimate is final; the practice writes a new one.
 --
 --   9. Appointment notifications (VC-3):
---      * AFTER INSERT, status requested: the business owner and active
---        owner/manager/reception staff hear of it, target clinic:today.
+--      * AFTER INSERT, status requested, or booked through owner_book_
+--        appointment (source online — a type that needs no confirmation
+--        lands booked; the front desk's own bookings are not news to the
+--        front desk): the business owner and active
+--        owner/manager/reception staff hear of it, target clinic:today —
+--        "Appointment request" for a request, "New appointment booked
+--        online" for a booking.
 --      * AFTER UPDATE OF status to booked, cancelled or no_show, made by
 --        someone other than the pet's owner: the owner hears, target
 --        my-vets:visits. requested -> cancelled reads as a declined request;
 --        no_show -> booked as a rebooking. cancel_reason is quoted only when
 --        that same change wrote it.
 --      Suspended recipients are skipped throughout.
+--
+--  10. service_bookings_update_guard (written beside the insert guard, in
+--      section 2) — BEFORE UPDATE, security invoker, the
+--      insert guard's `current_user in ('authenticated', 'anon')` test, so
+--      definer RPCs (business_cancel_booking, customer_cancel_booking,
+--      business_mark_booking_paid) and the connection role pass untouched.
+--      For a client role it states what MAY change — the columns
+--      setBookingStatus writes: status, responded_at, declined_reason (and
+--      updated_at, which trg_bookings_updated stamps first) — and every other
+--      column must equal OLD (42501). The status may only move
+--      requested -> confirmed | declined, confirmed -> in_progress,
+--      in_progress -> completed; declined_reason only on the move to
+--      declined. Never to cancelled (the two cancel RPCs are the doors), never
+--      to paid (business_mark_booking_paid writes the payment with it), and
+--      never out of cancelled or declined.
 --
 -- Whitespace: every required reason is trimmed of all whitespace (tabs and
 -- newlines too, regexp `\s`), not just spaces — btrim() alone leaves a tab,
@@ -930,6 +961,62 @@ comment on function public.service_bookings_insert_guard() is
   'BEFORE INSERT on service_bookings (20261012000008; cancelled_* added 20261015000005). For authenticated/anon callers, rewrites status to requested, clears responded_at / payment_id / declined_reason / cancelled_reason / cancelled_by, and sets amount_cents, currency and commission_cents (15%) from the booked, active business_services row of the same business (0 with no service). Refuses a service that is not that business''s or not active (22023). Service role and definer RPCs pass untouched.';
 
 revoke all on function public.service_bookings_insert_guard() from public, anon, authenticated;
+
+-- What a client may change on an existing booking. Positive grammar: the
+-- allowed columns are named, and the rest of the row must come through
+-- untouched — compared as jsonb with the allowed keys removed, so a column
+-- added later is protected without editing this.
+create or replace function public.service_bookings_update_guard()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $guard$
+begin
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+
+  if (to_jsonb(new) - array['status', 'responded_at', 'declined_reason', 'updated_at'])
+     is distinct from
+     (to_jsonb(old) - array['status', 'responded_at', 'declined_reason', 'updated_at']) then
+    raise exception 'Only Pet10x can change that'
+      using errcode = '42501',
+            hint    = 'A booking''s status, response time and decline reason are the only client-editable fields.';
+  end if;
+
+  if new.status is distinct from old.status
+     and (old.status::text, new.status::text) not in (
+           ('requested',   'confirmed'),
+           ('requested',   'declined'),
+           ('confirmed',   'in_progress'),
+           ('in_progress', 'completed')) then
+    raise exception 'Only Pet10x can change that'
+      using errcode = '42501',
+            hint    = 'Cancel with business_cancel_booking; mark paid with business_mark_booking_paid.';
+  end if;
+
+  if new.declined_reason is distinct from old.declined_reason and new.status is distinct from 'declined' then
+    raise exception 'Only Pet10x can change that'
+      using errcode = '42501',
+            hint    = 'A decline reason is written with the decline.';
+  end if;
+
+  return new;
+end;
+$guard$;
+
+comment on function public.service_bookings_update_guard() is
+  'BEFORE UPDATE on service_bookings (20261015000005). For authenticated/anon callers only status, responded_at, declined_reason (and updated_at) may change — every other column must equal OLD — and status only requested->confirmed|declined, confirmed->in_progress, in_progress->completed; declined_reason only with declined. Else 42501. Cancelling and paying go through business_cancel_booking / customer_cancel_booking / business_mark_booking_paid. Service role and definer RPCs pass untouched.';
+
+revoke all on function public.service_bookings_update_guard() from public, anon, authenticated;
+
+-- Named after trg_bookings_updated, so (BEFORE triggers fire by name) it sees
+-- updated_at already stamped — which is why updated_at is on the allowed list.
+drop trigger if exists trg_service_bookings_update_guard on public.service_bookings;
+create trigger trg_service_bookings_update_guard
+  before update on public.service_bookings
+  for each row execute function public.service_bookings_update_guard();
 
 -- ---------------------------------------------------------------------------
 -- 3. A business cancels a booking, with a reason
@@ -1195,6 +1282,10 @@ begin
   if not found or v_appt.owner_id is distinct from v_me then
     raise exception 'That visit isn''t yours to cancel' using errcode = '42501';
   end if;
+  -- A suspended account acts on nothing, as in business_cancel_booking.
+  if exists (select 1 from public.profiles where id = v_me and is_suspended) then
+    raise exception 'Your account is suspended' using errcode = '42501';
+  end if;
 
   if length(v_reason) > 2000 then
     raise exception 'The reason is too long (2000 characters at most)' using errcode = '22023';
@@ -1239,7 +1330,7 @@ end;
 $$;
 
 comment on function public.owner_cancel_appointment(uuid, text) is
-  'The pet''s owner cancels a requested or booked appointment more than 2 hours before it starts (20261015000005). Optional reason (trimmed, <= 2000; 22023) stored as cancel_reason. 42501 for anyone else; {ok:false, error: not_cancellable | too_late}. Notifies the business owner and active owner/manager staff (kind clinic, target clinic:today).';
+  'The pet''s owner (unsuspended) cancels a requested or booked appointment more than 2 hours before it starts (20261015000005). Optional reason (trimmed, <= 2000; 22023) stored as cancel_reason. 42501 for anyone else; {ok:false, error: not_cancellable | too_late}. Notifies the business owner and active owner/manager staff (kind clinic, target clinic:today).';
 
 revoke all on function public.owner_cancel_appointment(uuid, text) from public, anon;
 grant execute on function public.owner_cancel_appointment(uuid, text) to authenticated;
@@ -1348,7 +1439,7 @@ revoke all on function public.owner_decline_estimate(uuid, text) from public, an
 grant execute on function public.owner_decline_estimate(uuid, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
--- 9a. A visit request reaches the practice (VC-3)
+-- 9a. A visit request, or an online booking, reaches the practice (VC-3)
 -- ---------------------------------------------------------------------------
 create or replace function public.notify_clinic_of_appointment_request()
 returns trigger
@@ -1360,7 +1451,9 @@ declare
   v_pet  text;
   v_who  text;
 begin
-  if new.status is distinct from 'requested' then return null; end if;
+  if not (new.status = 'requested' or (new.status = 'booked' and new.source = 'online')) then
+    return null;
+  end if;
 
   select cp.name into v_pet from public.clinic_patients cp where cp.id = new.patient_id;
   select nullif(split_part(trim(coalesce(full_name, '')), ' ', 1), '') into v_who
@@ -1371,12 +1464,14 @@ begin
   -- their calendar. Not the person who made the request, should they be staff.
   insert into public.notifications (profile_id, kind, severity, title, body, action_label, action_target)
   select r.profile_id, 'clinic', 'info',
-         'Appointment request' || coalesce(' — ' || v_pet, ''),
-         coalesce(v_who, 'An owner') || ' asked for '
+         case when new.status = 'booked' then 'New appointment booked online' else 'Appointment request' end
+           || coalesce(' — ' || v_pet, ''),
+         coalesce(v_who, 'An owner')
+           || case when new.status = 'booked' then ' booked ' else ' asked for ' end
            || coalesce(nullif(trim(coalesce(new.reason, '')), ''), 'an appointment')
            || coalesce(' for ' || v_pet, '')
            || coalesce(' on ' || public.booking_when(new.starts_at, r.profile_id), '')
-           || '. Confirm or decline it on Today.',
+           || case when new.status = 'booked' then '. It is on Today.' else '. Confirm or decline it on Today.' end,
          'Open today',
          'clinic:today'
     from (
@@ -1398,7 +1493,7 @@ drop trigger if exists trg_appts_notify_request on public.appointments;
 create trigger trg_appts_notify_request
   after insert on public.appointments
   for each row
-  when (new.status = 'requested')
+  when (new.status = 'requested' or (new.status = 'booked' and new.source = 'online'))
   execute function public.notify_clinic_of_appointment_request();
 
 -- ---------------------------------------------------------------------------
@@ -1500,7 +1595,8 @@ create trigger trg_appts_notify_status
 --
 -- WHAT THIS DOES
 --
---   1. seed_business_defaults(p_business) -> void. Internal only: SECURITY
+--   1. seed_business_defaults(p_business, p_bookable default true) -> void.
+--      Internal only: SECURITY
 --      DEFINER, search_path public, pg_temp, execute revoked from public,
 --      anon and authenticated (only business_bootstrap and this migration's
 --      backfill call it). Two independent seeds, each only when the business
@@ -1515,7 +1611,10 @@ create trigger trg_appts_notify_status
 --          any other  — Appointment 30 min; not online-bookable.
 --        Only a clinic takes online visit requests through these types, so
 --        only veterinary ones are bookable out of the box; everyone else can
---        switch it on. price_cents is 0, the column's NOT NULL default: 0
+--        switch it on. p_bookable false turns even those off
+--        (is_online_bookable = d.bookable and p_bookable): the backfill uses
+--        it, so an existing clinic does not start taking online requests on
+--        the day this migration lands without having chosen to. price_cents is 0, the column's NOT NULL default: 0
 --        means "no price set", not "free". sort_order 0, 1, 2.
 --
 --      * staff_availability, when the business has zero rows: Monday to
@@ -1528,16 +1627,19 @@ create trigger trg_appts_notify_status
 --
 --   2. business_bootstrap — LIVE definition (as 20260901000000) verbatim,
 --      plus a call to seed_business_defaults(new.id) after the staff row
---      exists. The trigger is unchanged and is not recreated.
+--      exists, with the default p_bookable true: a NEW clinic is online-
+--      bookable on day one. The trigger is unchanged and is not recreated.
 --
---   3. Backfill: every existing business through the same helper. Its own
---      zero-row checks make this touch only the businesses that are missing
---      types or hours; the rest are left exactly as they are.
+--   3. Backfill: only the existing businesses with zero appointment types,
+--      through the same helper with p_bookable false — types that are not
+--      online-bookable, and hours only when the business also has none. A
+--      business that already has types is not touched at all, so whatever it
+--      chose about hours (including none) stands.
 
 -- ---------------------------------------------------------------------------
 -- 1. The defaults
 -- ---------------------------------------------------------------------------
-create or replace function public.seed_business_defaults(p_business uuid)
+create or replace function public.seed_business_defaults(p_business uuid, p_bookable boolean default true)
 returns void
 language plpgsql
 security definer
@@ -1556,7 +1658,7 @@ begin
   if not exists (select 1 from public.appointment_types t where t.business_id = p_business) then
     insert into public.appointment_types
       (business_id, name, duration_min, price_cents, is_online_bookable, requires_confirmation, sort_order)
-    select p_business, d.name, d.duration_min, 0, d.bookable, true, d.sort_order
+    select p_business, d.name, d.duration_min, 0, d.bookable and coalesce(p_bookable, true), true, d.sort_order
       from (values
               ('veterinary', 'Wellness exam', 30, true,  0),
               ('veterinary', 'Vaccination',   15, true,  1),
@@ -1578,10 +1680,10 @@ begin
 end;
 $$;
 
-revoke all on function public.seed_business_defaults(uuid) from public, anon, authenticated;
+revoke all on function public.seed_business_defaults(uuid, boolean) from public, anon, authenticated;
 
-comment on function public.seed_business_defaults(uuid) is
-  'Internal (20261015000006); called by business_bootstrap and the backfill, not by clients. When the business has no appointment_types: veterinary gets Wellness exam 30, Vaccination 15, Sick visit 30 (online-bookable); grooming Bath & brush 60, Full groom 90; any other kind Appointment 30 (not online-bookable); price_cents 0 means no price set. When it has no staff_availability: Mon-Fri (dow 1..5) 09:00-17:00 for the owner''s business_staff row, every location. Idempotent.';
+comment on function public.seed_business_defaults(uuid, boolean) is
+  'Internal (20261015000006); called by business_bootstrap (p_bookable true) and the backfill (false), not by clients. When the business has no appointment_types: veterinary gets Wellness exam 30, Vaccination 15, Sick visit 30 (online-bookable unless p_bookable is false); grooming Bath & brush 60, Full groom 90; any other kind Appointment 30 (not online-bookable); price_cents 0 means no price set. When it has no staff_availability: Mon-Fri (dow 1..5) 09:00-17:00 for the owner''s business_staff row, every location. Idempotent.';
 
 -- ---------------------------------------------------------------------------
 -- 2. business_bootstrap seeds them for every new business
@@ -1611,7 +1713,11 @@ comment on function public.business_bootstrap() is
 -- ---------------------------------------------------------------------------
 -- 3. Backfill the businesses that already exist
 -- ---------------------------------------------------------------------------
-select public.seed_business_defaults(b.id) from public.businesses b;
+-- Only businesses with no types at all, and never online-bookable: an
+-- existing clinic switches online requests on itself, when it is ready.
+select public.seed_business_defaults(b.id, false)
+  from public.businesses b
+ where not exists (select 1 from public.appointment_types t where t.business_id = b.id);
 
 
 -- Record them, so the Supabase CLI / MCP know they are applied.
