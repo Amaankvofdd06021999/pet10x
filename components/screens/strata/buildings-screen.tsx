@@ -5,7 +5,8 @@ import { useBuildingPets } from "@/lib/data"
 import { useWorkQueue } from "@/lib/data/work-queue"
 import { useStrata } from "./portal-context"
 import { BuildingDetail } from "./building-detail"
-import { Spinner, LoadError, buildingState, STATE_LABEL, STATE_TEXT, STATE_DOT } from "./strata-ui"
+import { Spinner, LoadError, buildingState, STATE_LABEL, STATE_BADGE, STATE_DOT } from "./strata-ui"
+import { Badge } from "@/components/ui/badge"
 import { Building2, ChevronRight, Inbox } from "lucide-react"
 
 export function BuildingsScreen() {
@@ -57,7 +58,7 @@ export function BuildingsScreen() {
             onClick={() => setOpenId(b.id)}
             className="flex items-center gap-3 rounded-2xl card-interactive p-4 text-left transition-colors hover:shadow-float"
           >
-            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-info/10">
+            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-info-soft">
               <Building2 className="h-5 w-5 text-info" />
             </span>
             <div className="min-w-0 flex-1">
@@ -71,11 +72,11 @@ export function BuildingsScreen() {
               </p>
               <div className="mt-1.5 flex items-center gap-3 text-[12px]">
                 <span className="font-semibold text-foreground">{b.compliance}%</span>
-                <span className={`font-medium ${STATE_TEXT[state]}`}>{STATE_LABEL[state]}</span>
+                <Badge variant={STATE_BADGE[state]}>{STATE_LABEL[state]}</Badge>
                 <span className="text-muted-foreground">{b.pets} pets</span>
                 {b.queueCount > 0 && (
-                  <span className="flex items-center gap-1 text-info">
-                    <Inbox className="h-3.5 w-3.5" /> {b.queueCount}
+                  <span className="flex items-center gap-1 text-foreground">
+                    <Inbox className="h-3.5 w-3.5 text-info" /> {b.queueCount}
                   </span>
                 )}
               </div>

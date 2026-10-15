@@ -50,6 +50,10 @@ import {
   type BusinessFootprint,
 } from "@/lib/data/business-delete"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { ErrorText } from "@/components/ui/error-text"
+import { LoadError } from "@/components/ui/load-error"
 import { MunicipalitiesTab } from "@/components/admin/municipalities-tab"
 import { ActivityTab } from "@/components/admin/activity-tab"
 import { parseAdminTab, type AdminTabId } from "@/lib/admin-tab"
@@ -109,9 +113,9 @@ function Gate() {
         <Lock className="h-10 w-10 text-muted-foreground" />
         <p className="text-[16px] font-semibold text-foreground">Not authorized</p>
         <p className="max-w-xs text-[13px] text-muted-foreground">This account doesn&apos;t have super-admin access.</p>
-        <button onClick={() => signOut()} className="mt-2 rounded-lg bg-muted px-4 py-2 text-[14px] font-semibold text-foreground">
+        <Button variant="secondary" onClick={() => signOut()} className="mt-2">
           Sign out
-        </button>
+        </Button>
       </div>
     )
   }
@@ -138,16 +142,16 @@ function AdminLogin() {
   }
 
   return (
-    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10 [background-image:radial-gradient(55rem_38rem_at_50%_-10%,var(--color-primary)/10%,transparent)]">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10">
       <div className="w-full max-w-sm sm:max-w-md">
         <div className="mb-6 flex flex-col items-center text-center sm:mb-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20 sm:h-16 sm:w-16">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-card sm:h-16 sm:w-16">
             <ShieldCheck className="h-7 w-7 text-primary-foreground sm:h-8 sm:w-8" />
           </div>
           <h1 className="mt-4 text-[22px] font-semibold text-foreground sm:text-[26px]">Pet10x Admin</h1>
           <p className="mt-1 text-[13px] text-muted-foreground sm:text-[14px]">Super-admin access only</p>
         </div>
-        <div className="rounded-2xl card-raised p-5 shadow-xl shadow-foreground/5 sm:p-7">
+        <div className="rounded-2xl card-raised p-5 shadow-float sm:p-7">
         {/* A real form: Enter submits from either field and password managers
             recognise the pair. Labels are sr-only; the placeholders show. */}
         <form
@@ -176,18 +180,11 @@ function AdminLogin() {
           </label>
           <PasswordField id="admin-password" value={password} onChange={setPassword} autoComplete="current-password" />
           {error && (
-            <p role="alert" className="text-[13px] text-destructive">
-              {error}
-            </p>
+            <ErrorText className="text-meta">{error}</ErrorText>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+          <Button type="submit" size="lg" loading={loading} className="mt-1 w-full">
             Sign in
-          </button>
+          </Button>
         </form>
         </div>
       </div>
@@ -226,7 +223,7 @@ function Portal() {
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/90 px-5 py-3 backdrop-blur">
+      <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/80 px-5 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
           <span className="text-[15px] font-semibold">Pet10x Admin</span>
@@ -236,9 +233,9 @@ function Portal() {
           {/* The console is its own shell, so without this an admin who is
               also a resident has no route back to their own pets. */}
           <PersonaSwitcher compact />
-          <button onClick={() => signOut()} className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold">
-            <LogOut className="h-3.5 w-3.5" /> Sign out
-          </button>
+          <Button variant="secondary" size="sm" onClick={() => signOut()}>
+            <LogOut className="text-destructive" /> Sign out
+          </Button>
         </div>
       </header>
 
@@ -318,12 +315,9 @@ function Buildings() {
 
   return (
     <div>
-      <button
-        onClick={() => setCreating((v) => !v)}
-        className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-[14px] font-semibold text-foreground"
-      >
-        <Plus className="h-4 w-4" /> {creating ? "Close" : "Create building"}
-      </button>
+      <Button variant="secondary" onClick={() => setCreating((v) => !v)} className="mb-4 w-full border-dashed">
+        <Plus /> {creating ? "Close" : "Create building"}
+      </Button>
 
       {creating && (
         <div className="mb-5 flex flex-col gap-2.5 rounded-xl card-raised p-4">
@@ -342,13 +336,9 @@ function Buildings() {
           {RULE_TOGGLES.map((r) => (
             <Toggle key={r.key} label={r.label} on={!!rules[r.key]} onToggle={() => setRules((p) => ({ ...p, [r.key]: !p[r.key] }))} />
           ))}
-          <button
-            onClick={create}
-            disabled={saving}
-            className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
-          >
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Create building
-          </button>
+          <Button onClick={create} loading={saving} className="mt-2">
+            Create building
+          </Button>
         </div>
       )}
 
@@ -483,16 +473,14 @@ function BuildingCard({
   return (
     <div className="rounded-xl card-raised">
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-3 p-3.5 text-left">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/15">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft">
           <Building2 className="h-5 w-5 text-primary" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 truncate text-[15px] font-semibold">
             <span className="truncate">{building.name}</span>
             {building.archivedAt && (
-              <span className="flex-shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground">
-                Archived
-              </span>
+              <Badge className="flex-shrink-0">Archived</Badge>
             )}
           </p>
           <p className="text-[12px] text-muted-foreground">
@@ -507,9 +495,9 @@ function BuildingCard({
         <div className="border-t border-border p-3.5">
           <div className="mb-2 flex items-center justify-between">
             <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Building details</p>
-            <button onClick={() => setEditing((v) => !v)} className="text-[12px] font-semibold text-primary-text">
+            <Button variant="quiet" size="sm" onClick={() => setEditing((v) => !v)}>
               {editing ? "Cancel" : "Edit"}
-            </button>
+            </Button>
           </div>
           {editing ? (
             <div className="flex flex-col gap-2">
@@ -542,13 +530,9 @@ function BuildingCard({
                   ))}
                 </select>
               </label>
-              <button
-                onClick={saveDetails}
-                disabled={busy}
-                className="mt-1 rounded-xl bg-primary-strong py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
-              >
+              <Button size="sm" onClick={saveDetails} disabled={busy} className="mt-1">
                 Save details
-              </button>
+              </Button>
             </div>
           ) : (
             <p className="text-[13px] text-muted-foreground">
@@ -564,9 +548,9 @@ function BuildingCard({
             <AdminInput placeholder="Manager name (optional)" value={name} onChange={setName} />
             <div className="flex gap-2">
               <AdminInput placeholder="manager@email.com" value={email} onChange={setEmail} />
-              <button onClick={invite} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-60">
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Invite
-              </button>
+              <Button onClick={invite} loading={busy}>
+                {!busy && <Mail />} Invite
+              </Button>
             </div>
           </div>
           <p className="mb-2 mt-4 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Pet rules</p>
@@ -574,44 +558,42 @@ function BuildingCard({
             {RULE_TOGGLES.map((r) => (
               <Toggle key={r.key} label={r.label} on={!!rules[r.key]} onToggle={() => setRules((p) => ({ ...p, [r.key]: !p[r.key] }))} />
             ))}
-            <button onClick={saveRules} disabled={busy} className="mt-1 rounded-xl bg-muted py-2 text-[13px] font-semibold disabled:opacity-60">
+            <Button variant="secondary" size="sm" onClick={saveRules} disabled={busy} className="mt-1">
               Save rules
-            </button>
+            </Button>
           </div>
 
           {/* Archive is the answer for any building with history; Delete exists
               only for one nobody has used — a used one would be refused by
               its foreign keys, and those rows are other people's records. */}
           {summary && <p className="mt-4 text-[12.5px] text-muted-foreground">{summary}</p>}
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setAsking(building.archivedAt ? "restore" : "archive")}
             disabled={busy}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-muted py-2 text-[13px] font-semibold text-foreground disabled:opacity-60"
+            className="mt-2 w-full"
           >
             {building.archivedAt ? (
               <>
-                <ArchiveRestore className="h-3.5 w-3.5" /> Restore building
+                <ArchiveRestore /> Restore building
               </>
             ) : (
               <>
-                <Archive className="h-3.5 w-3.5" /> Archive building
+                <Archive className="text-destructive" /> Archive building
               </>
             )}
-          </button>
+          </Button>
           {(building.historyFailed || building.activityFailed) && (
-            <p role="alert" className="mt-2 text-[12.5px] text-destructive">
+            <ErrorText className="mt-2 text-meta">
               Couldn&apos;t load this building&apos;s history
               {building.historyFailed ? ", so Delete isn't offered" : ", so residents and cases are left out"}. Reload to try again.
-            </p>
+            </ErrorText>
           )}
           {!building.hasHistory && (
-            <button
-              onClick={() => setAsking("delete")}
-              disabled={busy}
-              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-destructive/10 py-2 text-[13px] font-semibold text-destructive disabled:opacity-60"
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Delete building
-            </button>
+            <Button variant="secondary" size="sm" onClick={() => setAsking("delete")} disabled={busy} className="mt-2 w-full">
+              <Trash2 className="text-destructive" /> Delete building
+            </Button>
           )}
         </div>
       )}
@@ -722,15 +704,16 @@ function Managers() {
           ))}
         </select>
         {(city || region) && (
-          <button
+          <Button
+            variant="quiet"
+            size="sm"
             onClick={() => {
               setCity("")
               setRegion("")
             }}
-            className="text-[12px] font-semibold text-primary-text"
           >
             Clear
-          </button>
+          </Button>
         )}
       </div>
 
@@ -750,7 +733,7 @@ function Managers() {
             <div key={m.linkId} className="flex items-center gap-3 rounded-xl card-raised p-3.5">
               <div
                 className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${
-                  m.isSuspended ? "bg-destructive/15" : "bg-primary/15"
+                  m.isSuspended ? "bg-destructive-soft" : "bg-primary-soft"
                 }`}
               >
                 <Users className={`h-5 w-5 ${m.isSuspended ? "text-destructive" : "text-primary"}`} />
@@ -759,14 +742,10 @@ function Managers() {
                 <div className="flex items-center gap-2">
                   <p className="truncate text-[15px] font-semibold">{m.name}</p>
                   {m.isPrimary && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Primary
-                    </span>
+                    <Badge>Primary</Badge>
                   )}
                   {m.isSuspended && (
-                    <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
-                      Suspended
-                    </span>
+                    <Badge variant="danger">Suspended</Badge>
                   )}
                 </div>
                 <p className="truncate text-[12px] text-muted-foreground">{m.email}</p>
@@ -777,34 +756,29 @@ function Managers() {
                 </p>
               </div>
               <div className="flex flex-shrink-0 items-center gap-1.5">
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => {
                     if (m.isSuspended) {
                       void setSuspended(m).then((r) => r.error && toast.error("Action failed", { description: r.error }))
                     } else setSuspending(m)
                   }}
-                  disabled={busy === m.linkId}
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-60 ${
-                    m.isSuspended ? "bg-muted text-foreground" : "bg-destructive/15 text-destructive"
-                  }`}
+                  loading={busy === m.linkId}
                 >
-                  {busy === m.linkId ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : m.isSuspended ? (
-                    <RotateCcw className="h-3.5 w-3.5" />
-                  ) : (
-                    <Ban className="h-3.5 w-3.5" />
-                  )}
+                  {busy !== m.linkId && (m.isSuspended ? <RotateCcw /> : <Ban className="text-destructive" />)}
                   {m.isSuspended ? "Unsuspend" : "Suspend"}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="quiet"
+                  size="icon-sm"
                   onClick={() => setRevoking(m)}
                   disabled={busy === m.linkId}
                   title="Remove from this building"
-                  className="flex items-center rounded-lg bg-muted p-1.5 text-muted-foreground disabled:opacity-60"
+                  aria-label="Remove from this building"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                  <Trash2 className="text-destructive" />
+                </Button>
               </div>
             </div>
           ))}
@@ -1039,9 +1013,9 @@ function DeleteFootprint({
     return (
       <span className="flex flex-col items-start gap-1.5">
         <span>{footprint.message}</span>
-        <button type="button" onClick={onRetry} className="font-semibold text-primary-text underline">
+        <Button variant="secondary" size="sm" onClick={onRetry}>
           Try again
-        </button>
+        </Button>
       </span>
     )
   }
@@ -1054,7 +1028,13 @@ function DeleteFootprint({
           <span key={line}>· {line}</span>
         ))}
       </span>
-      {!canDeleteBusiness(fp) && <span className="font-semibold text-destructive">{hasRecordsMessage(tier)}</span>}
+      {/* A span, not ErrorText: this sits inside the dialog's description <p>. */}
+      {!canDeleteBusiness(fp) && (
+        <span role="alert" className="flex items-start gap-1.5 font-semibold text-foreground">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-destructive" aria-hidden="true" />
+          {hasRecordsMessage(tier)}
+        </span>
+      )}
     </span>
   )
 }
@@ -1092,8 +1072,8 @@ function BusinessCard({
   return (
     <div className="rounded-xl card-raised p-3.5">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent/15">
-          <Store className="h-5 w-5 text-accent" />
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft">
+          <Store className="h-5 w-5 text-primary" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 truncate text-[15px] font-semibold">
@@ -1121,32 +1101,27 @@ function BusinessCard({
             ))}
           </select>
           {staged !== b.tier && (
-            <button
+            <Button
+              size="sm"
               onClick={async () => {
                 if (isTierDowngrade(b.tier, staged)) return setDowngrading(true)
                 const { error: err } = await onTier(staged)
                 if (err) toast.error("Couldn't change the tier", { description: err })
               }}
               disabled={busy}
-              className="rounded-lg bg-primary-strong px-2.5 py-1.5 text-[12px] font-semibold text-primary-foreground disabled:opacity-60"
             >
               Apply
-            </button>
+            </Button>
           )}
-          <button
-            onClick={onRemove}
-            disabled={busy}
-            aria-label={`Delete ${b.name}…`}
-            className="flex items-center gap-1 rounded-lg bg-muted px-2 py-1.5 text-[12px] font-semibold text-muted-foreground disabled:opacity-60"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Delete…
-          </button>
+          <Button variant="secondary" size="sm" onClick={onRemove} disabled={busy} aria-label={`Delete ${b.name}…`}>
+            <Trash2 className="text-destructive" /> Delete…
+          </Button>
         </div>
       </div>
       <p className="mt-2 text-[12px] text-muted-foreground">{tierDescription(b.tier)}</p>
 
       {b.openRequest && (
-        <div className="mt-2.5 rounded-lg bg-warning/10 p-2.5">
+        <div className="mt-2.5 rounded-lg bg-warning-soft p-2.5">
           <p className="text-[12.5px] font-semibold text-foreground">
             Verification requested{" "}
             {new Date(b.openRequest.createdAt).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}
@@ -1176,7 +1151,9 @@ function BusinessCard({
                 className="w-full rounded-lg border border-border bg-background px-2.5 py-2 text-[13px] text-foreground focus:border-primary focus:outline-none"
               />
               <div className="flex gap-1.5">
-                <button
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={async () => {
                     const { error: err } = await onReview(false, note)
                     if (err) return toast.error("Couldn't record the decision", { description: err })
@@ -1184,45 +1161,32 @@ function BusinessCard({
                     setNote("")
                   }}
                   disabled={busy || !note.trim()}
-                  className="rounded-lg bg-destructive px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-60"
                 >
                   Reject request
-                </button>
-                <button
-                  onClick={() => setRejecting(false)}
-                  disabled={busy}
-                  className="rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground"
-                >
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setRejecting(false)} disabled={busy}>
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <button
+              <Button
+                size="sm"
                 onClick={() => setApproving(true)}
                 disabled={busy || !hasLicence}
                 aria-describedby={hasLicence ? undefined : `need-licence-${b.id}`}
-                className="flex items-center gap-1.5 rounded-lg bg-success/15 px-3 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-60"
               >
-                <BadgeCheck className="h-3.5 w-3.5" /> Approve — verify
-              </button>
+                <BadgeCheck /> Approve — verify
+              </Button>
               {b.openRequest.status !== "needs_info" && (
-              <button
-                onClick={() => setAsking(true)}
-                disabled={busy}
-                className="rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
-              >
-                Ask for info
-              </button>
+                <Button variant="secondary" size="sm" onClick={() => setAsking(true)} disabled={busy}>
+                  Ask for info
+                </Button>
               )}
-              <button
-                onClick={() => setRejecting(true)}
-                disabled={busy}
-                className="rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
-              >
+              <Button variant="secondary" size="sm" onClick={() => setRejecting(true)} disabled={busy}>
                 Reject
-              </button>
+              </Button>
             </div>
           )}
           {!rejecting && !hasLicence && (
@@ -1327,30 +1291,20 @@ function MunicipalReports() {
               {r.municipality ? ` · ${r.municipality}` : " · No city matched"}
               {r.reference ? ` · ${r.reference}` : ""}
             </span>
-            <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold capitalize text-muted-foreground">
-              {r.status}
-            </span>
+            <Badge className="ml-auto capitalize">{r.status}</Badge>
           </div>
           <p className="mt-1.5 line-clamp-3 text-[13px] text-foreground">{r.description}</p>
           {r.location && <p className="mt-1 text-[12px] text-muted-foreground">{r.location}</p>}
           {r.status !== "closed" && (
             <div className="mt-2.5 flex gap-1.5">
               {r.status === "submitted" && (
-                <button
-                  onClick={() => move(r.id, "acknowledged")}
-                  disabled={busy === r.id}
-                  className="rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
-                >
+                <Button variant="secondary" size="sm" onClick={() => move(r.id, "acknowledged")} disabled={busy === r.id}>
                   Acknowledge
-                </button>
+                </Button>
               )}
-              <button
-                onClick={() => move(r.id, "closed")}
-                disabled={busy === r.id}
-                className="rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
-              >
+              <Button variant="secondary" size="sm" onClick={() => move(r.id, "closed")} disabled={busy === r.id}>
                 Close
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -1458,23 +1412,20 @@ function UsersTab() {
           </div>
           {pages > 1 && (
             <div className="mt-4 flex items-center justify-between">
-              <button
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold disabled:opacity-40"
-              >
+              <Button variant="secondary" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
                 Previous
-              </button>
+              </Button>
               <span className="text-[12px] text-muted-foreground">
                 Page {page + 1} of {pages}
               </span>
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}
                 disabled={page >= pages - 1}
-                className="rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold disabled:opacity-40"
               >
                 Next
-              </button>
+              </Button>
             </div>
           )}
         </>
@@ -1527,15 +1478,13 @@ function UserCard({ user, isMe, onChange }: { user: AdminUser; isMe: boolean; on
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {user.isSuspended && (
-          <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">Suspended</span>
+          <Badge variant="danger">Suspended</Badge>
         )}
         {labels.length === 0 ? (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">No role yet</span>
+          <Badge>No role yet</Badge>
         ) : (
           labels.map((l) => (
-            <span key={l} className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-              {l}
-            </span>
+            <Badge key={l}>{l}</Badge>
           ))
         )}
       </div>
@@ -1543,25 +1492,22 @@ function UserCard({ user, isMe, onChange }: { user: AdminUser; isMe: boolean; on
           or demoting themselves, so a button for it could only fail. */}
       {!isMe && (
         <div className="mt-2.5 flex flex-wrap gap-1.5">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => {
               if (!user.isSuspended) return setSuspending(true)
               void toggleSuspend().then((r) => r.error && toast.error("Couldn't change access", { description: r.error }))
             }}
             disabled={busy}
-            className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
           >
-            {user.isSuspended ? <RotateCcw className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+            {user.isSuspended ? <RotateCcw /> : <Ban className="text-destructive" />}
             {user.isSuspended ? "Unsuspend" : "Suspend"}
-          </button>
-          <button
-            onClick={() => setConfirming((v) => !v)}
-            disabled={busy}
-            className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
-          >
-            {user.isSuperAdmin ? <ShieldOff className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setConfirming((v) => !v)} disabled={busy}>
+            {user.isSuperAdmin ? <ShieldOff className="text-destructive" /> : <ShieldCheck />}
             {user.isSuperAdmin ? "Remove admin" : "Make admin"}
-          </button>
+          </Button>
         </div>
       )}
       {suspending && (
@@ -1585,32 +1531,17 @@ function UserCard({ user, isMe, onChange }: { user: AdminUser; isMe: boolean; on
           </p>
           <div className="mt-2 flex gap-1.5">
             <AdminInput placeholder={user.email} value={typed} onChange={setTyped} />
-            <button
+            <Button
               onClick={toggleAdmin}
-              disabled={busy || !adminConfirmationMatches(typed, user.email)}
-              className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary-strong px-3.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
+              loading={busy}
+              disabled={!adminConfirmationMatches(typed, user.email)}
+              className="flex-shrink-0"
             >
-              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Confirm
-            </button>
+              Confirm
+            </Button>
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-/** Shown when a Supabase read fails — otherwise a failed load looks like an empty list. */
-function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-6 py-8 text-center">
-      <AlertTriangle className="h-6 w-6 text-destructive" />
-      <div>
-        <p className="text-[14px] font-semibold text-foreground">Couldn&apos;t load</p>
-        <p className="mt-0.5 w-full max-w-sm text-[12px] text-muted-foreground">{message}</p>
-      </div>
-      <button onClick={onRetry} className="rounded-lg bg-muted px-4 py-1.5 text-[13px] font-semibold text-foreground">
-        Retry
-      </button>
     </div>
   )
 }

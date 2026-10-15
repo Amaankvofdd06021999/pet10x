@@ -26,7 +26,7 @@ export function ContactLinks({
     <ul className={`flex flex-col gap-1.5 ${className}`}>
       {phone && (
         <li className="flex items-center gap-2 text-[13px]">
-          <Phone className="h-3.5 w-3.5 flex-shrink-0 text-accent" aria-hidden="true" />
+          <Phone className="h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />
           <a href={telHref(phone)} className="select-text text-foreground underline-offset-2 hover:underline">
             {phone}
           </a>
@@ -34,7 +34,7 @@ export function ContactLinks({
       )}
       {email && (
         <li className="flex min-w-0 items-center gap-2 text-[13px]">
-          <Mail className="h-3.5 w-3.5 flex-shrink-0 text-accent" aria-hidden="true" />
+          <Mail className="h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />
           <a href={`mailto:${email}`} className="select-text break-all text-foreground underline-offset-2 hover:underline">
             {email}
           </a>

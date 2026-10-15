@@ -5,6 +5,9 @@ import { PasswordField } from "@/components/ui/password-field"
 import Link from "next/link"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { Toaster } from "@/components/ui/sonner"
+import { Button } from "@/components/ui/button"
+import { ErrorText } from "@/components/ui/error-text"
+import { InfoText } from "@/components/ui/info-text"
 import { Building2, Loader2, Mail, Lock, ArrowLeft } from "lucide-react"
 
 export default function ManagerPage() {
@@ -65,20 +68,20 @@ function ManagerLogin() {
   }
 
   return (
-    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10 [background-image:radial-gradient(60rem_40rem_at_50%_-10%,var(--color-info)/8%,transparent)]">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10">
       <div className="w-full max-w-sm sm:max-w-md">
-        <Link href="/app" className="mb-6 flex w-fit items-center gap-1 text-[14px] text-primary-text transition-colors hover:text-primary-text/80">
+        <Link href="/app" className="mb-6 flex w-fit items-center gap-1 text-[14px] font-semibold text-foreground underline-offset-4 hover:underline">
           <ArrowLeft className="h-4 w-4" /> Pet owner? Sign in here
         </Link>
         <div className="mb-6 flex flex-col items-center text-center sm:mb-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-info/10 sm:h-16 sm:w-16">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-info-soft sm:h-16 sm:w-16">
             <Building2 className="h-7 w-7 text-info sm:h-8 sm:w-8" />
           </div>
           <h1 className="mt-4 text-[22px] font-semibold text-foreground sm:text-[26px]">Building Manager</h1>
           <p className="mt-1 text-[13px] text-muted-foreground sm:text-[14px]">Sign in to manage your building</p>
         </div>
 
-        <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm sm:p-7">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7">
         {/* A real form: Enter submits from either field, and password managers
             recognise the pair. The labels are sr-only — the placeholders and
             icons already say it to sighted users. */}
@@ -103,7 +106,7 @@ function ManagerLogin() {
               placeholder="Email"
               autoComplete="email"
               autoCapitalize="none"
-              className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-soft"
             />
           </div>
           <label htmlFor="manager-password" className="sr-only">
@@ -111,30 +114,17 @@ function ManagerLogin() {
           </label>
           <PasswordField id="manager-password" value={password} onChange={setPassword} autoComplete="current-password" />
           {error && (
-            <p role="alert" className="text-[13px] text-destructive">
-              {error}
-            </p>
+            <ErrorText className="text-meta">{error}</ErrorText>
           )}
           {info && (
-            <p role="status" className="text-[13px] text-success-strong">
-              {info}
-            </p>
+            <InfoText>{info}</InfoText>
           )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-info py-3 text-[15px] font-semibold text-info-foreground disabled:opacity-60"
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+          <Button type="submit" size="lg" loading={loading} className="mt-1 w-full">
             Sign in
-          </button>
-          <button
-            type="button"
-            onClick={forgot}
-            className="text-center text-[13px] font-medium text-primary-text transition-colors hover:text-primary-text/80"
-          >
+          </Button>
+          <Button variant="quiet" size="sm" onClick={forgot} className="self-center">
             Forgot password?
-          </button>
+          </Button>
         </form>
         </div>
         <p className="mt-6 text-center text-[12px] leading-relaxed text-muted-foreground">
@@ -142,9 +132,9 @@ function ManagerLogin() {
         </p>
         <Link
           href="/strata-portal"
-          className="mx-auto mt-4 flex w-fit items-center gap-1.5 rounded-lg card-interactive px-3 py-1.5 text-[12.5px] font-medium text-info transition-colors hover:shadow-float"
+          className="mx-auto mt-4 flex w-fit items-center gap-1.5 rounded-lg card-interactive px-3 py-1.5 text-[12.5px] font-medium text-foreground transition-colors hover:shadow-float"
         >
-          <Building2 className="h-3.5 w-3.5" /> Manage multiple buildings? Open the Strata Portal
+          <Building2 className="h-3.5 w-3.5 text-info" /> Manage multiple buildings? Open the Strata Portal
         </Link>
       </div>
     </div>

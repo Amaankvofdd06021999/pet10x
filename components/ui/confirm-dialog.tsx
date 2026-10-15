@@ -133,7 +133,7 @@ function ConfirmDialog({
         <AlertDialogFooter>
           {secondaryAction && (
             <Button
-              variant="outline"
+              variant="secondary"
               disabled={busy}
               onClick={() => {
                 reset()
@@ -146,7 +146,7 @@ function ConfirmDialog({
           <AlertDialogCancel disabled={busy}>{cancelLabel}</AlertDialogCancel>
           {/* A plain Button, not AlertDialogAction: that one closes on click, before onConfirm resolves. */}
           <Button
-            variant={tone === 'danger' ? 'destructive' : 'default'}
+            variant={tone === 'danger' ? 'danger' : 'primary'}
             disabled={busy || confirmDisabled}
             onClick={handleConfirm}
           >

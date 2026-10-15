@@ -10,7 +10,8 @@ import { BuildingBylawsEditor, RULE_TOGGLES, impactOf } from "./bylaws-editor"
 import { BuildingRulesEditor } from "@/components/screens/manager/building-rules-editor"
 import { stripFineSchedule } from "@/lib/data/fine-schedule"
 import { SectionCard, Spinner, LoadError } from "./strata-ui"
-import { ChevronDown, Save, Layers, Loader2, AlertTriangle, Trash2 } from "lucide-react"
+import { ChevronDown, Save, Layers, AlertTriangle, Trash2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface Template {
   name: string
@@ -80,7 +81,7 @@ export function BylawsScreen() {
                   onClick={() => setOpenId(open ? null : b.id)}
                   className="flex w-full items-center gap-3 p-3 text-left"
                 >
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-info/10">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-info-soft">
                     <Layers className="h-4 w-4 text-info" />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -221,12 +222,9 @@ function BulkApply({
             </option>
           ))}
         </select>
-        <button
-          onClick={saveTemplate}
-          className="flex items-center justify-center gap-1.5 rounded-lg bg-muted px-3 py-2 text-[13px] font-semibold text-foreground"
-        >
-          <Save className="h-4 w-4" /> Save
-        </button>
+        <Button variant="secondary" size="sm" onClick={saveTemplate}>
+          <Save /> Save
+        </Button>
       </div>
 
       {templates.length > 0 && (
@@ -237,14 +235,14 @@ function BulkApply({
               <span
                 key={t.name}
                 className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] ${
-                  selectedTemplate === t.name ? "border-info bg-info/10 text-info" : "border-border text-foreground"
+                  selectedTemplate === t.name ? "border-info bg-info-soft text-foreground" : "border-border text-foreground"
                 }`}
               >
                 <button onClick={() => setSelectedTemplate(selectedTemplate === t.name ? "" : t.name)} className="font-semibold">
                   {t.name}
                 </button>
-                <button onClick={() => onDeleteTemplate(t.name)} title="Delete template">
-                  <Trash2 className="h-3 w-3 text-muted-foreground" />
+                <button onClick={() => onDeleteTemplate(t.name)} title="Delete template" aria-label={`Delete template ${t.name}`}>
+                  <Trash2 className="h-3 w-3 text-destructive" />
                 </button>
               </span>
             ))}
@@ -269,7 +267,7 @@ function BulkApply({
                           })
                         }
                         className={`rounded-lg border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
-                          on ? "border-info bg-info/10 text-info" : "border-border text-foreground hover:bg-muted"
+                          on ? "border-info bg-info-soft text-foreground" : "border-border text-foreground hover:bg-muted"
                         }`}
                       >
                         {b.name}
@@ -282,7 +280,7 @@ function BulkApply({
               {targets.size > 0 && (
                 <div
                   className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-[12.5px] ${
-                    impact.breaks > 0 ? "border-warning/40 bg-warning/10" : "border-border bg-muted/40"
+                    impact.breaks > 0 ? "border-border bg-warning-soft" : "border-border bg-muted"
                   }`}
                 >
                   {impact.breaks > 0 && <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning" />}
@@ -294,14 +292,9 @@ function BulkApply({
                 </div>
               )}
 
-              <button
-                onClick={apply}
-                disabled={applying || targets.size === 0}
-                className="flex items-center gap-2 rounded-xl bg-info px-4 py-2 text-[13px] font-semibold text-info-foreground disabled:opacity-50"
-              >
-                {applying && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Button size="sm" onClick={apply} loading={applying} disabled={targets.size === 0}>
                 Apply to {targets.size} building{targets.size === 1 ? "" : "s"}
-              </button>
+              </Button>
             </div>
           )}
         </div>

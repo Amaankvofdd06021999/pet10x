@@ -14,7 +14,10 @@
  * Each status colour has exactly two strengths: the solid (fills, icons, dots)
  * and `-soft` (the tinted background a badge or banner sits on, always with
  * `--foreground` text). Opacity tints like `bg-success/10` are not a third
- * strength — they become the `-soft` token. */
+ * strength — they become the `-soft` token.
+ *
+ * eslint-rules/no-raw-colors.js holds class strings to exactly these names:
+ * a colour that is not a token here does not pass lint. */
 :root {
   /* Two grounds, not one. A tinted page ground is what lets a white card read
    * as a card rather than white-on-white with a 1px line. */
@@ -82,18 +85,6 @@
     0 2px 6px rgba(44, 46, 48, 0.025),
     0 12px 30px rgba(44, 46, 48, 0.05),
     0 28px 64px rgba(44, 46, 48, 0.05);
-
-  /* Temporary aliases — removed in Task 7.
-   * Screens not yet moved onto the pieces still name these. They point at the
-   * new palette so the brown stops and teal are already gone everywhere;
-   * the names themselves disappear once every batch has moved. */
-  --primary-strong: var(--primary);
-  --primary-strong-hover: var(--primary-hover);
-  --primary-text: var(--foreground);
-  --accent: var(--primary);
-  --accent-foreground: var(--primary-foreground);
-  --warning-strong: var(--foreground);
-  --success-strong: var(--foreground);
 }
 
 .dark {
@@ -154,15 +145,6 @@
     0 2px 6px rgba(0, 0, 0, 0.3),
     0 12px 30px rgba(0, 0, 0, 0.34),
     0 28px 64px rgba(0, 0, 0, 0.34);
-
-  /* Temporary aliases — removed in Task 7. Same reason as above. */
-  --primary-strong: var(--primary);
-  --primary-strong-hover: var(--primary-hover);
-  --primary-text: var(--foreground);
-  --accent: var(--primary);
-  --accent-foreground: var(--primary-foreground);
-  --warning-strong: var(--foreground);
-  --success-strong: var(--foreground);
 }
 
 @theme inline {
@@ -202,15 +184,6 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-
-  /* Temporary aliases — removed in Task 7. */
-  --color-primary-strong: var(--primary-strong);
-  --color-primary-strong-hover: var(--primary-strong-hover);
-  --color-primary-text: var(--primary-text);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-warning-strong: var(--warning-strong);
-  --color-success-strong: var(--success-strong);
 
   /* Type scale, in px as the spec gives it. Pieces use these names; one-off
    * sizes like text-[13px] are replaced as each batch touches an element.
@@ -266,6 +239,17 @@
   border: 1px solid var(--border);
 }
 
+/* The landing hero's faint graph-paper backdrop, drawn in the hairline token
+   (the element masks it to fade out). A utility because a gradient that names
+   a colour cannot be written as a token class. */
+@utility grid-lines {
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: 0.6;
+}
+
 /* A raised card that is also pressable. Kept separate from card-raised so a
    static panel doesn't advertise a hover it can't honour.
 
@@ -291,7 +275,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   body {
     @apply bg-background text-foreground;

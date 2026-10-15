@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 }
 
 const Mail = () => (
-  <a href={SUPPORT_MAILTO} className="font-medium text-primary-text underline underline-offset-2">
+  <a href={SUPPORT_MAILTO} className="font-medium text-foreground underline underline-offset-2">
     {SUPPORT_EMAIL}
   </a>
 )
@@ -241,7 +241,7 @@ export default function PrivacyPage() {
         <p>
           We will update this page when what we collect or how we use it changes, and change the date at the top.
           Questions or requests: <Mail />. See also our{" "}
-          <Link href="/terms" className="font-medium text-primary-text underline underline-offset-2">
+          <Link href="/terms" className="font-medium text-foreground underline underline-offset-2">
             Terms of Service
           </Link>
           .

@@ -82,7 +82,7 @@ export function ConsentDialog({ open, onAccept, onDecline }: ConsentDialogProps)
           <Button onClick={handleAccept} disabled={isSaving} className="w-full">
             {isSaving ? "One moment…" : "I understand"}
           </Button>
-          <Button variant="ghost" onClick={onDecline} disabled={isSaving} className="w-full">
+          <Button variant="quiet" onClick={onDecline} disabled={isSaving} className="w-full">
             Not now
           </Button>
         </div>

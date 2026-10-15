@@ -8,7 +8,8 @@ import { toCsv, downloadCsv } from "@/lib/csv"
 import { complianceCensusCsv } from "@/lib/data/compliance-report"
 import { useStrata } from "./portal-context"
 import { SectionCard, Spinner, StatTile } from "./strata-ui"
-import { Download, FileSpreadsheet } from "lucide-react"
+import { ArrowDownRight, ArrowUpRight, Download, FileSpreadsheet } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface Metric {
   id: string
@@ -108,12 +109,9 @@ export function ReportsScreen() {
       <SectionCard
         title="Portfolio summary"
         action={
-          <button
-            onClick={exportPortfolio}
-            className="flex items-center gap-1.5 rounded-lg bg-info px-3 py-1.5 text-[12px] font-semibold text-info-foreground"
-          >
-            <Download className="h-3.5 w-3.5" /> Export CSV
-          </button>
+          <Button size="sm" onClick={exportPortfolio}>
+            <Download /> Export CSV
+          </Button>
         }
       >
         <div className="overflow-x-auto">
@@ -131,14 +129,20 @@ export function ReportsScreen() {
               {metrics.map((m) => {
                 const delta = m.compliance - median
                 return (
-                  <tr key={m.id} className="border-b border-border/60 last:border-0">
+                  <tr key={m.id} className="border-b border-border last:border-0">
                     <td className="py-2 pr-3 font-medium text-foreground">{m.name}</td>
                     <td className="py-2 pr-3 text-right font-semibold tabular-nums">{m.compliance}%</td>
-                    <td
-                      className={`py-2 pr-3 text-right tabular-nums ${delta < 0 ? "text-destructive" : "text-success-strong"}`}
-                    >
-                      {delta > 0 ? "+" : ""}
-                      {delta}
+                    {/* Dark figures; the arrow's colour carries above or below. */}
+                    <td className="py-2 pr-3 text-right tabular-nums text-foreground">
+                      <span className="inline-flex items-center gap-0.5">
+                        {delta < 0 ? (
+                          <ArrowDownRight className="h-3.5 w-3.5 text-destructive" aria-hidden="true" />
+                        ) : (
+                          <ArrowUpRight className="h-3.5 w-3.5 text-success" aria-hidden="true" />
+                        )}
+                        {delta > 0 ? "+" : ""}
+                        {delta}
+                      </span>
                     </td>
                     <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">{m.openViolations}</td>
                     <td className="py-2 text-right tabular-nums text-muted-foreground">
@@ -156,7 +160,7 @@ export function ReportsScreen() {
         <div className="space-y-2">
           {metrics.map((m) => (
             <div key={m.id} className="flex items-center gap-3 rounded-lg card-raised p-3">
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-info/10">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-info-soft">
                 <FileSpreadsheet className="h-4.5 w-4.5 text-info" />
               </span>
               <div className="min-w-0 flex-1">
@@ -166,12 +170,9 @@ export function ReportsScreen() {
                   owed
                 </p>
               </div>
-              <button
-                onClick={() => exportBoardPack(m)}
-                className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground"
-              >
-                <Download className="h-3.5 w-3.5" /> CSV
-              </button>
+              <Button variant="secondary" size="sm" onClick={() => exportBoardPack(m)}>
+                <Download /> CSV
+              </Button>
             </div>
           ))}
         </div>

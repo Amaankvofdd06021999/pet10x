@@ -24,7 +24,7 @@ export function LegalPage({
       <LandingNav />
       <main className="px-5 pb-20 pt-28 sm:px-8 sm:pt-32">
         <article className="mx-auto max-w-2xl">
-          <header className="border-b border-border/60 pb-6">
+          <header className="border-b border-border pb-6">
             <h1 className="text-[30px] font-semibold tracking-tight sm:text-[38px]">{title}</h1>
             {updated && <p className="mt-2 text-[13px] text-muted-foreground">Last updated {updated}</p>}
             {intro && <div className="mt-4 text-[15px] leading-relaxed text-muted-foreground">{intro}</div>}
@@ -41,7 +41,7 @@ export function LegalSection({ id, title, children }: { id?: string; title: stri
   return (
     <section id={id} className="scroll-mt-24">
       <h2 className="text-[19px] font-semibold tracking-tight sm:text-[21px]">{title}</h2>
-      <div className="mt-3 flex flex-col gap-3 text-[15px] leading-relaxed text-foreground/85">{children}</div>
+      <div className="mt-3 flex flex-col gap-3 text-[15px] leading-relaxed text-foreground">{children}</div>
     </section>
   )
 }

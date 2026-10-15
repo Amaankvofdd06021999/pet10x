@@ -11,16 +11,13 @@ describe('buttonVariants', () => {
     expect(buttonVariants()).toBe(buttonVariants({ variant: 'primary', size: 'md' }))
     expect(classes({})).toEqual(expect.arrayContaining(['bg-primary', 'hover:bg-primary-hover', 'min-h-11']))
   })
-  it.each([
-    ['default', 'primary'],
-    ['destructive', 'danger'],
-    ['outline', 'secondary'],
-    ['ghost', 'quiet'],
-  ] as const)('legacy %s resolves to %s', (legacy, next) => {
-    expect(buttonVariants({ variant: legacy })).toBe(buttonVariants({ variant: next }))
+  // The shadcn names were aliases while screens moved; one set of names now.
+  it.each(['default', 'destructive', 'outline', 'ghost'])('legacy variant %s is gone', (legacy) => {
+    const c = classes({ variant: legacy as never })
+    expect(c.filter((x) => /^(hover:)?(bg|text)-/.test(x) && !x.startsWith('text-body'))).toEqual([])
   })
-  it('legacy size default resolves to md', () => {
-    expect(buttonVariants({ size: 'default' })).toBe(buttonVariants({ size: 'md' }))
+  it('legacy size default is gone', () => {
+    expect(classes({ size: 'default' as never })).not.toContain('min-h-11')
   })
   it('primary focus ring is dark and offset, never the orange ring', () => {
     const c = classes({ variant: 'primary' })

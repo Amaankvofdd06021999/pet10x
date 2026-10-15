@@ -28,7 +28,7 @@ export function LandingNav() {
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
         scrolled || open
-          ? "border-b border-border/60 bg-background/80 backdrop-blur-xl"
+          ? "border-b border-border bg-background/80 backdrop-blur-xl"
           : "border-b border-transparent"
       }`}
     >
@@ -85,7 +85,7 @@ export function LandingNav() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="border-t border-border/60 bg-background/95 backdrop-blur-xl md:hidden">
+        <div className="border-t border-border bg-background/80 backdrop-blur-xl md:hidden">
           <div className="mx-auto flex max-w-7xl flex-col gap-1 px-5 py-4">
             {LINKS.map((l) => (
               <a

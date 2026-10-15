@@ -1,5 +1,6 @@
 "use client"
 
+import { InfoText } from "@/components/ui/info-text"
 import { useEffect, useRef, useState } from "react"
 import { useAuth, MOCK_USERS, type DemoRole } from "@/lib/auth-context"
 import { PasswordField } from "@/components/ui/password-field"
@@ -18,7 +19,6 @@ import {
   ArrowLeft,
   Mail,
   Lock,
-  CheckCircle2,
   MailCheck,
 } from "lucide-react"
 import Image from "next/image"
@@ -31,16 +31,6 @@ const ROLE_CARDS: { role: DemoRole; icon: typeof Dog; iconColor: string; badge: 
   { role: "pet-owner", icon: Dog, iconColor: "text-primary", badge: "brand" },
   { role: "building-manager", icon: Building2, iconColor: "text-info", badge: "info" },
 ]
-
-// A neutral confirmation line: dark words, the green check carries "done".
-function InfoText({ className = "", children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <p role="status" className={`flex items-start gap-1.5 text-meta text-foreground ${className}`}>
-      <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
-      <span>{children}</span>
-    </p>
-  )
-}
 
 type SignInView = "main" | "verify-email"
 type AuthMode = "signin" | "signup"

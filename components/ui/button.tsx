@@ -14,11 +14,6 @@ import { buttonType } from '@/lib/button-type'
  * ring colour is the button's own fill, so an orange ring on an orange button
  * would be invisible — keyboard users would lose their place on exactly the
  * buttons that matter most.
- *
- * The shadcn names (`default`, `destructive`, `outline`, `ghost`) are kept as
- * aliases of the new ones so the callers that still use them keep working
- * until their batch moves them; `secondary` and `link` are the same names in
- * both sets.
  */
 const PRIMARY =
   'bg-primary text-primary-foreground font-semibold hover:bg-primary-hover'
@@ -26,7 +21,7 @@ const SECONDARY =
   'border border-border bg-card text-foreground font-semibold hover:bg-muted'
 const QUIET = 'text-foreground font-semibold hover:bg-muted'
 // A filter rather than an opacity tint (`/90`), which would let the card
-// show through and is the kind of modifier the Task 7 lint rule bans.
+// show through and is the kind of modifier eslint-rules/no-raw-colors.js bans.
 const DANGER =
   'bg-destructive text-destructive-foreground font-semibold hover:brightness-95'
 const LINK = 'text-foreground font-semibold hover:underline underline-offset-4'
@@ -41,19 +36,13 @@ const buttonVariants = cva(
         quiet: QUIET,
         danger: DANGER,
         link: LINK,
-        // Legacy shadcn names → the spec variants.
-        default: PRIMARY,
-        destructive: DANGER,
-        outline: SECONDARY,
-        ghost: QUIET,
       },
       size: {
         sm: 'h-9 gap-1.5 px-3 text-meta has-[>svg]:px-2.5',
         md: 'min-h-11 px-4 text-body has-[>svg]:px-3.5',
         lg: 'min-h-12 px-6 text-body has-[>svg]:px-5',
-        // Legacy shadcn sizes, used by the primitives (calendar, carousel,
-        // sidebar, input-group, pagination). `default` is `md`.
-        default: 'min-h-11 px-4 text-body has-[>svg]:px-3.5',
+        // Square icon buttons, used by the primitives (calendar, carousel,
+        // input-group, pagination) and dense rows.
         icon: 'size-9',
         'icon-sm': 'size-8',
         'icon-lg': 'size-10',

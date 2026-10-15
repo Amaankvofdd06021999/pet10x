@@ -86,14 +86,14 @@ export function PetPhotoGallery({ petId }: { petId: string }) {
                 </span>
               )}
               {i === 0 && (
-                <span className="absolute left-1 top-1 rounded-full bg-black/70 px-1.5 py-0.5 text-caption font-semibold text-background">
+                <span className="absolute left-1 top-1 rounded-full bg-black/50 px-1.5 py-0.5 text-caption font-semibold text-white">
                   Profile
                 </span>
               )}
               <button
                 onClick={() => remove(p.id)}
                 aria-label="Remove photo"
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-background"
+                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white"
               >
                 <Trash2 className="h-3 w-3" />
               </button>

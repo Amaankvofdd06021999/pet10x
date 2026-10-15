@@ -658,10 +658,10 @@ export function IncidentComposer({
                       <button
                         type="button"
                         onClick={() => removePhoto(idx)}
-                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70"
+                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/50"
                         aria-label={`Remove photo ${idx + 1}`}
                       >
-                        <X className="h-3 w-3 text-background" />
+                        <X className="h-3 w-3 text-white" />
                       </button>
                     </div>
                   ))}

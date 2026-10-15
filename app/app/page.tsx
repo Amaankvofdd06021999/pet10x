@@ -460,7 +460,7 @@ function AppContent() {
   if (isLoading) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary shadow-card">
           <PawPrint className="h-6 w-6 text-primary-foreground" strokeWidth={2.5} />
         </span>
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

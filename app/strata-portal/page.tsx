@@ -1,5 +1,8 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
+import { ErrorText } from "@/components/ui/error-text"
+import { InfoText } from "@/components/ui/info-text"
 import { useState } from "react"
 import { PasswordField } from "@/components/ui/password-field"
 import Link from "next/link"
@@ -111,16 +114,16 @@ function StrataLogin() {
   }
 
   return (
-    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10 [background-image:radial-gradient(55rem_38rem_at_50%_-10%,var(--color-info)/10%,transparent)]">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10">
       <div className="w-full max-w-sm sm:max-w-md">
         <div className="mb-6 flex flex-col items-center text-center sm:mb-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-info shadow-lg shadow-info/20 sm:h-16 sm:w-16">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-info shadow-card sm:h-16 sm:w-16">
             <Layers className="h-7 w-7 text-info-foreground sm:h-8 sm:w-8" />
           </div>
           <h1 className="mt-4 text-[22px] font-semibold text-foreground sm:text-[26px]">Strata Portal</h1>
           <p className="mt-1 text-[13px] text-muted-foreground sm:text-[14px]">One login for your whole portfolio</p>
         </div>
-        <div className="rounded-2xl card-raised p-5 shadow-xl shadow-foreground/5 sm:p-7">
+        <div className="rounded-2xl card-raised p-5 shadow-float sm:p-7">
           {/* A real form: Enter submits from either field and password
               managers recognise the pair. Labels are sr-only; placeholders show. */}
           <form
@@ -144,7 +147,7 @@ function StrataLogin() {
                 placeholder="Email"
                 autoComplete="email"
                 autoCapitalize="none"
-                className="w-full rounded-xl border border-border bg-background py-3 pl-10 pr-4 text-[15px] text-foreground focus:border-info focus:outline-none focus:ring-2 focus:ring-info/20"
+                className="w-full rounded-xl border border-border bg-background py-3 pl-10 pr-4 text-[15px] text-foreground focus:border-info focus:outline-none focus:ring-2 focus:ring-info-soft"
               />
             </div>
             <label htmlFor="strata-password" className="sr-only">
@@ -152,30 +155,17 @@ function StrataLogin() {
             </label>
             <PasswordField id="strata-password" value={password} onChange={setPassword} autoComplete="current-password" />
             {error && (
-              <p role="alert" className="text-[13px] text-destructive">
-                {error}
-              </p>
+              <ErrorText className="text-meta">{error}</ErrorText>
             )}
             {info && (
-              <p role="status" className="text-[13px] text-success-strong">
-                {info}
-              </p>
+              <InfoText>{info}</InfoText>
             )}
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-info py-3 text-[15px] font-semibold text-info-foreground disabled:opacity-60"
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            <Button type="submit" size="lg" loading={loading} className="mt-1 w-full">
               Sign in
-            </button>
-            <button
-              type="button"
-              onClick={forgot}
-              className="text-center text-[13px] font-medium text-info transition-colors hover:opacity-80"
-            >
+            </Button>
+            <Button variant="quiet" size="sm" onClick={forgot} className="self-center">
               Forgot password?
-            </button>
+            </Button>
           </form>
         </div>
         <Link href="/app" className="mx-auto mt-6 flex w-fit items-center gap-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground">
@@ -195,7 +185,7 @@ function Portal() {
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh w-60 flex-shrink-0 flex-col border-r border-border bg-card md:flex">
         <div className="flex h-16 items-center gap-2 px-5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-info shadow-sm shadow-info/30">
+          <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-info shadow-sm">
             <Layers className="h-5 w-5 text-info-foreground" strokeWidth={2.5} />
           </span>
           <span className="text-[16px] font-semibold tracking-tight text-foreground">Strata Portal</span>
@@ -210,10 +200,10 @@ function Portal() {
                 onClick={() => setTab(t.id)}
                 aria-current={active ? "page" : undefined}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-colors ${
-                  active ? "bg-muted text-info" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
-                <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 1.8} />
+                <Icon className={`h-5 w-5 ${active ? "text-info" : ""}`} strokeWidth={active ? 2.4 : 1.8} />
                 {t.label}
               </button>
             )
@@ -223,7 +213,7 @@ function Portal() {
           {/* Same reason as /admin: a separate shell needs its own way back. */}
           <PersonaSwitcher className="mb-2 w-full" />
           <div className="flex items-center gap-2.5 px-2 py-1.5">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-info/15 text-[13px] font-semibold text-info">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-info-soft text-[13px] font-semibold text-foreground">
               {(user?.name ?? "?").slice(0, 1)}
             </div>
             <div className="min-w-0 flex-1">
@@ -233,9 +223,9 @@ function Portal() {
           </div>
           <button
             onClick={signOut}
-            className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/5"
+            className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium text-foreground transition-colors hover:bg-destructive-soft"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="h-5 w-5 text-destructive" />
             Sign out
           </button>
         </div>
@@ -243,7 +233,7 @@ function Portal() {
 
       {/* Main column */}
       <div className="flex-1 md:min-w-0">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:px-6">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur md:px-6">
           <span className="flex items-center gap-2 md:hidden">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-info">
               <Layers className="h-4 w-4 text-info-foreground" strokeWidth={2.5} />
@@ -268,7 +258,7 @@ function Portal() {
       </div>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-6 border-t border-border bg-card/90 backdrop-blur-xl pb-safe md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-6 border-t border-border bg-card/85 backdrop-blur-xl pb-safe md:hidden">
         {TABS.map((t) => {
           const Icon = t.icon
           const active = tab === t.id
@@ -283,7 +273,7 @@ function Portal() {
                 className={`h-5 w-5 ${active ? "text-info" : "text-muted-foreground"}`}
                 strokeWidth={active ? 2.5 : 1.6}
               />
-              <span className={`text-[10px] font-medium ${active ? "text-info" : "text-muted-foreground"}`}>
+              <span className={`text-[10px] font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>
                 {t.label}
               </span>
             </button>

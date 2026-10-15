@@ -13,6 +13,9 @@ import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { canAccessRoute } from "@/lib/rbac"
 import { readTargetParam, resolveConsoleTarget } from "@/lib/navigation"
 import { Toaster } from "@/components/ui/sonner"
+import { Button } from "@/components/ui/button"
+import { ErrorText } from "@/components/ui/error-text"
+import { InfoText } from "@/components/ui/info-text"
 import { useMyBusiness } from "@/lib/data/business"
 import { feePercentLabel } from "@/lib/data/fees"
 import { DashboardTab } from "@/components/screens/business/dashboard-tab"
@@ -74,9 +77,9 @@ function Gate() {
         <Store className="h-10 w-10 text-muted-foreground" />
         <p className="text-[16px] font-semibold text-foreground">Not a business account</p>
         <p className="max-w-xs text-[13px] text-muted-foreground">Sign in with your business account, or create one.</p>
-        <button onClick={() => signOut()} className="mt-1 rounded-lg bg-muted px-4 py-2 text-[14px] font-semibold text-foreground">
+        <Button variant="secondary" onClick={() => signOut()} className="mt-1">
           Sign out
-        </button>
+        </Button>
       </div>
     )
   }
@@ -208,17 +211,17 @@ function BusinessAuth() {
   }
 
   return (
-    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10 [background-image:radial-gradient(60rem_40rem_at_50%_-10%,var(--color-accent)/8%,transparent)]">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-background px-6 py-10">
       <div className="w-full max-w-sm sm:max-w-md">
         <div className="mb-6 flex flex-col items-center text-center sm:mb-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent shadow-sm sm:h-16 sm:w-16">
-            <Store className="h-7 w-7 text-white sm:h-8 sm:w-8" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-sm sm:h-16 sm:w-16">
+            <Store className="h-7 w-7 text-primary-foreground sm:h-8 sm:w-8" />
           </div>
           <h1 className="mt-4 text-[22px] font-semibold text-foreground sm:text-[26px]">Pet10x for Business</h1>
           <p className="mt-1 text-[13px] text-muted-foreground sm:text-[14px]">Reach pet owners in nearby buildings</p>
         </div>
 
-        <div className="rounded-2xl border border-border bg-muted/30 p-5 shadow-sm sm:p-7">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7">
           {step === "code" ? (
             // A form, so Enter in the code field verifies once (the field's
             // own onEnter is a no-op here — the form owns submit).
@@ -244,8 +247,8 @@ function BusinessAuth() {
               >
                 <ArrowLeft className="h-4 w-4" /> Back
               </button>
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
-                <MailCheck className="h-6 w-6 text-accent" />
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft">
+                <MailCheck className="h-6 w-6 text-primary" />
               </div>
               <h2 className="text-center text-[18px] font-semibold text-foreground">Enter your code</h2>
               <p className="mt-1.5 text-center text-[13px] leading-relaxed text-muted-foreground">
@@ -270,23 +273,14 @@ function BusinessAuth() {
                 />
               </div>
               {error && (
-                <p role="alert" className="mt-3 text-[13px] text-destructive">
-                  {error}
-                </p>
+                <ErrorText className="mt-3 text-meta">{error}</ErrorText>
               )}
               {info && (
-                <p role="status" className="mt-3 text-[13px] text-success-strong">
-                  {info}
-                </p>
+                <InfoText className="mt-3">{info}</InfoText>
               )}
-              <button
-                type="submit"
-                disabled={loading || otp.length !== 6 || codeExpired}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
-              >
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Button type="submit" size="lg" loading={loading} disabled={otp.length !== 6 || codeExpired} className="mt-4 w-full">
                 Verify &amp; create business account
-              </button>
+              </Button>
             </form>
           ) : (
             <>
@@ -370,39 +364,31 @@ function BusinessAuth() {
                   showRules={mode === "signup"}
                 />
                 {error && (
-                  <p role="alert" className="text-[13px] text-destructive">
-                    {error}
-                  </p>
+                  <ErrorText className="text-meta">{error}</ErrorText>
                 )}
                 {info && (
-                  <p role="status" className="text-[13px] text-success-strong">
-                    {info}
-                  </p>
+                  <InfoText>{info}</InfoText>
                 )}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
-                >
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                <Button type="submit" size="lg" loading={loading} className="mt-1 w-full">
                   {mode === "signin" ? "Sign in" : "Email me a code"}
-                </button>
+                </Button>
                 {mode === "signin" && (
                   <>
-                    <button type="button" onClick={() => void forgot()} className="text-center text-[13px] font-medium text-accent">
+                    <Button variant="quiet" size="sm" onClick={() => void forgot()} className="self-center">
                       Forgot password?
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+                    <Button
+                      variant="quiet"
+                      size="sm"
                       onClick={() => {
                         setMode("signup")
                         setError(null)
                         setInfo(null)
                       }}
-                      className="text-center text-[13px] font-medium text-accent"
+                      className="self-center"
                     >
                       Create an account
-                    </button>
+                    </Button>
                   </>
                 )}
               </form>
@@ -463,19 +449,19 @@ function Portal() {
           doesn&apos;t have a business record yet. Sign up again with your business details, or ask Pet10x
           support to link one.
         </p>
-        <button onClick={() => signOut()} className="mt-1 rounded-lg bg-muted px-4 py-2 text-[14px] font-semibold text-foreground">
+        <Button variant="secondary" onClick={() => signOut()} className="mt-1">
           Sign out
-        </button>
+        </Button>
       </div>
     )
   }
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 py-3">
           <div className="flex min-w-0 items-center gap-2">
-            <Store className="h-5 w-5 flex-shrink-0 text-accent" />
+            <Store className="h-5 w-5 flex-shrink-0 text-primary" />
             <span className="truncate text-[15px] font-semibold text-foreground">{biz.name}</span>
             {biz.isVerified && <BadgeCheck className="h-4 w-4 flex-shrink-0 text-success" />}
           </div>
@@ -491,12 +477,9 @@ function Portal() {
               }}
               onOpenSettings={() => setNotificationsOpen(true)}
             />
-            <button
-              onClick={() => signOut()}
-              className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold text-foreground"
-            >
-              <LogOut className="h-3.5 w-3.5" /> Sign out
-            </button>
+            <Button variant="secondary" size="sm" onClick={() => signOut()}>
+              <LogOut className="text-destructive" /> Sign out
+            </Button>
           </div>
         </div>
         <nav className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-3 pb-2">
@@ -508,7 +491,7 @@ function Portal() {
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={`flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors ${
-                  active ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-muted"
+                  active ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:bg-muted"
                 }`}
               >
                 <Icon className="h-4 w-4" /> {t.label}
@@ -561,7 +544,7 @@ function Input({
       placeholder={label}
       autoComplete={autoComplete}
       autoCapitalize={type === "email" ? "none" : undefined}
-      className="w-full min-w-0 rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      className="w-full min-w-0 rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-soft"
       />
     </>
   )

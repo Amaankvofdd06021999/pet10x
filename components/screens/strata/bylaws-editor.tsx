@@ -8,7 +8,8 @@ import { FineScheduleEditor } from "@/components/screens/manager/fine-schedule-e
 import { computeCompliance } from "@/lib/data/live"
 import type { PetRules } from "@/lib/data/admin"
 import type { PortfolioBuilding, PetComplianceInput } from "@/lib/data/portfolio"
-import { Loader2, AlertTriangle } from "lucide-react"
+import { AlertTriangle } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export const RULE_TOGGLES: { key: keyof PetRules; label: string }[] = [
   { key: "requires_registry", label: "Requires pet registration" },
@@ -78,7 +79,7 @@ export function BuildingBylawsEditor({
           <button
             key={r.key}
             onClick={() => setRules((p) => ({ ...p, [r.key]: !p[r.key] }))}
-            className="flex w-full items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-left"
+            className="flex w-full items-center justify-between rounded-lg bg-muted px-3 py-2 text-left"
           >
             <span className="text-[13px] text-foreground">{r.label}</span>
             <span
@@ -97,8 +98,8 @@ export function BuildingBylawsEditor({
         <div
           className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-[12.5px] ${
             impact.breaks > 0
-              ? "border-warning/40 bg-warning/10 text-foreground"
-              : "border-border bg-muted/40 text-muted-foreground"
+              ? "border-border bg-warning-soft text-foreground"
+              : "border-border bg-muted text-muted-foreground"
           }`}
         >
           {impact.breaks > 0 && <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning" />}
@@ -118,14 +119,9 @@ export function BuildingBylawsEditor({
         </div>
       )}
 
-      <button
-        onClick={save}
-        disabled={saving || !dirty}
-        className="flex items-center justify-center gap-2 rounded-xl bg-info px-4 py-2 text-[13px] font-semibold text-info-foreground transition-colors disabled:opacity-50"
-      >
-        {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+      <Button size="sm" onClick={save} loading={saving} disabled={!dirty}>
         {dirty ? "Save bylaws" : "Saved"}
-      </button>
+      </Button>
 
       {/* Decision 8: the schedule lives in the bylaws surface, because a manager
           asking "what does a second offence cost here" looks under Bylaws — but

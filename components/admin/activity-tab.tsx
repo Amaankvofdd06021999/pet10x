@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Loader2, ScrollText } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { LoadError } from "@/components/ui/load-error"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { auditActorLabel, describeAuditEntry, isAnonymousEntry } from "@/lib/data/audit-log"
 import { ADMIN_AUDIT_AREAS, adminAuditFilter } from "@/lib/data/admin-audit"
@@ -105,8 +107,8 @@ export function ActivityTab() {
             key={a.label}
             onClick={() => setArea(a.id)}
             aria-pressed={area === a.id}
-            className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${
-              area === a.id ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
+            className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold ${
+              area === a.id ? "border-primary bg-primary-soft text-foreground" : "border-transparent bg-muted text-muted-foreground"
             }`}
           >
             {a.label}
@@ -119,11 +121,8 @@ export function ActivityTab() {
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       ) : error ? (
-        <div role="alert" className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-center">
-          <p className="text-[13px] text-foreground">{error}</p>
-          <button onClick={() => void load(lastCursor())} className="mt-2 text-[13px] font-semibold text-primary-text">
-            Try again
-          </button>
+        <div role="alert">
+          <LoadError message={error} onRetry={() => void load(lastCursor())} />
         </div>
       ) : entries.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
@@ -151,14 +150,9 @@ export function ActivityTab() {
             ))}
           </ol>
           {hasMore && (
-            <button
-              onClick={() => void load(lastCursor())}
-              disabled={loading}
-              className="mx-auto mt-3 flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-[13px] font-semibold disabled:opacity-50"
-            >
-              {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            <Button variant="secondary" size="sm" onClick={() => void load(lastCursor())} loading={loading} className="mx-auto mt-3 flex">
               Load more
-            </button>
+            </Button>
           )}
         </>
       )}

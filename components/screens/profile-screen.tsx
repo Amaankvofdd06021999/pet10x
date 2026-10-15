@@ -509,7 +509,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                       {(user?.name ?? "?").slice(0, 1).toUpperCase()}
                     </span>
                   )}
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
+                  <span className="absolute inset-0 flex items-center justify-center bg-transparent transition-colors group-hover:bg-black/40">
                     <Camera className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
                   </span>
                 </button>

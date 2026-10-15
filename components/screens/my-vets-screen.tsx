@@ -16,7 +16,7 @@ import {
   SCOPE_LABELS, DEFAULT_SCOPES,
   type VetShare, type OwnerAppointment,
 } from "@/lib/data/owner-vets"
-import { Badge } from "@/components/ui/badge"
+import { Badge, TONE_VARIANT } from "@/components/ui/badge"
 import { appointmentLabel, appointmentTone, canOwnerCancel } from "@/lib/data/appointment-labels"
 import type { Slot } from "@/lib/data/clinic/schedule"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -27,10 +27,17 @@ import {
 import { MY_VETS_TABS, type MyVetsTab } from "@/lib/navigation"
 import { useAppointmentTypes, useAvailableSlots } from "@/lib/data/clinic/schedule"
 import { formatDateShort, formatTime, formatMoney, todayISO, addDaysISO } from "@/lib/data/clinic/time"
-import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, TONE_VARIANT, Modal,
-  Field, Select, TextInput, SegmentedTabs, Toolbar,
-} from "@/components/screens/shared/ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
+import { Modal } from "@/components/ui/dialog"
+import { Field } from "@/components/ui/field"
+import { NativeSelect } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { SegmentedTabs } from "@/components/ui/segmented-tabs"
+import { Toolbar } from "@/components/ui/toolbar"
 
 type View = MyVetsTab
 
@@ -160,7 +167,7 @@ export function MyVetsScreen({
                     />
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="quiet"
                       onClick={async () => {
                         const res = await decideLinkRequest(r.id, false)
                         if (res.error) setNotice(res.error)
@@ -203,7 +210,7 @@ export function MyVetsScreen({
                   </Button>
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant="quiet"
                     onClick={async () => {
                       const res = await decideShareRequest(r.id, false)
                       if (res.error) setNotice(res.error)
@@ -293,14 +300,14 @@ export function MyVetsScreen({
               <label htmlFor="deskpet" className="sr-only">
                 Pet
               </label>
-              <Select id="deskpet" value={codeFor ?? ""} onChange={(e) => setCodeFor(e.target.value || null)} className="w-auto">
+              <NativeSelect id="deskpet" value={codeFor ?? ""} onChange={(e) => setCodeFor(e.target.value || null)} className="w-auto">
                 <option value="">Choose a pet…</option>
                 {pets.data.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
-              </Select>
+              </NativeSelect>
               <Button
                 size="sm"
                 disabled={!codeFor}
@@ -664,14 +671,14 @@ function PetPickerButton({
       <label className="sr-only" htmlFor={`pp-${label}`}>
         Which pet
       </label>
-      <Select id={`pp-${label}`} value={pick} onChange={(e) => setPick(e.target.value)} className="w-auto">
+      <NativeSelect id={`pp-${label}`} value={pick} onChange={(e) => setPick(e.target.value)} className="w-auto">
         <option value="">Which pet?</option>
         {pets.map((p) => (
           <option key={p.id} value={p.id}>
             {p.name}
           </option>
         ))}
-      </Select>
+      </NativeSelect>
       <Button size="sm" disabled={!pick} onClick={() => void onPick(pick)}>
         {label}
       </Button>
@@ -705,7 +712,7 @@ function ShareModal({
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button
-            busy={busy}
+            loading={busy}
             onClick={async () => {
               setError(null)
               if (!petId || !bizId) {
@@ -727,20 +734,20 @@ function ShareModal({
       <div className="flex flex-col gap-3">
         <Field label="Pet" required>
           {(p) => (
-            <Select {...p} value={petId} onChange={(e) => setPetId(e.target.value)}>
+            <NativeSelect {...p} value={petId} onChange={(e) => setPetId(e.target.value)}>
               <option value="">Choose…</option>
               {pets.map((pt) => (
                 <option key={pt.id} value={pt.id}>{pt.name}</option>
               ))}
-            </Select>
+            </NativeSelect>
           )}
         </Field>
         <Field label="Find a practice">
-          {(p) => <TextInput {...p} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name or city" />}
+          {(p) => <Input {...p} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name or city" />}
         </Field>
         <Field label="Practice" required error={error}>
           {(p) => (
-            <Select {...p} value={bizId} onChange={(e) => setBizId(e.target.value)}>
+            <NativeSelect {...p} value={bizId} onChange={(e) => setBizId(e.target.value)}>
               <option value="">Choose…</option>
               {dir.data.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -748,7 +755,7 @@ function ShareModal({
                   {b.city ? ` — ${b.city}` : ""}
                 </option>
               ))}
-            </Select>
+            </NativeSelect>
           )}
         </Field>
         <fieldset className="rounded-xl border border-border p-3">
@@ -876,7 +883,7 @@ function BookVetModal({
         >
           Pick another time
         </Button>
-        <Button busy={busy} onClick={() => void request(step.slot)}>
+        <Button loading={busy} onClick={() => void request(step.slot)}>
           Request appointment
         </Button>
       </>
@@ -959,40 +966,40 @@ function BookVetModal({
         <div className="flex flex-col gap-3">
           <Field label="Practice" required>
             {(p) => (
-              <Select {...p} value={bizId} onChange={(e) => { setBizId(e.target.value); setTypeId("") }}>
+              <NativeSelect {...p} value={bizId} onChange={(e) => { setBizId(e.target.value); setTypeId("") }}>
                 <option value="">Choose…</option>
                 {dir.data.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
-              </Select>
+              </NativeSelect>
             )}
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Pet" required>
               {(p) => (
-                <Select {...p} value={petId} onChange={(e) => { setPetId(e.target.value); setError(null) }}>
+                <NativeSelect {...p} value={petId} onChange={(e) => { setPetId(e.target.value); setError(null) }}>
                   <option value="">Choose…</option>
                   {pets.map((pt) => (
                     <option key={pt.id} value={pt.id}>{pt.name}</option>
                   ))}
-                </Select>
+                </NativeSelect>
               )}
             </Field>
             <Field label="Reason" required>
               {(p) => (
-                <Select {...p} value={typeId} onChange={(e) => setTypeId(e.target.value)}>
+                <NativeSelect {...p} value={typeId} onChange={(e) => setTypeId(e.target.value)}>
                   <option value="">Choose…</option>
                   {bookable.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name} ({t.durationMin} min)
                     </option>
                   ))}
-                </Select>
+                </NativeSelect>
               )}
             </Field>
           </div>
           <Field label="Date">
-            {(p) => <TextInput {...p} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}
+            {(p) => <Input {...p} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}
           </Field>
 
           {error && (

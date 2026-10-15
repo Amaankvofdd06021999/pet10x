@@ -6,6 +6,8 @@ import { AlertTriangle, ArrowLeft, Building2, KeyRound, Loader2, PawPrint, Searc
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { searchBuildingsPublic, type PublicBuilding } from "@/lib/data/incidents"
 import { Toaster } from "@/components/ui/sonner"
+import { Button } from "@/components/ui/button"
+import { ErrorText } from "@/components/ui/error-text"
 import { ReportChooser } from "@/components/screens/report/report-chooser"
 import { MunicipalReport } from "@/components/screens/report/municipal-report"
 import { GuestReportScreen } from "@/components/screens/guest-report-screen"
@@ -35,7 +37,7 @@ function ReportContent() {
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="border-b border-border bg-card px-5 py-3.5 sm:px-8">
         <Link href="/" className="flex items-center gap-2" aria-label="Pet10x home">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm shadow-primary/30">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
             <PawPrint className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
           </span>
           <span className="text-[17px] font-semibold tracking-tight text-foreground">Pet10x</span>
@@ -131,11 +133,11 @@ function BuildingSearchStep({
 
   return (
     <div className="mx-auto w-full max-w-xl px-5 py-8">
-      <button onClick={onBack} className="mb-5 flex items-center gap-1.5 text-[14px] font-medium text-primary-text">
+      <button onClick={onBack} className="mb-5 flex items-center gap-1.5 text-body font-medium text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-soft">
         <Building2 className="h-7 w-7 text-primary" />
       </div>
       <h1 className="mt-5 text-center text-[24px] font-semibold leading-tight text-foreground">
@@ -162,7 +164,7 @@ function BuildingSearchStep({
             placeholder="e.g. Maple Court, or 1450 Cambie"
             autoComplete="off"
             autoFocus
-            className="w-full rounded-xl border border-input bg-card py-3.5 pl-11 pr-11 text-[16px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-input bg-card py-3.5 pl-11 pr-11 text-[16px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-soft"
           />
           {searching && (
             <Loader2 className="absolute right-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -178,7 +180,7 @@ function BuildingSearchStep({
                 onClick={() => onPick(b)}
                 className="flex w-full items-center gap-3 rounded-xl card-interactive p-3.5 text-left transition-colors hover:shadow-float"
               >
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft">
                   <Building2 className="h-5 w-5 text-primary" />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -198,7 +200,7 @@ function BuildingSearchStep({
           <p className="text-[14px] font-medium text-foreground">No building found</p>
           <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
             It may not be on Pet10x yet, or be listed under a different name. You can{" "}
-            <button onClick={onMunicipal} className="font-semibold text-primary-text underline underline-offset-2">
+            <button onClick={onMunicipal} className="font-semibold text-foreground underline underline-offset-2">
               report to your local municipality
             </button>{" "}
             instead.
@@ -211,7 +213,7 @@ function BuildingSearchStep({
           Already have the building code?{" "}
           <button
             onClick={() => onPick({ name: "", address: null, city: null, region: null, postalCode: null })}
-            className="font-semibold text-primary-text underline underline-offset-2"
+            className="font-semibold text-foreground underline underline-offset-2"
           >
             Enter it directly
           </button>
@@ -256,11 +258,11 @@ function BuildingCodeStep({
 
   return (
     <div className="mx-auto w-full max-w-xl px-5 py-8">
-      <button onClick={onBack} className="mb-5 flex items-center gap-1.5 text-[14px] font-medium text-primary-text">
+      <button onClick={onBack} className="mb-5 flex items-center gap-1.5 text-body font-medium text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive-soft">
         <AlertTriangle className="h-7 w-7 text-destructive" />
       </div>
       <h1 className="mt-5 text-center text-[24px] font-semibold leading-tight text-foreground">
@@ -276,7 +278,7 @@ function BuildingCodeStep({
           which one is the difference between "wrong code" and "wrong place". */}
       {building?.name && (
         <div className="mt-5 flex items-center gap-3 rounded-xl card-raised p-3.5">
-          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft">
             <Building2 className="h-5 w-5 text-primary" />
           </span>
           <div className="min-w-0 flex-1">
@@ -285,9 +287,9 @@ function BuildingCodeStep({
               <p className="truncate text-[13px] text-muted-foreground">{addressLine(building)}</p>
             )}
           </div>
-          <button onClick={onBack} className="flex-shrink-0 text-[13px] font-semibold text-primary-text">
+          <Button variant="quiet" size="sm" onClick={onBack} className="flex-shrink-0">
             Change
-          </button>
+          </Button>
         </div>
       )}
 
@@ -311,26 +313,21 @@ function BuildingCodeStep({
             autoComplete="off"
             maxLength={12}
             autoFocus
-            className="w-full rounded-xl border border-input bg-card py-3.5 pl-11 pr-4 font-mono text-[16px] font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-input bg-card py-3.5 pl-11 pr-4 font-mono text-[16px] font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-soft"
           />
         </div>
-        {error && <p className="mt-2 text-[13px] text-destructive">{error}</p>}
+        {error && <ErrorText className="mt-2 text-meta">{error}</ErrorText>}
       </div>
 
-      <button
-        onClick={submit}
-        disabled={busy}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
-      >
-        {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+      <Button size="lg" onClick={submit} loading={busy} className="mt-5 w-full">
         Continue
-      </button>
+      </Button>
 
       <p className="mt-5 text-center text-[12px] leading-relaxed text-muted-foreground">
         Don&apos;t have the code? You can still{" "}
         {/* Goes to the municipal form, not back to the chooser — the sentence
             offers a destination, so the link should be one. */}
-        <button onClick={onMunicipal} className="font-semibold text-primary-text underline underline-offset-2">
+        <button onClick={onMunicipal} className="font-semibold text-foreground underline underline-offset-2">
           report to your local municipality
         </button>
         .

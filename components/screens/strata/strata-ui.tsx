@@ -1,7 +1,9 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { AlertTriangle, Loader2 } from "lucide-react"
+import { StatTile as UiStatTile, type StatTone } from "@/components/ui/stat-tile"
+import { SectionCard as UiSectionCard } from "@/components/ui/section-card"
+import { EmptyState as UiEmptyState } from "@/components/ui/empty"
 
 /** Portfolio "state" derived from a compliance %, versus the 90% target. */
 export type BuildingState = "at-risk" | "watch" | "healthy"
@@ -15,10 +17,11 @@ export const STATE_LABEL: Record<BuildingState, string> = {
   watch: "Watch",
   healthy: "Healthy",
 }
-export const STATE_TEXT: Record<BuildingState, string> = {
-  "at-risk": "text-destructive",
-  watch: "text-warning",
-  healthy: "text-success-strong",
+// The state is a Badge (soft fill, dark words), never coloured text.
+export const STATE_BADGE: Record<BuildingState, "danger" | "warning" | "success"> = {
+  "at-risk": "danger",
+  watch: "warning",
+  healthy: "success",
 }
 export const STATE_DOT: Record<BuildingState, string> = {
   "at-risk": "bg-destructive",
@@ -26,34 +29,34 @@ export const STATE_DOT: Record<BuildingState, string> = {
   healthy: "bg-success",
 }
 
+/*
+ * The portal's pieces are the shared ones (components/ui); these adapters only
+ * keep the portal's prop names (`sub`, `action`, its tone words) so the
+ * screens read as they did.
+ */
+
+const TONE: Record<"default" | "info" | "warning" | "destructive" | "success", StatTone> = {
+  default: "default",
+  info: "info",
+  warning: "warn",
+  destructive: "bad",
+  success: "good",
+}
+
 export function StatTile({
   label,
   value,
   sub,
   tone = "default",
+  onClick,
 }: {
   label: string
-  value: ReactNode
+  value: string | number
   sub?: ReactNode
-  tone?: "default" | "info" | "warning" | "destructive" | "success"
+  tone?: keyof typeof TONE
+  onClick?: () => void
 }) {
-  const valueColor =
-    tone === "info"
-      ? "text-info"
-      : tone === "warning"
-        ? "text-warning"
-        : tone === "destructive"
-          ? "text-destructive"
-          : tone === "success"
-            ? "text-success-strong"
-            : "text-foreground"
-  return (
-    <div className="rounded-2xl card-raised p-4">
-      <p className="text-[11.5px] font-medium text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-[26px] font-bold leading-none tracking-tight ${valueColor}`}>{value}</p>
-      {sub ? <p className="mt-1.5 text-[11.5px] text-muted-foreground">{sub}</p> : null}
-    </div>
-  )
+  return <UiStatTile label={label} value={value} hint={sub} tone={TONE[tone]} onClick={onClick} />
 }
 
 export function SectionCard({
@@ -68,54 +71,22 @@ export function SectionCard({
   className?: string
 }) {
   return (
-    <section className={`rounded-2xl card-raised p-4 sm:p-5 ${className}`}>
-      {(title || action) && (
-        <div className="mb-3 flex items-center justify-between gap-2">
-          {typeof title === "string" ? <h3 className="text-[14px] font-semibold text-foreground">{title}</h3> : title}
-          {action}
-        </div>
-      )}
+    <UiSectionCard title={title} actions={action} className={className}>
       {children}
-    </section>
-  )
-}
-
-export function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-6 py-8 text-center">
-      <AlertTriangle className="h-6 w-6 text-destructive" />
-      <div>
-        <p className="text-[14px] font-semibold text-foreground">Couldn&apos;t load</p>
-        <p className="mt-0.5 max-w-sm text-[12px] text-muted-foreground">{message}</p>
-      </div>
-      <button onClick={onRetry} className="rounded-lg bg-muted px-4 py-1.5 text-[13px] font-semibold text-foreground">
-        Retry
-      </button>
-    </div>
+    </UiSectionCard>
   )
 }
 
 export function EmptyState({ icon, title, sub }: { icon: ReactNode; title: string; sub?: string }) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-6 py-12 text-center">
-      <span className="text-muted-foreground">{icon}</span>
-      <p className="text-[14px] font-semibold text-foreground">{title}</p>
-      {sub ? <p className="max-w-xs text-[12.5px] text-muted-foreground">{sub}</p> : null}
-    </div>
-  )
+  return <UiEmptyState icon={icon} title={title} detail={sub} />
 }
 
-export function Spinner() {
-  return (
-    <div className="flex justify-center py-16">
-      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-    </div>
-  )
-}
+export { LoadError } from "@/components/ui/load-error"
+export { Spinner } from "@/components/ui/spinner"
 
 export function BuildingTag({ name }: { name: string }) {
   return (
-    <span className="whitespace-nowrap rounded-md border border-border bg-muted/60 px-1.5 py-0.5 text-[10.5px] font-medium text-muted-foreground">
+    <span className="whitespace-nowrap rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10.5px] font-medium text-muted-foreground">
       {name}
     </span>
   )

@@ -12,6 +12,7 @@ import type { FineStatus } from "@/lib/data/violations"
 import { useWorkQueue, type QueueItem, type Urgency } from "@/lib/data/work-queue"
 import { PetDocumentReviewControls } from "@/components/screens/manager/pet-document-review"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { Button } from "@/components/ui/button"
 import { decisionError } from "@/lib/data/decision-errors"
 import { useStrata } from "./portal-context"
 import { LoadError, Spinner, EmptyState, BuildingTag } from "./strata-ui"
@@ -27,7 +28,6 @@ import {
   UserPlus,
   ShieldAlert,
   Accessibility,
-  Loader2,
   CheckCheck,
 } from "lucide-react"
 
@@ -37,7 +37,7 @@ const THROWN = decisionError({}) ?? "Couldn't save that. Try again."
 const URGENCY_DOT: Record<Urgency, string> = {
   high: "bg-destructive",
   medium: "bg-warning",
-  low: "bg-muted-foreground/50",
+  low: "bg-muted-foreground",
 }
 const KIND_ICON = {
   registration: PawPrint,
@@ -166,11 +166,13 @@ function actionsFor(item: QueueItem): RowAction[] {
   }
 }
 
-const TONE_CLASS: Record<RowAction["tone"], string> = {
-  approve: "bg-success/15 text-success-strong hover:bg-success/25",
-  deny: "bg-destructive/10 text-destructive hover:bg-destructive/20",
-  neutral: "bg-muted text-foreground hover:bg-muted/70",
-  escalate: "bg-info/15 text-info hover:bg-info/25",
+// Approve is the one primary action on a row; the rest are secondary, with
+// the tone carried by the icon (ActionIcon), never by coloured words.
+const TONE_VARIANT: Record<RowAction["tone"], "primary" | "secondary"> = {
+  approve: "primary",
+  deny: "secondary",
+  neutral: "secondary",
+  escalate: "secondary",
 }
 
 export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = {}) {
@@ -247,15 +249,11 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
           {effectiveScope === "all" ? "all buildings" : nameFor(effectiveScope)} · urgency-sorted
         </p>
         {safe.length > 0 && (
-          <button
-            onClick={() => setBulkOpen(true)}
-            disabled={bulkBusy}
-            className="ml-auto flex items-center gap-2 rounded-lg bg-success/15 px-3.5 py-1.5 text-[13px] font-semibold text-success-strong transition-colors hover:bg-success/25 disabled:opacity-60"
-          >
-            {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
+          <Button size="sm" onClick={() => setBulkOpen(true)} loading={bulkBusy} className="ml-auto">
+            {!bulkBusy && <CheckCheck />}
             Approve {safe.length}{" "}
             safe
-          </button>
+          </Button>
         )}
       </div>
 
@@ -293,19 +291,16 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
                 ) : actions.length > 0 ? (
                   <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
                     {actions.map((a) => (
-                      <button
+                      <Button
                         key={a.label}
+                        variant={TONE_VARIANT[a.tone]}
+                        size="sm"
                         onClick={() => runAction(item, a)}
-                        disabled={rowBusy}
-                        className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-50 ${TONE_CLASS[a.tone]}`}
+                        loading={rowBusy}
                       >
-                        {rowBusy ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <ActionIcon tone={a.tone} />
-                        )}
+                        {!rowBusy && <ActionIcon tone={a.tone} />}
                         {a.label}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 ) : (
@@ -359,7 +354,7 @@ export function WorkQueueScreen({ scopeOverride }: { scopeOverride?: string } = 
 
 function ActionIcon({ tone }: { tone: RowAction["tone"] }) {
   if (tone === "approve") return <CheckCircle2 className="h-3.5 w-3.5" />
-  if (tone === "deny") return <XCircle className="h-3.5 w-3.5" />
-  if (tone === "escalate") return <ArrowUpRight className="h-3.5 w-3.5" />
+  if (tone === "deny") return <XCircle className="h-3.5 w-3.5 text-destructive" />
+  if (tone === "escalate") return <ArrowUpRight className="h-3.5 w-3.5 text-info" />
   return <Ban className="h-3.5 w-3.5" />
 }

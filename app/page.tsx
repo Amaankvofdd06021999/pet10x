@@ -214,9 +214,9 @@ export default function LandingPage() {
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
           <div
             className="absolute left-1/2 top-[-18%] h-[460px] w-[min(880px,94vw)] -translate-x-1/2 rounded-full opacity-60"
-            style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(253,147,64,0.12) 60%, rgba(253,147,64,0))" }}
+            style={{ background: "radial-gradient(50% 50% at 50% 50%, color-mix(in oklab, var(--primary) 12%, transparent) 60%, transparent)" }}
           />
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.035)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:radial-gradient(ellipse_72%_55%_at_50%_0%,#000_20%,transparent_72%)]" />
+          <div className="grid-lines absolute inset-0 [mask-image:radial-gradient(ellipse_72%_55%_at_50%_0%,black_20%,transparent_72%)]" />
         </div>
 
         <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-12">
@@ -358,7 +358,7 @@ export default function LandingPage() {
           "Comprehensive Care" block. Cards are separated rather than fused
           into a gapless bento: six equal things read as a list of six, and
           the hairline grid made them read as one table. */}
-      <section className="border-y border-border bg-secondary/40 px-5 py-20 sm:px-8 sm:py-28">
+      <section className="border-y border-border bg-muted px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-7xl">
           <Reveal className="mx-auto max-w-2xl text-center">
             <p className={EYEBROW}>Beyond governance</p>
@@ -368,7 +368,7 @@ export default function LandingPage() {
           <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {CAPABILITIES.map((c, i) => (
               <Reveal key={c.title} delay={(i % 3) * 70}>
-                <div className="group h-full rounded-2xl card-raised p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-[0_8px_28px_-18px_rgba(0,0,0,0.28)]">
+                <div className="group h-full rounded-2xl card-raised p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-float">
                   <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-soft text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                     <c.icon className="h-5 w-5" />
                   </span>
@@ -392,13 +392,15 @@ export default function LandingPage() {
           a stripe for its own sake. */}
       <section className="px-5 py-16 sm:px-8 sm:py-20">
         <Reveal className="mx-auto max-w-7xl">
-          <div className="relative overflow-hidden rounded-3xl bg-foreground px-7 py-12 text-background sm:px-12 sm:py-14">
+          {/* A dark band on a light page: `dark` scopes the dark-mode tokens to
+              it, so the copy is the palette's foreground and muted grey. */}
+          <div className="dark relative overflow-hidden rounded-3xl bg-card px-7 py-12 text-foreground sm:px-12 sm:py-14">
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 opacity-[0.14]"
               style={{
                 background:
-                  "radial-gradient(70% 90% at 88% 12%, rgba(253,147,64,0.9), transparent 62%)",
+                  "radial-gradient(70% 90% at 88% 12%, var(--primary), transparent 62%)",
               }}
             />
             <div className="relative grid items-center gap-9 lg:grid-cols-[1.25fr_1fr]">
@@ -410,7 +412,7 @@ export default function LandingPage() {
                 <h2 className="mt-5 text-balance text-[27px] font-semibold leading-[1.12] tracking-tight sm:text-[34px]">
                   When seconds matter, responders know which units have pets.
                 </h2>
-                <p className="mt-4 max-w-xl text-[15.5px] leading-relaxed text-background/75">
+                <p className="mt-4 max-w-xl text-[15.5px] leading-relaxed text-muted-foreground">
                   A time-limited QR gives fire and rescue a floor-by-floor pet summary — species, presence
                   and an emergency contact. Every view is logged, and the code can be revoked the moment
                   it is no longer needed.
@@ -422,7 +424,7 @@ export default function LandingPage() {
                       <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                     </Link>
                   </Button>
-                  <span className="text-[13px] text-background/60">No account needed to scan.</span>
+                  <span className="text-[13px] text-muted-foreground">No account needed to scan.</span>
                 </div>
               </div>
 
@@ -441,7 +443,7 @@ export default function LandingPage() {
                     </span>
                     <div className="min-w-0">
                       <p className="text-[14px] font-semibold">{f.label}</p>
-                      <p className="mt-0.5 text-[12.5px] leading-snug text-background/65">{f.body}</p>
+                      <p className="mt-0.5 text-[12.5px] leading-snug text-muted-foreground">{f.body}</p>
                     </div>
                   </li>
                 ))}
@@ -493,7 +495,7 @@ export default function LandingPage() {
       </section>
 
       {/* ===================== Pricing ===================== */}
-      <section id="pricing" className="scroll-mt-16 border-t border-border bg-secondary/40 px-5 py-20 sm:px-8 sm:py-28">
+      <section id="pricing" className="scroll-mt-16 border-t border-border bg-muted px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-7xl">
           <Reveal className="mx-auto max-w-2xl text-center">
             <p className={EYEBROW}>Pricing</p>
@@ -510,7 +512,7 @@ export default function LandingPage() {
                 <div
                   className={`relative flex h-full flex-col rounded-2xl border bg-card ${
                     tier.featured
-                      ? "border-primary p-8 shadow-[0_18px_48px_-28px_rgba(253,147,64,0.55)] lg:scale-[1.035]"
+                      ? "border-primary p-8 shadow-float lg:scale-[1.035]"
                       : "border-border p-7"
                   }`}
                 >
@@ -571,7 +573,7 @@ export default function LandingPage() {
               className="pointer-events-none absolute inset-0"
               style={{
                 background:
-                  "radial-gradient(60% 80% at 50% 0%, rgba(253,147,64,0.16), transparent 70%)",
+                  "radial-gradient(60% 80% at 50% 0%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 70%)",
               }}
             />
             <div className="relative">
@@ -722,7 +724,7 @@ function FeatureVisual({ index }: { index: number }) {
 function HeroMock() {
   return (
     <div className="relative mx-auto w-full max-w-md lg:max-w-lg">
-      <div className="rounded-2xl card-raised p-4 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.18)]">
+      <div className="rounded-2xl card-raised p-4 shadow-float">
         <div className="mb-4 flex items-center justify-between px-1">
           <div>
             <p className="text-[11px] text-muted-foreground">Building</p>
@@ -734,7 +736,7 @@ function HeroMock() {
         <div className="rounded-xl bg-primary p-4 text-primary-foreground">
           <p className="text-[11px] font-medium opacity-80">Building Compliance</p>
           <p className="text-[34px] font-semibold leading-none">94%</p>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-primary-foreground/25">
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/15">
             <div className="h-full w-[94%] rounded-full bg-primary-foreground" />
           </div>
         </div>
@@ -764,14 +766,14 @@ function HeroMock() {
         </div>
       </div>
 
-      <div className="absolute -left-5 bottom-8 hidden rotate-[-6deg] items-center gap-2 rounded-lg card-raised px-3.5 py-2.5 shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)] sm:flex">
+      <div className="absolute -left-5 bottom-8 hidden rotate-[-6deg] items-center gap-2 rounded-lg card-raised px-3.5 py-2.5 shadow-float sm:flex">
         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-success-soft"><Check className="h-4 w-4 text-success" /></span>
         <div>
           <p className="text-[11px] font-semibold leading-tight">Registration approved</p>
           <p className="text-[10px] text-muted-foreground">Unit 511 · Cat</p>
         </div>
       </div>
-      <div className="absolute -right-4 top-10 hidden rotate-[6deg] items-center gap-2 rounded-lg card-raised px-3.5 py-2.5 shadow-[0_16px_40px_-20px_rgba(0,0,0,0.25)] sm:flex">
+      <div className="absolute -right-4 top-10 hidden rotate-[6deg] items-center gap-2 rounded-lg card-raised px-3.5 py-2.5 shadow-float sm:flex">
         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary-soft"><Heart className="h-4 w-4 text-primary" /></span>
         <div>
           <p className="text-[11px] font-semibold leading-tight">Service animal</p>
@@ -784,7 +786,7 @@ function HeroMock() {
 
 function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl card-raised p-5 shadow-[0_20px_50px_-28px_rgba(0,0,0,0.16)] sm:p-6">
+    <div className="rounded-2xl card-raised p-5 shadow-float sm:p-6">
       {children}
     </div>
   )

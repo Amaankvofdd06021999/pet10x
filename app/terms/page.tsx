@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description: "The terms for using Pet10x: accounts, acceptable use, your content, the AI assistant, bylaw decisions and businesses.",
 }
 
-const link = "font-medium text-primary-text underline underline-offset-2"
+const linkClass = "font-medium text-foreground underline underline-offset-2"
 
 export default function TermsPage() {
   return (
@@ -25,7 +25,7 @@ export default function TermsPage() {
           These terms govern your use of Pet10x, a pet governance and community service for residential buildings
           operated by Park10x Services Inc. (&ldquo;Pet10x&rdquo;, &ldquo;we&rdquo;). By creating an account or using
           Pet10x you agree to them. Our{" "}
-          <Link href="/privacy" className={link}>
+          <Link href="/privacy" className={linkClass}>
             Privacy Policy
           </Link>{" "}
           explains how we handle personal information.
@@ -135,7 +135,7 @@ export default function TermsPage() {
       <LegalSection title="Contact">
         <p>
           Questions about these terms:{" "}
-          <a href={SUPPORT_MAILTO} className={link}>
+          <a href={SUPPORT_MAILTO} className={linkClass}>
             {SUPPORT_EMAIL}
           </a>
           .

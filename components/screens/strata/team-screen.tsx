@@ -9,7 +9,9 @@ import { usePortfolioTeam, inviteCoManager, removeCoManager, type CoManager } fr
 import { useStrata } from "./portal-context"
 import { SectionCard, Spinner, LoadError } from "./strata-ui"
 import { NotificationSettingsSheet } from "@/components/notification-settings-sheet"
-import { Mail, Loader2, UserMinus, ShieldCheck, Building2, Bell } from "lucide-react"
+import { Mail, UserMinus, ShieldCheck, Building2, Bell } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 export function TeamScreen() {
   const { user } = useAuth()
@@ -37,12 +39,9 @@ export function TeamScreen() {
       <SectionCard
         title={<span className="text-[14px] font-semibold text-foreground">Your notifications</span>}
         action={
-          <button
-            onClick={() => setNotificationsOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-info px-3 py-1.5 text-[12px] font-semibold text-info-foreground"
-          >
-            <Bell className="h-3.5 w-3.5" /> Email &amp; push
-          </button>
+          <Button variant="secondary" size="sm" onClick={() => setNotificationsOpen(true)}>
+            <Bell /> Email &amp; push
+          </Button>
         }
       >
         <p className="text-[12.5px] text-muted-foreground">
@@ -136,9 +135,7 @@ export function BuildingTeam({
           <Building2 className="h-4 w-4 text-info" />
           <span className="text-[14px] font-semibold text-foreground">{buildingName}</span>
           {isPrimary && (
-            <span className="rounded-full bg-info/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-info">
-              You&apos;re primary
-            </span>
+            <Badge variant="info">You&apos;re primary</Badge>
           )}
         </div>
       }
@@ -149,29 +146,29 @@ export function BuildingTeam({
           const canRemove = isPrimary && !isSelf && members.length > 1
           return (
             <div key={m.linkId} className="flex items-center gap-3 rounded-lg card-raised p-3">
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-info/15 text-[13px] font-semibold text-info">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-info-soft text-[13px] font-semibold text-foreground">
                 {m.name.slice(0, 1)}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="truncate text-[13.5px] font-semibold text-foreground">{m.name}</p>
                   {m.isPrimary && (
-                    <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Primary
-                    </span>
+                    <Badge>Primary</Badge>
                   )}
                   {isSelf && <span className="text-[10.5px] text-muted-foreground">(you)</span>}
                 </div>
                 <p className="truncate text-[12px] text-muted-foreground">{m.email}</p>
               </div>
               {canRemove ? (
-                <button
+                <Button
+                  variant="quiet"
+                  size="icon-sm"
                   onClick={() => setPendingRemove(m)}
-                  disabled={removing === m.linkId}
-                  className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-[12px] font-semibold text-muted-foreground disabled:opacity-50"
+                  loading={removing === m.linkId}
+                  aria-label={`Remove ${m.name} from this building`}
                 >
-                  {removing === m.linkId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserMinus className="h-3.5 w-3.5" />}
-                </button>
+                  {removing !== m.linkId && <UserMinus className="text-destructive" />}
+                </Button>
               ) : null}
             </div>
           )
@@ -196,13 +193,9 @@ export function BuildingTeam({
             autoCapitalize="none"
             className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-[13px] focus:border-info focus:outline-none"
           />
-          <button
-            onClick={invite}
-            disabled={busy}
-            className="flex items-center justify-center gap-1.5 rounded-lg bg-info px-3.5 py-2 text-[13px] font-semibold text-info-foreground disabled:opacity-60"
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Invite
-          </button>
+          <Button size="sm" onClick={invite} loading={busy}>
+            {!busy && <Mail />} Invite
+          </Button>
         </div>
       ) : (
         <p className="mt-3 flex items-center gap-1.5 border-t border-border pt-3 text-[12px] text-muted-foreground">

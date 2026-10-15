@@ -1,7 +1,11 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Loader2, Plus } from "lucide-react"
+import { AlertCircle, Loader2, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { ErrorText } from "@/components/ui/error-text"
+import { LoadError } from "@/components/ui/load-error"
 import { toast } from "sonner"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -164,7 +168,9 @@ export function MunicipalitiesTab() {
         />
         {opts.hint && !err && <span className="mt-1 block text-[12px] font-normal text-muted-foreground">{opts.hint}</span>}
         {err && (
-          <span id={`muni-${key}-err`} role="alert" className="mt-1 block text-[12px] font-normal text-destructive">
+          // A span, not ErrorText (a <p>): it sits inside the <label>.
+          <span id={`muni-${key}-err`} role="alert" className="mt-1 flex items-start gap-1.5 text-[12px] font-normal text-foreground">
+            <AlertCircle className="mt-px size-3.5 shrink-0 text-destructive" aria-hidden="true" />
             {err}
           </span>
         )}
@@ -178,16 +184,17 @@ export function MunicipalitiesTab() {
         <p className="text-[13px] leading-relaxed text-muted-foreground">
           Postal prefixes decide which city a report matches.
         </p>
-        <button
+        <Button
+          size="sm"
           onClick={() => {
             setErrors({})
             setSaveError(null)
             setForm({ ...EMPTY })
           }}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-primary-strong px-3 py-1.5 text-[13px] font-semibold text-primary-foreground"
+          className="flex-shrink-0"
         >
-          <Plus className="h-3.5 w-3.5" /> Add municipality
-        </button>
+          <Plus /> Add municipality
+        </Button>
       </div>
 
       {form && (
@@ -207,22 +214,15 @@ export function MunicipalitiesTab() {
             Active
           </label>
           {saveError && (
-            <p role="alert" className="text-[13px] text-destructive">
-              {saveError}
-            </p>
+            <ErrorText className="text-meta">{saveError}</ErrorText>
           )}
           <div className="flex gap-2">
-            <button
-              onClick={() => void submit()}
-              disabled={saving}
-              className="flex items-center gap-2 rounded-lg bg-primary-strong px-4 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
-            >
-              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            <Button size="sm" onClick={() => void submit()} loading={saving}>
               Save
-            </button>
-            <button onClick={() => setForm(null)} className="rounded-lg bg-muted px-4 py-2 text-[13px] font-semibold">
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setForm(null)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -232,11 +232,8 @@ export function MunicipalitiesTab() {
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       ) : loadError ? (
-        <div role="alert" className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-center">
-          <p className="text-[13px]">{loadError}</p>
-          <button onClick={() => void load()} className="mt-2 text-[13px] font-semibold text-primary-text">
-            Try again
-          </button>
+        <div role="alert">
+          <LoadError message={loadError} onRetry={() => void load()} />
         </div>
       ) : rows.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border bg-card p-8 text-center text-[13px] text-muted-foreground">
@@ -250,15 +247,15 @@ export function MunicipalitiesTab() {
                 <p className="text-[14px] font-semibold text-foreground">
                   {m.name}
                   {m.region ? `, ${m.region}` : ""}
-                  {!m.is_active && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">Inactive</span>}
+                  {!m.is_active && <Badge className="ml-2">Inactive</Badge>}
                 </p>
                 <p className="text-[12.5px] text-muted-foreground">
                   {m.postal_prefixes.length > 0 ? m.postal_prefixes.join(", ") : "No postal prefixes"}
                 </p>
               </div>
-              <button onClick={() => edit(m)} aria-label={`Edit ${m.name}`} className="flex-shrink-0 text-[13px] font-semibold text-primary-text">
+              <Button variant="quiet" size="sm" onClick={() => edit(m)} aria-label={`Edit ${m.name}`} className="flex-shrink-0">
                 Edit
-              </button>
+              </Button>
             </li>
           ))}
         </ul>

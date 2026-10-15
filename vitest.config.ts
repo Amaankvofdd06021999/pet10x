@@ -9,6 +9,6 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["{lib,app,components}/**/*.test.{ts,tsx}"],
+    include: ["{lib,app,components,eslint-rules}/**/*.test.{ts,tsx}"],
   },
 })

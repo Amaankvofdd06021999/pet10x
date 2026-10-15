@@ -8,9 +8,6 @@ import { cn } from '@/lib/utils'
  * The one pill (spec §2): a soft background with dark text, and an optional
  * solid dot in the tone's own colour. The text is always `foreground` — the
  * tone is carried by the tint and the dot, never by coloured words.
- *
- * `default`, `secondary`, `destructive` and `outline` are the shadcn names,
- * kept as aliases until the callers that use them move.
  */
 const badgeVariants = cva(
   'inline-flex items-center justify-center gap-1 rounded-full border border-transparent px-2 py-0.5 text-caption font-semibold text-foreground w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 [&>svg]:pointer-events-none overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2',
@@ -23,11 +20,6 @@ const badgeVariants = cva(
         warning: 'bg-warning-soft',
         danger: 'bg-destructive-soft',
         info: 'bg-info-soft',
-        // Legacy shadcn names → the spec variants.
-        default: 'bg-primary-soft',
-        secondary: 'bg-muted',
-        destructive: 'bg-destructive-soft',
-        outline: 'border-border bg-transparent',
       },
     },
     defaultVariants: {
@@ -36,16 +28,28 @@ const badgeVariants = cva(
   },
 )
 
+/**
+ * The data layer speaks in tones (`lib/data/appointment-labels.ts`,
+ * `lib/data/owner-bills.ts`): good / warn / bad. This is the one place they
+ * become Badge variants.
+ */
+export type Tone = 'neutral' | 'good' | 'warn' | 'bad' | 'info' | 'accent'
+
+export const TONE_VARIANT = {
+  neutral: 'neutral',
+  good: 'success',
+  warn: 'warning',
+  bad: 'danger',
+  info: 'info',
+  accent: 'brand',
+} as const satisfies Record<Tone, string>
+
 const DOT: Record<string, string> = {
   neutral: 'bg-muted-foreground',
-  secondary: 'bg-muted-foreground',
-  outline: 'bg-muted-foreground',
   brand: 'bg-primary',
-  default: 'bg-primary',
   success: 'bg-success',
   warning: 'bg-warning',
   danger: 'bg-destructive',
-  destructive: 'bg-destructive',
   info: 'bg-info',
 }
 

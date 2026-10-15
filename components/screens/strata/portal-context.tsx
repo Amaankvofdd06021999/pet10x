@@ -122,14 +122,14 @@ function SwitcherItem({
       onClick={onClick}
       aria-current={active ? "true" : undefined}
       className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] transition-colors ${
-        active ? "bg-info/10 text-info" : "text-foreground hover:bg-muted"
+        active ? "bg-info-soft text-foreground" : "text-foreground hover:bg-muted"
       }`}
     >
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{label}</span>
         {sub ? <span className="block truncate text-[11px] text-muted-foreground">{sub}</span> : null}
       </span>
-      {active ? <Check className="h-4 w-4 flex-shrink-0" /> : null}
+      {active ? <Check className="h-4 w-4 flex-shrink-0 text-info" /> : null}
     </button>
   )
 }

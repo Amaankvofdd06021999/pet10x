@@ -16,6 +16,7 @@ import {
   WifiOff,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   fetchEmergencyDirectory,
   isCaution,
@@ -97,7 +98,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background p-6">
         <div className="w-full max-w-sm text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive-soft">
             <Ban className="h-6 w-6 text-destructive" />
           </span>
           <h1 className="mt-4 text-[20px] font-bold text-foreground">Access ended</h1>
@@ -121,14 +122,9 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
           <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
             Check your signal and try again. This link may still be good.
           </p>
-          <button
-            onClick={() => void retry()}
-            disabled={retrying}
-            className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary-strong px-6 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
-          >
-            {retrying && <Loader2 className="h-4 w-4 animate-spin" />}
+          <Button onClick={() => void retry()} loading={retrying} className="mt-5 px-6">
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -142,7 +138,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 px-4 pt-safe backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/80 px-4 pt-safe backdrop-blur-xl">
         <div className="flex items-center justify-between py-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -153,13 +149,13 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
           </div>
           <div
             className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 ${
-              urgent ? "bg-destructive/15" : "bg-muted"
+              urgent ? "bg-destructive-soft" : "bg-muted"
             }`}
           >
             <Clock className={`h-3 w-3 ${urgent ? "text-destructive" : "text-muted-foreground"}`} />
             <span
               className={`font-mono text-[12px] font-bold tabular-nums ${
-                urgent ? "text-destructive" : "text-foreground"
+                "text-foreground"
               }`}
             >
               {clock}
@@ -169,7 +165,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
       </header>
 
       {stale && lastOk !== null && (
-        <div role="status" className="flex items-center justify-between gap-3 bg-warning/15 px-4 py-2">
+        <div role="status" className="flex items-center justify-between gap-3 bg-warning-soft px-4 py-2">
           <p className="text-[13px] text-foreground">
             Couldn&apos;t refresh. Showing data from {new Date(lastOk).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.
           </p>
@@ -202,7 +198,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
         </section>
 
         <section className="mb-4">
-          <div className="flex gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
+          <div className="flex gap-2 rounded-xl border border-border bg-destructive-soft p-3">
             <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
             <p className="text-[12px] leading-relaxed text-foreground">
               Supplementary information only. Not a life-safety system. Pet presence is based on last known status and
@@ -248,7 +244,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
                         </span>
                       </span>
                       {hasCaution && (
-                        <Badge className="border-0 bg-destructive/15 text-[12px] text-destructive">CAUTION</Badge>
+                        <Badge variant="danger" dot className="text-[12px]">CAUTION</Badge>
                       )}
                       {isOpen ? (
                         <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -303,7 +299,7 @@ function PetRow({ pet }: { pet: EmergencyPet }) {
   return (
     <div
       className={`mb-1.5 rounded-lg p-2.5 ${
-        caution ? "border border-destructive/30 bg-destructive/10" : "bg-muted"
+        caution ? "border border-destructive bg-destructive-soft" : "bg-muted"
       }`}
     >
       <div className="mb-1 flex flex-wrap items-center gap-2">

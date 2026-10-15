@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  * describes a button nobody can find is worse than no FAQ.
  */
 
-const link = "font-medium text-primary-text underline underline-offset-2"
+const linkClass = "font-medium text-foreground underline underline-offset-2"
 
 function Faq({ q, id, children }: { q: string; id?: string; children: ReactNode }) {
   return (
@@ -28,7 +28,7 @@ function Faq({ q, id, children }: { q: string; id?: string; children: ReactNode 
           </span>
         </span>
       </summary>
-      <div className="mt-2 text-[14.5px] leading-relaxed text-foreground/80">{children}</div>
+      <div className="mt-2 text-[14.5px] leading-relaxed text-foreground">{children}</div>
     </details>
   )
 }
@@ -40,7 +40,7 @@ export default function HelpPage() {
       intro={
         <p>
           Quick answers, grouped by who you are. Can&apos;t find yours? Email{" "}
-          <a href={SUPPORT_MAILTO} className={link}>
+          <a href={SUPPORT_MAILTO} className={linkClass}>
             {SUPPORT_EMAIL}
           </a>
           .
@@ -50,7 +50,7 @@ export default function HelpPage() {
       <LegalSection id="owners" title="Pet owners">
         <Faq q="How do I create an account?">
           Open{" "}
-          <Link href="/app" className={link}>
+          <Link href="/app" className={linkClass}>
             the app
           </Link>
           , choose Sign up, and enter your name, email and a password. We email you a 6-digit code; your account is
@@ -84,7 +84,7 @@ export default function HelpPage() {
         </Faq>
         <Faq q="How do I report an incident?">
           Use Report incident on the{" "}
-          <Link href="/report" className={link}>
+          <Link href="/report" className={linkClass}>
             report page
           </Link>
           . You don&apos;t need an account. You can attach photos, and report an animal to the city as well.
@@ -94,7 +94,7 @@ export default function HelpPage() {
         </Faq>
         <Faq q="How do I export or delete my data?">
           Profile &rsaquo; Privacy &amp; data has Export my data and Delete account. See the{" "}
-          <Link href="/privacy" className={link}>
+          <Link href="/privacy" className={linkClass}>
             Privacy Policy
           </Link>{" "}
           for what each covers.
@@ -104,7 +104,7 @@ export default function HelpPage() {
       <LegalSection id="managers" title="Building managers">
         <Faq q="How do I get access?">
           Pet10x invites building managers by email. Sign in from{" "}
-          <Link href="/manager" className={link}>
+          <Link href="/manager" className={linkClass}>
             the manager page
           </Link>{" "}
           with the account you were invited on.
@@ -129,7 +129,7 @@ export default function HelpPage() {
       <LegalSection id="businesses" title="Pet businesses">
         <Faq q="How do I list my business?">
           Sign up at{" "}
-          <Link href="/businessaccess" className={link}>
+          <Link href="/businessaccess" className={linkClass}>
             Pet10x for Business
           </Link>{" "}
           with your business name, category and email. We email you a code to confirm the address. New businesses
@@ -144,7 +144,7 @@ export default function HelpPage() {
       <LegalSection id="clinics" title="Veterinary clinics">
         <Faq q="How do I set up my practice?">
           Sign in at{" "}
-          <Link href="/clinic" className={link}>
+          <Link href="/clinic" className={linkClass}>
             the clinic console
           </Link>{" "}
           and register your practice. You can run your calendar, customers, reminders, shop and billing straight away.
@@ -163,15 +163,15 @@ export default function HelpPage() {
       <LegalSection id="contact" title="Still stuck?">
         <p>
           Email{" "}
-          <a href={SUPPORT_MAILTO} className={link}>
+          <a href={SUPPORT_MAILTO} className={linkClass}>
             {SUPPORT_EMAIL}
           </a>{" "}
           with what you were trying to do. See also the{" "}
-          <Link href="/terms" className={link}>
+          <Link href="/terms" className={linkClass}>
             Terms of Service
           </Link>{" "}
           and{" "}
-          <Link href="/privacy" className={link}>
+          <Link href="/privacy" className={linkClass}>
             Privacy Policy
           </Link>
           .

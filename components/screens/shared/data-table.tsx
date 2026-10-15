@@ -88,7 +88,7 @@ export function DataTable<T>({
                   key={c.key}
                   scope="col"
                   aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-                  className={`border-b border-border bg-secondary/60 px-3 py-2 text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground ${
+                  className={`border-b border-border bg-muted px-3 py-2 text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground ${
                     c.align === "right" ? "text-right" : "text-left"
                   } ${c.width ?? ""} ${c.secondary ? "hidden md:table-cell" : ""}`}
                 >
@@ -128,7 +128,7 @@ export function DataTable<T>({
                   : undefined
               }
               className={`border-b border-border last:border-b-0 ${
-                onRowClick ? "cursor-pointer transition-colors hover:bg-secondary/50 focus-visible:bg-secondary" : ""
+                onRowClick ? "cursor-pointer transition-colors hover:bg-muted focus-visible:bg-muted" : ""
               }`}
             >
               {columns.map((c) => (

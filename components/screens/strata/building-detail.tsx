@@ -24,6 +24,9 @@ import {
 import { STAGE_LABEL, closedCaseLabel, controlsForCase, isFineStage, nextStage } from "@/lib/data/violations"
 import { shortDate } from "@/lib/dates"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { ErrorText } from "@/components/ui/error-text"
 import type { ResidentLinkRow } from "@/lib/data"
 import type { ViolationStage } from "@/lib/data/types"
 import {
@@ -46,7 +49,6 @@ import {
   Check,
   X,
   UserMinus,
-  Loader2,
   ArrowRight,
   ShieldCheck,
   Copy,
@@ -119,7 +121,7 @@ export function BuildingDetail({ buildingId, onBack }: { buildingId: string; onB
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors ${
-                active ? "bg-card text-info shadow-sm" : "text-muted-foreground"
+                active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
               <Icon className="h-4 w-4" /> {t.label}
@@ -204,21 +206,18 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
                     Unit {r.unit ?? "not given"} · requested {shortDate(r.requestedAt)}
                   </p>
                 </div>
-                <button
-                  onClick={() => approve(r.linkId)}
-                  disabled={busy === r.linkId}
-                  className="flex items-center gap-1 rounded-lg bg-success/15 px-3 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-50"
-                >
-                  {busy === r.linkId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                <Button size="sm" onClick={() => approve(r.linkId)} loading={busy === r.linkId}>
+                  {busy !== r.linkId && <Check />}
                   Approve
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setConfirming({ kind: "deny", resident: r })}
                   disabled={busy === r.linkId}
-                  className="flex items-center gap-1 rounded-lg bg-destructive/10 px-3 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
                 >
-                  <X className="h-3.5 w-3.5" /> Deny
-                </button>
+                  <X className="text-destructive" /> Deny
+                </Button>
               </div>
             ))}
           </div>
@@ -232,7 +231,7 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
           <div className="space-y-2">
             {members.map((r) => (
               <div key={r.linkId} className="flex items-center gap-3 rounded-lg card-raised p-3">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-info/15 text-[13px] font-semibold text-info">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-info-soft text-[13px] font-semibold text-foreground">
                   {r.residentName.slice(0, 1)}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -243,14 +242,15 @@ function ResidentsPanel({ buildingId }: { buildingId: string }) {
                   </p>
                 </div>
                 {/* Labelled, not a bare icon: what it does is on the button. */}
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => setConfirming({ kind: "remove", resident: r })}
-                  disabled={busy === r.linkId}
-                  className="flex min-h-[44px] items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
+                  loading={busy === r.linkId}
+                  className="px-2.5 text-meta"
                 >
-                  {busy === r.linkId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserMinus className="h-3.5 w-3.5" />}
+                  {busy !== r.linkId && <UserMinus className="text-destructive" />}
                   Remove from building
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -503,9 +503,7 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                         Unit {v.unit} · {v.resident} · {v.date}
                       </p>
                     </div>
-                    <span className="whitespace-nowrap rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
-                      {v.stageLabel}
-                    </span>
+                    <Badge variant="warning">{v.stageLabel}</Badge>
                   </div>
                   {v.amount > 0 && (
                     <p className="mt-1 text-[12px] font-medium text-foreground">
@@ -535,8 +533,8 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                     said.
                   */}
                   {v.openDispute && (
-                    <div className="mt-2 rounded-lg border border-warning/40 bg-warning/5 p-2.5">
-                      <p className="text-[11px] font-semibold text-warning">
+                    <div className="mt-2 rounded-lg border border-border bg-warning-soft p-2.5">
+                      <p className="text-[11px] font-semibold text-foreground">
                         {`Appeal against the ${STAGE_LABEL[v.openDispute.stage].toLowerCase()} stage, filed ${shortDate(
                           v.openDispute.filedAt,
                           "an unknown date",
@@ -550,47 +548,46 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                   <div className="mt-2.5 flex flex-wrap gap-1.5">
                     {controls.kind === "decide-appeal" ? (
                       <>
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => setClosing({ id: v.id, act: "upheld" })}
                           disabled={busy === v.id}
-                          className="flex items-center gap-1 rounded-lg bg-warning/15 px-2.5 py-1.5 text-[12px] font-semibold text-warning disabled:opacity-50"
                         >
-                          <Gavel className="h-3.5 w-3.5" /> Uphold
-                        </button>
-                        <button
+                          <Gavel className="text-warning" /> Uphold
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => setClosing({ id: v.id, act: "overturned" })}
                           disabled={busy === v.id}
-                          className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-50"
                         >
-                          <ShieldCheck className="h-3.5 w-3.5" /> Overturn
-                        </button>
+                          <ShieldCheck className="text-success" /> Overturn
+                        </Button>
                       </>
                     ) : (
                       <>
                         {next && (
-                          <button
-                            onClick={() => startAdvance(v.id, v.stage)}
-                            disabled={busy === v.id}
-                            className="flex items-center gap-1 rounded-lg bg-info/15 px-2.5 py-1.5 text-[12px] font-semibold text-info disabled:opacity-50"
-                          >
-                            {busy === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                          <Button size="sm" onClick={() => startAdvance(v.id, v.stage)} loading={busy === v.id}>
+                            {busy !== v.id && <ArrowRight />}
                             Advance to {STAGE_LABEL[next]}
-                          </button>
+                          </Button>
                         )}
                         {controls.moves.includes("resolved") && (
-                          <button
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={() => setClosing({ id: v.id, act: "resolve" })}
                             disabled={busy === v.id}
-                            className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-50"
                           >
-                            <ShieldCheck className="h-3.5 w-3.5" /> Resolve
-                          </button>
+                            <ShieldCheck className="text-success" /> Resolve
+                          </Button>
                         )}
                       </>
                     )}
                   </div>
                   {asking === v.id && next && isFineStage(next) && (
-                    <div className="mt-2 rounded-lg border border-warning/40 bg-warning/5 p-2.5">
+                    <div className="mt-2 rounded-lg border border-border bg-warning-soft p-2.5">
                       <p className="text-[11.5px] leading-relaxed text-foreground">
                         {bylawCentsFor(v.stage) === null
                           ? `This building has no fine schedule in its bylaws, so there is no amount to apply. Enter what this ${STAGE_LABEL[next].toLowerCase()} should be, and what it is based on.`
@@ -629,25 +626,15 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
                         />
                       </label>
                       {fineError && (
-                        <p role="alert" className="mt-1.5 text-[12px] font-medium text-destructive">
-                          {fineError}
-                        </p>
+                        <ErrorText className="mt-1.5 text-[12px] font-medium">{fineError}</ErrorText>
                       )}
                       <div className="mt-2 flex items-center gap-1.5">
-                        <button
-                          onClick={() => void issue(v.id, v.stage)}
-                          disabled={busy === v.id}
-                          className="flex items-center gap-1 rounded-lg bg-destructive/15 px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
-                        >
-                          {busy === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        <Button variant="danger" size="sm" onClick={() => void issue(v.id, v.stage)} loading={busy === v.id}>
                           Issue {STAGE_LABEL[next].toLowerCase()}
-                        </button>
-                        <button
-                          onClick={() => setAsking(null)}
-                          className="rounded-lg bg-muted px-2.5 py-1.5 text-[12px] font-semibold text-muted-foreground"
-                        >
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => setAsking(null)}>
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -700,13 +687,13 @@ function ViolationsPanel({ buildingId }: { buildingId: string }) {
               // instead of sitting in a no-wrap span that ran off a phone.
               const { label, tone } = closedCaseLabel(v.stage)
               return (
-                <div key={v.id} className="rounded-lg bg-muted/40 px-3 py-2">
+                <div key={v.id} className="rounded-lg bg-muted px-3 py-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="min-w-0 truncate text-[12.5px] capitalize text-foreground">
                       {v.type} · Unit {v.unit}
                     </span>
                     <span className="flex-shrink-0 text-[11.5px] text-muted-foreground">
-                      <span className={tone === "good" ? "font-semibold text-success-strong" : "font-semibold"}>{label}</span>
+                      <Badge variant={tone === "good" ? "success" : "neutral"}>{label}</Badge>
                       {v.resolved ? ` · ${v.resolved}` : ""}
                     </span>
                   </div>
@@ -777,13 +764,9 @@ function EmergencyPanel({ buildingId }: { buildingId: string }) {
     <SectionCard
       title="Emergency access links"
       action={
-        <button
-          onClick={issue}
-          disabled={busy}
-          className="flex items-center gap-1.5 rounded-lg bg-info px-3 py-1.5 text-[12px] font-semibold text-info-foreground disabled:opacity-60"
-        >
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Issue 4h link
-        </button>
+        <Button size="sm" onClick={issue} loading={busy}>
+          {!busy && <Plus />} Issue 4h link
+        </Button>
       }
     >
       <p className="mb-3 text-[12.5px] text-muted-foreground">
@@ -798,7 +781,7 @@ function EmergencyPanel({ buildingId }: { buildingId: string }) {
           {tokens.map((t) => (
             <div key={t.id} className="flex items-center gap-3 rounded-lg card-raised p-3">
               <span
-                className={`h-2 w-2 flex-shrink-0 rounded-full ${t.isActive ? "bg-success" : "bg-muted-foreground/50"}`}
+                className={`h-2 w-2 flex-shrink-0 rounded-full ${t.isActive ? "bg-success" : "bg-muted-foreground"}`}
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-mono text-[12px] text-foreground">/emergency/{t.token.slice(0, 12)}…</p>
@@ -809,19 +792,12 @@ function EmergencyPanel({ buildingId }: { buildingId: string }) {
               </div>
               {t.isActive && (
                 <>
-                  <button
-                    onClick={() => copy(t.token)}
-                    className="flex items-center rounded-lg bg-muted p-2 text-muted-foreground"
-                    title="Copy link"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => revoke(t.id)}
-                    className="flex items-center gap-1 rounded-lg bg-destructive/10 px-2.5 py-1.5 text-[12px] font-semibold text-destructive"
-                  >
-                    <Ban className="h-3.5 w-3.5" /> Revoke
-                  </button>
+                  <Button variant="quiet" size="icon-sm" onClick={() => copy(t.token)} title="Copy link" aria-label="Copy link">
+                    <Copy />
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => revoke(t.id)}>
+                    <Ban className="text-destructive" /> Revoke
+                  </Button>
                 </>
               )}
             </div>

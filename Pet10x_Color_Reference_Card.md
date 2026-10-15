@@ -80,5 +80,14 @@ light `foreground` text on them stays readable (asserted in
 (teal), `#96660A`, `#147A4A`, and the hard-coded yellows `#FFF9E6`,
 `#FFFBEF`, `#B38F00` (all now `warning-soft`, `#FFF6E0`, with dark text). The old
 token names `--primary-strong`, `--primary-strong-hover`, `--primary-text`,
-`--accent`, `--warning-strong` and `--success-strong` survive only as
-temporary aliases until every screen has moved.
+`--accent`, `--warning-strong` and `--success-strong` are gone, as are
+opacity tints on colours (`bg-success/10` and friends).
+
+## Enforced
+
+`eslint-rules/no-raw-colors.js` fails lint on any class that names a colour
+outside this card: hex/rgb/hsl, Tailwind palette names (`orange-600`), the
+retired tokens, and opacity modifiers on colours. The only translucent
+colours allowed are the overlays `bg-black/40`, `bg-black/50` (backdrops,
+scrims), `bg-white/10`, `bg-white/15` (light tiles on a dark band) and
+`bg-card/85`, `bg-background/80` (sticky glass bars).

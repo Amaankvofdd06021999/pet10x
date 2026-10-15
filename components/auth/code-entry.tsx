@@ -1,6 +1,7 @@
 "use client"
 
 import type { RefObject } from "react"
+import { Button } from "@/components/ui/button"
 
 /** Mirrors the server's CODE_TTL_MINUTES / RESEND_COOLDOWN_SECONDS. */
 export const CODE_TTL_MS = 15 * 60 * 1000
@@ -56,22 +57,23 @@ export function CodeEntry({
         onKeyDown={(e) => e.key === "Enter" && onEnter()}
         placeholder="••••••"
         aria-invalid={invalid}
-        className="w-full rounded-xl border border-input bg-card py-4 text-center font-mono text-[28px] font-bold tracking-[0.4em] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="w-full rounded-xl border border-input bg-card py-4 text-center font-mono text-[28px] font-bold tracking-[0.4em] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-soft"
       />
 
       <div className="mt-3 flex items-center justify-between gap-3">
-        <span className={`text-[13px] ${codeExpired ? "text-destructive" : "text-muted-foreground"}`}>
+        <span className={`text-[13px] ${codeExpired ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
           {codeExpired ? "Code expired" : `Expires in ${mmss(msLeft)}`}
         </span>
-        <button
+        <Button
           // Not a submit: the code screen is a <form>, and resending must not verify.
           type="button"
+          variant="quiet"
+          size="sm"
           onClick={onResend}
           disabled={loading || (resendLeft > 0 && !codeExpired)}
-          className="text-[13px] font-semibold text-primary-text disabled:text-muted-foreground"
         >
           {resendLeft > 0 && !codeExpired ? `Resend in ${Math.ceil(resendLeft / 1000)}s` : "Send a new code"}
-        </button>
+        </Button>
       </div>
     </>
   )
