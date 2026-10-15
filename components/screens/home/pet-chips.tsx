@@ -52,8 +52,8 @@ export function PetChips({
             key={pet.id}
             onClick={() => onSelect(pet.id)}
             aria-pressed={active}
-            className={`flex flex-shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[13px] font-semibold transition-colors ${
-              active ? "border-primary bg-primary/5 text-primary-text" : "border-border bg-card text-muted-foreground"
+            className={`flex flex-shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-meta font-semibold transition-colors ${
+              active ? "border-primary bg-primary-soft text-foreground" : "border-border bg-card text-muted-foreground"
             }`}
           >
             <PetAvatar pet={pet} size={18} />

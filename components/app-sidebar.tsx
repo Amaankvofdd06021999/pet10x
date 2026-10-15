@@ -69,17 +69,15 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
   const unreadCount = useUnreadNotificationCount()
   const badges: Record<string, number> = { alerts: unreadCount }
   const tabs = isManager ? managerTabs : ownerTabs
-  // Matches the mobile tab bar: one brand colour for both roles, not `--info`.
-  const activeColor = "text-primary-text"
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 flex-shrink-0 flex-col border-r border-border bg-card md:flex">
       {/* Brand */}
       <div className="flex h-16 items-center gap-2 px-5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary shadow-sm shadow-primary/30">
+        <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary shadow-sm">
           <PawPrint className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
         </span>
-        <span className="text-[17px] font-semibold tracking-tight text-foreground">Pet10x</span>
+        <span className="text-title font-semibold tracking-tight text-foreground">Pet10x</span>
       </div>
 
       {/* Nav */}
@@ -89,13 +87,13 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
           <button
             onClick={() => onTabChange("ai-chat")}
             aria-current={activeTab === "ai-chat" ? "page" : undefined}
-            className={`mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-colors ${
+            className={`mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-body font-medium transition-colors ${
               activeTab === "ai-chat"
-                ? "bg-accent/10 text-accent"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                ? "bg-primary-soft text-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
-            <Sparkles className="h-5 w-5" strokeWidth={activeTab === "ai-chat" ? 2.4 : 1.8} />
+            <Sparkles className={`h-5 w-5 ${activeTab === "ai-chat" ? "text-primary" : ""}`} strokeWidth={activeTab === "ai-chat" ? 2.4 : 1.8} />
             <span className="flex-1 text-left">Ask Pet10x</span>
           </button>
         )}
@@ -108,16 +106,16 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               aria-current={isActive ? "page" : undefined}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-colors ${
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-body font-medium transition-colors ${
                 isActive
-                  ? `bg-muted ${activeColor}`
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
-              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.4 : 1.8} />
+              <Icon className={`h-5 w-5 ${isActive ? "text-primary" : ""}`} strokeWidth={isActive ? 2.4 : 1.8} />
               <span className="flex-1 text-left">{tab.label}</span>
               {badges[tab.id] > 0 ? (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-destructive-foreground">
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-caption font-semibold text-destructive-foreground">
                   {badges[tab.id]}
                 </span>
               ) : null}
@@ -139,13 +137,13 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
             ) : null}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold text-foreground">{user?.name}</p>
-            <p className="truncate text-[11px] text-muted-foreground">{PERSONA_LABEL[viewAs]}</p>
+            <p className="truncate text-meta font-semibold text-foreground">{user?.name}</p>
+            <p className="truncate text-caption text-muted-foreground">{PERSONA_LABEL[viewAs]}</p>
           </div>
         </div>
         <button
           onClick={handleSignOut}
-          className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium text-destructive transition-colors hover:bg-destructive/5"
+          className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-body font-medium text-foreground transition-colors hover:bg-destructive-soft"
         >
           <LogOut className="h-5 w-5" />
           Sign out

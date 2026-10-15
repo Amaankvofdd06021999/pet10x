@@ -1,5 +1,7 @@
 "use client"
 
+import { ErrorText } from "@/components/ui/error-text"
+import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import {
   useCareEntries,
@@ -40,13 +42,13 @@ import {
  * question about the animal. This is only how each one looks.
  */
 const KIND_STYLE: Record<string, { icon: typeof Utensils; color: string; bg: string }> = {
-  food: { icon: Utensils, color: "text-primary", bg: "bg-primary/10" },
-  water: { icon: Droplets, color: "text-accent", bg: "bg-accent/10" },
-  treat: { icon: Cookie, color: "text-accent", bg: "bg-accent/10" },
-  medicine: { icon: Pill, color: "text-destructive", bg: "bg-destructive/10" },
-  walk: { icon: Footprints, color: "text-success", bg: "bg-success/10" },
-  play: { icon: Sparkles, color: "text-success", bg: "bg-success/10" },
-  outing: { icon: Trees, color: "text-success", bg: "bg-success/10" },
+  food: { icon: Utensils, color: "text-primary", bg: "bg-primary-soft" },
+  water: { icon: Droplets, color: "text-primary", bg: "bg-primary-soft" },
+  treat: { icon: Cookie, color: "text-primary", bg: "bg-primary-soft" },
+  medicine: { icon: Pill, color: "text-destructive", bg: "bg-destructive-soft" },
+  walk: { icon: Footprints, color: "text-success", bg: "bg-success-soft" },
+  play: { icon: Sparkles, color: "text-success", bg: "bg-success-soft" },
+  outing: { icon: Trees, color: "text-success", bg: "bg-success-soft" },
   potty: { icon: CircleDot, color: "text-muted-foreground", bg: "bg-muted" },
   weight: { icon: Scale, color: "text-foreground", bg: "bg-muted" },
 }
@@ -210,7 +212,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`flex-1 rounded-lg py-2 text-[13px] font-semibold transition-colors ${
+              className={`flex-1 rounded-lg py-2 text-meta font-semibold transition-colors ${
                 view === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
@@ -226,19 +228,19 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
             const { icon: Icon } = styleFor(k.kind)
             const on = activeKind === k.kind
             return (
-              <button
+              <Button
+                variant={on ? "primary" : "secondary"}
+                size="sm"
                 key={k.kind}
                 onClick={() => {
-                  setKind(k.kind as CareEntryKind)
-                  setAmount("")
-                  setLabel("")
-                }}
-                className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-semibold transition-all ${
-                  on ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
+ setKind(k.kind as CareEntryKind)
+ setAmount("")
+ setLabel("")
+ }}
+                className="flex-shrink-0"
               >
                 <Icon className="h-4 w-4" /> {k.label}
-              </button>
+              </Button>
             )
           })}
         </div>
@@ -248,13 +250,13 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
         ) : (
           <>
           {/* Today */}
-          <section className="mb-4 rounded-2xl bg-primary-strong p-4 text-primary-foreground">
-            <p className="text-[12px] font-medium opacity-80">
+          <section className="mb-4 rounded-2xl bg-primary p-4 text-primary-foreground">
+            <p className="text-caption font-medium opacity-80">
               {spec.label} today · {pet?.name}
             </p>
             <p className="text-[28px] font-semibold leading-tight">
               {todayTotal}
-              <span className="text-[15px] font-medium opacity-80"> {unit.label}</span>
+              <span className="text-body font-medium opacity-80"> {unit.label}</span>
             </p>
           </section>
 
@@ -270,10 +272,10 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
               one and a single row could only ever describe the first. */}
           <section className="mb-5">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-[14px] font-semibold text-foreground">{spec.targetLabel}</h2>
+              <h2 className="text-body font-semibold text-foreground">{spec.targetLabel}</h2>
               <button
                 onClick={() => setTargetSheet(true)}
-                className="flex items-center gap-1 text-[13px] font-semibold text-primary-text"
+                className="flex items-center gap-1 text-meta font-semibold text-foreground"
               >
                 <Target className="h-3.5 w-3.5" /> {spec.multi ? "Add" : targets.length ? "Edit" : "Set"}
               </button>
@@ -282,7 +284,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
             {targets.length === 0 ? (
               <button
                 onClick={() => setTargetSheet(true)}
-                className="w-full rounded-xl border border-dashed border-border bg-card p-3 text-center text-[12.5px] text-muted-foreground"
+                className="w-full rounded-xl border border-dashed border-border bg-card p-3 text-center text-caption text-muted-foreground"
               >
                 No target set{spec.multi ? " — add one per item" : ""}.
               </button>
@@ -293,8 +295,8 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                   return (
                     <div key={t.id} className="rounded-xl card-raised p-3">
                       <div className="flex items-baseline justify-between gap-2">
-                        <p className="min-w-0 truncate text-[13.5px] font-semibold text-foreground">{t.label}</p>
-                        <p className={`flex-shrink-0 text-[12px] font-semibold ${pr.over ? "text-destructive" : "text-muted-foreground"}`}>
+                        <p className="min-w-0 truncate text-meta font-semibold text-foreground">{t.label}</p>
+                        <p className={`flex-shrink-0 text-caption font-semibold ${pr.over ? "text-foreground" : "text-muted-foreground"}`}>
                           {pr.done} / {pr.goal} {unitById(pet?.species, activeKind, t.unit ?? null).label}
                           {t.period === "week" ? " / wk" : ""}
                         </p>
@@ -305,7 +307,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                           style={{ width: `${pr.pct}%` }}
                         />
                       </div>
-                      {pr.over && <p className="mt-1.5 text-[11.5px] font-medium text-destructive">Over the daily limit</p>}
+                      {pr.over && <ErrorText className="mt-1.5 text-caption font-medium">Over the daily limit</ErrorText>}
                     </div>
                   )
                 })}
@@ -315,14 +317,14 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
 
           {/* Quick log */}
           <section className="mb-6 rounded-2xl card-raised p-3.5">
-            <h2 className="mb-2.5 text-[14px] font-semibold text-foreground">Log {spec.label.toLowerCase()}</h2>
+            <h2 className="mb-2.5 text-body font-semibold text-foreground">Log {spec.label.toLowerCase()}</h2>
             <input
               type="text"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder={spec.placeholder}
               list={`targets-${activeKind}`}
-              className="mb-2 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="mb-2 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-body focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
             />
             {/* Existing targets as suggestions, so a logged entry lands on the
                 goal it belongs to instead of near-missing it by a typo. */}
@@ -341,7 +343,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="Amount"
-                className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3.5 py-2.5 text-body focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
               />
               {/* Unit is a choice, not a constant: a dog's meal is bowls or
                   grams depending on the household, and both are correct. */}
@@ -350,7 +352,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                   value={unit.id}
                   onChange={(e) => setUnitId(e.target.value)}
                   aria-label="Unit"
-                  className="flex-shrink-0 rounded-xl border border-border bg-background px-2.5 py-2.5 text-[13px] font-medium text-foreground focus:border-primary focus:outline-none"
+                  className="flex-shrink-0 rounded-xl border border-border bg-background px-2.5 py-2.5 text-meta font-medium text-foreground focus:border-primary focus:outline-none"
                 >
                   {spec.units.map((u) => (
                     <option key={u.id} value={u.id}>
@@ -359,27 +361,22 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                   ))}
                 </select>
               ) : (
-                <span className="flex-shrink-0 text-[12px] font-medium text-muted-foreground">{unit.label}</span>
+                <span className="flex-shrink-0 text-caption font-medium text-muted-foreground">{unit.label}</span>
               )}
-              <button
+              <Button
                 onClick={() => log(amount ? parseFloat(amount) : null)}
                 disabled={saving}
-                className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary-strong px-4 py-2.5 text-[14px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+                className="flex-shrink-0"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Log
-              </button>
+              </Button>
             </div>
             {unit.quick.length > 0 && (
               <div className="mt-2.5 flex flex-wrap gap-2">
                 {unit.quick.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => log(q)}
-                    disabled={saving}
-                    className="rounded-full border border-border bg-background px-3 py-1.5 text-[12px] font-semibold text-foreground transition-colors active:bg-muted disabled:opacity-60"
-                  >
+                  <Button variant="secondary" size="sm" key={q} onClick={() => log(q)} disabled={saving}>
                     + {q} {unit.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -387,7 +384,7 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
 
           {/* History */}
           <section>
-            <h2 className="mb-2.5 text-[15px] font-semibold text-foreground">History</h2>
+            <h2 className="mb-2.5 text-body font-semibold text-foreground">History</h2>
             {entriesLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -395,14 +392,14 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
             ) : entries.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-card p-7 text-center">
                 {(() => { const I = styleFor(activeKind).icon; return <I className="mx-auto h-6 w-6 text-muted-foreground" /> })()}
-                <p className="mt-2 text-[13px] text-muted-foreground">No {spec.label.toLowerCase()} logged yet</p>
-                <p className="text-[12px] text-muted-foreground">Log your first entry above.</p>
+                <p className="mt-2 text-meta text-muted-foreground">No {spec.label.toLowerCase()} logged yet</p>
+                <p className="text-caption text-muted-foreground">Log your first entry above.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-4">
                 {groups.map((g) => (
                   <div key={g.label}>
-                    <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{g.label}</p>
+                    <p className="mb-1.5 text-caption font-semibold uppercase tracking-wide text-muted-foreground">{g.label}</p>
                     <div className="overflow-hidden rounded-xl card-raised">
                       {g.items.map((e, i) => (
                         <div
@@ -413,8 +410,8 @@ export function CareTracker({ pet, initialKind }: { pet: Pet; initialKind?: stri
                             {(() => { const I = styleFor(activeKind).icon; return <I className={`h-4 w-4 ${styleFor(activeKind).color}`} /> })()}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[14px] font-semibold text-foreground">{e.label || spec.defaultLabel}</p>
-                            <p className="text-[12px] text-muted-foreground">
+                            <p className="truncate text-body font-semibold text-foreground">{e.label || spec.defaultLabel}</p>
+                            <p className="text-caption text-muted-foreground">
                               {e.amount != null && `${e.amount} ${unitById(pet?.species, activeKind, e.unit ?? null).label} · `}
                               {timeLabel(e.loggedAt)}
                             </p>
@@ -592,13 +589,13 @@ function TargetSheet({
       onOpenChange={(next) => {
         if (!next && !saving) onClose()
       }}
-      overlayClassName="flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[2px]"
+      overlayClassName="flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
       className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-card shadow-float p-5 shadow-xl"
     >
           <div className="mb-1 flex items-center justify-between gap-3">
             {/* Names the animal, not just the kind: "Daily target" alone told a
                 screen reader nothing in a three-pet household. */}
-            <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">
+            <DialogTitle className="text-title font-semibold leading-normal text-foreground">
               {`${spec.targetLabel} · ${petName}`}
             </DialogTitle>
             <button
@@ -610,7 +607,7 @@ function TargetSheet({
             </button>
           </div>
           {spec.multi && (
-            <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
+            <p className="mb-3 text-caption leading-relaxed text-muted-foreground">
               Add one line per item — they are tracked separately.
             </p>
           )}
@@ -623,7 +620,7 @@ function TargetSheet({
                     value={row.label}
                     onChange={(e) => patch(i, { label: e.target.value })}
                     placeholder={spec.placeholder}
-                    className="min-w-0 flex-1 rounded-lg border border-input bg-card px-3 py-2 text-[14px] focus:border-primary focus:outline-none"
+                    className="min-w-0 flex-1 rounded-lg border border-input bg-card px-3 py-2 text-body focus:border-primary focus:outline-none"
                   />
                   {(spec.multi || rows.length > 1) && (
                     <button
@@ -650,13 +647,13 @@ function TargetSheet({
                     onChange={(e) => patch(i, { amount: e.target.value })}
                     aria-label="Amount"
                     placeholder="Amount"
-                    className="min-w-0 flex-1 rounded-lg border border-input bg-card px-3 py-2 text-[14px] focus:border-primary focus:outline-none"
+                    className="min-w-0 flex-1 rounded-lg border border-input bg-card px-3 py-2 text-body focus:border-primary focus:outline-none"
                   />
                   <select
                     value={row.unit}
                     onChange={(e) => patch(i, { unit: e.target.value })}
                     aria-label="Unit"
-                    className="flex-shrink-0 rounded-lg border border-input bg-card px-2 py-2 text-[13px] font-medium text-foreground focus:border-primary focus:outline-none"
+                    className="flex-shrink-0 rounded-lg border border-input bg-card px-2 py-2 text-meta font-medium text-foreground focus:border-primary focus:outline-none"
                   >
                     {spec.units.map((u) => (
                       <option key={u.id} value={u.id}>
@@ -668,7 +665,7 @@ function TargetSheet({
                     value={row.period}
                     onChange={(e) => patch(i, { period: e.target.value as "day" | "week" })}
                     aria-label="Per"
-                    className="flex-shrink-0 rounded-lg border border-input bg-card px-2 py-2 text-[13px] font-medium text-foreground focus:border-primary focus:outline-none"
+                    className="flex-shrink-0 rounded-lg border border-input bg-card px-2 py-2 text-meta font-medium text-foreground focus:border-primary focus:outline-none"
                   >
                     <option value="day">/ day</option>
                     <option value="week">/ week</option>
@@ -681,20 +678,16 @@ function TargetSheet({
           {spec.multi && (
             <button
               onClick={() => setRows((prev) => [...prev, blank()])}
-              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-[13px] font-semibold text-primary-text"
+              className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-meta font-semibold text-foreground"
             >
               <Plus className="h-3.5 w-3.5" /> Add another
             </button>
           )}
 
-          <button
-            onClick={save}
-            disabled={saving}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
-          >
+          <Button onClick={save} disabled={saving} className="mt-4 w-full">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Save
-          </button>
+          </Button>
     </DialogLayer>
   )
 }
@@ -723,12 +716,12 @@ function DietPlan({ pet }: { pet: Pet }) {
         onClick={() => setOpen(true)}
         className="mb-4 flex w-full items-center gap-3 rounded-2xl card-interactive p-3.5 text-left transition-colors active:bg-muted"
       >
-        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft">
           <Utensils className="h-4.5 w-4.5 text-primary" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[14px] font-semibold text-foreground">Diet plan</span>
-          <span className="block truncate text-[12px] text-muted-foreground">
+          <span className="block text-body font-semibold text-foreground">Diet plan</span>
+          <span className="block truncate text-caption text-muted-foreground">
             {current ? `${current.label}${pet.dietNotes ? ` · ${pet.dietNotes}` : ""}` : "Not set — raw, dried, wet…"}
           </span>
         </span>
@@ -739,36 +732,31 @@ function DietPlan({ pet }: { pet: Pet }) {
 
   return (
     <div className="mb-4 rounded-2xl card-raised p-4">
-      <h3 className="mb-2.5 text-[14px] font-semibold text-foreground">Diet plan</h3>
+      <h3 className="mb-2.5 text-body font-semibold text-foreground">Diet plan</h3>
       <div className="flex flex-wrap gap-1.5">
         {DIET_TYPES.map((d) => (
-          <button
+          <Button
+            variant={dietType === d.id ? "primary" : "secondary"}
+            size="sm"
             key={d.id}
             onClick={() => setDietType(dietType === d.id ? "" : d.id)}
             title={d.hint}
-            className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-              dietType === d.id ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
-            }`}
           >
             {d.label}
-          </button>
+          </Button>
         ))}
       </div>
       <input
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Brand, portion guidance, allergies to avoid…"
-        className="mt-3 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none"
+        className="mt-3 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-body focus:border-primary focus:outline-none"
       />
       <div className="mt-3 flex items-center gap-2">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-4 py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
-        >
+        <Button onClick={save} disabled={saving}>
           {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
-        </button>
-        <button onClick={() => setOpen(false)} className="text-[12.5px] font-medium text-muted-foreground">
+        </Button>
+        <button onClick={() => setOpen(false)} className="text-caption font-medium text-muted-foreground">
           Cancel
         </button>
       </div>

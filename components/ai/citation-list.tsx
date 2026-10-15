@@ -14,7 +14,7 @@ export function CitationList({ citations }: { citations: Citation[] }) {
 
   return (
     <div className="mt-2.5">
-      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="mb-1.5 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
         Veterinary references
       </p>
       <div className="flex flex-col gap-1.5">
@@ -26,10 +26,10 @@ export function CitationList({ citations }: { citations: Citation[] }) {
             rel="noopener noreferrer"
             className="flex items-start gap-2 rounded-xl card-interactive p-2.5 transition-colors hover:shadow-float"
           >
-            <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-accent" />
+            <ExternalLink className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
             <span className="min-w-0 flex-1">
-              <span className="line-clamp-2 text-[12px] font-medium leading-snug text-foreground">{citation.title}</span>
-              <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{citation.source}</span>
+              <span className="line-clamp-2 text-caption font-medium leading-snug text-foreground">{citation.title}</span>
+              <span className="mt-0.5 block truncate text-caption text-muted-foreground">{citation.source}</span>
             </span>
           </a>
         ))}

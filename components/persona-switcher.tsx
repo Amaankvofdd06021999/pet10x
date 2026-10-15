@@ -1,5 +1,6 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -95,7 +96,7 @@ export function PersonaSwitcher({
         } ${className}`}
       >
         <span
-          className={`flex flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 ${
+          className={`flex flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft ${
             compact ? "h-6 w-6" : "h-7 w-7"
           }`}
         >
@@ -103,11 +104,11 @@ export function PersonaSwitcher({
         </span>
         <span className="min-w-0 flex-1">
           {!compact && (
-            <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="block text-caption font-semibold uppercase tracking-wide text-muted-foreground">
               Viewing as
             </span>
           )}
-          <span className={`block truncate font-semibold text-foreground ${compact ? "text-[12px]" : "text-[13px]"}`}>
+          <span className={`block truncate font-semibold text-foreground ${compact ? "text-caption" : "text-meta"}`}>
             {PERSONA_LABEL[current]}
           </span>
         </span>
@@ -120,11 +121,11 @@ export function PersonaSwitcher({
       <DialogLayer
         open={open}
         onOpenChange={setOpen}
-        overlayClassName="flex items-end justify-center bg-foreground/40 backdrop-blur-[2px] sm:items-center"
+        overlayClassName="flex items-end justify-center bg-black/40 backdrop-blur-[2px] sm:items-center"
         className="relative w-full max-w-md rounded-t-3xl bg-card shadow-float p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-3xl sm:pb-5"
       >
               <div className="mb-4 flex items-center justify-between gap-3">
-                <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Switch view</DialogTitle>
+                <DialogTitle className="text-title font-semibold leading-normal text-foreground">Switch view</DialogTitle>
                 <button
                   onClick={() => setOpen(false)}
                   aria-label="Close"
@@ -144,19 +145,19 @@ export function PersonaSwitcher({
                       onClick={() => choose(p)}
                       aria-current={active ? "true" : undefined}
                       className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-colors ${
-                        active ? "border-primary bg-primary/5" : "border-border bg-card active:bg-muted"
+                        active ? "border-primary bg-primary-soft" : "border-border bg-card active:bg-muted"
                       }`}
                     >
                       <span
                         className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
-                          active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                          active ? "bg-primary-soft text-primary" : "bg-muted text-muted-foreground"
                         }`}
                       >
                         <Icon className="h-5 w-5" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[14px] font-semibold text-foreground">{PERSONA_LABEL[p]}</span>
-                        <span className="block truncate text-[12px] text-muted-foreground">{PERSONA_BLURB[p]}</span>
+                        <span className="block text-body font-semibold text-foreground">{PERSONA_LABEL[p]}</span>
+                        <span className="block truncate text-caption text-muted-foreground">{PERSONA_BLURB[p]}</span>
                       </span>
                       {active && <Check className="h-4.5 w-4.5 flex-shrink-0 text-primary" />}
                     </button>
@@ -168,7 +169,7 @@ export function PersonaSwitcher({
                   to pick between, which is what makes someone strata. */}
               {managedBuildings.length > 1 && (
                 <div className="mt-5">
-                  <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <h3 className="mb-2 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                     Active building
                   </h3>
                   <div className="flex flex-col gap-1.5">
@@ -182,19 +183,19 @@ export function PersonaSwitcher({
                             setOpen(false)
                           }}
                           className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                            active ? "bg-primary/10" : "active:bg-muted"
+                            active ? "bg-primary-soft" : "active:bg-muted"
                           }`}
                         >
                           <Building2
                             className={`h-4 w-4 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`}
                           />
-                          <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+                          <span className="min-w-0 flex-1 truncate text-meta font-medium text-foreground">
                             {b.name}
                           </span>
                           {b.isPrimary && (
-                            <span className="flex-shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                            <Badge variant="neutral" className="flex-shrink-0">
                               Primary
-                            </span>
+                            </Badge>
                           )}
                           {active && <Check className="h-4 w-4 flex-shrink-0 text-primary" />}
                         </button>
@@ -204,7 +205,7 @@ export function PersonaSwitcher({
                 </div>
               )}
 
-              <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">
+              <p className="mt-4 text-center text-caption leading-relaxed text-muted-foreground">
                 Switching changes what you see, not what you can access. Your permissions are unchanged.
               </p>
       </DialogLayer>

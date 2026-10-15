@@ -36,7 +36,7 @@ export function PetAvatar({ pet, size = 20 }: { pet: Pet; size?: number }) {
   return (
     <span
       style={box}
-      className="flex flex-shrink-0 items-center justify-center rounded-full bg-primary/10"
+      className="flex flex-shrink-0 items-center justify-center rounded-full bg-primary-soft"
     >
       <Icon style={{ width: size * 0.6, height: size * 0.6 }} className="text-primary" />
     </span>

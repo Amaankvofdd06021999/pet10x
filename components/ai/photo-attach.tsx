@@ -104,7 +104,7 @@ export function PhotoAttachPreview({ images, onChange }: Pick<PhotoAttachProps, 
             type="button"
             onClick={() => remove(image.id)}
             aria-label="Remove photo"
-            className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground/70 text-background"
+            className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-background"
           >
             <X className="h-3 w-3" />
           </button>

@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { ScopeNotice } from "@/components/screens/manager/scope-notice"
@@ -130,18 +131,15 @@ function EmptyState({
 }) {
   return (
     <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft">
         <Icon className="h-6 w-6 text-primary" />
       </div>
-      <h3 className="mt-4 text-[15px] font-semibold text-foreground">{title}</h3>
-      <p className="mx-auto mt-1 max-w-[20rem] text-[13px] leading-relaxed text-muted-foreground">{subtext}</p>
+      <h3 className="mt-4 text-body font-semibold text-foreground">{title}</h3>
+      <p className="mx-auto mt-1 max-w-[20rem] text-meta leading-relaxed text-muted-foreground">{subtext}</p>
       {cta && onCta && (
-        <button
-          onClick={onCta}
-          className="mt-3 rounded-xl bg-primary-strong px-4 py-2 text-[13px] font-semibold text-primary-foreground"
-        >
+        <Button size="sm" onClick={onCta} className="mt-3">
           {cta}
-        </button>
+        </Button>
       )}
     </div>
   )
@@ -175,7 +173,7 @@ function Sheet({
       className="flex max-h-[85vh] w-full max-w-sm flex-col rounded-t-2xl bg-card sm:rounded-2xl"
     >
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">{title}</DialogTitle>
+            <DialogTitle className="text-title font-semibold leading-normal text-foreground">{title}</DialogTitle>
             <button onClick={onClose} disabled={busy} className="p-1 disabled:opacity-50" aria-label="Close">
               <X className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
             </button>
@@ -188,7 +186,7 @@ function Sheet({
 }
 
 const FIELD =
-  "mt-1 w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+  "mt-1 w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-body focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
 
 export function CommunityScreen({
   initialTab,
@@ -521,12 +519,9 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
         title="Community"
         largeTitle={false}
         rightAction={
-          <button
-            onClick={() => setComposerOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12.5px] font-semibold text-primary-text"
-          >
+          <Button variant="secondary" size="sm" onClick={() => setComposerOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> New post
-          </button>
+          </Button>
         }
       />
 
@@ -537,7 +532,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 rounded-lg py-2 text-[13px] font-semibold transition-all ${
+              className={`flex-1 rounded-lg py-2 text-meta font-semibold transition-all ${
                 activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
@@ -554,7 +549,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search community..."
             aria-label="Search the community"
-            className="min-w-0 flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="min-w-0 flex-1 bg-transparent text-body text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
           {query && (
             <button onClick={() => setQuery("")} aria-label="Clear search" className="flex-shrink-0 p-0.5">
@@ -571,14 +566,14 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             {managesThis && (
               <button
                 onClick={() => setComposerOpen(true)}
-                className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-info/30 bg-info/5 p-4 transition-transform active:scale-[0.98]"
+                className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-border bg-info-soft p-4 transition-transform active:scale-[0.98]"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info/10">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-info-soft">
                   <Megaphone className="h-5 w-5 text-info" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="text-[15px] font-semibold text-foreground">Post Official Announcement</p>
-                  <p className="text-[12px] text-muted-foreground">
+                  <p className="text-body font-semibold text-foreground">Post Official Announcement</p>
+                  <p className="text-caption text-muted-foreground">
                     Broadcast to all {scope?.buildingName ?? "building"} residents
                   </p>
                 </div>
@@ -616,28 +611,30 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span className="text-[15px] font-semibold text-foreground break-words">{post.author}</span>
+                          <span className="text-body font-semibold text-foreground break-words">{post.author}</span>
                           {post.isPinned && <Pin className="h-3 w-3 flex-shrink-0 text-info" aria-label="Pinned" />}
                         </div>
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <Badge className={`text-[10px] border-0 ${categoryClass(post.category)}`}>
+                          <Badge className={categoryClass(post.category)}>
                             {post.category}
                           </Badge>
                           {post.isOfficial && (
-                            <Badge className="border-0 bg-info/10 text-[10px] text-info">Official</Badge>
+                            <Badge variant="info">Official</Badge>
                           )}
-                          <span className="text-[12px] text-muted-foreground">{post.time}</span>
+                          <span className="text-caption text-muted-foreground">{post.time}</span>
                         </div>
                       </div>
                       {managesThis && (
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => handlePin(post)}
                           disabled={busyId === post.id}
-                          className="flex flex-shrink-0 items-center gap-1 rounded-full bg-info/10 px-2.5 py-1 text-[11px] font-semibold text-info disabled:opacity-50"
+                          className="flex-shrink-0 bg-info-soft"
                         >
                           {post.isPinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
                           {post.isPinned ? "Unpin" : "Pin"}
-                        </button>
+                        </Button>
                       )}
                       {/* Not rendered at all when the viewer can do nothing to
                           this post. A menu whose only state is "you may not" is
@@ -655,7 +652,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                     {/* break-words, and not decoration: `main` is overflow-x
                         auto on both axes, so one long unbroken token puts a
                         resident's text out of view with NO page scrollbar. */}
-                    <p className="mt-3 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground">
+                    <p className="mt-3 whitespace-pre-wrap break-words text-body leading-relaxed text-foreground">
                       {post.content}
                     </p>
                   </div>
@@ -676,11 +673,11 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                           post.liked ? "fill-destructive text-destructive" : "text-muted-foreground"
                         }`}
                       />
-                      <span className="text-[13px] text-muted-foreground">{post.likes}</span>
+                      <span className="text-meta text-muted-foreground">{post.likes}</span>
                     </button>
                     <button onClick={() => openComments(post.id)} className="flex items-center gap-1.5">
                       <MessageCircle className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-[13px] text-muted-foreground">{post.comments}</span>
+                      <span className="text-meta text-muted-foreground">{post.comments}</span>
                     </button>
                   </div>
                 </article>
@@ -692,12 +689,9 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
         {/* Lost & Found Tab */}
         {activeTab === "lost" && (
           <div className="flex flex-col gap-3">
-            <button
-              onClick={() => setLfOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground"
-            >
+            <Button onClick={() => setLfOpen(true)}>
               <Plus className="h-4 w-4" /> Report a lost or found pet
-            </button>
+            </Button>
             {shownLostFound.length === 0 && (
               <EmptyState
                 icon={MapPin}
@@ -715,18 +709,18 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
               return (
                 <div
                   key={item.id}
-                  className={`overflow-hidden rounded-2xl border-2 ${lost ? "border-destructive/30" : "border-success/30"}`}
+                  className={`overflow-hidden rounded-2xl border-2 ${lost ? "border-destructive" : "border-border"}`}
                 >
-                  <div className={`px-3 py-1.5 ${lost ? "bg-destructive/10" : "bg-success/10"}`}>
+                  <div className={`px-3 py-1.5 ${lost ? "bg-destructive-soft" : "bg-success-soft"}`}>
                     <div className="flex items-center gap-2">
                       <AlertTriangle className={`h-4 w-4 flex-shrink-0 ${lost ? "text-destructive" : "text-success"}`} />
                       <span
-                        className={`text-[13px] font-bold uppercase ${lost ? "text-destructive" : "text-success-strong"}`}
+                        className="text-meta font-bold uppercase text-foreground"
                       >
                         {lost ? "Lost Pet" : "Found Pet"}
                       </span>
                       {item.reward && (
-                        <Badge className="ml-auto border-0 bg-primary-strong text-[10px] text-primary-foreground">
+                        <Badge variant="brand" className="ml-auto">
                           Reward: {item.reward}
                         </Badge>
                       )}
@@ -744,40 +738,39 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <SpeciesIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                        <span className="text-[17px] font-semibold text-foreground break-words">
+                        <span className="text-title font-semibold text-foreground break-words">
                           {item.petName ?? "A pet"}
                         </span>
                       </div>
-                      <p className="text-[13px] text-muted-foreground break-words">
+                      <p className="text-meta text-muted-foreground break-words">
                         {[item.breed, item.color].filter(Boolean).join(" · ") || "No description given"}
                       </p>
                       {item.lastSeen && (
                         <div className="mt-2 flex items-start gap-1">
                           <MapPin className="mt-0.5 h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                          <span className="text-[12px] text-muted-foreground break-words">{item.lastSeen}</span>
+                          <span className="text-caption text-muted-foreground break-words">{item.lastSeen}</span>
                         </div>
                       )}
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                        <span className="text-[12px] text-muted-foreground">{item.time}</span>
+                        <span className="text-caption text-muted-foreground">{item.time}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 border-t border-border bg-card px-3 py-2.5">
-                    <button
-                      onClick={() => handleShareLostFound(item)}
-                      className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[12.5px] font-semibold text-foreground"
-                    >
+                    <Button variant="secondary" size="sm" onClick={() => handleShareLostFound(item)}>
                       <Share2 className="h-3.5 w-3.5" /> Share
-                    </button>
+                    </Button>
                     {(item.mine || managesThis) && (
-                      <button
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => handleResolve(item)}
                         disabled={busyId === item.id}
-                        className="flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-[12.5px] font-semibold text-success-strong disabled:opacity-50"
+                        className="bg-success-soft"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" /> Mark resolved
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -789,12 +782,9 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
         {/* Events Tab */}
         {activeTab === "events" && (
           <div className="flex flex-col gap-3">
-            <button
-              onClick={() => setEvOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground"
-            >
+            <Button onClick={() => setEvOpen(true)}>
               <Plus className="h-4 w-4" /> Suggest an event
-            </button>
+            </Button>
             {shownEvents.length === 0 && (
               <EmptyState
                 icon={CalendarDays}
@@ -814,26 +804,26 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       {event.category && (
-                        <Badge className={`mb-2 border-0 text-[10px] ${categoryClass(event.category)}`}>
+                        <Badge className={`mb-2 ${categoryClass(event.category)}`}>
                           {event.category}
                         </Badge>
                       )}
-                      <h3 className="text-[17px] font-semibold text-foreground break-words">{event.title}</h3>
+                      <h3 className="text-title font-semibold text-foreground break-words">{event.title}</h3>
                     </div>
-                    <div className="flex flex-shrink-0 flex-col items-center rounded-xl bg-primary/10 px-3 py-2">
-                      <span className="text-[11px] font-medium text-primary-text">{when.day}</span>
-                      <span className="text-[15px] font-bold text-primary-text">{when.date}</span>
+                    <div className="flex flex-shrink-0 flex-col items-center rounded-xl bg-primary-soft px-3 py-2">
+                      <span className="text-caption font-medium text-foreground">{when.day}</span>
+                      <span className="text-body font-bold text-foreground">{when.date}</span>
                     </div>
                   </div>
                   <div className="mt-2 flex flex-col gap-1">
                     <div className="flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                      <span className="text-[13px] text-muted-foreground">{when.full}</span>
+                      <span className="text-meta text-muted-foreground">{when.full}</span>
                     </div>
                     {event.location && (
                       <div className="flex items-start gap-1.5">
                         <MapPin className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                        <span className="text-[13px] text-muted-foreground break-words">{event.location}</span>
+                        <span className="text-meta text-muted-foreground break-words">{event.location}</span>
                       </div>
                     )}
                   </div>
@@ -847,7 +837,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                           <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
                         </div>
                       )}
-                      <span className="text-[12px] text-muted-foreground">
+                      <span className="text-caption text-muted-foreground">
                         {event.maxAttendees === null
                           ? `${event.attendees} going`
                           : `${event.attendees}/${event.maxAttendees} going`}
@@ -856,10 +846,10 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                     <button
                       onClick={() => handleRsvp(event)}
                       disabled={busyId === event.id}
-                      className={`rounded-full px-4 py-1.5 text-[13px] font-semibold disabled:opacity-50 ${
+                      className={`rounded-full px-4 py-1.5 text-meta font-semibold disabled:opacity-50 ${
                         event.going
                           ? "border border-border bg-card text-foreground"
-                          : "bg-primary-strong text-primary-foreground"
+                          : "bg-primary text-primary-foreground"
                       }`}
                     >
                       {event.going ? "Going ✓" : "RSVP"}
@@ -869,18 +859,20 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                       the count possible and it necessarily discloses WHO, so the
                       disclosure is shown rather than implied. */}
                   {event.attendeeNames.length > 0 && (
-                    <p className="mt-2 text-[12px] text-muted-foreground break-words">
+                    <p className="mt-2 text-caption text-muted-foreground break-words">
                       {event.attendeeNames.join(", ")}
                     </p>
                   )}
                   {managesThis && (
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => handlePublish(event)}
                       disabled={busyId === event.id}
-                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-info/30 bg-info/5 py-2 text-[13px] font-semibold text-info disabled:opacity-50"
+                      className="mt-3 w-full"
                     >
                       <Megaphone className="h-4 w-4" /> Announce to the building
-                    </button>
+                    </Button>
                   )}
                 </div>
               )
@@ -891,7 +883,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
 
       {composerOpen && (
         <Sheet title={composerTitle} onClose={() => setComposerOpen(false)} busy={posting}>
-          <label className="block text-[13px] font-medium text-muted-foreground" htmlFor="post-category">
+          <label className="block text-meta font-medium text-muted-foreground" htmlFor="post-category">
             Category
           </label>
           <select
@@ -906,7 +898,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
               </option>
             ))}
           </select>
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="post-content">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="post-content">
             What&apos;s happening?
           </label>
           <textarea
@@ -923,7 +915,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             maxLength={5000}
             className={`${FIELD} resize-none`}
           />
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="post-photo">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="post-photo">
             Photo (optional)
           </label>
           <input
@@ -931,23 +923,24 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             type="file"
             accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
             onChange={(e) => setComposerImage(e.target.files?.[0] ?? null)}
-            className="mt-1 w-full text-[13px] text-muted-foreground"
+            className="mt-1 w-full text-meta text-muted-foreground"
           />
           <div className="mt-5 flex gap-2">
-            <button
+            <Button
+              variant="secondary"
               onClick={() => setComposerOpen(false)}
               disabled={posting}
-              className="flex-1 rounded-xl border border-border py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-60"
+              className="flex-1"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleCreatePost}
               disabled={posting || !composerContent.trim()}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+              className="flex-1"
             >
               {posting && <Loader2 className="h-4 w-4 animate-spin" />} Post
-            </button>
+            </Button>
           </div>
         </Sheet>
       )}
@@ -959,7 +952,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
               <button
                 key={k}
                 onClick={() => setLfKind(k)}
-                className={`flex-1 rounded-lg py-2 text-[13px] font-semibold ${
+                className={`flex-1 rounded-lg py-2 text-meta font-semibold ${
                   lfKind === k ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
                 }`}
               >
@@ -967,11 +960,11 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
               </button>
             ))}
           </div>
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="lf-name">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="lf-name">
             Pet name
           </label>
           <input id="lf-name" value={lfName} onChange={(e) => setLfName(e.target.value)} maxLength={80} className={FIELD} />
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="lf-species">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="lf-species">
             Species
           </label>
           <select
@@ -986,15 +979,15 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
               </option>
             ))}
           </select>
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="lf-breed">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="lf-breed">
             Breed
           </label>
           <input id="lf-breed" value={lfBreed} onChange={(e) => setLfBreed(e.target.value)} maxLength={80} className={FIELD} />
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="lf-color">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="lf-color">
             Colour
           </label>
           <input id="lf-color" value={lfColor} onChange={(e) => setLfColor(e.target.value)} maxLength={40} className={FIELD} />
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="lf-seen">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="lf-seen">
             {lfKind === "lost" ? "Last seen" : "Where you found them"}
           </label>
           <textarea
@@ -1007,7 +1000,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
           />
           {lfKind === "lost" && (
             <>
-              <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="lf-reward">
+              <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="lf-reward">
                 Reward in dollars (optional)
               </label>
               <input
@@ -1021,7 +1014,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
               />
             </>
           )}
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="lf-photo">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="lf-photo">
             Photo (optional)
           </label>
           <input
@@ -1029,37 +1022,29 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             type="file"
             accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
             onChange={(e) => setLfImage(e.target.files?.[0] ?? null)}
-            className="mt-1 w-full text-[13px] text-muted-foreground"
+            className="mt-1 w-full text-meta text-muted-foreground"
           />
-          <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">
+          <p className="mt-4 text-caption leading-relaxed text-muted-foreground">
             Everyone in your building gets a notification. You can post up to three reports a day.
           </p>
           <div className="mt-4 flex gap-2">
-            <button
-              onClick={() => setLfOpen(false)}
-              disabled={lfBusy}
-              className="flex-1 rounded-xl border border-border py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-60"
-            >
+            <Button variant="secondary" onClick={() => setLfOpen(false)} disabled={lfBusy} className="flex-1">
               Cancel
-            </button>
-            <button
-              onClick={handleReportLostFound}
-              disabled={lfBusy || !lfName.trim()}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
-            >
+            </Button>
+            <Button onClick={handleReportLostFound} disabled={lfBusy || !lfName.trim()} className="flex-1">
               {lfBusy && <Loader2 className="h-4 w-4 animate-spin" />} Post report
-            </button>
+            </Button>
           </div>
         </Sheet>
       )}
 
       {evOpen && (
         <Sheet title="Suggest an event" onClose={() => setEvOpen(false)} busy={evBusy}>
-          <label className="block text-[13px] font-medium text-muted-foreground" htmlFor="ev-title">
+          <label className="block text-meta font-medium text-muted-foreground" htmlFor="ev-title">
             Title
           </label>
           <input id="ev-title" value={evTitle} onChange={(e) => setEvTitle(e.target.value)} maxLength={120} className={FIELD} />
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="ev-category">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="ev-category">
             Category
           </label>
           <select id="ev-category" value={evCategory} onChange={(e) => setEvCategory(e.target.value)} className={FIELD}>
@@ -1069,7 +1054,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
               </option>
             ))}
           </select>
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="ev-when">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="ev-when">
             Starts
           </label>
           <input
@@ -1079,11 +1064,11 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             onChange={(e) => setEvStartsAt(e.target.value)}
             className={FIELD}
           />
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="ev-where">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="ev-where">
             Location
           </label>
           <input id="ev-where" value={evLocation} onChange={(e) => setEvLocation(e.target.value)} maxLength={120} className={FIELD} />
-          <label className="mt-4 block text-[13px] font-medium text-muted-foreground" htmlFor="ev-cap">
+          <label className="mt-4 block text-meta font-medium text-muted-foreground" htmlFor="ev-cap">
             Maximum attendees (optional)
           </label>
           <input
@@ -1095,26 +1080,22 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
             onChange={(e) => setEvCap(e.target.value)}
             className={FIELD}
           />
-          <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">
+          <p className="mt-4 text-caption leading-relaxed text-muted-foreground">
             {managesThis
               ? "It appears in the Events tab straight away. Use Announce to notify every resident."
               : "It appears in the Events tab for everyone in your building. Your building manager can announce it to everyone's notifications."}
           </p>
           <div className="mt-4 flex gap-2">
-            <button
-              onClick={() => setEvOpen(false)}
-              disabled={evBusy}
-              className="flex-1 rounded-xl border border-border py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-60"
-            >
+            <Button variant="secondary" onClick={() => setEvOpen(false)} disabled={evBusy} className="flex-1">
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleCreateEvent}
               disabled={evBusy || !evTitle.trim() || !evStartsAt}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
+              className="flex-1"
             >
               {evBusy && <Loader2 className="h-4 w-4 animate-spin" />} Add event
-            </button>
+            </Button>
           </div>
         </Sheet>
       )}
@@ -1123,12 +1104,12 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
         <Sheet title="Post options" onClose={() => setMenuFor(null)}>
           <button
             onClick={() => handleRemovePost(menuFor)}
-            className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left text-[15px] font-medium text-destructive"
+            className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left text-body font-medium text-foreground"
           >
             <Trash2 className="h-5 w-5" />
             {menuFor.authorId === user?.id ? "Remove my post" : "Remove this post"}
           </button>
-          <p className="mt-1 px-2 text-[12px] leading-relaxed text-muted-foreground">
+          <p className="mt-1 px-2 text-caption leading-relaxed text-muted-foreground">
             {menuFor.authorId === user?.id
               ? "It disappears from the feed. Comments and reactions go with it."
               : "Removing a neighbour's post is recorded in the building's audit log, with your name on it."}
@@ -1146,7 +1127,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
           className="flex max-h-[70vh] w-full max-w-sm flex-col rounded-t-2xl bg-card sm:rounded-2xl"
         >
               <div className="border-b border-border p-4">
-                <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Comments</DialogTitle>
+                <DialogTitle className="text-title font-semibold leading-normal text-foreground">Comments</DialogTitle>
               </div>
               <div className="ios-scroll flex-1 overflow-y-auto p-4">
                 {commentsLoading && (
@@ -1155,7 +1136,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                   </div>
                 )}
                 {!commentsLoading && comments.length === 0 && (
-                  <p className="py-6 text-center text-[13px] text-muted-foreground">
+                  <p className="py-6 text-center text-meta text-muted-foreground">
                     No comments yet — say something!
                   </p>
                 )}
@@ -1167,8 +1148,8 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                       </div>
                       <div className="min-w-0 flex-1 rounded-xl bg-muted px-3 py-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-[13px] font-semibold text-foreground break-words">{c.author}</span>
-                          <span className="text-[11px] text-muted-foreground">{c.time}</span>
+                          <span className="text-meta font-semibold text-foreground break-words">{c.author}</span>
+                          <span className="text-caption text-muted-foreground">{c.time}</span>
                           {(c.authorId === user?.id || managesThis) && (
                             <button
                               onClick={() => handleDeleteComment(c.id)}
@@ -1179,7 +1160,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                             </button>
                           )}
                         </div>
-                        <p className="mt-0.5 whitespace-pre-wrap break-words text-[13px] text-foreground">
+                        <p className="mt-0.5 whitespace-pre-wrap break-words text-meta text-foreground">
                           {c.content}
                         </p>
                       </div>
@@ -1197,7 +1178,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                   aria-label="Add a comment"
                   /* Matches post_comments_content_len (20260826000006). */
                   maxLength={1000}
-                  className="min-w-0 flex-1 rounded-full border border-input bg-card px-3.5 py-2 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="min-w-0 flex-1 rounded-full border border-input bg-card px-3.5 py-2 text-body focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <button
                   onClick={handleAddComment}

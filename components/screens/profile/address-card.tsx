@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Building2, ChevronRight, Loader2, MapPin } from "lucide-react"
@@ -94,12 +95,12 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
       <section className="mb-5">
         <div className="rounded-2xl card-raised p-4">
           <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft">
               <MapPin className="h-4.5 w-4.5 text-primary" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-semibold text-foreground">Home address</p>
-              <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+              <p className="text-body font-semibold text-foreground">Home address</p>
+              <p className="mt-0.5 text-caption leading-relaxed text-muted-foreground">
                 {buildingAddress ? (
                   <>
                     {link.unit ? `Unit ${link.unit}, ` : ""}
@@ -118,7 +119,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
                   maintain; the unit is the only piece that is theirs. */}
               {editingUnit ? (
                 <div className="mt-3">
-                  <label htmlFor="unit-number" className="mb-1 block text-[11.5px] font-semibold text-muted-foreground">
+                  <label htmlFor="unit-number" className="mb-1 block text-caption font-semibold text-muted-foreground">
                     Unit number
                   </label>
                   <div className="flex items-center gap-2">
@@ -129,19 +130,15 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
                       onKeyDown={(e) => e.key === "Enter" && saveUnit()}
                       placeholder="e.g. 2104"
                       autoFocus
-                      className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-[14px] focus:border-primary focus:outline-none"
+                      className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-body focus:border-primary focus:outline-none"
                     />
-                    <button
-                      onClick={saveUnit}
-                      disabled={savingUnit}
-                      className="flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-primary-strong px-3.5 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-60"
-                    >
+                    <Button size="sm" onClick={saveUnit} disabled={savingUnit} className="flex-shrink-0">
                       {savingUnit && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save
-                    </button>
+                    </Button>
                   </div>
                   <button
                     onClick={() => setEditingUnit(false)}
-                    className="mt-1.5 text-[12px] font-medium text-muted-foreground"
+                    className="mt-1.5 text-caption font-medium text-muted-foreground"
                   >
                     Cancel
                   </button>
@@ -152,13 +149,13 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
                     setUnitDraft(link.unit ?? "")
                     setEditingUnit(true)
                   }}
-                  className="mt-2 text-[12.5px] font-semibold text-primary-text"
+                  className="mt-2 text-caption font-semibold text-foreground"
                 >
                   {link.unit ? "Change unit number" : "Add your unit number"}
                 </button>
               )}
 
-              <p className="mt-2 text-[11.5px] text-muted-foreground">
+              <p className="mt-2 text-caption text-muted-foreground">
                 The building&apos;s address is maintained by {link.buildingName}.
               </p>
             </div>
@@ -179,12 +176,12 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
           onClick={() => setEditing(true)}
           className="flex w-full items-center gap-3 rounded-2xl card-interactive p-4 text-left transition-colors active:bg-muted"
         >
-          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft">
             <MapPin className="h-4.5 w-4.5 text-primary" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[14px] font-semibold text-foreground">Home address</span>
-            <span className="block truncate text-[12px] text-muted-foreground">
+            <span className="block text-body font-semibold text-foreground">Home address</span>
+            <span className="block truncate text-caption text-muted-foreground">
               {summary || "Not set — add it to see if your building uses Pet10x"}
             </span>
           </span>
@@ -192,26 +189,23 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
         </button>
 
         {matches.length > 0 && (
-          <div className="mt-2 rounded-2xl border border-primary/25 bg-primary/5 p-4">
+          <div className="mt-2 rounded-2xl border border-border bg-primary-soft p-4">
             <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/15">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft">
                 <Building2 className="h-4.5 w-4.5 text-primary" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold text-foreground">
+                <p className="text-body font-semibold text-foreground">
                   {matches[0]}{" "}
                   uses Pet10x
                 </p>
-                <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+                <p className="mt-0.5 text-caption leading-relaxed text-muted-foreground">
                   Do you have a building code? Entering it links you and your pet to the building. If you
                   don&apos;t have one, ask your building manager for it.
                 </p>
-                <button
-                  onClick={() => onNavigate?.("link-building")}
-                  className="mt-2.5 rounded-lg bg-primary-strong px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
-                >
+                <Button size="sm" onClick={() => onNavigate?.("link-building")} className="mt-2.5">
                   I have a code
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -222,7 +216,7 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
 
   return (
     <section className="mb-5 rounded-2xl card-raised p-4">
-      <h3 className="mb-3 text-[14px] font-semibold text-foreground">Home address</h3>
+      <h3 className="mb-3 text-body font-semibold text-foreground">Home address</h3>
       <div className="flex flex-col gap-2">
         <Row label="Street address" value={draft.streetAddress} onChange={(v) => setDraft({ ...draft, streetAddress: v })} placeholder="123 Main St" />
         <div className="grid grid-cols-2 gap-2">
@@ -236,18 +230,14 @@ export function AddressCard({ onNavigate }: { onNavigate?: (screen: string) => v
       </div>
       {/* Says why we are asking. An address field with no stated purpose on a
           pet app reads as data collection for its own sake. */}
-      <p className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground">
+      <p className="mt-2 text-caption leading-relaxed text-muted-foreground">
         Used to check whether your building already uses Pet10x. Not shared with anyone.
       </p>
       <div className="mt-3 flex items-center gap-2">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-4 py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
-        >
+        <Button onClick={save} disabled={saving}>
           {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
-        </button>
-        <button onClick={() => setEditing(false)} className="text-[12.5px] font-medium text-muted-foreground">
+        </Button>
+        <button onClick={() => setEditing(false)} className="text-caption font-medium text-muted-foreground">
           Cancel
         </button>
       </div>
@@ -268,12 +258,12 @@ function Row({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[11.5px] font-semibold text-muted-foreground">{label}</span>
+      <span className="mb-1 block text-caption font-semibold text-muted-foreground">{label}</span>
       <input
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-body focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
       />
     </label>
   )

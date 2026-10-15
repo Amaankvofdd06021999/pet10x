@@ -37,11 +37,11 @@ export function SpeciesTiles({
             aria-pressed={active}
             onClick={() => onChange(s.id)}
             className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all active:scale-[0.97] ${
-              active ? "border-primary bg-primary/5" : "border-border bg-card"
+              active ? "border-primary bg-primary-soft" : "border-border bg-card"
             }`}
           >
             <Icon className={`h-6 w-6 ${active ? "text-primary" : "text-muted-foreground"}`} />
-            <span className={`text-[13px] font-semibold ${active ? "text-primary-text" : "text-foreground"}`}>{s.label}</span>
+            <span className={`text-meta font-semibold ${active ? "text-foreground" : "text-foreground"}`}>{s.label}</span>
           </button>
         )
       })}

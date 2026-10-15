@@ -33,7 +33,7 @@ export { LinkedBadge } from "@/components/screens/clinic/linked-badge"
 
 export type Tone = "neutral" | "good" | "warn" | "bad" | "info" | "accent"
 
-const TONE_VARIANT = {
+export const TONE_VARIANT = {
   neutral: "neutral",
   good: "success",
   warn: "warning",

@@ -1,5 +1,6 @@
 "use client"
 
+import { ErrorText } from "@/components/ui/error-text"
 import { useState, type ReactNode } from "react"
 import { toast } from "sonner"
 import {
@@ -15,6 +16,7 @@ import {
   SCOPE_LABELS, DEFAULT_SCOPES,
   type VetShare, type OwnerAppointment,
 } from "@/lib/data/owner-vets"
+import { Badge } from "@/components/ui/badge"
 import { appointmentLabel, appointmentTone, canOwnerCancel } from "@/lib/data/appointment-labels"
 import type { Slot } from "@/lib/data/clinic/schedule"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -26,7 +28,7 @@ import { MY_VETS_TABS, type MyVetsTab } from "@/lib/navigation"
 import { useAppointmentTypes, useAvailableSlots } from "@/lib/data/clinic/schedule"
 import { formatDateShort, formatTime, formatMoney, todayISO, addDaysISO } from "@/lib/data/clinic/time"
 import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal,
+  SectionCard, Spinner, LoadError, EmptyState, Button, TONE_VARIANT, Modal,
   Field, Select, TextInput, SegmentedTabs, Toolbar,
 } from "@/components/screens/shared/ui"
 
@@ -109,21 +111,21 @@ export function MyVetsScreen({
           </button>
         )}
         <div>
-          <h1 className="text-[22px] font-semibold text-foreground">My vets</h1>
-          <p className="text-[13px] text-muted-foreground">
+          <h1 className="text-heading font-semibold text-foreground">My vets</h1>
+          <p className="text-meta text-muted-foreground">
             What each practice can see, and how to stop it.
           </p>
         </div>
       </header>
 
       {notice && (
-        <div role="alert" className="flex items-start justify-between gap-3 rounded-xl bg-destructive/10 px-3 py-2 text-[12.5px] text-destructive">
+        <div role="alert" className="flex items-start justify-between gap-3 rounded-xl bg-destructive-soft px-3 py-2 text-caption text-foreground">
           <span>{notice}</span>
           <button
             type="button"
             onClick={() => setNotice(null)}
             aria-label="Dismiss"
-            className="flex-shrink-0 text-destructive/80 hover:text-destructive"
+            className="flex-shrink-0 text-destructive"
           >
             <X className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
@@ -135,10 +137,10 @@ export function MyVetsScreen({
           <ul className="flex flex-col gap-2">
             {links.data.map((r) => (
               <li key={r.id} className="rounded-xl border border-border p-3">
-                <p className="text-[13.5px] font-semibold text-foreground">
+                <p className="text-meta font-semibold text-foreground">
                   {r.businessName} says they treat {r.patientName}
                 </p>
-                <p className="text-[12.5px] text-muted-foreground">
+                <p className="text-caption text-muted-foreground">
                   Linking lets you see their records for your pet. It does not share anything yet.
                 </p>
                 <Toolbar>
@@ -173,15 +175,15 @@ export function MyVetsScreen({
             ))}
             {shareReqs.data.map((r) => (
               <li key={r.id} className="rounded-xl border border-border p-3">
-                <p className="text-[13.5px] font-semibold text-foreground">
+                <p className="text-meta font-semibold text-foreground">
                   {r.businessName} would like to see {r.petName}&apos;s records
                 </p>
                 <ul className="mt-1 flex flex-wrap gap-1.5">
                   {r.scopes.map((s) => (
                     <li key={s}>
-                      <Pill tone={SCOPE_LABELS[s]?.sensitive ? "warn" : "neutral"}>
+                      <Badge variant={TONE_VARIANT[SCOPE_LABELS[s]?.sensitive ? "warn" : "neutral"]}>
                         {SCOPE_LABELS[s]?.label ?? s}
-                      </Pill>
+                      </Badge>
                     </li>
                   ))}
                 </ul>
@@ -258,21 +260,21 @@ export function MyVetsScreen({
                 <li key={s.shareId} className="rounded-2xl border border-border bg-card p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="flex flex-wrap items-center gap-2 text-[15px] font-semibold text-foreground">
+                      <p className="flex flex-wrap items-center gap-2 text-body font-semibold text-foreground">
                         <Stethoscope className="h-4 w-4 text-primary" aria-hidden="true" />
                         {s.businessName}
-                        <Pill tone="accent">{s.petName}</Pill>
+                        <Badge variant="brand">{s.petName}</Badge>
                       </p>
-                      <p className="mt-0.5 text-[12px] text-muted-foreground">
+                      <p className="mt-0.5 text-caption text-muted-foreground">
                         Shared {formatDateShort(s.grantedAt)}
                         {s.expiresAt ? ` · access ends ${formatDateShort(s.expiresAt)}` : " · no end date"}
                       </p>
                       <ul className="mt-2 flex flex-wrap gap-1.5">
                         {s.scopes.map((sc) => (
                           <li key={sc}>
-                            <Pill tone={SCOPE_LABELS[sc]?.sensitive ? "warn" : "good"}>
+                            <Badge variant={TONE_VARIANT[SCOPE_LABELS[sc]?.sensitive ? "warn" : "good"]}>
                               {SCOPE_LABELS[sc]?.label ?? sc}
-                            </Pill>
+                            </Badge>
                           </li>
                         ))}
                       </ul>
@@ -312,8 +314,8 @@ export function MyVetsScreen({
                 <KeyRound className="h-4 w-4" aria-hidden="true" /> Get a code
               </Button>
               {code && (
-                <span className="flex items-center gap-2 rounded-xl bg-accent/10 px-3 py-2">
-                  <span className="font-mono text-[18px] font-semibold tracking-[0.25em] text-foreground">{code}</span>
+                <span className="flex items-center gap-2 rounded-xl bg-primary-soft px-3 py-2">
+                  <span className="font-mono text-title font-semibold tracking-[0.25em] text-foreground">{code}</span>
                   <button
                     type="button"
                     aria-label="Copy code"
@@ -325,7 +327,7 @@ export function MyVetsScreen({
                 </span>
               )}
             </div>
-            <p className="mt-2 text-[11.5px] text-muted-foreground">
+            <p className="mt-2 text-caption text-muted-foreground">
               Single use, valid for ten minutes, and only a verified practice can redeem it.
             </p>
           </SectionCard>
@@ -345,14 +347,14 @@ export function MyVetsScreen({
           <ul className="flex flex-col gap-2">
             {records.data.map((r) => (
               <li key={r.id} className="rounded-2xl border border-border bg-card p-4">
-                <p className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-foreground">
+                <p className="flex flex-wrap items-center gap-2 text-body font-semibold text-foreground">
                   {r.title}
-                  <Pill tone="good">
+                  <Badge variant="success">
                     <ShieldCheck className="h-3 w-3" aria-hidden="true" /> Vet confirmed
-                  </Pill>
+                  </Badge>
                 </p>
-                {r.summary && <p className="mt-1 text-[12.5px] text-muted-foreground">{r.summary}</p>}
-                <p className="mt-1 text-[11.5px] text-muted-foreground">
+                {r.summary && <p className="mt-1 text-caption text-muted-foreground">{r.summary}</p>}
+                <p className="mt-1 text-caption text-muted-foreground">
                   {r.petName} · {r.businessName} · {formatDateShort(r.publishedAt)}
                 </p>
               </li>
@@ -378,15 +380,15 @@ export function MyVetsScreen({
             {appts.data.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card p-4">
                 <div className="min-w-0">
-                  <p className="text-[14px] font-semibold text-foreground">
+                  <p className="text-body font-semibold text-foreground">
                     {a.petName} · {a.reason ?? "Appointment"}
                   </p>
-                  <p className="text-[12.5px] text-muted-foreground">
+                  <p className="text-caption text-muted-foreground">
                     {a.businessName} · {formatDateShort(a.startsAt)} at {formatTime(a.startsAt, tz)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Pill tone={appointmentTone(a.status)}>{appointmentLabel(a.status)}</Pill>
+                  <Badge variant={TONE_VARIANT[appointmentTone(a.status)]}>{appointmentLabel(a.status)}</Badge>
                   {canOwnerCancel(a.status, a.startsAt, now) && (
                     <Button size="sm" variant="secondary" onClick={() => setCancelling(a)}>
                       Cancel
@@ -588,21 +590,21 @@ function BillRow({
     <li className="rounded-2xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-foreground">
+          <p className="flex flex-wrap items-center gap-2 text-body font-semibold text-foreground">
             {billLabel(b)}
-            <Pill tone={status.tone}>{status.label}</Pill>
-            <Pill tone="accent">{b.petName}</Pill>
+            <Badge variant={TONE_VARIANT[status.tone]}>{status.label}</Badge>
+            <Badge variant="brand">{b.petName}</Badge>
           </p>
-          <p className="mt-0.5 text-[12px] text-muted-foreground">
+          <p className="mt-0.5 text-caption text-muted-foreground">
             {b.businessName} · {formatDateShort(b.issuedOn ?? b.createdAt)}
             {b.ownerApprovedAt ? ` · you approved ${formatDateShort(b.ownerApprovedAt)}` : ""}
           </p>
           {isUnpaid(b) && (
-            <p className="mt-1 text-[12px] font-medium text-foreground">Pay the clinic directly.</p>
+            <p className="mt-1 text-caption font-medium text-foreground">Pay the clinic directly.</p>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[15px] font-semibold tabular-nums text-foreground">
+          <span className="text-body font-semibold tabular-nums text-foreground">
             {formatMoney(b.totalCents, b.currency)}
           </span>
           {action}
@@ -615,7 +617,7 @@ function BillRow({
             aria-expanded={open}
             aria-controls={linesId}
             onClick={() => setOpen((v) => !v)}
-            className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-primary-text"
+            className="mt-2 flex items-center gap-1 text-caption font-semibold text-foreground"
           >
             <ChevronDown
               className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
@@ -626,7 +628,7 @@ function BillRow({
           {open && (
             <ul id={linesId} className="mt-2 flex flex-col divide-y divide-border rounded-xl border border-border">
               {b.lines.map((l) => (
-                <li key={l.id} className="flex items-center justify-between gap-3 px-3 py-2 text-[12.5px]">
+                <li key={l.id} className="flex items-center justify-between gap-3 px-3 py-2 text-caption">
                   <span className="min-w-0 text-foreground">
                     {l.description}
                     {l.quantity !== 1 && (
@@ -750,10 +752,10 @@ function ShareModal({
           )}
         </Field>
         <fieldset className="rounded-xl border border-border p-3">
-          <legend className="px-1 text-[12px] font-semibold text-foreground">What they may see</legend>
+          <legend className="px-1 text-caption font-semibold text-foreground">What they may see</legend>
           <div className="flex flex-col gap-2">
             {Object.entries(SCOPE_LABELS).map(([key, meta]) => (
-              <label key={key} className="flex items-start gap-2 text-[12.5px]">
+              <label key={key} className="flex items-start gap-2 text-caption">
                 <input
                   type="checkbox"
                   checked={scopes.includes(key)}
@@ -764,14 +766,14 @@ function ShareModal({
                 />
                 <span>
                   <span className="font-semibold text-foreground">{meta.label}</span>
-                  {meta.sensitive && <span className="ml-1 text-warning-strong">(sensitive)</span>}
+                  {meta.sensitive && <span className="ml-1 text-foreground">(sensitive)</span>}
                   <span className="block text-muted-foreground">{meta.detail}</span>
                 </span>
               </label>
             ))}
           </div>
         </fieldset>
-        <p className="rounded-xl bg-secondary p-3 text-[11.5px] text-muted-foreground">
+        <p className="rounded-xl bg-secondary p-3 text-caption text-muted-foreground">
           Stopping a share prevents anything new being seen. It does not remove the appointment history
           and notes the practice keeps in its own system — by law, they keep those.
         </p>
@@ -896,22 +898,22 @@ function BookVetModal({
     >
       {step.kind === "done" ? (
         <div role="status" className="flex flex-col items-center gap-3 py-4 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-success/15">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-success-soft">
             <Check className="h-6 w-6 text-success" aria-hidden="true" />
           </span>
           {/* owner_book_appointment books outright when the practice's visit
               type needs no confirmation; saying "will confirm" then would be
               untrue. */}
-          <p className="text-[15px] font-semibold text-foreground">
+          <p className="text-body font-semibold text-foreground">
             {step.status === "booked"
               ? `Booked. ${practiceName} has you down for ${formatDateShort(step.startsAt)} at ${formatTime(step.startsAt, tz)}.`
               : `Request sent. ${practiceName} will confirm.`}
           </p>
-          <p className="text-[12.5px] text-muted-foreground">You&apos;ll find it under Appointments.</p>
+          <p className="text-caption text-muted-foreground">You&apos;ll find it under Appointments.</p>
         </div>
       ) : step.kind === "review" ? (
         <div className="flex flex-col gap-3">
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl border border-border p-3 text-[13px]">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl border border-border p-3 text-meta">
             <dt className="text-muted-foreground">Practice</dt>
             <dd className="font-semibold text-foreground">{practiceName}</dd>
             <dt className="text-muted-foreground">Pet</dt>
@@ -930,14 +932,14 @@ function BookVetModal({
                 <dt className="text-muted-foreground">Price</dt>
                 <dd className="font-semibold text-foreground">
                   {formatMoney(type.priceCents)}
-                  <span className="block text-[11.5px] font-normal text-muted-foreground">
+                  <span className="block text-caption font-normal text-muted-foreground">
                     The practice&apos;s listed price. You pay them directly.
                   </span>
                 </dd>
               </>
             )}
           </dl>
-          <label className="flex items-start gap-2 text-[12.5px]">
+          <label className="flex items-start gap-2 text-caption">
             <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} className="mt-0.5" />
             <span>
               <span className="font-semibold text-foreground">Share the basics with this practice</span>
@@ -948,9 +950,9 @@ function BookVetModal({
             </span>
           </label>
           {error && (
-            <p role="alert" className="text-[12px] text-destructive">
+            <ErrorText className="text-caption">
               {error}
-            </p>
+            </ErrorText>
           )}
         </div>
       ) : (
@@ -994,9 +996,9 @@ function BookVetModal({
           </Field>
 
           {error && (
-            <p role="alert" className="text-[12px] text-destructive">
+            <ErrorText className="text-caption">
               {error}
-            </p>
+            </ErrorText>
           )}
 
           {bizId && typeId ? (
@@ -1016,11 +1018,11 @@ function BookVetModal({
               </div>
             )
           ) : bizId && !types.isLoading && bookable.length === 0 ? (
-            <p className="text-[12.5px] text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               This practice doesn&apos;t take online bookings yet. Call them to book.
             </p>
           ) : (
-            <p className="text-[12.5px] text-muted-foreground">Choose a practice and a reason to see times.</p>
+            <p className="text-caption text-muted-foreground">Choose a practice and a reason to see times.</p>
           )}
         </div>
       )}

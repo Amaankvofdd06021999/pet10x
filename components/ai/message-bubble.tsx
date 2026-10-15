@@ -32,8 +32,8 @@ function UserBubble({ turn }: { turn: ChatTurn }) {
           </div>
         )}
         {turn.content && (
-          <div className="rounded-2xl rounded-br-md bg-primary-strong px-3.5 py-2.5">
-            <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-primary-foreground">{turn.content}</p>
+          <div className="rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5">
+            <p className="whitespace-pre-wrap text-body leading-relaxed text-primary-foreground">{turn.content}</p>
           </div>
         )}
       </div>
@@ -60,7 +60,7 @@ function AssistantBubble({ turn }: { turn: ChatTurn }) {
       <div className="min-w-0 flex-1">
         <div className="rounded-2xl rounded-tl-md card-raised px-3.5 py-2.5">
           {turn.error ? (
-            <p className="text-[14px] leading-relaxed text-destructive">{turn.error}</p>
+            <p className="text-body leading-relaxed text-foreground">{turn.error}</p>
           ) : turn.content ? (
             // Compound writes markdown regardless of what the prompt asks, so
             // the answer is parsed rather than printed raw.
@@ -69,12 +69,12 @@ function AssistantBubble({ turn }: { turn: ChatTurn }) {
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               {/* Compound fetches live sources mid-answer, so name the wait. */}
-              <span className="text-[13px]">{turn.status ?? "Thinking…"}</span>
+              <span className="text-meta">{turn.status ?? "Thinking…"}</span>
             </div>
           )}
 
           {turn.content && !turn.streaming && !turn.error && (
-            <p className="mt-2 border-t border-border pt-2 text-[10px] leading-relaxed text-muted-foreground">
+            <p className="mt-2 border-t border-border pt-2 text-caption leading-relaxed text-muted-foreground">
               {DISCLAIMER}
             </p>
           )}
@@ -90,13 +90,13 @@ function Avatar({ emergency = false }: { emergency?: boolean }) {
   return (
     <span
       className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
-        emergency ? "bg-destructive" : "bg-accent"
+        emergency ? "bg-destructive" : "bg-primary"
       }`}
     >
       {emergency ? (
         <ShieldAlert className="h-4 w-4 text-destructive-foreground" />
       ) : (
-        <PawPrint className="h-4 w-4 text-accent-foreground" strokeWidth={2.5} />
+        <PawPrint className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
       )}
     </span>
   )

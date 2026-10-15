@@ -24,13 +24,13 @@ export function ReportChooser({
 }) {
   return (
     <div className="mx-auto w-full max-w-xl px-5 py-8">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-soft">
         <PawPrint className="h-7 w-7 text-primary" />
       </div>
-      <h1 className="mt-5 text-center text-[24px] font-semibold leading-tight text-foreground">
+      <h1 className="mt-5 text-center text-heading font-semibold leading-tight text-foreground">
         Report an incident
       </h1>
-      <p className="mx-auto mt-2 max-w-md text-center text-[14.5px] leading-relaxed text-muted-foreground">
+      <p className="mx-auto mt-2 max-w-md text-center text-body leading-relaxed text-muted-foreground">
         Two places can act, and they can act on different things. Pick whichever fits.
       </p>
 
@@ -39,18 +39,18 @@ export function ReportChooser({
           onClick={onBuilding}
           className="flex items-start gap-3.5 rounded-2xl card-interactive p-4 text-left transition-colors active:bg-muted"
         >
-          <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+          <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-soft">
             <Building2 className="h-5 w-5 text-primary" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[15.5px] font-semibold text-foreground">
+            <span className="block text-body font-semibold text-foreground">
               {buildingName ? `My building — ${buildingName}` : "A building manager"}
             </span>
-            <span className="mt-0.5 block text-[13px] leading-relaxed text-muted-foreground">
+            <span className="mt-0.5 block text-meta leading-relaxed text-muted-foreground">
               Noise, waste, off-leash in common areas, damage, an unregistered pet. Goes to the strata, who
               can warn or fine.
             </span>
-            <span className="mt-1.5 block text-[12px] text-muted-foreground">
+            <span className="mt-1.5 block text-caption text-muted-foreground">
               {buildingName ? "You're already linked — no code needed." : "You'll need the building code."}
             </span>
           </span>
@@ -61,16 +61,16 @@ export function ReportChooser({
           onClick={onMunicipal}
           className="flex items-start gap-3.5 rounded-2xl card-interactive p-4 text-left transition-colors active:bg-muted"
         >
-          <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-destructive/10">
+          <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-destructive-soft">
             <Landmark className="h-5 w-5 text-destructive" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[15.5px] font-semibold text-foreground">Local municipality</span>
-            <span className="mt-0.5 block text-[13px] leading-relaxed text-muted-foreground">
+            <span className="block text-body font-semibold text-foreground">Local municipality</span>
+            <span className="mt-0.5 block text-meta leading-relaxed text-muted-foreground">
               An animal attacked a pet or a person, is behaving dangerously, or is running loose — anywhere,
               not just in a building.
             </span>
-            <span className="mt-1.5 block text-[12px] text-muted-foreground">
+            <span className="mt-1.5 block text-caption text-muted-foreground">
               You&apos;ll need a postal code or your location.
             </span>
           </span>
@@ -78,7 +78,7 @@ export function ReportChooser({
         </button>
       </div>
 
-      <p className="mt-6 text-center text-[12px] leading-relaxed text-muted-foreground">
+      <p className="mt-6 text-center text-caption leading-relaxed text-muted-foreground">
         If an animal or a person is in immediate danger, call <span className="font-semibold">911</span>.
         Pet10x is not an emergency service.
       </p>

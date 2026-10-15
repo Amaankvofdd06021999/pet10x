@@ -36,7 +36,7 @@ export function IOSNavBar({
     /* The hairline is a warm tint of the brand rather than neutral grey —
        barely there on white, but enough to separate the bar from content
        scrolling beneath the blur. */
-    <header className="sticky top-0 z-40 border-b border-primary/15 bg-card/80 backdrop-blur-xl pt-safe">
+    <header className="sticky top-0 z-40 border-b border-border bg-card backdrop-blur-xl pt-safe">
       {inlineTitle ? (
         /* Roomier than the stock 44px bar: the branded header carries a
            wordmark rather than a page title, so it wants breathing room above
@@ -50,7 +50,7 @@ export function IOSNavBar({
         <div className="flex min-h-16 items-center justify-between gap-3 px-4 pb-3 pt-3">
           <div className="flex min-w-0 items-center gap-2">
             {leftAction}
-            <h1 className="flex items-center gap-2 truncate text-[22px] font-bold leading-tight tracking-tight text-foreground">
+            <h1 className="flex items-center gap-2 truncate text-heading font-bold leading-tight tracking-tight text-foreground">
               {title}
             </h1>
           </div>
@@ -73,8 +73,8 @@ export function IOSNavBar({
               heading, not a label on a toolbar. It sits one step below the
               22px wordmark on Home, so the brand still outranks it. */}
           <div className="pointer-events-none absolute inset-x-0 px-24 text-center">
-            <h1 className="truncate text-[20px] font-bold leading-tight tracking-tight text-foreground">{title}</h1>
-            {subtitle && <p className="truncate text-[12px] leading-4 text-muted-foreground">{subtitle}</p>}
+            <h1 className="truncate text-heading font-bold leading-tight tracking-tight text-foreground">{title}</h1>
+            {subtitle && <p className="truncate text-caption leading-4 text-muted-foreground">{subtitle}</p>}
           </div>
           <div className="z-10 flex flex-shrink-0 items-center gap-1">{rightAction}</div>
         </div>

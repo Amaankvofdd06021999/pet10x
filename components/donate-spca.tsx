@@ -30,18 +30,18 @@ export function DonateSpcaCard({ className = "" }: { className?: string }) {
       rel="noopener noreferrer"
       className={`flex items-start gap-3 rounded-2xl card-interactive p-4 transition-transform active:scale-[0.99] ${className}`}
     >
-      <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-destructive/10">
+      <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-destructive-soft">
         <Heart className="h-5 w-5 text-destructive" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold text-foreground">Donate to the SPCA</span>
-        <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted-foreground">
+        <span className="block text-body font-semibold text-foreground">Donate to the SPCA</span>
+        <span className="mt-0.5 block text-caption leading-relaxed text-muted-foreground">
           Support animal rescue and welfare
         </span>
         {/* The disclaimer is the smallest thing on the card but it is the part
             that has to be true: this hands the reader to the charity, it does
             not collect on their behalf. */}
-        <span className="mt-1.5 block text-[11.5px] leading-relaxed text-muted-foreground/80">
+        <span className="mt-1.5 block text-caption leading-relaxed text-muted-foreground">
           Opens the BC SPCA&apos;s own site · Pet10x handles no payment
         </span>
       </span>
@@ -57,7 +57,7 @@ export function DonateSpcaLink({ className = "" }: { className?: string }) {
       href={SPCA_DONATE_URL}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-1.5 text-[13px] font-semibold text-destructive underline-offset-2 hover:underline ${className}`}
+      className={`inline-flex items-center gap-1.5 text-meta font-semibold text-foreground underline-offset-2 hover:underline ${className}`}
     >
       <Heart className="h-3.5 w-3.5" />
       Donate to the SPCA

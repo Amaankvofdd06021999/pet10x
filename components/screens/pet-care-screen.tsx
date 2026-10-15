@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useEffect, useRef } from "react"
 import { usePets, useSelectedPet } from "@/lib/data"
 import { PetChips } from "@/components/screens/home/pet-chips"
@@ -47,19 +48,16 @@ export function PetCareScreen({ onBack, onNavigate, initialKind, initialPetId }:
     return (
       <ScreenShell onBack={onBack}>
         <div className="flex flex-1 flex-col items-center justify-center px-8 py-16 text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-soft">
             <PawPrint className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="text-[18px] font-semibold text-foreground">No pets yet</h2>
-          <p className="mt-1.5 max-w-xs text-[14px] leading-relaxed text-muted-foreground">
+          <h2 className="text-title font-semibold text-foreground">No pets yet</h2>
+          <p className="mt-1.5 max-w-xs text-body leading-relaxed text-muted-foreground">
             Add a pet to start tracking food, medicine and treats — every entry is saved to your account.
           </p>
-          <button
-            onClick={() => onNavigate?.("add-pet")}
-            className="mt-5 flex items-center gap-2 rounded-xl bg-primary-strong px-5 py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
-          >
+          <Button onClick={() => onNavigate?.("add-pet")} className="mt-5">
             <Plus className="h-4.5 w-4.5" /> Add a pet
-          </button>
+          </Button>
         </div>
       </ScreenShell>
     )
@@ -84,13 +82,13 @@ export function PetCareScreen({ onBack, onNavigate, initialKind, initialPetId }:
 function ScreenShell({ children, onBack, title }: { children: React.ReactNode; onBack: () => void; title?: string }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-card/80 px-4 pt-safe backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border bg-card px-4 pt-safe backdrop-blur-xl">
         <div className="flex h-12 items-center gap-2">
-          <button onClick={onBack} className="flex items-center gap-1 text-primary-text" aria-label="Back">
+          <button onClick={onBack} className="flex items-center gap-1 text-foreground" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
-            <span className="text-[17px]">Back</span>
+            <span className="text-title">Back</span>
           </button>
-          <h1 className="absolute left-1/2 -translate-x-1/2 text-[17px] font-semibold text-foreground">
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-title font-semibold text-foreground">
             {title ?? "Trackers"}
           </h1>
         </div>

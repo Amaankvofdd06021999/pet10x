@@ -51,14 +51,13 @@ export function IOSTabBar({ activeTab, onTabChange }: TabBarProps) {
   const unreadCount = useUnreadNotificationCount()
   const badges: Record<string, number> = { alerts: unreadCount }
   const tabs = isManager ? managerTabs : ownerTabs
-  // One brand colour for both roles. Managers used to get `--info` (iOS system
-  // blue), which is not a Pet10x colour and made their half of the app look
-  // like a different product.
-  const activeColor = "text-primary-text"
+  // The active tab is an orange icon with a dark label, for both roles.
+  // Managers used to get `--info` (iOS system blue), which is not a Pet10x
+  // colour and made their half of the app look like a different product.
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/80 backdrop-blur-xl pb-safe md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card backdrop-blur-xl pb-safe md:hidden"
       role="tablist"
       aria-label="Main navigation"
     >
@@ -84,27 +83,27 @@ export function IOSTabBar({ activeTab, onTabChange }: TabBarProps) {
               <span
                 className={
                   emphasis
-                    ? "flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary transition-colors"
+                    ? "flex h-10 w-10 items-center justify-center rounded-full bg-primary-soft text-primary transition-colors"
                     : "relative"
                 }
               >
                 <Icon
                   className={`h-6 w-6 transition-colors ${
-                    emphasis ? "" : isActive ? activeColor : "text-muted-foreground"
+                    emphasis ? "" : isActive ? "text-primary" : "text-muted-foreground"
                   }`}
                   strokeWidth={emphasis ? 2 : isActive ? 2.5 : 1.5}
                   fill={!emphasis && isActive ? "currentColor" : "none"}
                 />
                 {badges[tab.id] > 0 && (
-                  <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                  <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-caption font-semibold text-destructive-foreground">
                     {badges[tab.id]}
                   </span>
                 )}
               </span>
 
               <span
-                className={`text-[10px] font-medium transition-colors ${
-                  emphasis ? "text-primary-text" : isActive ? activeColor : "text-muted-foreground"
+                className={`text-caption font-medium transition-colors ${
+                  emphasis || isActive ? "text-foreground" : "text-muted-foreground"
                 }`}
               >
                 {tab.label}

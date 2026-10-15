@@ -49,11 +49,11 @@ export function PetPhotoGallery({ petId }: { petId: string }) {
   return (
     <section className="mb-5">
       <div className="mb-2.5 flex items-center justify-between">
-        <h3 className="text-[15px] font-semibold text-foreground">Photos</h3>
+        <h3 className="text-body font-semibold text-foreground">Photos</h3>
         <button
           onClick={() => input.current?.click()}
           disabled={busy}
-          className="flex items-center gap-1.5 text-[13px] font-semibold text-primary-text disabled:opacity-60"
+          className="flex items-center gap-1.5 text-meta font-semibold text-foreground disabled:opacity-60"
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />} Add
         </button>
@@ -71,8 +71,8 @@ export function PetPhotoGallery({ petId }: { petId: string }) {
           className="flex w-full flex-col items-center gap-1 rounded-2xl border border-dashed border-border bg-card px-4 py-8"
         >
           <Camera className="h-6 w-6 text-muted-foreground" />
-          <span className="text-[13px] font-semibold text-foreground">Add photos</span>
-          <span className="text-[12px] text-muted-foreground">The first becomes their profile picture</span>
+          <span className="text-meta font-semibold text-foreground">Add photos</span>
+          <span className="text-caption text-muted-foreground">The first becomes their profile picture</span>
         </button>
       ) : (
         <div className="grid grid-cols-3 gap-2">
@@ -86,14 +86,14 @@ export function PetPhotoGallery({ petId }: { petId: string }) {
                 </span>
               )}
               {i === 0 && (
-                <span className="absolute left-1 top-1 rounded-full bg-foreground/70 px-1.5 py-0.5 text-[9px] font-semibold text-background">
+                <span className="absolute left-1 top-1 rounded-full bg-black/70 px-1.5 py-0.5 text-caption font-semibold text-background">
                   Profile
                 </span>
               )}
               <button
                 onClick={() => remove(p.id)}
                 aria-label="Remove photo"
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/70 text-background"
+                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-background"
               >
                 <Trash2 className="h-3 w-3" />
               </button>

@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
@@ -54,11 +55,11 @@ export function RemovePetSheet({
         if (!next && !busy) onClose()
       }}
       described
-      overlayClassName="flex items-end justify-center bg-foreground/40 sm:items-center"
+      overlayClassName="flex items-end justify-center bg-black/40 sm:items-center"
       className="w-full max-w-md rounded-t-3xl bg-card p-5 shadow-float sm:rounded-3xl"
     >
-          <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Remove {petName}?</DialogTitle>
-          <DialogDescription className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+          <DialogTitle className="text-title font-semibold leading-normal text-foreground">Remove {petName}?</DialogTitle>
+          <DialogDescription className="mt-1 text-meta leading-relaxed text-muted-foreground">
             {petName} will leave your pets, and their care reminders and any records you share with a vet will stop.
           </DialogDescription>
 
@@ -71,30 +72,22 @@ export function RemovePetSheet({
                 onClick={() => setReason(r)}
                 disabled={busy}
                 className={`rounded-xl border px-3.5 py-2.5 text-left transition-colors ${
-                  reason === r ? "border-destructive bg-destructive/5" : "border-border bg-card"
+                  reason === r ? "border-destructive bg-destructive-soft" : "border-border bg-card"
                 }`}
               >
-                <span className="block text-[14px] font-semibold text-foreground">{ARCHIVE_REASON_LABEL[r]}</span>
-                <span className="block text-[12px] text-muted-foreground">{ARCHIVE_REASON_HINT[r]}</span>
+                <span className="block text-body font-semibold text-foreground">{ARCHIVE_REASON_LABEL[r]}</span>
+                <span className="block text-caption text-muted-foreground">{ARCHIVE_REASON_HINT[r]}</span>
               </button>
             ))}
           </div>
 
           <div className="mt-4 flex gap-2">
-            <button
-              onClick={onClose}
-              disabled={busy}
-              className="flex-1 rounded-xl bg-muted py-3 text-[15px] font-semibold text-foreground disabled:opacity-60"
-            >
+            <Button variant="secondary" onClick={onClose} disabled={busy} className="flex-1">
               Cancel
-            </button>
-            <button
-              onClick={confirm}
-              disabled={!reason || busy}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive py-3 text-[15px] font-semibold text-destructive-foreground disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="danger" onClick={confirm} disabled={!reason || busy} className="flex-1">
               {busy && <Loader2 className="h-4 w-4 animate-spin" />} Remove
-            </button>
+            </Button>
           </div>
     </DialogLayer>
   )

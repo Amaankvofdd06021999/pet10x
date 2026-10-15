@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import { Cat, ChevronRight, Dog } from "lucide-react"
 import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
@@ -32,10 +33,10 @@ export function PetPickerSheet({
       onOpenChange={(next) => {
         if (!next) onClose()
       }}
-      overlayClassName="flex items-end justify-center bg-foreground/40 sm:items-center"
+      overlayClassName="flex items-end justify-center bg-black/40 sm:items-center"
       className="w-full max-w-md rounded-t-3xl bg-card p-5 shadow-float sm:rounded-3xl"
     >
-          <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">{title}</DialogTitle>
+          <DialogTitle className="text-title font-semibold leading-normal text-foreground">{title}</DialogTitle>
           <div className="mt-3 overflow-hidden rounded-2xl border border-border">
             {pets.map((pet, idx) => {
               const SpeciesIcon = pet.species === "dog" ? Dog : Cat
@@ -53,18 +54,18 @@ export function PetPickerSheet({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1">
                       <SpeciesIcon className="h-3 w-3 text-muted-foreground" />
-                      <span className="truncate text-[14px] font-semibold text-foreground">{pet.name}</span>
+                      <span className="truncate text-body font-semibold text-foreground">{pet.name}</span>
                     </div>
-                    <span className="block truncate text-[11px] text-muted-foreground">{pet.breed || "Pet"}</span>
+                    <span className="block truncate text-caption text-muted-foreground">{pet.breed || "Pet"}</span>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </button>
               )
             })}
           </div>
-          <button onClick={onClose} className="mt-3 w-full rounded-xl bg-muted py-3 text-[15px] font-semibold text-foreground">
+          <Button variant="secondary" onClick={onClose} className="mt-3 w-full">
             Cancel
-          </button>
+          </Button>
     </DialogLayer>
   )
 }

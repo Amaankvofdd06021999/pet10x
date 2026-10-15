@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
@@ -122,12 +123,9 @@ export function AlertsScreen({
            something unread for it to write. */
         rightAction={
           unreadCount > 0 ? (
-            <button
-              onClick={markAll}
-              className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-[12.5px] font-semibold text-primary-text"
-            >
+            <Button variant="secondary" size="sm" onClick={markAll}>
               <CheckCheck className="h-3.5 w-3.5" /> Mark all read
-            </button>
+            </Button>
           ) : undefined
         }
       />
@@ -136,14 +134,11 @@ export function AlertsScreen({
       <div className="sticky top-16 z-30 bg-background px-4 pb-3">
         <div className="flex flex-wrap gap-2">
           {TABS.map((tab) => (
-            <button
+            <Button
+              variant={effectiveTab === tab.id ? "primary" : "secondary"}
+              size="sm"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
-                effectiveTab === tab.id
-                  ? "bg-primary-strong text-primary-foreground"
-                  : "bg-muted text-muted-foreground"
-              }`}
             >
               {tab.label}
               {tab.id === "all" && unreadCount > 0 && (
@@ -151,7 +146,7 @@ export function AlertsScreen({
                   ({unreadCount})
                 </span>
               )}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -162,13 +157,13 @@ export function AlertsScreen({
             it was "coming soon": Home's quick action and its nav-bar button
             both already went there. */}
         {canReportIncident && (
-        <button onClick={() => onNavigate?.("report")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-destructive/30 bg-destructive/5 p-3 transition-transform active:scale-[0.98]">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive/10">
+        <button onClick={() => onNavigate?.("report")} className="mb-4 flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-destructive bg-destructive-soft p-3 transition-transform active:scale-[0.98]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive-soft">
             <AlertTriangle className="h-4.5 w-4.5 text-destructive" />
           </div>
           <div className="flex-1 text-left">
-            <p className="text-[14px] font-semibold text-foreground">Report an Incident</p>
-            <p className="text-[11px] text-muted-foreground">File a pet-related complaint or report</p>
+            <p className="text-body font-semibold text-foreground">Report an Incident</p>
+            <p className="text-caption text-muted-foreground">File a pet-related complaint or report</p>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </button>
@@ -180,11 +175,11 @@ export function AlertsScreen({
           {/* A failed load is said as one, with a way to try again — never
               as "You're all caught up", which is a claim about the inbox. */}
           {loadError && (
-            <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-center">
-              <p className="text-[13px] leading-relaxed text-foreground">{loadError}</p>
+            <div className="rounded-2xl border border-destructive bg-destructive-soft p-4 text-center">
+              <p className="text-meta leading-relaxed text-foreground">{loadError}</p>
               <button
                 onClick={() => void refreshNotifications()}
-                className="mt-2 text-[13px] font-semibold text-primary-text"
+                className="mt-2 text-meta font-semibold text-foreground"
               >
                 Try again
               </button>
@@ -192,11 +187,11 @@ export function AlertsScreen({
           )}
           {filteredAlerts.length === 0 && !loadError && !isLoading && (
             <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft">
                 <BellOff className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="mt-4 text-[15px] font-semibold text-foreground">You&apos;re all caught up</h3>
-              <p className="mx-auto mt-1 max-w-[20rem] text-[13px] leading-relaxed text-muted-foreground">
+              <h3 className="mt-4 text-body font-semibold text-foreground">You&apos;re all caught up</h3>
+              <p className="mx-auto mt-1 max-w-[20rem] text-meta leading-relaxed text-muted-foreground">
                 No notifications right now. Reminders, compliance updates and building alerts will appear here.
               </p>
             </div>

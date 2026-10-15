@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 /**
  * Pet10x — the resident asks their building to accommodate an assistance animal.
  *
@@ -91,20 +92,17 @@ export function AccommodationRequestScreen({
              (which requires `is_resident_of(building_id)` — an APPROVED link
              and a non-suspended profile). */
           <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft">
               <Building2 className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="mt-4 text-[15px] font-semibold text-foreground">Join your building first</h3>
-            <p className="mx-auto mt-1 max-w-[22rem] break-words text-[13px] leading-relaxed text-muted-foreground">
+            <h3 className="mt-4 text-body font-semibold text-foreground">Join your building first</h3>
+            <p className="mx-auto mt-1 max-w-[22rem] break-words text-meta leading-relaxed text-muted-foreground">
               An accommodation request goes to the managers of the building you live in, so your membership has
               to be approved before you can file one.
             </p>
-            <button
-              onClick={() => onNavigate?.("link-building")}
-              className="mt-4 rounded-xl bg-primary-strong px-4 py-2.5 text-[14px] font-semibold text-primary-foreground"
-            >
+            <Button onClick={() => onNavigate?.("link-building")} className="mt-4">
               Link my building
-            </button>
+            </Button>
           </div>
         ) : openDraft ? (
           <RequestEditor
@@ -169,11 +167,11 @@ function RequestList({
   return (
     <div className="flex flex-col gap-4">
       <section>
-        <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="mb-2 text-meta font-semibold uppercase tracking-wide text-muted-foreground">
           Your requests
         </h2>
         {requests.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border bg-card p-5 text-center text-[13px] text-muted-foreground">
+          <p className="rounded-xl border border-dashed border-border bg-card p-5 text-center text-meta text-muted-foreground">
             You haven&apos;t asked {buildingName} for an accommodation yet.
           </p>
         ) : (
@@ -182,27 +180,27 @@ function RequestList({
               <button
                 key={r.id}
                 onClick={() => onOpen(r.id)}
-                className="w-full rounded-xl card-raised p-3 text-left active:bg-muted/50"
+                className="w-full rounded-xl card-raised p-3 text-left active:bg-muted"
               >
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-soft">
                     {r.type === "esa" ? (
-                      <Heart className="h-5 w-5 text-accent" />
+                      <Heart className="h-5 w-5 text-primary" />
                     ) : (
-                      <Shield className="h-5 w-5 text-accent" />
+                      <Shield className="h-5 w-5 text-primary" />
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="break-words text-[14px] font-semibold text-foreground">
+                    <p className="break-words text-body font-semibold text-foreground">
                       {ACCOMMODATION_TYPE_LABEL[r.type]}
                     </p>
-                    <p className="break-words text-[12px] text-muted-foreground">
+                    <p className="break-words text-caption text-muted-foreground">
                       {STATUS_LABEL[r.status]}
                       {r.submittedAt ? ` · sent ${shortDate(r.submittedAt)}` : ""}
                       {r.petName ? ` · ${r.petName}` : ""}
                     </p>
                     {r.decisionNote && (
-                      <p className="mt-1 whitespace-pre-wrap break-words text-[12px] text-foreground">
+                      <p className="mt-1 whitespace-pre-wrap break-words text-caption text-foreground">
                         {r.decisionNote}
                       </p>
                     )}
@@ -215,20 +213,20 @@ function RequestList({
       </section>
 
       <section>
-        <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="mb-2 text-meta font-semibold uppercase tracking-wide text-muted-foreground">
           New request
         </h2>
         <div className="flex flex-col gap-2">
           <TypeButton
             disabled={creating}
-            icon={<Heart className="h-5 w-5 text-accent" />}
+            icon={<Heart className="h-5 w-5 text-primary" />}
             title="Emotional support animal"
             subtitle="You will be asked for a letter from your provider."
             onClick={() => void startRequest("esa")}
           />
           <TypeButton
             disabled={creating}
-            icon={<Shield className="h-5 w-5 text-accent" />}
+            icon={<Shield className="h-5 w-5 text-primary" />}
             title="Service animal"
             subtitle="You will be asked for the provider's licence."
             onClick={() => void startRequest("service_animal")}
@@ -256,12 +254,12 @@ function TypeButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full items-start gap-3 rounded-xl card-raised p-3 text-left active:bg-muted/50 disabled:opacity-60"
+      className="flex w-full items-start gap-3 rounded-xl card-raised p-3 text-left active:bg-muted disabled:opacity-60"
     >
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">{icon}</div>
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-soft">{icon}</div>
       <div className="min-w-0">
-        <p className="break-words text-[14px] font-semibold text-foreground">{title}</p>
-        <p className="break-words text-[12px] text-muted-foreground">{subtitle}</p>
+        <p className="break-words text-body font-semibold text-foreground">{title}</p>
+        <p className="break-words text-caption text-muted-foreground">{subtitle}</p>
       </div>
     </button>
   )
@@ -373,24 +371,24 @@ function RequestEditor({
             if (ok) onClose()
           })
         }}
-        className="self-start text-[14px] font-semibold text-primary-text"
+        className="self-start text-body font-semibold text-foreground"
       >
         All requests
       </button>
 
       <div className="rounded-xl card-raised p-3">
         <div className="flex items-center gap-2">
-          <Accessibility className="h-4 w-4 flex-shrink-0 text-accent" />
-          <p className="break-words text-[14px] font-semibold text-foreground">
+          <Accessibility className="h-4 w-4 flex-shrink-0 text-primary" />
+          <p className="break-words text-body font-semibold text-foreground">
             {ACCOMMODATION_TYPE_LABEL[request.type]}
           </p>
         </div>
-        <p className="mt-0.5 break-words text-[12px] text-muted-foreground">
+        <p className="mt-0.5 break-words text-caption text-muted-foreground">
           {STATUS_LABEL[request.status]}
           {request.submittedAt ? ` · sent ${shortDate(request.submittedAt)}` : ""}
         </p>
         {request.decisionNote && (
-          <p className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-muted/50 p-2 text-[12px] text-foreground">
+          <p className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-muted p-2 text-caption text-foreground">
             {request.decisionNote}
           </p>
         )}
@@ -402,14 +400,14 @@ function RequestEditor({
             a <p> binds to nothing — the same shape as the id-with-a-space that
             silently unbound a control in Phase 5. */}
         {editable ? (
-          <label htmlFor="accom-animal-desc" className="mb-1 block text-[13px] font-semibold text-foreground">
+          <label htmlFor="accom-animal-desc" className="mb-1 block text-meta font-semibold text-foreground">
             Describe the animal and why you need it
           </label>
         ) : (
-          <h2 className="mb-1 text-[13px] font-semibold text-foreground">What you told your building</h2>
+          <h2 className="mb-1 text-meta font-semibold text-foreground">What you told your building</h2>
         )}
         {editable && (
-          <p className="mb-1.5 break-words text-[12px] text-muted-foreground">
+          <p className="mb-1.5 break-words text-caption text-muted-foreground">
             Your building manager will read this. Write it in your own words — there is no form to fill in and
             nothing you have to name.
           </p>
@@ -420,7 +418,7 @@ function RequestEditor({
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
             rows={5}
-            className="w-full rounded-xl border border-border bg-card p-3 text-[14px] text-foreground"
+            className="w-full rounded-xl border border-border bg-card p-3 text-body text-foreground"
           />
         ) : (
           /* Once it is decided this is a RECORD, not a field. A disabled
@@ -429,7 +427,7 @@ function RequestEditor({
              clipped out of the page's flow, which is the shape of the defect
              Phase 6 shipped. Prose with `break-words` shows all of it and wraps
              an unbroken token; `pre-wrap` alone wraps only at spaces. */
-          <p className="w-full whitespace-pre-wrap break-words rounded-xl border border-border bg-card p-3 text-[14px] text-foreground">
+          <p className="w-full whitespace-pre-wrap break-words rounded-xl border border-border bg-card p-3 text-body text-foreground">
             {desc}
           </p>
         )}
@@ -438,10 +436,10 @@ function RequestEditor({
       <section>
         {editable ? (
           <>
-            <label htmlFor="accom-pet" className="mb-1 block text-[13px] font-semibold text-foreground">
+            <label htmlFor="accom-pet" className="mb-1 block text-meta font-semibold text-foreground">
               Which animal? (optional)
             </label>
-            <p className="mb-1.5 break-words text-[12px] text-muted-foreground">
+            <p className="mb-1.5 break-words text-caption text-muted-foreground">
               An animal you have not registered yet is exactly what a request may be about, so this can be
               left blank.
             </p>
@@ -449,7 +447,7 @@ function RequestEditor({
               id="accom-pet"
               value={petId ?? ""}
               onChange={(e) => setPetId(e.target.value || null)}
-              className="w-full rounded-xl border border-border bg-card p-3 text-[14px] text-foreground"
+              className="w-full rounded-xl border border-border bg-card p-3 text-body text-foreground"
             >
               <option value="">Not one of my registered pets</option>
               {pets.map((pet) => (
@@ -461,8 +459,8 @@ function RequestEditor({
           </>
         ) : (
           <>
-            <h2 className="mb-1 text-[13px] font-semibold text-foreground">Which animal</h2>
-            <p className="break-words text-[14px] text-foreground">
+            <h2 className="mb-1 text-meta font-semibold text-foreground">Which animal</h2>
+            <p className="break-words text-body text-foreground">
               {request.petName ?? "Not one of your registered pets"}
             </p>
           </>
@@ -470,7 +468,7 @@ function RequestEditor({
       </section>
 
       <section>
-        <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">Documents</h2>
+        <h2 className="mb-2 text-meta font-semibold uppercase tracking-wide text-muted-foreground">Documents</h2>
         <div className="flex flex-col gap-2">
           {kinds.map((kind) => (
             <DocumentRow
@@ -491,7 +489,7 @@ function RequestEditor({
           {missing.length > 0 && (
             /* A plain sentence naming what is still missing, never a silent
                no-op on a disabled button. */
-            <p className="break-words text-[12px] text-muted-foreground">
+            <p className="break-words text-caption text-muted-foreground">
               Still needed before you can send this: {missing.join(", ")}.
             </p>
           )}
@@ -500,25 +498,17 @@ function RequestEditor({
               storage_path exists, and this button does not. See the note above
               `missingRequired` in lib/data/accommodations.ts — the RPC is the
               authority, this is guidance. */}
-          <button
-            onClick={() => void submit()}
-            disabled={busy || missing.length > 0}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
-          >
+          <Button onClick={() => void submit()} disabled={busy || missing.length > 0} className="w-full">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             Send to my building
-          </button>
+          </Button>
         </section>
       )}
 
       {(editable || request.status === "pending") && (
-        <button
-          onClick={() => void withdraw()}
-          disabled={busy}
-          className="w-full rounded-xl bg-muted py-3 text-[15px] font-semibold text-foreground disabled:opacity-60"
-        >
+        <Button variant="secondary" onClick={() => void withdraw()} disabled={busy} className="w-full">
           Withdraw this request
-        </button>
+        </Button>
       )}
     </div>
   )
@@ -575,17 +565,17 @@ function DocumentRow({
       <div className="flex items-start gap-3">
         <Paperclip className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
-          <p className="break-words text-[13px] font-semibold text-foreground">
+          <p className="break-words text-meta font-semibold text-foreground">
             {DOC_KIND_LABEL[kind]}
             {required ? "" : " (optional)"}
           </p>
           {doc ? (
-            <p className="break-words text-[12px] text-muted-foreground">
+            <p className="break-words text-caption text-muted-foreground">
               {doc.label ?? "Attached"} &middot; {fileSize(doc.sizeBytes)}
               {doc.verified ? " · verified" : doc.status === "rejected" ? " · rejected" : ""}
             </p>
           ) : (
-            <p className="text-[12px] text-muted-foreground">Nothing attached yet</p>
+            <p className="text-caption text-muted-foreground">Nothing attached yet</p>
           )}
         </div>
         {doc && editable && (
@@ -606,7 +596,7 @@ function DocumentRow({
               and leaves a control with no accessible name. */}
           <label
             htmlFor={inputId}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-muted px-3 py-1.5 text-caption font-semibold text-foreground"
           >
             {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {doc ? "Replace file" : "Choose a file"}

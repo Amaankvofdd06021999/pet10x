@@ -1,5 +1,7 @@
 "use client"
 
+import { ErrorText } from "@/components/ui/error-text"
+import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { toast } from "sonner"
 import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
@@ -20,12 +22,12 @@ import { ContactLinks } from "@/components/screens/shared/contact-links"
 import { ArrowLeft, CalendarDays, Loader2, Star, Store, Inbox } from "lucide-react"
 
 const STATUS_STYLE: Record<BookingStatus, string> = {
-  requested: "bg-warning/15 text-warning",
-  confirmed: "bg-accent/15 text-accent",
-  in_progress: "bg-info/15 text-info",
-  completed: "bg-success/15 text-success-strong",
-  paid: "bg-success/15 text-success-strong",
-  declined: "bg-destructive/10 text-destructive",
+  requested: "bg-warning-soft text-foreground",
+  confirmed: "bg-primary-soft text-foreground",
+  in_progress: "bg-info-soft text-foreground",
+  completed: "bg-success-soft text-foreground",
+  paid: "bg-success-soft text-foreground",
+  declined: "bg-destructive-soft text-foreground",
   cancelled: "bg-muted text-muted-foreground",
 }
 
@@ -73,7 +75,7 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
         title="My bookings"
         largeTitle={false}
         leftAction={
-          <button onClick={onBack} className="flex items-center gap-1 text-[15px] text-primary-text">
+          <button onClick={onBack} className="flex items-center gap-1 text-body text-foreground">
             <ArrowLeft className="h-5 w-5" />
           </button>
         }
@@ -87,8 +89,8 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
         ) : bookings.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
             <Inbox className="mx-auto h-7 w-7 text-muted-foreground" />
-            <p className="mt-2 text-[14px] font-semibold text-foreground">No bookings yet</p>
-            <p className="mt-1 text-[12px] text-muted-foreground">
+            <p className="mt-2 text-body font-semibold text-foreground">No bookings yet</p>
+            <p className="mt-1 text-caption text-muted-foreground">
               Book groomers and walkers in Services. Vet appointments are under My vets.
             </p>
           </div>
@@ -97,22 +99,22 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
             {bookings.map((b) => (
               <div key={b.id} className="rounded-2xl card-raised p-3.5">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
-                    <Store className="h-5 w-5 text-accent" />
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-soft">
+                    <Store className="h-5 w-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${STATUS_STYLE[b.status]}`}>
+                      <span className={`rounded-md px-2 py-0.5 text-caption font-semibold ${STATUS_STYLE[b.status]}`}>
                         {BOOKING_STATUS_LABEL[b.status]}
                       </span>
-                      <p className="text-[14px] font-semibold text-foreground">{b.serviceName ?? "Service"}</p>
+                      <p className="text-body font-semibold text-foreground">{b.serviceName ?? "Service"}</p>
                     </div>
-                    <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                    <p className="mt-0.5 text-caption text-muted-foreground">
                       {b.businessName}
                       {b.petName ? ` · ${b.petName}` : ""}
                     </p>
                     {b.scheduledFor && (
-                      <p className="mt-0.5 inline-flex items-center gap-1 text-[12px] text-muted-foreground">
+                      <p className="mt-0.5 inline-flex items-center gap-1 text-caption text-muted-foreground">
                         <CalendarDays className="h-3 w-3" />
                         {new Date(b.scheduledFor).toLocaleString(undefined, {
                           weekday: "short",
@@ -124,17 +126,17 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
                       </p>
                     )}
                     {STATUS_HINT[b.status] && (
-                      <p className="mt-0.5 text-[11.5px] text-muted-foreground">{STATUS_HINT[b.status]}</p>
+                      <p className="mt-0.5 text-caption text-muted-foreground">{STATUS_HINT[b.status]}</p>
                     )}
-                    {b.declinedReason && <p className="mt-1 text-[12px] text-destructive">{b.declinedReason}</p>}
+                    {b.declinedReason && <ErrorText className="mt-1 text-caption">{b.declinedReason}</ErrorText>}
                     {blocked === b.id && (
-                      <p role="alert" className="mt-1 text-[12px] text-destructive">
+                      <ErrorText className="mt-1 text-caption">
                         This booking can&apos;t be cancelled any more.{" "}
                         <a href={`#booking-contact-${b.id}`} className="font-semibold underline underline-offset-2">
                           Contact {b.businessName}
                         </a>
                         .
-                      </p>
+                      </ErrorText>
                     )}
                     {/* Once confirmed, both sides can reach each other — the
                         business sees the customer's details from the same point. */}
@@ -145,32 +147,30 @@ export function MyBookingsScreen({ onBack }: { onBack: () => void }) {
                         </div>
                       )}
                   </div>
-                  <span className="flex-shrink-0 text-[15px] font-bold text-foreground">{formatPrice(b.amount * 100, b.currency)}</span>
+                  <span className="flex-shrink-0 text-body font-bold text-foreground">{formatPrice(b.amount * 100, b.currency)}</span>
                 </div>
 
                 <div className="mt-2.5 flex flex-wrap gap-1.5">
                   {(b.status === "requested" || b.status === "confirmed") && (
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => setCancelling(b)}
                       disabled={busy === b.id}
-                      className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12.5px] font-semibold text-foreground disabled:opacity-50"
                     >
                       {busy === b.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Cancel
-                    </button>
+                    </Button>
                   )}
                   {(b.status === "completed" || b.status === "paid") &&
                     b.businessId &&
                     (b.reviewId ? (
-                      <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground">
+                      <span className="inline-flex items-center gap-1 text-caption text-muted-foreground">
                         <Star className="h-3.5 w-3.5 fill-warning text-warning" /> You rated {b.reviewRating}/5
                       </span>
                     ) : (
-                      <button
-                        onClick={() => setReviewing(b)}
-                        className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.5 text-[12.5px] font-semibold text-accent"
-                      >
+                      <Button variant="secondary" size="sm" onClick={() => setReviewing(b)}>
                         <Star className="h-3.5 w-3.5" /> Leave a review
-                      </button>
+                      </Button>
                     ))}
                 </div>
               </div>
@@ -244,16 +244,16 @@ function ReviewSheet({
         if (!next && !busy) onClose()
       }}
       described
-      overlayClassName="flex items-end justify-center bg-foreground/40 sm:items-center"
+      overlayClassName="flex items-end justify-center bg-black/40 sm:items-center"
       className="w-full max-w-md rounded-t-3xl bg-card shadow-float p-5 sm:rounded-3xl"
     >
-        <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Review {booking.businessName}</DialogTitle>
-        <DialogDescription className="mt-0.5 text-[13px] text-muted-foreground">{booking.serviceName}</DialogDescription>
+        <DialogTitle className="text-title font-semibold leading-normal text-foreground">Review {booking.businessName}</DialogTitle>
+        <DialogDescription className="mt-0.5 text-meta text-muted-foreground">{booking.serviceName}</DialogDescription>
 
         <div className="mt-4 flex justify-center gap-2">
           {[1, 2, 3, 4, 5].map((i) => (
             <button key={i} onClick={() => setRating(i)} aria-label={`${i} star${i === 1 ? "" : "s"}`}>
-              <Star className={`h-9 w-9 ${i <= rating ? "fill-warning text-warning" : "text-muted-foreground/40"}`} />
+              <Star className={`h-9 w-9 ${i <= rating ? "fill-warning text-warning" : "text-muted-foreground"}`} />
             </button>
           ))}
         </div>
@@ -264,20 +264,16 @@ function ReviewSheet({
           rows={3}
           aria-label="Your review"
           placeholder="How did it go?"
-          className="mt-4 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground focus:border-accent focus:outline-none"
+          className="mt-4 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-body text-foreground focus:border-primary focus:outline-none"
         />
 
         <div className="mt-3 flex gap-2">
-          <button onClick={onClose} className="flex-1 rounded-xl bg-muted py-3 text-[15px] font-semibold text-foreground">
+          <Button variant="secondary" onClick={onClose} className="flex-1">
             Not now
-          </button>
-          <button
-            onClick={submit}
-            disabled={busy}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
-          >
+          </Button>
+          <Button onClick={submit} disabled={busy} className="flex-1">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />} Post review
-          </button>
+          </Button>
         </div>
     </DialogLayer>
   )

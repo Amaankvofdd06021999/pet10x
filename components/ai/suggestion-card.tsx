@@ -12,10 +12,10 @@ const KIND_ICON: Record<SuggestionKind, typeof Syringe> = {
 }
 
 const SEVERITY_STYLE = {
-  error: { bg: "bg-destructive/10", icon: "text-destructive" },
-  warning: { bg: "bg-warning/15", icon: "text-warning-foreground" },
-  info: { bg: "bg-info/10", icon: "text-info" },
-  success: { bg: "bg-success/10", icon: "text-success" },
+  error: { bg: "bg-destructive-soft", icon: "text-destructive" },
+  warning: { bg: "bg-warning-soft", icon: "text-warning-foreground" },
+  info: { bg: "bg-info-soft", icon: "text-info" },
+  success: { bg: "bg-success-soft", icon: "text-success" },
 } as const
 
 interface SuggestionCardProps {
@@ -42,7 +42,7 @@ export function SuggestionCard({ suggestion, onAction, onDismiss }: SuggestionCa
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-[14px] font-semibold leading-snug text-foreground">{suggestion.title}</p>
+          <p className="text-body font-semibold leading-snug text-foreground">{suggestion.title}</p>
           <button
             onClick={() => onDismiss(suggestion.id)}
             aria-label="Dismiss suggestion"
@@ -53,13 +53,13 @@ export function SuggestionCard({ suggestion, onAction, onDismiss }: SuggestionCa
         </div>
 
         {suggestion.body && suggestion.body !== suggestion.title && (
-          <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">{suggestion.body}</p>
+          <p className="mt-0.5 text-caption leading-relaxed text-muted-foreground">{suggestion.body}</p>
         )}
 
         {suggestion.actionLabel && (
           <button
             onClick={() => onAction(suggestion.actionTarget)}
-            className="mt-1.5 flex items-center gap-0.5 text-[12px] font-semibold text-primary-text"
+            className="mt-1.5 flex items-center gap-0.5 text-caption font-semibold text-foreground"
           >
             {suggestion.actionLabel}
             <ChevronRight className="h-3.5 w-3.5" />

@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { LogOut } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { IncidentComposer } from "@/components/screens/report/incident-composer"
@@ -39,13 +40,10 @@ export function GuestReportScreen() {
         onBack={signOut}
         onDone={signOut}
         headerAction={
-          <button
-            onClick={signOut}
-            className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-transform active:scale-95"
-          >
+          <Button variant="secondary" size="sm" onClick={signOut}>
             <LogOut className="h-3.5 w-3.5" />
             Exit
-          </button>
+          </Button>
         }
       />
     </div>

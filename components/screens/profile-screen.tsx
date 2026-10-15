@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { usePets, useUnreadNotificationCount, useMyBuildingLink, useMemorialPets } from "@/lib/data"
@@ -268,7 +269,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
           >
             <Bell className="h-5 w-5 text-foreground" />
             {unreadCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-caption font-semibold text-destructive-foreground">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
@@ -294,25 +295,25 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                 {user?.avatar ? (
                   <Image src={user.avatar} alt={user.name ?? ""} fill className="object-cover" />
                 ) : (
-                  <span className="text-[18px] font-semibold text-muted-foreground">
+                  <span className="text-title font-semibold text-muted-foreground">
                     {(user?.name ?? "?").slice(0, 1).toUpperCase()}
                   </span>
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="truncate text-[17px] font-semibold text-foreground">{user?.name}</h2>
+                <h2 className="truncate text-title font-semibold text-foreground">{user?.name}</h2>
                 {/* Built from whichever parts exist. Was "Unit {unit} · {building}"
                     unconditionally, which rendered "Unit 2104 ·" with a dangling
                     separator for anyone whose link is still pending, and a bare
                     "Unit  ·" for standalone owners. */}
-                <p className="text-[12px] text-muted-foreground">
+                <p className="text-caption text-muted-foreground">
                   {user?.building || "Pet owner"}
                 </p>
                 <div className="mt-1 flex items-center gap-2">
-                  <Badge className="bg-primary/10 text-primary-text border-0 text-[10px]">
+                  <Badge variant="brand">
                     {PERSONA_LABEL[viewAs]}
                   </Badge>
-                  <span className="text-[10px] text-muted-foreground">Since {user?.memberSince}</span>
+                  <span className="text-caption text-muted-foreground">Since {user?.memberSince}</span>
                 </div>
               </div>
               <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
@@ -338,7 +339,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             {pets.length === 0 && (
               <button
                 onClick={() => onNavigate?.("add-pet")}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border bg-card p-3.5 text-[13px] font-semibold text-muted-foreground transition-transform active:scale-[0.98]"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border bg-card p-3.5 text-meta font-semibold text-muted-foreground transition-transform active:scale-[0.98]"
               >
                 + Add a pet
               </button>
@@ -356,9 +357,9 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                   <div>
                     <div className="flex items-center gap-1">
                       <SpeciesIcon className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-[13px] font-semibold text-foreground">{pet.name}</span>
+                      <span className="text-meta font-semibold text-foreground">{pet.name}</span>
                     </div>
-                    <span className="mt-0.5 block text-[10px] text-muted-foreground">{pet.breed || "Pet"}</span>
+                    <span className="mt-0.5 block text-caption text-muted-foreground">{pet.breed || "Pet"}</span>
                   </div>
                 </div>
               )
@@ -372,7 +373,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             appears here or anywhere else. */}
         {memorial.length > 0 && (
           <section className="mb-5">
-            <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase text-muted-foreground">In memory</h3>
+            <h3 className="mb-1.5 px-1 text-caption font-semibold uppercase text-muted-foreground">In memory</h3>
             <div className="flex flex-wrap gap-2.5">
               {memorial.map((pet) => (
                 <div key={pet.id} className="flex flex-1 items-center gap-2.5 rounded-2xl card-raised p-2.5">
@@ -380,9 +381,9 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                     <Image src={pet.image} alt={pet.name} fill className="object-cover grayscale" />
                   </div>
                   <div className="min-w-0">
-                    <span className="block truncate text-[13px] font-semibold text-foreground">{pet.name}</span>
+                    <span className="block truncate text-meta font-semibold text-foreground">{pet.name}</span>
                     {pet.years && (
-                      <span className="mt-0.5 block text-[10px] text-muted-foreground">{pet.years}</span>
+                      <span className="mt-0.5 block text-caption text-muted-foreground">{pet.years}</span>
                     )}
                   </div>
                 </div>
@@ -396,7 +397,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
           (section) => section.title !== "Building" || linkedToBuilding,
         ).map((section) => (
           <section key={section.title} className="mb-5">
-            <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase text-muted-foreground">
+            <h3 className="mb-1.5 px-1 text-caption font-semibold uppercase text-muted-foreground">
               {section.title}
             </h3>
             <div className="overflow-hidden rounded-2xl card-raised">
@@ -412,8 +413,8 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                     } ${idx < section.items.length - 1 ? "border-b border-border" : ""}`}
                   >
                     <Icon className="h-5 w-5 text-primary" />
-                    <span className="flex-1 text-[14px] text-foreground">{item.label}</span>
-                    <span className="text-[12px] text-muted-foreground">
+                    <span className="flex-1 text-body text-foreground">{item.label}</span>
+                    <span className="text-caption text-muted-foreground">
                       {item.unbuilt ? "Not available yet" : item.detail}
                     </span>
                     {/* No chevron on a row that goes nowhere — the arrow is the
@@ -430,13 +431,13 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             Its own section rather than a row in Support, because everything in
             Support is about Pet10x and this one leaves the app entirely. */}
         <section className="mb-5">
-          <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase text-muted-foreground">Give back</h3>
+          <h3 className="mb-1.5 px-1 text-caption font-semibold uppercase text-muted-foreground">Give back</h3>
           <DonateSpcaCard />
         </section>
 
         {/* Privacy & data */}
         <section className="mb-5">
-          <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase text-muted-foreground">Privacy &amp; data</h3>
+          <h3 className="mb-1.5 px-1 text-caption font-semibold uppercase text-muted-foreground">Privacy &amp; data</h3>
           <div className="overflow-hidden rounded-2xl card-raised">
             <button
               onClick={handleExport}
@@ -448,7 +449,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
               ) : (
                 <Download className="h-5 w-5 text-primary" />
               )}
-              <span className="flex-1 text-[14px] text-foreground">Export my data</span>
+              <span className="flex-1 text-body text-foreground">Export my data</span>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </button>
             <button
@@ -457,7 +458,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
               className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors active:bg-muted disabled:opacity-60"
             >
               <Trash2 className="h-5 w-5 text-destructive" />
-              <span className="flex-1 text-[14px] text-destructive">Delete account</span>
+              <span className="flex-1 text-body text-foreground">Delete account</span>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </button>
           </div>
@@ -488,7 +489,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             overlayClassName="flex items-center justify-center bg-black/40 px-6"
             className="w-full max-w-sm rounded-2xl bg-card p-5"
           >
-              <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Edit profile</DialogTitle>
+              <DialogTitle className="text-title font-semibold leading-normal text-foreground">Edit profile</DialogTitle>
 
               <div className="mt-4 flex justify-center">
                 <button
@@ -522,7 +523,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
               </div>
 
               <div className="mt-4">
-                <label htmlFor="edit-name" className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <label htmlFor="edit-name" className="mb-1.5 block text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                   Name
                 </label>
                 <input
@@ -530,25 +531,22 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-lg border border-input bg-card px-3.5 py-2.5 text-body focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               <div className="mt-5 flex gap-2">
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => setEditing(false)}
                   disabled={savingProfile}
-                  className="flex-1 rounded-xl border border-border py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-60"
+                  className="flex-1"
                 >
                   Cancel
-                </button>
-                <button
-                  onClick={handleSaveProfile}
-                  disabled={savingProfile}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
-                >
+                </Button>
+                <Button onClick={handleSaveProfile} disabled={savingProfile} className="flex-1">
                   {savingProfile && <Loader2 className="h-4 w-4 animate-spin" />} Save
-                </button>
+                </Button>
               </div>
           </DialogLayer>
         )}
@@ -564,42 +562,40 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
             overlayClassName="flex items-center justify-center bg-black/40 px-6"
             className="w-full max-w-sm rounded-2xl bg-card p-5"
           >
-              <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Delete your account?</DialogTitle>
-              <DialogDescription className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
+              <DialogTitle className="text-title font-semibold leading-normal text-foreground">Delete your account?</DialogTitle>
+              <DialogDescription className="mt-1.5 text-body leading-relaxed text-muted-foreground">
                 This permanently deletes your profile, pets, documents and care history. This can&apos;t be undone.
               </DialogDescription>
               <div className="mt-5 flex gap-2">
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => setConfirmDelete(false)}
                   disabled={busy !== null}
-                  className="flex-1 rounded-xl border border-border py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-60"
+                  className="flex-1"
                 >
                   Cancel
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={busy !== null}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive py-2.5 text-[14px] font-semibold text-destructive-foreground disabled:opacity-60"
-                >
+                </Button>
+                <Button variant="danger" onClick={handleDelete} disabled={busy !== null} className="flex-1">
                   {busy === "delete" && <Loader2 className="h-4 w-4 animate-spin" />} Delete
-                </button>
+                </Button>
               </div>
           </DialogLayer>
         )}
 
         {/* Sign Out */}
         <section className="mb-5">
-          <button
+          <Button
+            variant="secondary"
             onClick={signOut}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 transition-transform active:scale-[0.98]"
+            className="w-full border-destructive bg-destructive-soft"
           >
             <LogOut className="h-5 w-5 text-destructive" />
-            <span className="text-[14px] font-semibold text-destructive">Sign Out</span>
-          </button>
+            <span className="text-body font-semibold text-foreground">Sign Out</span>
+          </Button>
         </section>
 
         <div className="mb-4 text-center">
-          <p className="text-[11px] text-muted-foreground">Pet10x v1.0.0 &middot; Park10x Services Inc.</p>
+          <p className="text-caption text-muted-foreground">Pet10x v1.0.0 &middot; Park10x Services Inc.</p>
         </div>
       </main>
     </div>

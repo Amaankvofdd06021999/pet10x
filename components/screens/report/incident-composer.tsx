@@ -1,5 +1,7 @@
 "use client"
 
+import { ErrorText } from "@/components/ui/error-text"
+import { Button } from "@/components/ui/button"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { isDirty } from "@/lib/unsaved"
 import { useUnsavedGuard } from "@/components/use-unsaved-guard"
@@ -68,11 +70,11 @@ const TYPE_TO_DB: Record<IncidentType, DbIncidentType> = {
 }
 
 const INCIDENT_TYPES: { id: IncidentType; label: string; icon: typeof AlertTriangle; color: string }[] = [
-  { id: "noise", label: "Noise Complaint", icon: Volume2, color: "bg-warning/10 text-warning-strong" },
-  { id: "aggressive", label: "Aggressive Behaviour", icon: ShieldAlert, color: "bg-destructive/10 text-destructive" },
-  { id: "off-leash", label: "Off-Leash Violation", icon: PawPrint, color: "bg-primary/10 text-primary" },
-  { id: "waste", label: "Waste / Cleanup", icon: Trash2, color: "bg-accent/10 text-accent" },
-  { id: "damage", label: "Property Damage", icon: FileWarning, color: "bg-info/10 text-info" },
+  { id: "noise", label: "Noise Complaint", icon: Volume2, color: "bg-warning-soft text-foreground" },
+  { id: "aggressive", label: "Aggressive Behaviour", icon: ShieldAlert, color: "bg-destructive-soft text-destructive" },
+  { id: "off-leash", label: "Off-Leash Violation", icon: PawPrint, color: "bg-primary-soft text-primary" },
+  { id: "waste", label: "Waste / Cleanup", icon: Trash2, color: "bg-primary-soft text-primary" },
+  { id: "damage", label: "Property Damage", icon: FileWarning, color: "bg-info-soft text-foreground" },
   // Carried over from the resident form, which offered it and the guest grid
   // did not. Collapsing the two flows must not quietly remove a type someone
   // could file yesterday.
@@ -426,11 +428,11 @@ export function IncidentComposer({
   if (reference) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-8 py-12">
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success-soft">
           <CheckCircle2 className="h-10 w-10 text-success" />
         </div>
-        <h1 className="text-[24px] font-bold text-foreground">Report Submitted</h1>
-        <p className="mt-3 text-center text-[15px] leading-relaxed text-muted-foreground">
+        <h1 className="text-heading font-bold text-foreground">Report Submitted</h1>
+        <p className="mt-3 text-center text-body leading-relaxed text-muted-foreground">
           Your incident report has been filed with{" "}
           <span className="font-semibold text-foreground">{building.name}</span> management. They will
           investigate and follow up as needed.
@@ -441,7 +443,7 @@ export function IncidentComposer({
             three photos when two arrived — and the two that did not may be the
             ones that showed the incident. */}
         {sent && sent.photos < sent.attached && (
-          <p className="mt-4 w-full max-w-sm rounded-xl border border-warning/30 bg-warning/5 p-3 text-center text-[13px] leading-relaxed text-foreground">
+          <p className="mt-4 w-full max-w-sm rounded-xl border border-border bg-warning-soft p-3 text-center text-meta leading-relaxed text-foreground">
             {sent.photos === 0
               ? `Sent without your ${sent.attached === 1 ? "photo" : `${sent.attached} photos`} — the description went through on its own.`
               : `${sent.photos} of ${sent.attached} photos sent. The ${
@@ -452,25 +454,19 @@ export function IncidentComposer({
           </p>
         )}
 
-        <p className="mt-2 text-center text-[13px] text-muted-foreground">
+        <p className="mt-2 text-center text-meta text-muted-foreground">
           Reference #: <span className="font-mono font-semibold text-foreground">{reference}</span>
           <br />
-          <span className="text-[12px]">Keep this — you can use it to check the status of your report.</span>
+          <span className="text-caption">Keep this — you can use it to check the status of your report.</span>
         </p>
 
         <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
-          <button
-            onClick={startOver}
-            className="w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
-          >
+          <Button size="lg" onClick={startOver} className="w-full">
             File Another Report
-          </button>
-          <button
-            onClick={onDone}
-            className="w-full rounded-xl border border-border py-3.5 text-[17px] font-semibold text-foreground transition-transform active:scale-[0.98]"
-          >
+          </Button>
+          <Button variant="secondary" size="lg" onClick={onDone} className="w-full">
             Done
-          </button>
+          </Button>
         </div>
 
         {/* Offered here, not before submitting — a donation prompt attached to
@@ -479,7 +475,7 @@ export function IncidentComposer({
             see `showDonatePrompt`. */}
         {showDonatePrompt && (
           <div className="mt-8 text-center">
-            <p className="mb-2 text-[13px] text-muted-foreground">Want to do more for animals?</p>
+            <p className="mb-2 text-meta text-muted-foreground">Want to do more for animals?</p>
             <DonateSpcaLink />
           </div>
         )}
@@ -499,7 +495,7 @@ export function IncidentComposer({
           feature is for: someone scanning a code in a lobby. It resolves to
           zero everywhere there is no inset, which is why the child keeps the
           `py-3` that sets the bar's height. */}
-      <div className="sticky top-0 z-40 border-b border-border bg-card/80 pt-safe backdrop-blur-xl">
+      <div className="sticky top-0 z-40 border-b border-border bg-card pt-safe backdrop-blur-xl">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -511,8 +507,8 @@ export function IncidentComposer({
                 <ArrowLeft className="h-4 w-4 text-foreground" />
               </button>
               <div>
-                <h1 className="text-[17px] font-semibold text-foreground">Report Incident</h1>
-                <p className="text-[12px] text-muted-foreground">{building.name}</p>
+                <h1 className="text-title font-semibold text-foreground">Report Incident</h1>
+                <p className="text-caption text-muted-foreground">{building.name}</p>
               </div>
             </div>
             {headerAction}
@@ -537,8 +533,8 @@ export function IncidentComposer({
         {/* Step 1: what happened */}
         {step === "type" && (
           <div>
-            <h2 className="mb-1 text-[22px] font-bold text-foreground">What happened?</h2>
-            <p className="mb-6 text-[15px] text-muted-foreground">Select the type of incident to report.</p>
+            <h2 className="mb-1 text-heading font-bold text-foreground">What happened?</h2>
+            <p className="mb-6 text-body text-muted-foreground">Select the type of incident to report.</p>
 
             <div className="grid grid-cols-2 gap-3">
               {INCIDENT_TYPES.map((type) => {
@@ -555,42 +551,42 @@ export function IncidentComposer({
                        tile that is selected, and on the tinted ground the card
                        already reads as a card without it. */
                     className={`flex flex-col items-center gap-3 rounded-2xl p-4 transition-all active:scale-[0.97] ${
-                      isSelected ? "bg-primary/5 ring-2 ring-primary" : "card-interactive"
+                      isSelected ? "bg-primary-soft ring-2 ring-primary" : "card-interactive"
                     }`}
                   >
                     <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${type.color}`}>
                       <Icon className="h-6 w-6" />
                     </div>
-                    <span className="text-center text-[13px] font-semibold text-foreground">{type.label}</span>
+                    <span className="text-center text-meta font-semibold text-foreground">{type.label}</span>
                   </button>
                 )
               })}
             </div>
 
-            <button
+            <Button
+              variant={selectedType ? "primary" : "secondary"}
+              size="lg"
               onClick={() => selectedType && setStep("evidence")}
               disabled={!selectedType}
-              className={`mt-6 w-full rounded-xl py-3.5 text-[17px] font-semibold transition-all active:scale-[0.98] ${
-                selectedType ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
-              }`}
+              className="mt-6 w-full"
             >
               Continue
-            </button>
+            </Button>
           </div>
         )}
 
         {/* Step 2: the account and the photos, together */}
         {step === "evidence" && (
           <div>
-            <h2 className="mb-1 text-[22px] font-bold text-foreground">Evidence</h2>
-            <p className="mb-6 text-[15px] text-muted-foreground">
+            <h2 className="mb-1 text-heading font-bold text-foreground">Evidence</h2>
+            <p className="mb-6 text-body text-muted-foreground">
               Describe what happened and add photos. Both reach the building manager together.
             </p>
 
             <div className="flex flex-col gap-5">
               {/* Description */}
               <div>
-                <label htmlFor="desc" className="mb-2 block text-[13px] font-semibold uppercase text-muted-foreground">
+                <label htmlFor="desc" className="mb-2 block text-meta font-semibold uppercase text-muted-foreground">
                   Description <span className="text-destructive">*</span>
                 </label>
                 <textarea
@@ -599,13 +595,13 @@ export function IncidentComposer({
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe the incident in detail..."
                   rows={4}
-                  className="w-full rounded-xl border border-input bg-card p-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-input bg-card p-3 text-body text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               {/* Location */}
               <div>
-                <label htmlFor="loc" className="mb-2 block text-[13px] font-semibold uppercase text-muted-foreground">
+                <label htmlFor="loc" className="mb-2 block text-meta font-semibold uppercase text-muted-foreground">
                   Location
                 </label>
                 <div className="relative">
@@ -619,22 +615,24 @@ export function IncidentComposer({
                       setGeoError(null)
                     }}
                     placeholder="e.g. Lobby, Floor 12, Parking B2"
-                    className="w-full rounded-xl border border-input bg-card py-3 pl-10 pr-4 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-xl border border-input bg-card py-3 pl-10 pr-4 text-body text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   type="button"
                   onClick={handleUseLocation}
                   disabled={locating}
-                  className="mt-2 flex items-center gap-2 rounded-xl card-interactive px-3 py-2 text-[13px] font-semibold text-primary-text transition-transform active:scale-[0.98] disabled:opacity-60"
+                  className="mt-2"
                 >
                   {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
                   {locating ? "Locating…" : "Use my current location"}
-                </button>
+                </Button>
                 {geoError ? (
-                  <p className="mt-1.5 text-[12px] text-destructive">{geoError}</p>
+                  <ErrorText className="mt-1.5 text-caption">{geoError}</ErrorText>
                 ) : (
-                  <p className="mt-1.5 text-[12px] text-muted-foreground">
+                  <p className="mt-1.5 text-caption text-muted-foreground">
                     Autofill your GPS position, or type the spot above.
                   </p>
                 )}
@@ -642,7 +640,7 @@ export function IncidentComposer({
 
               {/* Photos — real files, uploaded when the report is sent. */}
               <div>
-                <p className="mb-3 text-[13px] font-semibold uppercase text-muted-foreground">Photos</p>
+                <p className="mb-3 text-meta font-semibold uppercase text-muted-foreground">Photos</p>
                 <input
                   ref={photoInput}
                   type="file"
@@ -660,7 +658,7 @@ export function IncidentComposer({
                       <button
                         type="button"
                         onClick={() => removePhoto(idx)}
-                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/80"
+                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70"
                         aria-label={`Remove photo ${idx + 1}`}
                       >
                         <X className="h-3 w-3 text-background" />
@@ -680,7 +678,7 @@ export function IncidentComposer({
                       ) : (
                         <ImagePlus className="h-6 w-6 text-muted-foreground" />
                       )}
-                      <span className="text-[11px] text-muted-foreground">{preparing ? "Preparing…" : "Add"}</span>
+                      <span className="text-caption text-muted-foreground">{preparing ? "Preparing…" : "Add"}</span>
                     </button>
                   )}
                 </div>
@@ -689,7 +687,7 @@ export function IncidentComposer({
                 <p
                   role="status"
                   aria-live="polite"
-                  className={`mt-2 text-[12px] ${photoError ? "text-destructive" : "text-muted-foreground"}`}
+                  className={`mt-2 text-caption ${photoError ? "text-foreground" : "text-muted-foreground"}`}
                 >
                   {photoError ??
                     `Up to ${MAX_FILES} photos. They're shrunk on your phone and sent when you submit.`}
@@ -697,23 +695,23 @@ export function IncidentComposer({
               </div>
             </div>
 
-            <button
+            <Button
+              variant={description.trim() ? "primary" : "secondary"}
+              size="lg"
               onClick={() => description.trim() && setStep("pet")}
               disabled={!description.trim()}
-              className={`mt-6 w-full rounded-xl py-3.5 text-[17px] font-semibold transition-all active:scale-[0.98] ${
-                description.trim() ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
-              }`}
+              className="mt-6 w-full"
             >
               Continue
-            </button>
+            </Button>
           </div>
         )}
 
         {/* Step 3: which pet — by sight, never by unit. */}
         {step === "pet" && (
           <div>
-            <h2 className="mb-1 text-[22px] font-bold text-foreground">Which pet?</h2>
-            <p className="mb-6 text-[15px] text-muted-foreground">
+            <h2 className="mb-1 text-heading font-bold text-foreground">Which pet?</h2>
+            <p className="mb-6 text-body text-muted-foreground">
               Pick them out if you recognise them. You can skip this — the description you just wrote is
               enough for the manager to look into it.
             </p>
@@ -730,13 +728,13 @@ export function IncidentComposer({
                  way, so this informs rather than blocks. */
               <p
                 role="status"
-                className="rounded-xl border border-warning/30 bg-warning/5 p-4 text-center text-[13px] leading-relaxed text-foreground"
+                className="rounded-xl border border-border bg-warning-soft p-4 text-center text-meta leading-relaxed text-foreground"
               >
                 {petsError} You can still send the report — your description is what the manager will go
                 on.
               </p>
             ) : pets.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-border bg-card p-4 text-center text-[13px] text-muted-foreground">
+              <p className="rounded-xl border border-dashed border-border bg-card p-4 text-center text-meta text-muted-foreground">
                 No registered pets to choose from — your description is what the manager will go on.
               </p>
             ) : (
@@ -767,10 +765,10 @@ export function IncidentComposer({
                           </span>
                         )}
                       </span>
-                      <span className="block truncate px-1.5 py-1 text-[11.5px] font-semibold text-foreground">
+                      <span className="block truncate px-1.5 py-1 text-caption font-semibold text-foreground">
                         {pet.name}
                       </span>
-                      <span className="block truncate px-1.5 pb-1.5 text-[10.5px] text-muted-foreground">
+                      <span className="block truncate px-1.5 pb-1.5 text-caption text-muted-foreground">
                         {pet.breed || pet.species}
                       </span>
                     </button>
@@ -779,62 +777,59 @@ export function IncidentComposer({
               </div>
             )}
 
-            <p className="mt-2.5 text-[12px] leading-relaxed text-muted-foreground">
+            <p className="mt-2.5 text-caption leading-relaxed text-muted-foreground">
               Unit numbers aren&apos;t shown — a code from the lobby shouldn&apos;t hand out where someone
               lives.
             </p>
 
-            <button
-              onClick={() => setStep("summary")}
-              className="mt-6 w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-foreground transition-all active:scale-[0.98]"
-            >
+            <Button size="lg" onClick={() => setStep("summary")} className="mt-6 w-full">
               {petId ? "Continue" : "Skip — I don't recognise them"}
-            </button>
+            </Button>
           </div>
         )}
 
         {/* Step 4: summary — the reporter sees what they are sending. */}
         {step === "summary" && (
           <div>
-            <h2 className="mb-1 text-[22px] font-bold text-foreground">Check and send</h2>
-            <p className="mb-6 text-[15px] text-muted-foreground">
+            <h2 className="mb-1 text-heading font-bold text-foreground">Check and send</h2>
+            <p className="mb-6 text-body text-muted-foreground">
               This goes to {building.name}. Nothing is sent until you tap below.
             </p>
 
             <div className="mb-6 rounded-2xl card-raised p-4">
-              <h3 className="mb-3 text-[15px] font-semibold text-foreground">Report Summary</h3>
+              <h3 className="mb-3 text-body font-semibold text-foreground">Report Summary</h3>
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between">
-                  <span className="text-[13px] text-muted-foreground">Type</span>
-                  <span className="text-[13px] font-medium text-foreground">
+                  <span className="text-meta text-muted-foreground">Type</span>
+                  <span className="text-meta font-medium text-foreground">
                     {INCIDENT_TYPES.find((t) => t.id === selectedType)?.label}
                   </span>
                 </div>
                 {/* The description is the report. Showing only its metadata and
                     hiding the words themselves is how a typo reaches a manager. */}
                 <div className="border-y border-border py-2">
-                  <span className="mb-1 block text-[13px] text-muted-foreground">What happened</span>
-                  <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">{description}</p>
+                  <span className="mb-1 block text-meta text-muted-foreground">What happened</span>
+                  <p className="whitespace-pre-wrap text-meta leading-relaxed text-foreground">{description}</p>
                   <button
                     onClick={() => setStep("evidence")}
-                    className="mt-1.5 text-[12px] font-semibold text-primary-text underline underline-offset-2"
+                    className="mt-1.5 text-caption font-semibold text-foreground underline underline-offset-2"
                   >
                     Edit
                   </button>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[13px] text-muted-foreground">Location</span>
-                  <span className="text-[13px] font-medium text-foreground">{location || "Not specified"}</span>
+                  <span className="text-meta text-muted-foreground">Location</span>
+                  <span className="text-meta font-medium text-foreground">{location || "Not specified"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[13px] text-muted-foreground">Pet</span>
-                  <span className="text-[13px] font-medium text-foreground">
+                  <span className="text-meta text-muted-foreground">Pet</span>
+                  <span className="text-meta font-medium text-foreground">
                     {pets.find((x) => x.id === petId)?.name ?? "Not identified"}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[13px] text-muted-foreground">Photos</span>
-                  <span className="text-[13px] font-medium text-foreground">
+                  <span className="text-meta text-muted-foreground">Photos</span>
+                  <span className="text-meta font-medium text-foreground">
                     {photos.length === 0 ? "None" : `${photos.length} photo${photos.length === 1 ? "" : "s"}`}
                   </span>
                 </div>
@@ -852,8 +847,8 @@ export function IncidentComposer({
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-[13px] text-muted-foreground">Anonymous</span>
-                  <span className="text-[13px] font-medium text-foreground">{isAnonymous ? "Yes" : "No"}</span>
+                  <span className="text-meta text-muted-foreground">Anonymous</span>
+                  <span className="text-meta font-medium text-foreground">{isAnonymous ? "Yes" : "No"}</span>
                 </div>
               </div>
             </div>
@@ -871,8 +866,8 @@ export function IncidentComposer({
               className="flex w-full items-center justify-between rounded-xl card-raised p-4 text-left"
             >
               <span>
-                <span className="block text-[15px] font-medium text-foreground">Submit anonymously</span>
-                <span className="block text-[13px] text-muted-foreground">
+                <span className="block text-body font-medium text-foreground">Submit anonymously</span>
+                <span className="block text-meta text-muted-foreground">
                   Your identity will be hidden from the report
                 </span>
               </span>
@@ -891,29 +886,32 @@ export function IncidentComposer({
 
             {/* A failed upload must never cost someone their written account. */}
             {uploadFailed && (
-              <div role="alert" className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-                <p className="text-[13.5px] font-semibold text-destructive">{uploadFailed}</p>
-                <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+              <div role="alert" className="mt-4 rounded-xl border border-destructive bg-destructive-soft p-4">
+                <ErrorText className="text-meta font-semibold">{uploadFailed}</ErrorText>
+                <p className="mt-1 text-caption leading-relaxed text-muted-foreground">
                   {photos.length > 0
                     ? "Your report is still here. Try the photos again, or send what you wrote without them — the manager will still see it."
                     : "Your report is still here — nothing you typed was lost. Try again."}
                 </p>
                 <div className="mt-3 flex gap-2">
-                  <button
+                  <Button
+                    size="sm"
                     onClick={() => void handleSubmit()}
                     disabled={submitting}
-                    className="flex-1 rounded-lg bg-primary-strong py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-60"
+                    className="flex-1"
                   >
                     {photos.length > 0 ? "Try the photos again" : "Try again"}
-                  </button>
+                  </Button>
                   {photos.length > 0 && (
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => void handleSubmit(true)}
                       disabled={submitting}
-                      className="flex-1 rounded-lg border border-border py-2.5 text-[13.5px] font-semibold text-foreground disabled:opacity-60"
+                      className="flex-1"
                     >
                       Send without photos
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -923,16 +921,17 @@ export function IncidentComposer({
                 primary actions saying different things is how someone retries
                 the upload while meaning to send without it. */}
             {!uploadFailed && (
-              <button
+              <Button
+                size="lg"
                 onClick={() => void handleSubmit()}
                 disabled={submitting}
-                className="mt-4 w-full rounded-xl bg-primary-strong py-3.5 text-[17px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+                className="mt-4 w-full"
               >
                 {submitting ? (photos.length > 0 ? "Sending photos…" : "Filing report…") : "Submit Report"}
-              </button>
+              </Button>
             )}
 
-            <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
+            <p className="mt-3 text-center text-caption leading-relaxed text-muted-foreground">
               By submitting, you confirm this report is truthful and accurate. False reports may result in
               penalties under building bylaws.
             </p>

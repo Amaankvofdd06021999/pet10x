@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import type { Species } from "@/lib/data"
 import { COURSE_PRESETS, DURATION_PRESETS } from "@/lib/data/care-catalog"
@@ -182,7 +183,7 @@ export function ScheduleTab({
   }
 
   if (!petId) {
-    return <p className="py-10 text-center text-[13px] text-muted-foreground">Add a pet to build a schedule.</p>
+    return <p className="py-10 text-center text-meta text-muted-foreground">Add a pet to build a schedule.</p>
   }
 
   return (
@@ -192,9 +193,9 @@ export function ScheduleTab({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-primary" />
-            <span className="text-[14px] font-semibold text-foreground">Today&apos;s plan</span>
+            <span className="text-body font-semibold text-foreground">Today&apos;s plan</span>
           </div>
-          <span className="text-[13px] font-semibold text-muted-foreground">
+          <span className="text-meta font-semibold text-muted-foreground">
             {doneCount}/{todays.length}{" "}
             done
           </span>
@@ -217,8 +218,8 @@ export function ScheduleTab({
       ) : tasks.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
           <Clock className="mx-auto h-7 w-7 text-muted-foreground" />
-          <p className="mt-2 text-[14px] font-semibold text-foreground">No routine yet</p>
-          <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+          <p className="mt-2 text-body font-semibold text-foreground">No routine yet</p>
+          <p className="mt-1 text-caption leading-relaxed text-muted-foreground">
             Add a walk, a meal or a medication with a time, and {petName ?? "your pet"}&apos;s plan will show on Home —
             with a reminder when it&apos;s due.
           </p>
@@ -232,7 +233,7 @@ export function ScheduleTab({
               <div
                 key={t.id}
                 className={`flex items-center gap-3 rounded-2xl border bg-card p-3 ${
-                  overdue ? "border-destructive/30" : "border-border"
+                  overdue ? "border-destructive" : "border-border"
                 } ${!t.isActive ? "opacity-50" : ""}`}
               >
                 <button
@@ -254,13 +255,13 @@ export function ScheduleTab({
 
                 <div className="min-w-0 flex-1">
                   <p
-                    className={`truncate text-[14px] font-semibold ${
+                    className={`truncate text-body font-semibold ${
                       t.doneToday ? "text-muted-foreground line-through" : "text-foreground"
                     }`}
                   >
                     {t.label}
                   </p>
-                  <p className="truncate text-[12px] text-muted-foreground">
+                  <p className="truncate text-caption text-muted-foreground">
                     {t.scheduledAt ? formatTime(t.scheduledAt) : "All day"} · {describeDays(t.daysOfWeek)}
                     {t.remindMinutesBefore > 0 ? ` · ${t.remindMinutesBefore}m before` : ""}
                     {overdue ? " · overdue" : ""}
@@ -304,38 +305,34 @@ export function ScheduleTab({
         </div>
       )}
 
-      <button
-        onClick={() => setDraft({ ...EMPTY })}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[14px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
-      >
+      <Button onClick={() => setDraft({ ...EMPTY })} className="w-full">
         <Plus className="h-4 w-4" /> Add to schedule
-      </button>
+      </Button>
 
       {/* Editor */}
       {draft && (
         <div className="rounded-2xl card-raised p-4">
-          <p className="text-[14px] font-semibold text-foreground">{draft.id ? "Edit task" : "New task"}</p>
+          <p className="text-body font-semibold text-foreground">{draft.id ? "Edit task" : "New task"}</p>
 
-          <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">Name</label>
+          <label className="mt-3 block text-caption font-semibold text-muted-foreground">Name</label>
           <input
             value={draft.label}
             onChange={(e) => setDraft({ ...draft, label: e.target.value })}
             placeholder="Evening walk"
-            className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+            className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-body outline-none focus:border-primary"
           />
 
-          <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">Type</label>
+          <label className="mt-3 block text-caption font-semibold text-muted-foreground">Type</label>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {KINDS.map((k) => (
-              <button
+              <Button
+                variant={draft.kind === k.value ? "primary" : "secondary"}
+                size="sm"
                 key={k.value}
                 onClick={() => setDraft({ ...draft, kind: k.value })}
-                className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                  draft.kind === k.value ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
               >
                 {k.label}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -348,13 +345,13 @@ export function ScheduleTab({
               target rather than a single undifferentiated "food". */}
           {targets.length > 0 && (
             <>
-              <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
+              <label className="mt-3 block text-caption font-semibold text-muted-foreground">
                 For which item? <span className="font-normal">(optional)</span>
               </label>
               <select
                 value={draft.targetId}
                 onChange={(e) => setDraft({ ...draft, targetId: e.target.value })}
-                className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] text-foreground outline-none focus:border-primary"
+                className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-body text-foreground outline-none focus:border-primary"
               >
                 <option value="">Just a reminder — don&apos;t log anything</option>
                 {targets.map((t) => (
@@ -366,7 +363,7 @@ export function ScheduleTab({
 
               {draft.targetId && (
                 <>
-                  <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
+                  <label className="mt-3 block text-caption font-semibold text-muted-foreground">
                     Log how much when ticked?
                   </label>
                   <input
@@ -377,14 +374,14 @@ export function ScheduleTab({
                     value={draft.logAmount}
                     onChange={(e) => setDraft({ ...draft, logAmount: e.target.value })}
                     placeholder={`e.g. 1 ${targets.find((t) => t.id === draft.targetId)?.unit ?? ""}`}
-                    className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+                    className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-body outline-none focus:border-primary"
                   />
                 </>
               )}
             </>
           )}
 
-          <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">Schedule</label>
+          <label className="mt-3 block text-caption font-semibold text-muted-foreground">Schedule</label>
           <div className="mt-1 flex rounded-xl bg-muted p-1">
             {([
               { id: "daily", label: "Time of day" },
@@ -393,7 +390,7 @@ export function ScheduleTab({
               <button
                 key={m.id}
                 onClick={() => setDraft({ ...draft, recurrence: m.id })}
-                className={`flex-1 rounded-lg py-2 text-[12.5px] font-semibold transition-colors ${
+                className={`flex-1 rounded-lg py-2 text-caption font-semibold transition-colors ${
                   draft.recurrence === m.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
                 }`}
               >
@@ -404,75 +401,69 @@ export function ScheduleTab({
 
           {draft.recurrence === "interval" && (
             <>
-              <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">How often</label>
+              <label className="mt-3 block text-caption font-semibold text-muted-foreground">How often</label>
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {COURSE_PRESETS.map((c) => (
-                  <button
+                  <Button
+                    variant={draft.intervalDays === c.intervalDays ? "primary" : "secondary"}
+                    size="sm"
                     key={c.intervalDays}
                     onClick={() => setDraft({ ...draft, intervalDays: c.intervalDays })}
-                    className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                      draft.intervalDays === c.intervalDays
-                        ? "bg-primary-strong text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}
                   >
                     {c.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
 
-              <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">First dose</label>
+              <label className="mt-3 block text-caption font-semibold text-muted-foreground">First dose</label>
               <input
                 type="date"
                 value={draft.nextDueOn || todayIso()}
                 onChange={(e) => setDraft({ ...draft, nextDueOn: e.target.value })}
-                className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+                className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-body outline-none focus:border-primary"
               />
 
-              <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
+              <label className="mt-3 block text-caption font-semibold text-muted-foreground">
                 For how long <span className="font-normal">(the course retires itself)</span>
               </label>
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {DURATION_PRESETS.map((d) => (
-                  <button
+                  <Button
+                    variant={draft.durationDays === d.days ? "primary" : "secondary"}
+                    size="sm"
                     key={d.label}
                     onClick={() => setDraft({ ...draft, durationDays: d.days })}
-                    className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                      draft.durationDays === d.days
-                        ? "bg-primary-strong text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}
                   >
                     {d.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
 
-              <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
+              <label className="mt-3 block text-caption font-semibold text-muted-foreground">
                 Dose <span className="font-normal">(optional)</span>
               </label>
               <input
                 value={draft.dose}
                 onChange={(e) => setDraft({ ...draft, dose: e.target.value })}
                 placeholder="1 tablet, 0.5 ml…"
-                className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+                className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-body outline-none focus:border-primary"
               />
             </>
           )}
 
           {draft.recurrence === "daily" && (
             <>
-          <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
+          <label className="mt-3 block text-caption font-semibold text-muted-foreground">
             Time <span className="font-normal">(leave empty for all day)</span>
           </label>
           <input
             type="time"
             value={draft.scheduledAt}
             onChange={(e) => setDraft({ ...draft, scheduledAt: e.target.value })}
-            className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-[15px] outline-none focus:border-primary"
+            className="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2.5 text-body outline-none focus:border-primary"
           />
 
-          <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">
+          <label className="mt-3 block text-caption font-semibold text-muted-foreground">
             Repeats <span className="font-normal">(none selected = every day)</span>
           </label>
           <div className="mt-1 flex gap-1.5">
@@ -488,8 +479,8 @@ export function ScheduleTab({
                     })
                   }
                   aria-pressed={on}
-                  className={`h-9 flex-1 rounded-lg text-[11px] font-semibold transition-colors ${
-                    on ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
+                  className={`h-9 flex-1 rounded-lg text-caption font-semibold transition-colors ${
+                    on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {d[0]}
@@ -500,36 +491,28 @@ export function ScheduleTab({
             </>
           )}
 
-          <label className="mt-3 block text-[12px] font-semibold text-muted-foreground">Remind me</label>
+          <label className="mt-3 block text-caption font-semibold text-muted-foreground">Remind me</label>
           <div className="mt-1 flex gap-1.5">
             {[0, 15, 30, 60].map((m) => (
-              <button
+              <Button
+                variant={draft.remind === m ? "primary" : "secondary"}
+                size="sm"
                 key={m}
                 onClick={() => setDraft({ ...draft, remind: m })}
-                className={`flex-1 rounded-lg py-2 text-[12px] font-semibold transition-colors ${
-                  draft.remind === m ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
+                className="flex-1"
               >
                 {m === 0 ? "On time" : `${m}m early`}
-              </button>
+              </Button>
             ))}
           </div>
 
           <div className="mt-4 flex gap-2">
-            <button
-              onClick={() => setDraft(null)}
-              disabled={saving}
-              className="flex-1 rounded-xl border border-border py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-60"
-            >
+            <Button variant="secondary" onClick={() => setDraft(null)} disabled={saving} className="flex-1">
               Cancel
-            </button>
-            <button
-              onClick={save}
-              disabled={saving}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
-            >
+            </Button>
+            <Button onClick={save} disabled={saving} className="flex-1">
               {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
-            </button>
+            </Button>
           </div>
         </div>
       )}

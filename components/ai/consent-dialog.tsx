@@ -1,5 +1,6 @@
 "use client"
 
+import { ErrorText } from "@/components/ui/error-text"
 import { useState } from "react"
 import { PawPrint } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -39,13 +40,13 @@ export function ConsentDialog({ open, onAccept, onDecline }: ConsentDialogProps)
           <span className="mb-1 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary">
             <PawPrint className="h-6 w-6 text-primary-foreground" strokeWidth={2.5} />
           </span>
-          <DialogTitle className="text-left text-[19px]">Before you ask</DialogTitle>
-          <DialogDescription className="text-left text-[13px] leading-relaxed">
+          <DialogTitle className="text-left text-heading">Before you ask</DialogTitle>
+          <DialogDescription className="text-left text-meta leading-relaxed">
             A quick word on what this assistant is.
           </DialogDescription>
         </DialogHeader>
 
-        <ul className="flex flex-col gap-2.5 text-[13px] leading-relaxed text-foreground">
+        <ul className="flex flex-col gap-2.5 text-meta leading-relaxed text-foreground">
           <li className="flex gap-2.5">
             <span aria-hidden className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />
             <span>
@@ -77,7 +78,7 @@ export function ConsentDialog({ open, onAccept, onDecline }: ConsentDialogProps)
         </ul>
 
         <div className="mt-1 flex flex-col gap-2">
-          {error && <p className="text-center text-[12px] text-destructive">{error}</p>}
+          {error && <ErrorText className="text-center text-caption">{error}</ErrorText>}
           <Button onClick={handleAccept} disabled={isSaving} className="w-full">
             {isSaving ? "One moment…" : "I understand"}
           </Button>

@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useId, useRef, useState } from "react"
 import { useMyBuildingLink } from "@/lib/data"
 import { OTHER_SPECIES, OTHER_BREED, breedsFor, addPet, setPetPhoto } from "@/lib/data"
@@ -51,33 +52,32 @@ export function AddPetScreen({ onBack, onNavigate }: AddPetScreenProps) {
     return (
       <div className="flex min-h-dvh flex-col bg-background">
         <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success-soft">
             <CheckCircle2 className="h-10 w-10 text-success" />
           </div>
-          <h1 className="text-[24px] font-semibold text-foreground">{name} is all set! 🐾</h1>
-          <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted-foreground">
+          <h1 className="text-heading font-semibold text-foreground">{name} is all set! 🐾</h1>
+          <p className="mt-3 max-w-sm text-body leading-relaxed text-muted-foreground">
             {reviewer
               ? `Saved to your account — and shared with ${reviewer} for approval. Let's set up their daily care.`
               : `Saved to your account. Let's set up ${name}'s food, medicine and treats.`}
           </p>
           <div className="mt-8 flex w-full max-w-sm flex-col gap-3">
-            <button
-              onClick={() => onNavigate?.("pet-care")}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[16px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
-            >
+            <Button size="lg" onClick={() => onNavigate?.("pet-care")} className="w-full">
               <Utensils className="h-5 w-5" />{" "}
               Set up food &amp; care
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
               onClick={() => {
-                setAddedName(null)
-                setRound((n) => n + 1)
-              }}
-              className="w-full rounded-xl border border-border py-3.5 text-[16px] font-semibold text-foreground transition-transform active:scale-[0.98]"
+ setAddedName(null)
+ setRound((n) => n + 1)
+ }}
+              className="w-full"
             >
               Add another pet
-            </button>
-            <button onClick={onBack} className="w-full py-2 text-[15px] font-semibold text-muted-foreground">
+            </Button>
+            <button onClick={onBack} className="w-full py-2 text-body font-semibold text-muted-foreground">
               Done
             </button>
           </div>
@@ -195,17 +195,17 @@ function AddPetForm({
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Nav */}
-      <header className="sticky top-0 z-40 border-b border-border bg-card/80 px-4 pt-safe backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border bg-card px-4 pt-safe backdrop-blur-xl">
         <div className="flex h-12 items-center justify-between">
-          <button onClick={onBack} className="flex items-center gap-1 text-primary-text" aria-label="Cancel">
+          <button onClick={onBack} className="flex items-center gap-1 text-foreground" aria-label="Cancel">
             <ArrowLeft className="h-5 w-5" />
-            <span className="text-[17px]">Cancel</span>
+            <span className="text-title">Cancel</span>
           </button>
-          <h1 className="text-[17px] font-semibold text-foreground">New pet</h1>
+          <h1 className="text-title font-semibold text-foreground">New pet</h1>
           <button
             onClick={handleSubmit}
             disabled={!canSubmit || saving}
-            className={`text-[17px] font-semibold ${canSubmit && !saving ? "text-primary-text" : "text-muted-foreground/50"}`}
+            className={`text-title font-semibold ${canSubmit && !saving ? "text-foreground" : "text-muted-foreground"}`}
           >
             {saving ? "Saving…" : "Add pet"}
           </button>
@@ -224,7 +224,7 @@ function AddPetForm({
           ) : (
             <>
               <ImagePlus className="h-6 w-6 text-muted-foreground" />
-              <span className="text-[11px] text-muted-foreground">Add photo</span>
+              <span className="text-caption text-muted-foreground">Add photo</span>
             </>
           )}
         </button>
@@ -305,9 +305,9 @@ function AddPetForm({
         <details
           open={detailsOpen}
           onToggle={(e) => setDetailsOpen(e.currentTarget.open)}
-          className="group mb-6 rounded-xl border border-border bg-card/50"
+          className="group mb-6 rounded-xl border border-border bg-card"
         >
-          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-[15px] font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 text-body font-semibold text-foreground [&::-webkit-details-marker]:hidden">
             More details (optional)
             <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
           </summary>
@@ -319,7 +319,7 @@ function AddPetForm({
               type="date"
               value={dob}
               onChange={(e) => setDob(e.target.value)}
-              className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-input bg-card px-4 py-3 text-body text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
           <Field label="Weight" htmlFor={id("weight")}>
@@ -335,8 +335,8 @@ function AddPetForm({
               type="button"
               aria-pressed={gender === g}
               onClick={() => setGender(g)}
-              className={`rounded-xl border-2 py-2.5 text-[14px] font-semibold transition-all active:scale-[0.98] ${
-                gender === g ? "border-primary bg-primary/5 text-primary-text" : "border-border bg-card text-foreground"
+              className={`rounded-xl border-2 py-2.5 text-body font-semibold transition-all active:scale-[0.98] ${
+                gender === g ? "border-primary bg-primary-soft text-foreground" : "border-border bg-card text-foreground"
               }`}
             >
               {g}
@@ -369,23 +369,22 @@ function AddPetForm({
         <Field label="Size">
           <div role="group" aria-label="Size" className="flex flex-wrap gap-1.5">
             {SIZE_BANDS.map((b) => (
-              <button
+              <Button
+                variant={sizeBand === b.id ? "primary" : "secondary"}
+                size="sm"
                 key={b.id}
                 type="button"
                 aria-pressed={sizeBand === b.id}
                 onClick={() => setSizeBand(sizeBand === b.id ? "" : b.id)}
-                className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                  sizeBand === b.id ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
               >
                 {b.label}
-              </button>
+              </Button>
             ))}
             {sizeChartAppliesTo(species) && (
               <button
                 type="button"
                 onClick={() => setShowChart((v) => !v)}
-                className="rounded-full px-3 py-1.5 text-[12.5px] font-semibold text-primary-text"
+                className="rounded-full px-3 py-1.5 text-caption font-semibold text-foreground"
               >
                 {showChart ? "Hide chart" : "Size chart"}
               </button>
@@ -398,12 +397,12 @@ function AddPetForm({
                   key={b.id}
                   className={`flex items-baseline gap-2 px-3 py-2 ${i > 0 ? "border-t border-border" : ""}`}
                 >
-                  <span className="w-16 flex-shrink-0 text-[12.5px] font-semibold text-foreground">{b.label}</span>
-                  <span className="w-20 flex-shrink-0 text-[12px] text-muted-foreground">{b.range}</span>
-                  <span className="min-w-0 flex-1 truncate text-[11.5px] text-muted-foreground">{b.examples}</span>
+                  <span className="w-16 flex-shrink-0 text-caption font-semibold text-foreground">{b.label}</span>
+                  <span className="w-20 flex-shrink-0 text-caption text-muted-foreground">{b.range}</span>
+                  <span className="min-w-0 flex-1 truncate text-caption text-muted-foreground">{b.examples}</span>
                 </div>
               ))}
-              <p className="border-t border-border bg-muted/40 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+              <p className="border-t border-border bg-muted px-3 py-2 text-caption leading-relaxed text-muted-foreground">
                 Measured at the shoulder. Buildings commonly cap at {MAX_HEIGHT_INCHES} in — we record the size
                 and let your manager review it rather than blocking registration.
               </p>
@@ -415,7 +414,7 @@ function AddPetForm({
           <Field label="Height at shoulder" htmlFor={id("height")}>
             <div className="relative">
               <Input id={id("height")} value={heightIn} onChange={setHeightIn} placeholder="Optional, e.g. 20" />
-              <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted-foreground">
+              <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-caption font-medium text-muted-foreground">
                 inches
               </span>
             </div>
@@ -439,13 +438,13 @@ function AddPetForm({
                     setRestraints(on ? restraints.filter((x) => x !== r.id) : [...restraints, r.id])
                   }
                   className={`rounded-xl border-2 px-4 py-2.5 text-left transition-colors ${
-                    on ? "border-primary bg-primary/5" : "border-border bg-card"
+                    on ? "border-primary bg-primary-soft" : "border-border bg-card"
                   }`}
                 >
-                  <span className={`block text-[14px] font-semibold ${on ? "text-primary-text" : "text-foreground"}`}>
+                  <span className={`block text-body font-semibold ${on ? "text-foreground" : "text-foreground"}`}>
                     {r.label}
                   </span>
-                  <span className="block text-[12px] text-muted-foreground">{r.hint}</span>
+                  <span className="block text-caption text-muted-foreground">{r.hint}</span>
                 </button>
               )
             })}
@@ -458,8 +457,8 @@ function AddPetForm({
           className="mb-2 flex cursor-pointer items-center justify-between gap-3 rounded-xl card-raised p-4"
         >
           <div>
-            <p className="text-[15px] font-medium text-foreground">Spayed or neutered</p>
-            <p className="text-[12px] text-muted-foreground">Some buildings ask for this</p>
+            <p className="text-body font-medium text-foreground">Spayed or neutered</p>
+            <p className="text-caption text-muted-foreground">Some buildings ask for this</p>
           </div>
           <Switch id={id("neutered")} checked={neutered} onCheckedChange={setNeutered} />
         </label>
@@ -470,25 +469,25 @@ function AddPetForm({
           <button
             type="button"
             onClick={showWeight}
-            className="mb-3 w-full text-center text-[13px] font-semibold text-destructive underline"
+            className="mb-3 w-full text-center text-meta font-semibold text-foreground underline"
           >
             Check the weight under More details
           </button>
         )}
-        <button
+        <Button
+          variant={canSubmit && !saving ? "primary" : "secondary"}
+          size="lg"
           onClick={handleSubmit}
           disabled={!canSubmit || saving}
-          className={`flex w-full items-center justify-center gap-2 rounded-lg py-3.5 text-[16px] font-semibold transition-all active:scale-[0.98] ${
-            canSubmit && !saving ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
-          }`}
+          className="w-full"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           {saving ? "Saving…" : "Add pet"}
-        </button>
+        </Button>
         {/* Only for a resident with an approved building link; anyone else has
             no management to review the pet, so the line would be untrue. */}
         {reviewed && (
-          <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
+          <p className="mt-3 text-center text-caption leading-relaxed text-muted-foreground">
             Your building&apos;s management will review this pet.
           </p>
         )}
@@ -499,7 +498,7 @@ function AddPetForm({
 
 /* tiny form primitives */
 function Label({ children }: { children: React.ReactNode }) {
-  return <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>
+  return <p className="mb-2 text-meta font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>
 }
 /** A real <label htmlFor> so tapping the words focuses the control and a screen reader names it. */
 function Field({
@@ -517,7 +516,7 @@ function Field({
     <div className="mb-5">
       <label
         htmlFor={htmlFor}
-        className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground"
+        className="mb-2 flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-muted-foreground"
       >
         {label}
         {required && <RequiredTag />}
@@ -545,7 +544,7 @@ function Select({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-xl border border-input bg-card px-4 py-3 pr-10 text-[15px] text-foreground outline-none focus:border-primary"
+        className="w-full appearance-none rounded-xl border border-input bg-card px-4 py-3 pr-10 text-body text-foreground outline-none focus:border-primary"
       >
         {placeholder && (
           <option value="" disabled>
@@ -572,7 +571,7 @@ function Input({ id, label, value, onChange, placeholder }: { id?: string; label
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      className="w-full rounded-xl border border-input bg-card px-4 py-3 text-body text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
     />
   )
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { toast } from "sonner"
 import {
@@ -103,19 +104,19 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
     const m = done.municipality
     return (
       <div className="mx-auto w-full max-w-xl px-5 py-10">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-success/10">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-success-soft">
           <Check className="h-7 w-7 text-success" />
         </div>
-        <h1 className="mt-5 text-center text-[22px] font-semibold text-foreground">Report recorded</h1>
-        <p className="mt-2 text-center text-[14px] text-muted-foreground">
+        <h1 className="mt-5 text-center text-heading font-semibold text-foreground">Report recorded</h1>
+        <p className="mt-2 text-center text-body text-muted-foreground">
           Your reference is <span className="font-mono font-semibold text-foreground">{done.reference}</span>
         </p>
 
         {/* The part that matters. Stated before the contact, not after it. */}
-        <div className="mt-6 rounded-2xl border border-warning-strong/30 bg-[#FFF6E0] p-4">
+        <div className="mt-6 rounded-2xl border border-border bg-warning-soft p-4">
           <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning-strong" />
-            <p className="text-[13px] leading-relaxed text-foreground">
+            <ShieldAlert className="mt-0.5 h-5 w-5 flex-shrink-0 text-foreground" />
+            <p className="text-meta leading-relaxed text-foreground">
               <span className="font-semibold">Pet10x has not sent this to anyone.</span> We keep the record and
               your reference — filing officially is a separate step, below.
             </p>
@@ -123,7 +124,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
         </div>
 
         <div className="mt-4 rounded-2xl card-raised p-5">
-          <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="text-meta font-semibold uppercase tracking-wide text-muted-foreground">
             File it with {m ? m.name : "your municipality"}
           </p>
 
@@ -132,7 +133,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
               {m.phone && (
                 <a
                   href={`tel:${m.phone.replace(/[^\d+]/g, "")}`}
-                  className="flex items-center gap-2.5 rounded-xl bg-muted/60 px-3.5 py-3 text-[14px] font-semibold text-foreground"
+                  className="flex items-center gap-2.5 rounded-xl bg-muted px-3.5 py-3 text-body font-semibold text-foreground"
                 >
                   <Phone className="h-4 w-4 text-primary" /> {m.phone}
                 </a>
@@ -142,7 +143,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
                   href={m.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2.5 rounded-xl bg-muted/60 px-3.5 py-3 text-[14px] font-semibold text-foreground"
+                  className="flex items-center gap-2.5 rounded-xl bg-muted px-3.5 py-3 text-body font-semibold text-foreground"
                 >
                   <ExternalLink className="h-4 w-4 text-primary" /> Animal control online
                 </a>
@@ -151,24 +152,21 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
           ) : (
             /* Contacts are admin-maintained and may not be filled in yet.
                Saying "we don't have it" beats showing a number nobody checked. */
-            <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
+            <p className="mt-2 text-meta leading-relaxed text-muted-foreground">
               {`We don't have animal-control contact details for ${m ? m.name : "this area"} yet.`}{" "}
               Search for your municipality&apos;s animal control or bylaw office, or call your city&apos;s main
               line.
             </p>
           )}
 
-          <p className="mt-4 border-t border-border pt-3 text-[12.5px] leading-relaxed text-destructive">
+          <p className="mt-4 border-t border-border pt-3 text-caption leading-relaxed text-foreground">
             If an animal or a person is in immediate danger, call <span className="font-semibold">911</span>.
           </p>
         </div>
 
-        <button
-          onClick={onBack}
-          className="mt-6 w-full rounded-xl card-interactive py-3 text-[15px] font-semibold text-foreground"
-        >
+        <Button variant="secondary" onClick={onBack} className="mt-6 w-full">
           Done
-        </button>
+        </Button>
       </div>
     )
   }
@@ -176,26 +174,26 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
   /* ── Form ── */
   return (
     <div className="mx-auto w-full max-w-xl px-5 py-6">
-      <button onClick={onBack} className="mb-4 flex items-center gap-1.5 text-[14px] font-medium text-primary-text">
+      <button onClick={onBack} className="mb-4 flex items-center gap-1.5 text-body font-medium text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 
-      <h1 className="text-[24px] font-semibold leading-tight text-foreground">Report to local municipality</h1>
-      <p className="mt-2 text-[14.5px] leading-relaxed text-muted-foreground">
+      <h1 className="text-heading font-semibold leading-tight text-foreground">Report to local municipality</h1>
+      <p className="mt-2 text-body leading-relaxed text-muted-foreground">
         For animals that hurt or endanger, anywhere — not just in a building. Noise, waste and damage inside a
         building go to the building manager instead.
       </p>
 
       {/* Before the form, not after it. */}
-      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/5 p-4">
+      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-destructive bg-destructive-soft p-4">
         <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
-        <p className="text-[13px] leading-relaxed text-foreground">
+        <p className="text-meta leading-relaxed text-foreground">
           <span className="font-semibold">Happening right now?</span> Call 911. Pet10x is not an emergency
           service and does not forward reports to authorities.
         </p>
       </div>
 
-      <label className="mt-7 block text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <label className="mt-7 block text-meta font-semibold uppercase tracking-wide text-muted-foreground">
         What happened
       </label>
       <div className="mt-2 flex flex-col gap-2">
@@ -207,7 +205,7 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
               onClick={() => setType(t.id)}
               aria-pressed={on}
               className={`flex items-start gap-3 rounded-2xl border p-3.5 text-left transition-colors ${
-                on ? "border-primary bg-primary/5" : "border-border bg-card"
+                on ? "border-primary bg-primary-soft" : "border-border bg-card"
               }`}
             >
               <span
@@ -218,15 +216,15 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
                 {on && <Check className="h-3 w-3 text-primary-foreground" />}
               </span>
               <span className="min-w-0">
-                <span className="block text-[14.5px] font-semibold text-foreground">{t.label}</span>
-                <span className="block text-[12.5px] text-muted-foreground">{t.hint}</span>
+                <span className="block text-body font-semibold text-foreground">{t.label}</span>
+                <span className="block text-caption text-muted-foreground">{t.hint}</span>
               </span>
             </button>
           )
         })}
       </div>
 
-      <label htmlFor="mr-desc" className="mt-6 block text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <label htmlFor="mr-desc" className="mt-6 block text-meta font-semibold uppercase tracking-wide text-muted-foreground">
         Describe it
       </label>
       <textarea
@@ -235,10 +233,10 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
         onChange={(e) => setDescription(e.target.value)}
         rows={4}
         placeholder="What did the animal look like? What happened, and when?"
-        className="mt-2 w-full rounded-xl border border-input bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="mt-2 w-full rounded-xl border border-input bg-card px-3.5 py-3 text-body focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
       />
 
-      <label htmlFor="mr-postal" className="mt-6 block text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <label htmlFor="mr-postal" className="mt-6 block text-meta font-semibold uppercase tracking-wide text-muted-foreground">
         Where
       </label>
       <div className="mt-2 flex items-center gap-2">
@@ -248,26 +246,28 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
           onChange={(e) => checkPostal(e.target.value.toUpperCase())}
           placeholder="Postal code, e.g. V6B 1A1"
           autoCapitalize="characters"
-          className="min-w-0 flex-1 rounded-xl border border-input bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          className="min-w-0 flex-1 rounded-xl border border-input bg-card px-3.5 py-3 text-body focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
         />
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={useMyLocation}
           disabled={geoBusy}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-xl card-interactive px-3.5 py-3 text-[13.5px] font-semibold text-primary-text disabled:opacity-60"
+          className="flex-shrink-0"
         >
           {geoBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
           GPS
-        </button>
+        </Button>
       </div>
 
       {matched && (
-        <p className="mt-2 flex items-center gap-1.5 text-[13px] text-success-strong">
+        <p className="mt-2 flex items-center gap-1.5 text-meta text-foreground">
           <MapPin className="h-3.5 w-3.5" /> {matched.name}
           {matched.region ? `, ${matched.region}` : ""}
         </p>
       )}
       {coords && (
-        <p className="mt-1.5 text-[12px] text-muted-foreground">
+        <p className="mt-1.5 text-caption text-muted-foreground">
           Location captured ({coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}).
         </p>
       )}
@@ -276,33 +276,34 @@ export function MunicipalReport({ onBack, signedIn }: { onBack: () => void; sign
         value={location}
         onChange={(e) => setLocation(e.target.value)}
         placeholder="Street, park or intersection (optional)"
-        className="mt-2 w-full rounded-xl border border-input bg-card px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="mt-2 w-full rounded-xl border border-input bg-card px-3.5 py-3 text-body focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
       />
 
       {signedIn && (
         <label className="mt-5 flex cursor-pointer items-center justify-between rounded-2xl card-raised p-4">
           <span>
-            <span className="block text-[14.5px] font-medium text-foreground">Submit anonymously</span>
-            <span className="block text-[12.5px] text-muted-foreground">Your name won&apos;t be attached</span>
+            <span className="block text-body font-medium text-foreground">Submit anonymously</span>
+            <span className="block text-caption text-muted-foreground">Your name won&apos;t be attached</span>
           </span>
           <input
             type="checkbox"
             checked={anonymous}
             onChange={(e) => setAnonymous(e.target.checked)}
-            className="h-5 w-5 accent-[var(--primary)]"
+            className="h-5 w-5 accent-primary"
           />
         </label>
       )}
 
-      <button
+      <Button
+        size="lg"
         onClick={submit}
         disabled={submitting || !type || !description.trim()}
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+        className="mt-6 w-full"
       >
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         Record report
-      </button>
-      <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
+      </Button>
+      <p className="mt-3 text-center text-caption leading-relaxed text-muted-foreground">
         We&apos;ll give you a reference and show you who to file with. Pet10x does not submit on your behalf.
       </p>
     </div>

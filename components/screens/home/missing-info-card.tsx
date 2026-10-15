@@ -61,15 +61,15 @@ export function MissingInfoCard({
   if (isLoading || gaps.length === 0 || dismissed) return null
 
   return (
-    <section className="rounded-2xl border border-warning-strong/25 bg-[#FFF6E0] p-4">
+    <section className="rounded-2xl border border-border bg-warning-soft p-4">
       <div className="flex items-center gap-3">
-        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-warning-strong/10">
-          <AlertCircle className="h-5 w-5 text-warning-strong" />
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-warning-soft">
+          <AlertCircle className="h-5 w-5 text-foreground" />
         </span>
-        <p className="min-w-0 flex-1 text-[15px] font-semibold text-foreground">{heading}</p>
+        <p className="min-w-0 flex-1 text-body font-semibold text-foreground">{heading}</p>
         <button
           onClick={dismiss}
-          className="-mr-2 flex min-h-[44px] flex-shrink-0 items-center px-2 text-[13px] font-medium text-muted-foreground"
+          className="-mr-2 flex min-h-[44px] flex-shrink-0 items-center px-2 text-meta font-medium text-muted-foreground"
         >
           Hide for now
         </button>
@@ -82,7 +82,7 @@ export function MissingInfoCard({
             onClick={() => onNavigate?.(gap.target.screen, gap.target.id, undefined, gap.target.tab)}
             className="flex min-h-[44px] items-center gap-2 rounded-xl bg-card px-3 py-2.5 text-left transition-transform active:scale-[0.99]"
           >
-            <span className="min-w-0 flex-1 text-[13px] font-semibold text-foreground">{gap.label}</span>
+            <span className="min-w-0 flex-1 text-meta font-semibold text-foreground">{gap.label}</span>
             <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
           </button>
         ))}

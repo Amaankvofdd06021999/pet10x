@@ -29,7 +29,7 @@ export function AnswerText({ text, className = "" }: { text: string; className?:
       {blocks.map((block, i) => {
         if (block.kind === "heading") {
           return (
-            <p key={i} className="text-[14px] font-semibold leading-relaxed text-foreground">
+            <p key={i} className="text-body font-semibold leading-relaxed text-foreground">
               <Inline text={block.lines[0]} />
             </p>
           )
@@ -39,7 +39,7 @@ export function AnswerText({ text, className = "" }: { text: string; className?:
           return (
             <List
               key={i}
-              className={`flex flex-col gap-1 pl-4 text-[14px] leading-relaxed text-foreground ${
+              className={`flex flex-col gap-1 pl-4 text-body leading-relaxed text-foreground ${
                 block.kind === "bullets" ? "list-disc" : "list-decimal"
               }`}
             >
@@ -52,7 +52,7 @@ export function AnswerText({ text, className = "" }: { text: string; className?:
           )
         }
         return (
-          <p key={i} className="text-[14px] leading-relaxed text-foreground">
+          <p key={i} className="text-body leading-relaxed text-foreground">
             <Inline text={block.lines.join(" ")} />
           </p>
         )

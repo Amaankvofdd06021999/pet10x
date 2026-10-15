@@ -1,5 +1,7 @@
 "use client"
 
+import { ErrorText } from "@/components/ui/error-text"
+import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { useMyBuildingLink, requestBuildingLink, leaveBuilding } from "@/lib/data"
 import { toast } from "sonner"
@@ -44,13 +46,13 @@ export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-card/80 px-4 pt-safe backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border bg-card px-4 pt-safe backdrop-blur-xl">
         <div className="flex h-12 items-center gap-2">
-          <button onClick={onBack} className="flex items-center gap-1 text-primary-text" aria-label="Back">
+          <button onClick={onBack} className="flex items-center gap-1 text-foreground" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
-            <span className="text-[17px]">Back</span>
+            <span className="text-title">Back</span>
           </button>
-          <h1 className="absolute left-1/2 -translate-x-1/2 text-[17px] font-semibold text-foreground">Building</h1>
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-title font-semibold text-foreground">Building</h1>
         </div>
       </header>
 
@@ -63,38 +65,39 @@ export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
           <div className="flex flex-col items-center text-center">
             <div
               className={`flex h-16 w-16 items-center justify-center rounded-2xl ${
-                link.status === "approved" ? "bg-success/10" : "bg-warning/15"
+                link.status === "approved" ? "bg-success-soft" : "bg-warning-soft"
               }`}
             >
               {link.status === "approved" ? (
                 <CheckCircle2 className="h-8 w-8 text-success" />
               ) : (
-                <Clock className="h-8 w-8 text-[#B38F00]" />
+                <Clock className="h-8 w-8 text-foreground" />
               )}
             </div>
-            <h2 className="mt-5 text-[20px] font-semibold text-foreground">{link.buildingName}</h2>
-            <p className="mt-1.5 text-[14px] text-muted-foreground">
+            <h2 className="mt-5 text-heading font-semibold text-foreground">{link.buildingName}</h2>
+            <p className="mt-1.5 text-body text-muted-foreground">
               {link.status === "approved"
                 ? `You're a member${link.unit ? ` · Unit ${link.unit}` : ""}.`
                 : "Membership pending — your building manager will review your request."}
             </p>
-            <button
+            <Button
+              variant="secondary"
               onClick={leave}
               disabled={loading}
-              className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 py-3 text-[15px] font-semibold text-destructive transition-transform active:scale-[0.98] disabled:opacity-60"
+              className="mt-8 w-full border-destructive bg-destructive-soft"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
               {link.status === "approved" ? "Leave building" : "Cancel request"}
-            </button>
-            <p className="mt-3 text-[12px] text-muted-foreground">Your pets and data stay with you either way.</p>
+            </Button>
+            <p className="mt-3 text-caption text-muted-foreground">Your pets and data stay with you either way.</p>
           </div>
         ) : (
           <div>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-info/10">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-info-soft">
               <Building2 className="h-8 w-8 text-info" />
             </div>
-            <h2 className="mt-5 text-center text-[20px] font-semibold text-foreground">Link your building</h2>
-            <p className="mt-1.5 text-center text-[14px] leading-relaxed text-muted-foreground">
+            <h2 className="mt-5 text-center text-heading font-semibold text-foreground">Link your building</h2>
+            <p className="mt-1.5 text-center text-body leading-relaxed text-muted-foreground">
               Enter the code from your property management to join. They&apos;ll approve your request — your pets stay yours.
             </p>
 
@@ -113,20 +116,16 @@ export function LinkBuildingScreen({ onBack }: LinkBuildingScreenProps) {
                   autoComplete="off"
                   maxLength={12}
                   onKeyDown={(e) => e.key === "Enter" && submit()}
-                  className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[16px] font-mono font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-title font-mono font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
-              {error && <p className="mt-1.5 text-[13px] text-destructive">{error}</p>}
+              {error && <ErrorText className="mt-1.5 text-meta">{error}</ErrorText>}
             </div>
 
-            <button
-              onClick={submit}
-              disabled={loading}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
-            >
+            <Button onClick={submit} disabled={loading} className="mt-5 w-full">
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Request to join
-            </button>
+            </Button>
           </div>
         )}
       </main>

@@ -39,12 +39,12 @@ export function CaseCard({ onNavigate }: { onNavigate?: (screen: string, id?: st
         onClick={() => onNavigate?.("my-cases")}
         className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
       >
-        <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-success/12">
+        <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-success-soft">
           <ShieldCheck className="h-5 w-5 text-success" aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[14px] font-semibold text-foreground">No bylaw violations</span>
-          <span className="mt-0.5 block text-[12.5px] text-muted-foreground">
+          <span className="block text-body font-semibold text-foreground">No bylaw violations</span>
+          <span className="mt-0.5 block text-caption text-muted-foreground">
             {closed > 0
               ? `Nothing open with ${link.buildingName}. ${closed} closed ${closed === 1 ? "case" : "cases"} on file.`
               : `Nothing open with ${link.buildingName}.`}
@@ -73,31 +73,31 @@ export function CaseCard({ onNavigate }: { onNavigate?: (screen: string, id?: st
     <button
       type="button"
       onClick={() => onNavigate?.("my-cases", live.length === 1 ? headline.id : undefined)}
-      className="mb-4 flex w-full items-start gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 text-left transition-colors active:bg-warning/15"
+      className="mb-4 flex w-full items-start gap-3 rounded-2xl border border-border bg-warning-soft p-4 text-left transition-colors active:bg-warning-soft"
     >
-      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-warning/20">
-        <Gavel className="h-5 w-5 text-warning-strong" aria-hidden="true" />
+      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-warning-soft">
+        <Gavel className="h-5 w-5 text-foreground" aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[14px] font-semibold text-foreground">
+        <span className="block text-body font-semibold text-foreground">
           {live.length === 1
             ? `A bylaw case about ${headline.petName ?? "your pet"}`
             : `${live.length} open bylaw cases`}
         </span>
-        <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted-foreground">
+        <span className="mt-0.5 block text-caption leading-relaxed text-muted-foreground">
           {live.length === 1
             ? `${headline.type} · ${STAGE_LABEL[headline.stage]}`
             : "Your building has open cases involving your unit."}
           {owed > 0 && (
             <>
               {" · "}
-              <span className="font-semibold text-destructive">
+              <span className="font-semibold text-foreground">
                 {new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(owed / 100)} owed
               </span>
             </>
           )}
         </span>
-        <span className="mt-1 block text-[11.5px] font-medium text-warning-strong">
+        <span className="mt-1 block text-caption font-medium text-foreground">
           {appealed > 0 ? "Your appeal is with the managers" : "Read it, and appeal if you disagree"}
         </span>
       </span>

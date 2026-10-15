@@ -109,9 +109,9 @@ export function TodayScheduleStrip({
     // the one place a wall of names buys nothing.
     return (
       <div className={SHELL}>
-        <div className="flex items-center gap-2 rounded-xl bg-success/10 px-3 py-2.5">
+        <div className="flex items-center gap-2 rounded-xl bg-success-soft px-3 py-2.5">
           <Check className="h-4 w-4 flex-shrink-0 text-success" strokeWidth={3} />
-          <span className="text-[12px] font-semibold text-success-strong">
+          <span className="text-caption font-semibold text-foreground">
             {`All ${todays.length} scheduled ${todays.length === 1 ? "task" : "tasks"} done today`}
           </span>
         </div>
@@ -154,7 +154,7 @@ export function TodayScheduleStrip({
       {shown.map((group) => (
         <div
           key={group.key}
-          className={`rounded-xl ${group.overdue ? "bg-destructive/10" : "bg-muted/60"}`}
+          className={`rounded-xl ${group.overdue ? "bg-destructive-soft" : "bg-muted"}`}
         >
           {!multiPet || group.tasks.length === 1 ? (
             group.tasks.map((t) => (
@@ -176,7 +176,7 @@ export function TodayScheduleStrip({
         </div>
       ))}
       {remaining > 0 && (
-        <p className="px-1 text-[11px] text-muted-foreground">{`+${remaining} more in the schedule`}</p>
+        <p className="px-1 text-caption text-muted-foreground">{`+${remaining} more in the schedule`}</p>
       )}
     </div>
   )
@@ -220,7 +220,7 @@ function SingleRow({
         onOpenPet={onOpenPet}
       />
       <span
-        className={`flex-shrink-0 text-[11px] font-semibold ${overdue ? "text-destructive" : "text-muted-foreground"}`}
+        className={`flex-shrink-0 text-caption font-semibold ${overdue ? "text-foreground" : "text-muted-foreground"}`}
       >
         {task.scheduledAt ? formatTime(task.scheduledAt) : "All day"}
       </span>
@@ -262,8 +262,8 @@ function GroupRows({
           className={`h-3.5 w-3.5 flex-shrink-0 ${group.overdue ? "text-destructive" : "text-muted-foreground"}`}
         />
         <span
-          className={`min-w-0 flex-1 truncate text-[12px] font-semibold ${
-            group.overdue ? "text-destructive" : "text-muted-foreground"
+          className={`min-w-0 flex-1 truncate text-caption font-semibold ${
+            group.overdue ? "text-foreground" : "text-muted-foreground"
           }`}
         >
           {`${group.label} · ${time}`}
@@ -309,7 +309,7 @@ function RowLabel({
   petName?: string
   onOpenPet?: (petId: string) => void
 }) {
-  const className = "min-w-0 flex-1 truncate text-left text-[12px] font-semibold text-foreground"
+  const className = "min-w-0 flex-1 truncate text-left text-caption font-semibold text-foreground"
   if (!onOpenPet) return <span className={className}>{text}</span>
   return (
     <button

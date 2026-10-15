@@ -1,5 +1,7 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 /**
  * Pet10x — the rules of your building, as your building wrote them.
  *
@@ -169,17 +171,17 @@ export function BuildingRulesScreen({
             <section className="mb-5">
               <div className="mb-1.5 flex items-center gap-2 px-0.5">
                 <ShieldCheck className="h-4 w-4 flex-shrink-0 text-success" />
-                <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <h2 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                   Requirements Pet10x checks
                 </h2>
               </div>
               <div className="rounded-2xl card-raised p-4">
-                <p className="mb-2.5 text-[12px] leading-relaxed text-muted-foreground">
+                <p className="mb-2.5 text-caption leading-relaxed text-muted-foreground">
                   These affect your pet&apos;s compliance status. Pet10x checks them against your pet&apos;s records
                   automatically.
                 </p>
                 {requirements.length === 0 ? (
-                  <p className="text-[13px] text-muted-foreground">
+                  <p className="text-meta text-muted-foreground">
                     Your building has not set any pet requirements, so nothing here affects your compliance status.
                   </p>
                 ) : (
@@ -196,17 +198,17 @@ export function BuildingRulesScreen({
                           {hasStatus ? (
                             <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                           ) : (
-                            <span aria-hidden className="mx-1.5 mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-muted-foreground/50" />
+                            <span aria-hidden className="mx-1.5 mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-muted-foreground" />
                           )}
                           <div className="min-w-0 flex-1">
-                            <span className="text-[13.5px] leading-relaxed text-foreground">{r.label}</span>
+                            <span className="text-meta leading-relaxed text-foreground">{r.label}</span>
                             {hasStatus && (
                               <ul className="mt-1 space-y-1">
                                 {perPet.map(({ pet, status }) => (
-                                  <li key={pet.id} className="flex items-center justify-between gap-2 text-[12.5px]">
+                                  <li key={pet.id} className="flex items-center justify-between gap-2 text-caption">
                                     <span className="min-w-0 truncate text-muted-foreground">{pet.name}</span>
                                     {status.state === "met" ? (
-                                      <span className="flex flex-shrink-0 items-center gap-1 font-medium text-success-strong">
+                                      <span className="flex flex-shrink-0 items-center gap-1 font-medium text-foreground">
                                         <CheckCircle2 className="h-4 w-4" aria-hidden />
                                         Met
                                       </span>
@@ -221,7 +223,7 @@ export function BuildingRulesScreen({
                                           )
                                         }
                                         aria-label={`Add — ${r.label} for ${pet.name}`}
-                                        className="-my-2 flex min-h-[44px] flex-shrink-0 items-center gap-1 px-1 font-semibold text-warning-strong"
+                                        className="-my-2 flex min-h-[44px] flex-shrink-0 items-center gap-1 px-1 font-semibold text-foreground"
                                       >
                                         <PlusCircle className="h-4 w-4" aria-hidden />
                                         Add
@@ -244,7 +246,7 @@ export function BuildingRulesScreen({
             <section>
               <div className="mb-1.5 flex items-center gap-2 px-0.5">
                 <FileText className="h-4 w-4 flex-shrink-0 text-info" />
-                <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <h2 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                   House rules from your building manager
                 </h2>
               </div>
@@ -254,7 +256,7 @@ export function BuildingRulesScreen({
                   {/* One sentence. No fake content, no illustration, and no
                       promise of a feature later — the gap is stated as a fact
                       about this building, which is what it is. */}
-                  <p className="text-[13.5px] leading-relaxed text-muted-foreground">
+                  <p className="text-meta leading-relaxed text-muted-foreground">
                     Your building manager hasn&apos;t published house rules here yet.
                   </p>
                 </div>
@@ -280,17 +282,17 @@ export function BuildingRulesScreen({
                   <div className="space-y-3">
                     {shown.map((group) => (
                       <div key={group.category}>
-                        <h3 className="mb-1.5 px-0.5 text-[12px] font-semibold text-foreground">{group.label}</h3>
+                        <h3 className="mb-1.5 px-0.5 text-caption font-semibold text-foreground">{group.label}</h3>
                         <div className="space-y-2">
                           {group.rules.map((r) => (
                             <article key={r.id} className="rounded-2xl card-raised p-4">
                               <div className="mb-1 flex items-start justify-between gap-2">
-                                <h4 className="min-w-0 flex-1 break-words text-[15px] font-semibold text-foreground">
+                                <h4 className="min-w-0 flex-1 break-words text-body font-semibold text-foreground">
                                   {r.title}
                                 </h4>
-                                <span className="flex-shrink-0 rounded-full bg-info/10 px-2 py-0.5 text-[10.5px] font-semibold text-info">
+                                <Badge variant="info" className="flex-shrink-0">
                                   {CATEGORY_LABEL[r.category]}
-                                </span>
+                                </Badge>
                               </div>
                               {/* THE LINE THIS PHASE EXISTS FOR. The entire
                                   body, whitespace-pre-wrap, escaped by React,
@@ -305,10 +307,10 @@ export function BuildingRulesScreen({
                                   runs straight off the card and pushes the
                                   whole page sideways at 375px. The body still
                                   renders in full; only the layout changes. */}
-                              <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-foreground">
+                              <p className="whitespace-pre-wrap break-words text-body leading-relaxed text-foreground">
                                 {r.body}
                               </p>
-                              <p className="mt-2 text-[11px] text-muted-foreground">
+                              <p className="mt-2 text-caption text-muted-foreground">
                                 Published by your building manager &middot; {relativeUpdated(r.updatedAt)}
                               </p>
                             </article>
@@ -332,8 +334,8 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors ${
-        active ? "border-info bg-info/10 text-info" : "border-border text-foreground"
+      className={`rounded-full border px-3 py-1 text-caption font-semibold transition-colors ${
+        active ? "border-info bg-info-soft text-foreground" : "border-border text-foreground"
       }`}
     >
       {label}
@@ -355,24 +357,21 @@ function NoBuilding({
 }) {
   return (
     <div className="rounded-2xl card-raised p-6 text-center">
-      <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-info/10">
+      <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-info-soft">
         <Building2 className="h-6 w-6 text-info" />
       </span>
-      <h2 className="mb-1 text-[15px] font-semibold text-foreground">
+      <h2 className="mb-1 text-body font-semibold text-foreground">
         {pending ? "Your building request is still pending" : "You aren't linked to a building yet"}
       </h2>
-      <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
+      <p className="mb-4 text-meta leading-relaxed text-muted-foreground">
         {pending
           ? "Once your building manager approves your request, their house rules and requirements will appear here."
           : "House rules are written by your building manager. Link your building with its code to read them."}
       </p>
       {!pending && (
-        <button
-          onClick={() => onNavigate?.("link-building")}
-          className="rounded-xl bg-primary-strong px-4 py-2 text-[14px] font-semibold text-primary-foreground"
-        >
+        <Button size="sm" onClick={() => onNavigate?.("link-building")}>
           Link my building
-        </button>
+        </Button>
       )}
     </div>
   )

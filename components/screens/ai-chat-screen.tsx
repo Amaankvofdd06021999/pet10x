@@ -295,7 +295,7 @@ export function AiChatScreen({ onBack, petId, conversationId: initialConversatio
       </div>
 
       {/* Composer */}
-      <div className="shrink-0 border-t border-border bg-card/95 px-3 pb-3 pt-2.5 backdrop-blur-xl">
+      <div className="shrink-0 border-t border-border bg-card px-3 pb-3 pt-2.5 backdrop-blur-xl">
         <PhotoAttachPreview images={images} onChange={setImages} />
 
         <div className="flex items-end gap-1.5">
@@ -323,7 +323,7 @@ export function AiChatScreen({ onBack, petId, conversationId: initialConversatio
             }}
             rows={1}
             placeholder={selectedPet ? `Ask about ${selectedPet.name}…` : "Ask about your pet…"}
-            className="max-h-[140px] min-h-[38px] flex-1 resize-none rounded-2xl border border-border bg-background px-3.5 py-2 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/50"
+            className="max-h-[140px] min-h-[38px] flex-1 resize-none rounded-2xl border border-border bg-background px-3.5 py-2 text-body leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus:border-border"
           />
 
           {isSending ? (
@@ -347,7 +347,7 @@ export function AiChatScreen({ onBack, petId, conversationId: initialConversatio
         </div>
 
         {/* Persistent, not per-message — the composer says it every time. */}
-        <p className="mt-1.5 px-1 text-center text-[10px] leading-relaxed text-muted-foreground">
+        <p className="mt-1.5 px-1 text-center text-caption leading-relaxed text-muted-foreground">
           Information only, not veterinary advice. In an emergency, call your vet.
         </p>
       </div>
@@ -383,8 +383,8 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center pt-8 text-center">
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10 text-[26px]">🐾</span>
-      <h2 className="mt-3 text-[18px] font-semibold text-foreground">
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-soft text-[26px]">🐾</span>
+      <h2 className="mt-3 text-title font-semibold text-foreground">
         {petName ? `Ask about ${petName}` : "Ask about your pet"}
       </h2>
       {/* Says nothing about citations. Whether an answer carries them depends on
@@ -392,7 +392,7 @@ function EmptyState({
           that promises sources the server may never send is how a page starts
           lying on a pet-health screen. When sources do arrive, CitationList
           shows them; when they do not, nothing here was overstated. */}
-      <p className="mt-1 max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground">
+      <p className="mt-1 max-w-[22rem] text-meta leading-relaxed text-muted-foreground">
         {petName
           ? `I can see ${petName}'s chart — vaccinations, medications and care log. General guidance only, never a diagnosis.`
           : "Questions about food, behaviour, or preventive care. General guidance only, never a diagnosis."}
@@ -404,7 +404,7 @@ function EmptyState({
             key={starter}
             onClick={() => onPick(starter)}
             disabled={disabled}
-            className="rounded-2xl card-interactive px-3.5 py-2.5 text-left text-[13px] text-foreground transition-colors hover:shadow-float disabled:opacity-50"
+            className="rounded-2xl card-interactive px-3.5 py-2.5 text-left text-meta text-foreground transition-colors hover:shadow-float disabled:opacity-50"
           >
             {starter}
           </button>

@@ -1,5 +1,7 @@
 "use client"
 
+import { ErrorText } from "@/components/ui/error-text"
+import { Button } from "@/components/ui/button"
 import { useId, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { OTHER_SPECIES, addPet, nextStepAfterPet, requestBuildingLink, setPetPhoto, useMyCompleteness, usePets } from "@/lib/data"
@@ -204,7 +206,7 @@ export function OnboardingFlow() {
       {otherPersona && (
         <button
           onClick={() => setActivePersona(otherPersona)}
-          className="mb-2 flex items-center gap-1.5 self-start text-[13px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+          className="mb-2 flex items-center gap-1.5 self-start text-meta font-semibold text-muted-foreground transition-colors active:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to {PERSONA_LABEL[otherPersona]}
@@ -214,16 +216,16 @@ export function OnboardingFlow() {
       {/* Intro */}
       {step === "intro" && (
         <div className="flex flex-1 flex-col">
-          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary shadow-lg shadow-primary/20">
+          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary">
             <PawPrint className="h-8 w-8 text-primary-foreground" strokeWidth={2.5} />
           </div>
-          <h1 className="mt-6 text-[26px] font-semibold leading-tight text-foreground">Welcome, {firstName} 👋</h1>
+          <h1 className="mt-6 text-heading font-semibold leading-tight text-foreground">Welcome, {firstName} 👋</h1>
           {/* The strata question is gone. Most people arriving here were
               handed a code by their building and have no idea whether that
               counts as "managing pets, registration, rules or compliance" —
               the question asked them to classify their landlord. The code is
               the thing they physically have. */}
-          <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+          <p className="mt-2 text-body leading-relaxed text-muted-foreground">
             If your property management uses Pet10x, they&apos;ve given you a building code. Enter it and
             we&apos;ll ask them to add you. Then you&apos;ll tell us about your pet.
           </p>
@@ -233,24 +235,24 @@ export function OnboardingFlow() {
               onClick={() => goTo("code")}
               className="flex items-center gap-3 rounded-2xl card-interactive p-4 text-left transition-transform active:scale-[0.98]"
             >
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-soft">
                 <Building2 className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-[15px] font-semibold text-foreground">I have a Pet10x code</p>
-                <p className="text-[13px] text-muted-foreground">From my building or property management</p>
+                <p className="text-body font-semibold text-foreground">I have a Pet10x code</p>
+                <p className="text-meta text-muted-foreground">From my building or property management</p>
               </div>
             </button>
             <button
               onClick={() => goTo("standalone")}
               className="flex items-center gap-3 rounded-2xl card-interactive p-4 text-left transition-transform active:scale-[0.98]"
             >
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-soft">
                 <PawPrint className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-[15px] font-semibold text-foreground">I don&apos;t have a code</p>
-                <p className="text-[13px] text-muted-foreground">Just here for my pet — skip building setup</p>
+                <p className="text-body font-semibold text-foreground">I don&apos;t have a code</p>
+                <p className="text-meta text-muted-foreground">Just here for my pet — skip building setup</p>
               </div>
             </button>
           </div>
@@ -260,15 +262,15 @@ export function OnboardingFlow() {
       {/* Building code */}
       {step === "code" && (
         <div className="flex flex-1 flex-col">
-          <button onClick={() => goTo("intro")} className="-ml-1 flex w-fit items-center gap-1 text-primary-text" aria-label="Back">
+          <button onClick={() => goTo("intro")} className="-ml-1 flex w-fit items-center gap-1 text-foreground" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
-            <span className="text-[15px]">Back</span>
+            <span className="text-body">Back</span>
           </button>
-          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-info/10">
+          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-info-soft">
             <Building2 className="h-8 w-8 text-info" />
           </div>
-          <h1 className="mt-6 text-[24px] font-semibold text-foreground">Enter your building code</h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+          <h1 className="mt-6 text-heading font-semibold text-foreground">Enter your building code</h1>
+          <p className="mt-2 text-body leading-relaxed text-muted-foreground">
             Your property management shares this code. Entering it sends them a request to add you — your
             pets stay yours either way.
           </p>
@@ -288,21 +290,17 @@ export function OnboardingFlow() {
                 autoComplete="off"
                 maxLength={12}
                 onKeyDown={(e) => e.key === "Enter" && linkBuilding()}
-                className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-[16px] font-mono font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-input bg-card py-3 pl-11 pr-4 text-title font-mono font-semibold tracking-widest text-foreground placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
-            {error && <p className="mt-1.5 text-[13px] text-destructive">{error}</p>}
+            {error && <ErrorText className="mt-1.5 text-meta">{error}</ErrorText>}
           </div>
 
-          <button
-            onClick={linkBuilding}
-            disabled={loading}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
-          >
+          <Button onClick={linkBuilding} disabled={loading} className="mt-5 w-full">
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Request to join
-          </button>
-          <button onClick={() => goTo("standalone")} className="mt-3 text-center text-[13px] font-medium text-muted-foreground">
+          </Button>
+          <button onClick={() => goTo("standalone")} className="mt-3 text-center text-meta font-medium text-muted-foreground">
             I don&apos;t have a code
           </button>
         </div>
@@ -313,17 +311,17 @@ export function OnboardingFlow() {
         <div className="flex flex-1 flex-col">
           <button
             onClick={() => goTo("code")}
-            className="-ml-1 flex w-fit items-center gap-1 text-primary-text"
+            className="-ml-1 flex w-fit items-center gap-1 text-foreground"
             aria-label="Back"
           >
             <ArrowLeft className="h-5 w-5" />
-            <span className="text-[15px]">Back</span>
+            <span className="text-body">Back</span>
           </button>
-          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary/10">
+          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary-soft">
             <KeyRound className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="mt-6 text-[24px] font-semibold text-foreground">Which unit are you in?</h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+          <h1 className="mt-6 text-heading font-semibold text-foreground">Which unit are you in?</h1>
+          <p className="mt-2 text-body leading-relaxed text-muted-foreground">
             <span className="font-semibold text-foreground">{linkedBuilding}</span> needs this to place you on
             their register.
           </p>
@@ -339,22 +337,18 @@ export function OnboardingFlow() {
               placeholder="e.g. 2104"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && saveUnitAndContinue()}
-              className="w-full rounded-xl border border-input bg-card px-4 py-3 text-[16px] font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-input bg-card px-4 py-3 text-title font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
             />
-            {error && <p className="mt-1.5 text-[13px] text-destructive">{error}</p>}
+            {error && <ErrorText className="mt-1.5 text-meta">{error}</ErrorText>}
           </div>
 
-          <button
-            onClick={saveUnitAndContinue}
-            disabled={loading || !unit.trim()}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
-          >
+          <Button onClick={saveUnitAndContinue} disabled={loading || !unit.trim()} className="mt-5 w-full">
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Continue
-          </button>
+          </Button>
           <button
             onClick={() => goTo("linked")}
-            className="mt-3 text-center text-[13px] font-medium text-muted-foreground"
+            className="mt-3 text-center text-meta font-medium text-muted-foreground"
           >
             I don&apos;t know it yet
           </button>
@@ -364,35 +358,32 @@ export function OnboardingFlow() {
       {/* Linked (pending) */}
       {step === "linked" && (
         <div className="flex flex-1 flex-col items-center justify-center text-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success-soft">
             <CheckCircle2 className="h-10 w-10 text-success" />
           </div>
-          <h1 className="mt-6 text-[24px] font-semibold text-foreground">Request sent</h1>
-          <p className="mt-2 max-w-sm text-[15px] leading-relaxed text-muted-foreground">
+          <h1 className="mt-6 text-heading font-semibold text-foreground">Request sent</h1>
+          <p className="mt-2 max-w-sm text-body leading-relaxed text-muted-foreground">
             We&apos;ve asked <span className="font-semibold text-foreground">{linkedBuilding}</span>{" "}
             to add you. You&apos;ll be notified once approved. Next, tell us about your pet.
           </p>
-          <button
-            onClick={() => goTo("pet")}
-            className="mt-8 flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
-          >
+          <Button size="lg" onClick={() => goTo("pet")} className="mt-8 w-full max-w-sm">
             Continue
-          </button>
+          </Button>
         </div>
       )}
 
       {/* Standalone */}
       {step === "standalone" && (
         <div className="flex flex-1 flex-col">
-          <button onClick={() => goTo("intro")} className="-ml-1 flex w-fit items-center gap-1 text-primary-text" aria-label="Back">
+          <button onClick={() => goTo("intro")} className="-ml-1 flex w-fit items-center gap-1 text-foreground" aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
-            <span className="text-[15px]">Back</span>
+            <span className="text-body">Back</span>
           </button>
-          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary/10">
+          <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-primary-soft">
             <Sparkles className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="mt-6 text-[24px] font-semibold text-foreground">You&apos;re all set</h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+          <h1 className="mt-6 text-heading font-semibold text-foreground">You&apos;re all set</h1>
+          <p className="mt-2 text-body leading-relaxed text-muted-foreground">
             Track your pet&apos;s food, medicine and care, set reminders, and explore the community — no building needed. You
             can link a building anytime from your profile.
           </p>
@@ -400,27 +391,21 @@ export function OnboardingFlow() {
           <div className="mt-7 rounded-2xl card-raised p-4">
             <div className="flex items-center gap-2">
               <Building2 className="h-4.5 w-4.5 text-info" />
-              <p className="text-[14px] font-semibold text-foreground">Does your building manage pets?</p>
+              <p className="text-body font-semibold text-foreground">Does your building manage pets?</p>
             </div>
-            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mt-1 text-meta leading-relaxed text-muted-foreground">
               Invite your property management to Pet10x — they can run registration, compliance and incident reporting for the
               whole building.
             </p>
-            <button
-              onClick={shareApp}
-              className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-[14px] font-semibold text-foreground transition-transform active:scale-[0.98]"
-            >
+            <Button variant="secondary" onClick={shareApp} className="mt-3">
               <Share2 className="h-4 w-4" /> Share with my management
-            </button>
+            </Button>
           </div>
 
           <div className="mt-auto pt-8">
-            <button
-              onClick={() => goTo("pet")}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98]"
-            >
+            <Button size="lg" onClick={() => goTo("pet")} className="w-full">
               Continue
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -430,8 +415,8 @@ export function OnboardingFlow() {
           last step of signing up into a form. */}
       {shownStep === "pet" && (
         <div className="flex flex-1 flex-col">
-          <h1 className="mt-6 text-[24px] font-semibold text-foreground">Tell us about your pet</h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+          <h1 className="mt-6 text-heading font-semibold text-foreground">Tell us about your pet</h1>
+          <p className="mt-2 text-body leading-relaxed text-muted-foreground">
             A name and what kind of pet. You can add the rest later.
           </p>
 
@@ -446,7 +431,7 @@ export function OnboardingFlow() {
             ) : (
               <>
                 <ImagePlus className="h-6 w-6 text-muted-foreground" />
-                <span className="text-[11px] text-muted-foreground">Add photo</span>
+                <span className="text-caption text-muted-foreground">Add photo</span>
               </>
             )}
           </button>
@@ -464,7 +449,7 @@ export function OnboardingFlow() {
 
           <label
             htmlFor={petNameId}
-            className="mb-2 mt-6 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground"
+            className="mb-2 mt-6 flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-muted-foreground"
           >
             Name <RequiredTag />
           </label>
@@ -477,10 +462,10 @@ export function OnboardingFlow() {
               setError(null)
             }}
             placeholder="e.g. Max"
-            className="mb-5 w-full rounded-xl border border-input bg-card px-4 py-3 text-[16px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="mb-5 w-full rounded-xl border border-input bg-card px-4 py-3 text-title text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
           />
 
-          <p className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="mb-2 flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-muted-foreground">
             Species <RequiredTag />
           </p>
           <SpeciesTiles
@@ -492,24 +477,25 @@ export function OnboardingFlow() {
           />
 
           {error && (
-            <p role="alert" className="text-[13px] text-destructive">
+            <ErrorText className="text-meta">
               {error}
-            </p>
+            </ErrorText>
           )}
 
           <div className="mt-auto pt-8">
-            <button
+            <Button
+              size="lg"
               onClick={savePet}
               disabled={loading || !petName.trim() || !species}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
+              className="w-full"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Add pet
-            </button>
+            </Button>
             <button
               onClick={finish}
               disabled={loading}
-              className="mt-3 w-full text-center text-[13px] font-medium text-muted-foreground"
+              className="mt-3 w-full text-center text-meta font-medium text-muted-foreground"
             >
               Skip for now
             </button>
@@ -560,13 +546,13 @@ function PetAdded({
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-success/10">
+      <div className="mt-6 flex h-16 w-16 items-center justify-center rounded-[18px] bg-success-soft">
         <CheckCircle2 className="h-8 w-8 text-success" />
       </div>
-      <h1 className="mt-6 text-[24px] font-semibold text-foreground">{pet.name} is on Pet10x</h1>
+      <h1 className="mt-6 text-heading font-semibold text-foreground">{pet.name} is on Pet10x</h1>
 
       <div className="mt-6 flex items-center gap-3 rounded-2xl card-raised p-4">
-        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10">
+        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary-soft">
           {pet.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={pet.photo} alt="" className="h-full w-full object-cover" />
@@ -575,16 +561,16 @@ function PetAdded({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[16px] font-semibold text-foreground">{pet.name}</p>
-          <p className="text-[13px] text-muted-foreground">{speciesLabel(pet.species)}</p>
+          <p className="truncate text-title font-semibold text-foreground">{pet.name}</p>
+          <p className="text-meta text-muted-foreground">{speciesLabel(pet.species)}</p>
         </div>
       </div>
 
       <div className="mt-auto pt-8">
         {error && (
-          <p role="alert" className="mb-3 text-[13px] text-destructive">
+          <ErrorText className="mb-3 text-meta">
             {error}
-          </p>
+          </ErrorText>
         )}
         {isLoading ? (
           <>
@@ -596,40 +582,32 @@ function PetAdded({
             <button
               onClick={onLater}
               disabled={busy}
-              className="mt-3 w-full text-center text-[13px] font-medium text-muted-foreground"
+              className="mt-3 w-full text-center text-meta font-medium text-muted-foreground"
             >
               Later
             </button>
           </>
         ) : next ? (
           <>
-            <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">Next step</p>
-            <p className="mt-1 text-[16px] font-semibold text-foreground">{next.label}</p>
-            <button
-              onClick={() => onDoItNow(next.target)}
-              disabled={busy}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
-            >
+            <p className="text-meta font-semibold uppercase tracking-wide text-muted-foreground">Next step</p>
+            <p className="mt-1 text-title font-semibold text-foreground">{next.label}</p>
+            <Button size="lg" onClick={() => onDoItNow(next.target)} disabled={busy} className="mt-4 w-full">
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               Do it now
-            </button>
+            </Button>
             <button
               onClick={onLater}
               disabled={busy}
-              className="mt-3 w-full text-center text-[13px] font-medium text-muted-foreground"
+              className="mt-3 w-full text-center text-meta font-medium text-muted-foreground"
             >
               Later
             </button>
           </>
         ) : (
-          <button
-            onClick={onLater}
-            disabled={busy}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3.5 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
-          >
+          <Button size="lg" onClick={onLater} disabled={busy} className="w-full">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             Continue to Pet10x
-          </button>
+          </Button>
         )}
       </div>
     </div>

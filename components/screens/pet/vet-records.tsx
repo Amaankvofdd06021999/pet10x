@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { toast } from "sonner"
 import { CalendarClock, Loader2, Plus, Stethoscope, Trash2, X } from "lucide-react"
@@ -30,10 +31,10 @@ export function VetRecords({ petId }: { petId: string }) {
   return (
     <section className="mb-5">
       <div className="mb-2.5 flex items-center justify-between">
-        <h3 className="text-[15px] font-semibold text-foreground">Vet records</h3>
+        <h3 className="text-body font-semibold text-foreground">Vet records</h3>
         <button
           onClick={() => setAdding(true)}
-          className="flex items-center gap-1.5 text-[13px] font-semibold text-primary-text"
+          className="flex items-center gap-1.5 text-meta font-semibold text-foreground"
         >
           <Plus className="h-3.5 w-3.5" /> Add visit
         </button>
@@ -49,20 +50,20 @@ export function VetRecords({ petId }: { petId: string }) {
           className="flex w-full flex-col items-center gap-1 rounded-2xl border border-dashed border-border bg-card px-4 py-8"
         >
           <Stethoscope className="h-6 w-6 text-muted-foreground" />
-          <span className="text-[13.5px] font-semibold text-foreground">No visits recorded</span>
-          <span className="text-[12px] text-muted-foreground">Check-ups, dentals, treatments</span>
+          <span className="text-meta font-semibold text-foreground">No visits recorded</span>
+          <span className="text-caption text-muted-foreground">Check-ups, dentals, treatments</span>
         </button>
       ) : (
         <div className="flex flex-col gap-2">
           {visits.map((v) => (
             <div key={v.id} className="rounded-2xl card-raised p-3.5">
               <div className="flex items-start gap-3">
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft">
                   <Stethoscope className="h-4.5 w-4.5 text-primary" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-semibold text-foreground">{v.reason}</p>
-                  <p className="mt-0.5 text-[12px] text-muted-foreground">
+                  <p className="text-body font-semibold text-foreground">{v.reason}</p>
+                  <p className="mt-0.5 text-caption text-muted-foreground">
                     {parseDbDate(v.visitedOn)?.toLocaleDateString("en-CA", {
                       day: "numeric",
                       month: "short",
@@ -71,9 +72,9 @@ export function VetRecords({ petId }: { petId: string }) {
                     {v.clinic ? ` · ${v.clinic}` : ""}
                     {v.vetName ? ` · ${v.vetName}` : ""}
                   </p>
-                  {v.notes && <p className="mt-1.5 text-[12.5px] leading-relaxed text-foreground">{v.notes}</p>}
+                  {v.notes && <p className="mt-1.5 text-caption leading-relaxed text-foreground">{v.notes}</p>}
                   {v.followUpOn && (
-                    <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-medium text-primary-text">
+                    <p className="mt-1.5 flex items-center gap-1.5 text-caption font-medium text-foreground">
                       <CalendarClock className="h-3.5 w-3.5" />
                       Follow-up{" "}
                       {parseDbDate(v.followUpOn)?.toLocaleDateString("en-CA", {
@@ -145,11 +146,11 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
       onOpenChange={(next) => {
         if (!next && !saving) onClose()
       }}
-      overlayClassName="flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[2px]"
+      overlayClassName="flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
       className="relative max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-3xl bg-card shadow-float p-5 shadow-xl"
     >
           <div className="mb-4 flex items-center justify-between gap-3">
-            <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Add a vet visit</DialogTitle>
+            <DialogTitle className="text-title font-semibold leading-normal text-foreground">Add a vet visit</DialogTitle>
             <button
               onClick={onClose}
               aria-label="Close"
@@ -166,7 +167,7 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Annual check-up, dental, limping…"
                 autoFocus
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none"
+                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-body focus:border-primary focus:outline-none"
               />
             </Field>
             <div className="grid grid-cols-2 gap-2">
@@ -176,7 +177,7 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
                   value={visitedOn}
                   max={today}
                   onChange={(e) => setVisitedOn(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[14px] focus:border-primary focus:outline-none"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-body focus:border-primary focus:outline-none"
                 />
               </Field>
               <Field label="Follow-up (optional)">
@@ -184,7 +185,7 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
                   type="date"
                   value={followUpOn}
                   onChange={(e) => setFollowUpOn(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[14px] focus:border-primary focus:outline-none"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-body focus:border-primary focus:outline-none"
                 />
               </Field>
             </div>
@@ -194,7 +195,7 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
                   value={clinic}
                   onChange={(e) => setClinic(e.target.value)}
                   placeholder="Optional"
-                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none"
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-body focus:border-primary focus:outline-none"
                 />
               </Field>
               <Field label="Vet">
@@ -202,7 +203,7 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
                   value={vetName}
                   onChange={(e) => setVetName(e.target.value)}
                   placeholder="Optional"
-                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none"
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-body focus:border-primary focus:outline-none"
                 />
               </Field>
             </div>
@@ -212,18 +213,14 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder="What the vet said, medication started, anything to watch…"
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none"
+                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-body focus:border-primary focus:outline-none"
               />
             </Field>
           </div>
 
-          <button
-            onClick={save}
-            disabled={saving}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
-          >
+          <Button onClick={save} disabled={saving} className="mt-4 w-full">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save visit
-          </button>
+          </Button>
     </DialogLayer>
   )
 }
@@ -231,7 +228,7 @@ function AddVisit({ petId, onClose, onSaved }: { petId: string; onClose: () => v
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[11.5px] font-semibold text-muted-foreground">{label}</span>
+      <span className="mb-1 block text-caption font-semibold text-muted-foreground">{label}</span>
       {children}
     </label>
   )

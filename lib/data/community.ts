@@ -35,13 +35,13 @@ import type { LostFoundType, Species } from "./types"
  * client.
  */
 export const CATEGORY_COLORS: Record<string, string> = {
-  General: "bg-muted text-muted-foreground",
-  Recommendation: "bg-info/10 text-info",
-  Warning: "bg-destructive/10 text-destructive",
-  Question: "bg-primary/10 text-primary",
-  Social: "bg-primary/10 text-primary",
-  Health: "bg-accent/10 text-accent",
-  Building: "bg-info/10 text-info",
+  General: "bg-muted text-foreground",
+  Recommendation: "bg-info-soft text-foreground",
+  Warning: "bg-destructive-soft text-foreground",
+  Question: "bg-primary-soft text-foreground",
+  Social: "bg-primary-soft text-foreground",
+  Health: "bg-info-soft text-foreground",
+  Building: "bg-info-soft text-foreground",
 }
 
 export const POST_CATEGORIES = Object.keys(CATEGORY_COLORS)

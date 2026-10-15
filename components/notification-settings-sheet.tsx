@@ -1,5 +1,7 @@
 "use client"
 
+import { ErrorText } from "@/components/ui/error-text"
+import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 import { Loader2, Mail, Smartphone, X } from "lucide-react"
 import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
@@ -103,16 +105,16 @@ export function NotificationSettingsSheet({ onClose }: { onClose: () => void }) 
         if (!next) onClose()
       }}
       described
-      overlayClassName="flex items-end justify-center bg-foreground/40 sm:items-center"
+      overlayClassName="flex items-end justify-center bg-black/40 sm:items-center"
       className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-card p-5 shadow-float sm:rounded-3xl"
     >
           <div className="mb-1 flex items-center justify-between">
-            <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Notifications</DialogTitle>
+            <DialogTitle className="text-title font-semibold leading-normal text-foreground">Notifications</DialogTitle>
             <button onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-muted-foreground active:bg-muted">
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
-          <DialogDescription className="mb-4 text-[12.5px] leading-relaxed text-muted-foreground">
+          <DialogDescription className="mb-4 text-caption leading-relaxed text-muted-foreground">
             Everything still arrives in the app. These choose where else it reaches you.
           </DialogDescription>
 
@@ -122,21 +124,18 @@ export function NotificationSettingsSheet({ onClose }: { onClose: () => void }) 
             </div>
           ) : !prefs.data ? (
             <div className="rounded-2xl border border-border p-4 text-center">
-              <p className="text-[13px] text-muted-foreground">{prefs.error}</p>
-              <button
-                onClick={() => void prefs.refetch()}
-                className="mt-2 rounded-lg bg-muted px-3 py-1.5 text-[13px] font-semibold text-foreground"
-              >
+              <p className="text-meta text-muted-foreground">{prefs.error}</p>
+              <Button variant="secondary" size="sm" onClick={() => void prefs.refetch()} className="mt-2">
                 Try again
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-border">
               <label className={`flex items-start gap-3 px-3 py-3 ${showPush ? "border-b border-border" : ""}`}>
                 <Mail className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-medium text-foreground">Email</span>
-                  <span className="mt-0.5 block text-[12px] leading-relaxed text-muted-foreground">
+                  <span className="block text-body font-medium text-foreground">Email</span>
+                  <span className="mt-0.5 block text-caption leading-relaxed text-muted-foreground">
                     Incidents, bookings, messages from your vet, reminders, compliance and building notices. Several
                     at once arrive as one digest, and anything you&apos;ve already read in the app isn&apos;t sent.
                   </span>
@@ -154,8 +153,8 @@ export function NotificationSettingsSheet({ onClose }: { onClose: () => void }) 
                 <div className="flex items-start gap-3 px-3 py-3">
                   <Smartphone className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-medium text-foreground">Push on this device</span>
-                    <span className="mt-0.5 block text-[12px] leading-relaxed text-muted-foreground">
+                    <span className="block text-body font-medium text-foreground">Push on this device</span>
+                    <span className="mt-0.5 block text-caption leading-relaxed text-muted-foreground">
                       {pushState === null
                         ? "Checking this device…"
                         : pushState === "denied"
@@ -185,14 +184,14 @@ export function NotificationSettingsSheet({ onClose }: { onClose: () => void }) 
           )}
 
           {error && (
-            <p role="alert" className="mt-3 text-[12.5px] text-destructive">
+            <ErrorText className="mt-3 text-caption">
               {error}
-            </p>
+            </ErrorText>
           )}
 
-          <button onClick={onClose} className="mt-4 w-full rounded-xl bg-muted py-3 text-[15px] font-semibold text-foreground">
+          <Button variant="secondary" onClick={onClose} className="mt-4 w-full">
             Done
-          </button>
+          </Button>
     </DialogLayer>
   )
 }

@@ -78,11 +78,11 @@ function CareTile({
           ? `${label} — ${detail}, target ${met ? "met" : "not met"}. Open tracker.`
           : `${label} — ${met ? "logged today" : "not logged today"}. Open tracker.`
       }
-      className="flex flex-col items-center gap-0.5 rounded-xl bg-muted/60 p-3 transition-transform active:scale-[0.97]"
+      className="flex flex-col items-center gap-0.5 rounded-xl bg-muted p-3 transition-transform active:scale-[0.97]"
     >
       <Icon className={`mb-0.5 h-5 w-5 ${met ? "text-success" : "text-muted-foreground"}`} />
-      <span className="text-[11px] font-semibold text-muted-foreground">{label}</span>
-      <span className={`text-[12px] font-semibold ${met ? "text-success-strong" : "text-muted-foreground"}`}>{detail}</span>
+      <span className="text-caption font-semibold text-muted-foreground">{label}</span>
+      <span className={`text-caption font-semibold ${met ? "text-foreground" : "text-muted-foreground"}`}>{detail}</span>
     </button>
   )
 }

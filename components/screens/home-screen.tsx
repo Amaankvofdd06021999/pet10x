@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { usePets, useNotifications, useMyBuildingLink, useSelectedPet } from "@/lib/data"
@@ -35,10 +36,10 @@ import {
 import Image from "next/image"
 
 const STATUS_CONFIG = {
-  home: { label: "Home", pill: "bg-success/10 text-success-strong" },
+  home: { label: "Home", pill: "bg-success-soft text-foreground" },
   away: { label: "Away", pill: "bg-muted text-muted-foreground" },
-  "at-vet": { label: "At Vet", pill: "bg-info/10 text-info" },
-  vacation: { label: "On Vacation", pill: "bg-primary/10 text-primary-text" },
+  "at-vet": { label: "At Vet", pill: "bg-info-soft text-foreground" },
+  vacation: { label: "On Vacation", pill: "bg-primary-soft text-foreground" },
 } as const
 
 /**
@@ -76,15 +77,15 @@ const QUICK_ACTIONS: {
   unbuilt?: true
   needsBuilding?: true
 }[] = [
-  { icon: Building2, label: "Building Rules", color: "bg-info/10 text-info", needsBuilding: true },
-  { icon: Calendar, label: "Pet Events", color: "bg-primary/10 text-primary" },
-  { icon: ShoppingBag, label: "Shop", color: "bg-accent/10 text-accent" },
+  { icon: Building2, label: "Building Rules", color: "bg-info-soft text-foreground", needsBuilding: true },
+  { icon: Calendar, label: "Pet Events", color: "bg-primary-soft text-primary" },
+  { icon: ShoppingBag, label: "Shop", color: "bg-primary-soft text-primary" },
 ]
 
 /* Keyed on notification severity — Recent Activity is the newest three rows of
    the same notifications Alerts shows, not a separate feed. */
 const ALERT_DOT = {
-  warning: "bg-warning-strong",
+  warning: "bg-warning",
   error: "bg-destructive",
   info: "bg-info",
   success: "bg-success",
@@ -196,13 +197,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 purpose: it has to be findable without competing with the
                 pets, the care log and everything else the home screen is
                 actually for. */}
-            <button
-              onClick={() => onNavigate?.("report")}
-              className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[12.5px] font-semibold text-foreground transition-transform active:scale-95"
-            >
+            <Button variant="secondary" size="sm" onClick={() => onNavigate?.("report")}>
               <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
               Report
-            </button>
+            </Button>
             <button
               onClick={() => onNavigate?.("alerts")}
               className="relative p-2"
@@ -210,7 +208,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             >
               <Bell className="h-5 w-5 text-foreground" />
               {unreadCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-caption font-semibold text-destructive-foreground">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
@@ -225,12 +223,12 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex items-center gap-2">
               <GreetingIcon className="h-5 w-5 flex-shrink-0 text-primary" />
-              <h1 className="truncate text-[26px] font-semibold leading-tight text-foreground">
+              <h1 className="truncate text-heading font-semibold leading-tight text-foreground">
                 {greeting}, {user?.name?.split(" ")[0]}
               </h1>
             </div>
             {buildingLink?.status === "approved" ? (
-              <span className="ml-7 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+              <span className="ml-7 flex items-center gap-1.5 text-meta text-muted-foreground">
                 <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
                 <span className="truncate">
                   {buildingLink.buildingName}
@@ -238,7 +236,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 </span>
               </span>
             ) : (
-              <p className="ml-7 text-[14px] text-muted-foreground">
+              <p className="ml-7 text-body text-muted-foreground">
                 {selectedPet ? `${selectedPet.name} is lucky to have you.` : "Welcome to your pet family."}
               </p>
             )}
@@ -273,9 +271,9 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               pet, and mean nothing while pets are still loading. */}
           {!petsLoading && !noPets && (
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-[17px] font-semibold text-foreground">My Pets</h3>
+              <h3 className="text-title font-semibold text-foreground">My Pets</h3>
               <button
-                className="flex items-center gap-1 text-[14px] font-medium text-primary-text"
+                className="flex items-center gap-1 text-body font-medium text-foreground"
                 onClick={() => onNavigate?.("add-pet")}
               >
                 <Plus className="h-4 w-4" />
@@ -297,20 +295,17 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               </div>
             </div>
           ) : noPets ? (
-            <div className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-primary/30 bg-primary/5 px-5 py-10 text-center">
-              <span className="mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-[26px]">
+            <div className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-primary-soft px-5 py-10 text-center">
+              <span className="mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft text-[26px]">
                 🐶
               </span>
-              <h3 className="text-[18px] font-semibold text-foreground">Add your first pet</h3>
-              <p className="mb-2 text-[13px] text-muted-foreground">
+              <h3 className="text-title font-semibold text-foreground">Add your first pet</h3>
+              <p className="mb-2 text-meta text-muted-foreground">
                 Register a furry friend to start tracking food, medicine &amp; treats.
               </p>
-              <button
-                onClick={() => onNavigate?.("add-pet")}
-                className="w-full rounded-xl bg-primary-strong px-4 py-3 text-[15px] font-semibold text-primary-foreground transition-transform active:scale-[0.98] sm:w-auto sm:px-8"
-              >
+              <Button onClick={() => onNavigate?.("add-pet")} className="w-full sm:w-auto sm:px-8">
                 Add your pet
-              </button>
+              </Button>
             </div>
           ) : (
             <>
@@ -349,15 +344,15 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
 
                       <div className="flex min-w-0 flex-1 flex-col">
                         <div className="flex items-center justify-between gap-2">
-                          <h4 className="truncate text-[16px] font-semibold text-foreground">{pet.name}</h4>
-                          <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground/50" />
+                          <h4 className="truncate text-title font-semibold text-foreground">{pet.name}</h4>
+                          <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
                         </div>
                         <div className="mb-1 flex items-center gap-1 text-muted-foreground">
                           <SpeciesIcon className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate text-[12px]">{pet.breed || "Pet"}</span>
+                          <span className="truncate text-caption">{pet.breed || "Pet"}</span>
                         </div>
                         <span
-                          className={`inline-block w-fit rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.pill}`}
+                          className={`inline-block w-fit rounded-full px-2 py-0.5 text-caption font-bold uppercase tracking-wider ${status.pill}`}
                         >
                           {status.label}
                         </span>
@@ -393,15 +388,15 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 className="mb-4 flex w-full items-center justify-between gap-3 text-left transition-transform active:scale-[0.99]"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary">
                     <Heart className="h-6 w-6" fill="currentColor" />
                   </span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="truncate text-[16px] font-semibold text-foreground">Today&apos;s Care</h3>
+                      <h3 className="truncate text-title font-semibold text-foreground">Today&apos;s Care</h3>
                       <Utensils className="h-4 w-4 flex-shrink-0 text-primary" />
                     </div>
-                    <p className="truncate text-[12px] text-muted-foreground">
+                    <p className="truncate text-caption text-muted-foreground">
                       {/* Household-level now, because it sits above a block that
                           is not about one pet. Built as a single expression and
                           not as JSX text, because this exact line once read
@@ -431,7 +426,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                     </p>
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground/50" />
+                <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
               </button>
 
               {/* Schedule first, then a rule, then goals.
@@ -451,7 +446,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                   whose and there are no chips — a picker with one option is
                   noise, and 8 of 28 households have exactly one pet. */}
               <div className="mb-3 mt-4 flex items-center justify-between gap-3">
-                <h4 className="flex-shrink-0 text-[13px] font-semibold text-foreground">
+                <h4 className="flex-shrink-0 text-meta font-semibold text-foreground">
                   {singlePet && selectedPet ? `${selectedPet.name}'s goals` : "Goals"}
                 </h4>
                 <PetChips
@@ -479,7 +474,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 not a table, not a column on `profiles`, not localStorage. The
                 four actions below are a constant in this file. */}
             <div className="mb-3">
-              <h3 className="text-[17px] font-semibold text-foreground">Quick Actions</h3>
+              <h3 className="text-title font-semibold text-foreground">Quick Actions</h3>
             </div>
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -499,9 +494,9 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                     <span className={`flex h-10 w-10 items-center justify-center rounded-full ${action.color}`}>
                       <Icon className="h-5 w-5" />
                     </span>
-                    <span className="text-center text-[12px] font-semibold leading-tight text-foreground">{action.label}</span>
+                    <span className="text-center text-caption font-semibold leading-tight text-foreground">{action.label}</span>
                     {action.unbuilt && (
-                      <span className="text-center text-[10px] leading-tight text-muted-foreground">Not available yet</span>
+                      <span className="text-center text-caption leading-tight text-muted-foreground">Not available yet</span>
                     )}
                   </button>
                 )
@@ -520,12 +515,12 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 className="flex w-full items-center justify-between gap-3 rounded-2xl card-interactive p-4 text-left transition-transform active:scale-[0.98]"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-info/10">
+                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-info-soft">
                     <Building2 className="h-5 w-5 text-info" />
                   </span>
                   <div className="min-w-0">
-                    <h4 className="truncate text-[15px] font-semibold text-foreground">{buildingLink.buildingName}</h4>
-                    <p className="truncate text-[12px] text-muted-foreground">
+                    <h4 className="truncate text-body font-semibold text-foreground">{buildingLink.buildingName}</h4>
+                    <p className="truncate text-caption text-muted-foreground">
                       Linked{buildingLink.unit ? ` · Unit ${buildingLink.unit}` : ""}
                     </p>
                   </div>
@@ -533,13 +528,13 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                 <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
               </button>
             ) : buildingLink?.status === "pending" ? (
-              <div className="flex w-full items-center gap-3 rounded-2xl border border-warning-strong/25 bg-[#FFF6E0] p-4">
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-warning-strong/10">
-                  <Clock className="h-5 w-5 text-warning-strong" />
+              <div className="flex w-full items-center gap-3 rounded-2xl border border-border bg-warning-soft p-4">
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-warning-soft">
+                  <Clock className="h-5 w-5 text-foreground" />
                 </span>
                 <div className="min-w-0">
-                  <h4 className="truncate text-[15px] font-semibold text-foreground">Membership pending</h4>
-                  <p className="truncate text-[12px] text-muted-foreground">
+                  <h4 className="truncate text-body font-semibold text-foreground">Membership pending</h4>
+                  <p className="truncate text-caption text-muted-foreground">
                     {buildingLink.buildingName}{" "}
                     will review your request
                   </p>
@@ -548,20 +543,20 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
             ) : (
               <button
                 onClick={() => onNavigate?.("link-building")}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-accent/20 bg-accent/5 p-4 text-left transition-transform active:scale-[0.98]"
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-primary-soft p-4 text-left transition-transform active:scale-[0.98]"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent">
-                    <Building2 className="h-5 w-5 text-accent-foreground" />
+                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary">
+                    <Building2 className="h-5 w-5 text-primary-foreground" />
                   </span>
                   <div className="min-w-0">
-                    <h4 className="truncate text-[15px] font-semibold text-foreground">Link your building</h4>
-                    <p className="truncate text-[12px] text-muted-foreground">
+                    <h4 className="truncate text-body font-semibold text-foreground">Link your building</h4>
+                    <p className="truncate text-caption text-muted-foreground">
                       Access pet-friendly amenities &amp; rules
                     </p>
                   </div>
                 </div>
-                <PlusCircle className="h-6 w-6 flex-shrink-0 text-accent" />
+                <PlusCircle className="h-6 w-6 flex-shrink-0 text-primary" />
               </button>
             )}
           </section>
@@ -587,10 +582,10 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
         {!calm && alerts.length > 0 && (
           <section className="mb-6">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-[17px] font-semibold text-foreground">Recent Activity</h3>
+              <h3 className="text-title font-semibold text-foreground">Recent Activity</h3>
               <button
                 onClick={() => onNavigate?.("alerts")}
-                className="flex items-center gap-0.5 text-[14px] font-medium text-primary-text"
+                className="flex items-center gap-0.5 text-body font-medium text-foreground"
               >
                 See All
                 <ChevronRight className="h-4 w-4" />
@@ -602,11 +597,11 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className={`h-2 w-2 flex-shrink-0 rounded-full ${ALERT_DOT[alert.severity]}`} />
-                      <h4 className="text-[14px] font-semibold text-foreground">{alert.title}</h4>
+                      <h4 className="text-body font-semibold text-foreground">{alert.title}</h4>
                     </div>
-                    <span className="flex-shrink-0 text-[11px] text-muted-foreground">{alert.time}</span>
+                    <span className="flex-shrink-0 text-caption text-muted-foreground">{alert.time}</span>
                   </div>
-                  <p className="mt-1 pl-4 text-[12px] leading-relaxed text-muted-foreground">{alert.body}</p>
+                  <p className="mt-1 pl-4 text-caption leading-relaxed text-muted-foreground">{alert.body}</p>
                 </div>
               ))}
             </div>

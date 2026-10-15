@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import Image from "next/image"
 import { IOSNavBar } from "@/components/ios-nav-bar"
@@ -34,15 +35,15 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
         {categories.length > 2 && (
           <div className="no-scrollbar mb-4 flex gap-1.5 overflow-x-auto">
             {categories.map((c) => (
-              <button
+              <Button
+                variant={category === c ? "primary" : "secondary"}
+                size="sm"
                 key={c}
                 onClick={() => setCategory(c)}
-                className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[12.5px] font-semibold capitalize transition-colors ${
-                  category === c ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
+                className="flex-shrink-0"
               >
                 {c}
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -54,8 +55,8 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
         ) : shown.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
             <ShoppingBag className="mx-auto h-7 w-7 text-muted-foreground" />
-            <p className="mt-2 text-[15px] font-semibold text-foreground">Nothing here yet</p>
-            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mt-2 text-body font-semibold text-foreground">Nothing here yet</p>
+            <p className="mt-1 text-meta leading-relaxed text-muted-foreground">
               We&apos;re still picking products worth recommending. Check back soon.
             </p>
           </div>
@@ -85,14 +86,14 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
                       )}
                     </div>
                     <div className="flex flex-1 flex-col p-3">
-                      <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-foreground">
+                      <p className="line-clamp-2 text-meta font-semibold leading-snug text-foreground">
                         {item.title}
                       </p>
                       {item.merchant && (
-                        <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{item.merchant}</p>
+                        <p className="mt-0.5 truncate text-caption text-muted-foreground">{item.merchant}</p>
                       )}
                       <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-                        <span className="text-[13px] font-bold text-primary-text">{item.priceLabel ?? "View"}</span>
+                        <span className="text-meta font-bold text-foreground">{item.priceLabel ?? "View"}</span>
                         <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                       </div>
                     </div>
@@ -104,7 +105,7 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
             {/* Required, not decorative: recommending products for commission
                 without saying so is the kind of thing that gets an app pulled,
                 and prices are not synced so they must not read as live. */}
-            <p className="mt-5 text-center text-[11px] leading-relaxed text-muted-foreground">
+            <p className="mt-5 text-center text-caption leading-relaxed text-muted-foreground">
               Pet10x may earn a commission on purchases made through these links, at no extra cost to you.
               Prices are a guide — the merchant&apos;s checkout is the real one.
             </p>

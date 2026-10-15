@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 /**
  * Pet10x — the case against you, as its subject sees it.
  *
@@ -67,10 +68,10 @@ const MAX_REASON = 2000
  *  Phase 2 found on the manager's dashboard. */
 const STAGE_STYLE: Record<ViolationStage, { color: string; icon: typeof AlertTriangle }> = {
   open: { color: "bg-muted text-muted-foreground", icon: ShieldCheck },
-  warning: { color: "bg-warning/10 text-warning-strong", icon: Gavel },
-  fine_1: { color: "bg-destructive/10 text-destructive", icon: DollarSign },
-  fine_2: { color: "bg-destructive/10 text-destructive", icon: DollarSign },
-  resolved: { color: "bg-success/10 text-success", icon: CheckCircle2 },
+  warning: { color: "bg-warning-soft text-foreground", icon: Gavel },
+  fine_1: { color: "bg-destructive-soft text-destructive", icon: DollarSign },
+  fine_2: { color: "bg-destructive-soft text-destructive", icon: DollarSign },
+  resolved: { color: "bg-success-soft text-success", icon: CheckCircle2 },
   dismissed: { color: "bg-muted text-muted-foreground", icon: XCircle },
 }
 
@@ -130,12 +131,12 @@ function money(cents: number, currency: string): string {
  * matters.
  */
 const FINE_STATUS_WORDS: Record<string, { label: string; tone: string; owed: boolean }> = {
-  issued: { label: "Unpaid", tone: "bg-destructive/10 text-destructive", owed: true },
-  partially_paid: { label: "Part paid", tone: "bg-warning/10 text-warning-strong", owed: true },
-  disputed: { label: "Under appeal", tone: "bg-warning/10 text-warning-strong", owed: true },
-  paid: { label: "Paid", tone: "bg-success/10 text-success-strong", owed: false },
-  waived: { label: "Waived", tone: "bg-success/10 text-success-strong", owed: false },
-  remitted: { label: "Remitted", tone: "bg-success/10 text-success-strong", owed: false },
+  issued: { label: "Unpaid", tone: "bg-destructive-soft text-foreground", owed: true },
+  partially_paid: { label: "Part paid", tone: "bg-warning-soft text-foreground", owed: true },
+  disputed: { label: "Under appeal", tone: "bg-warning-soft text-foreground", owed: true },
+  paid: { label: "Paid", tone: "bg-success-soft text-foreground", owed: false },
+  waived: { label: "Waived", tone: "bg-success-soft text-foreground", owed: false },
+  remitted: { label: "Remitted", tone: "bg-success-soft text-foreground", owed: false },
   written_off: { label: "Written off", tone: "bg-muted text-muted-foreground", owed: false },
 }
 
@@ -183,8 +184,8 @@ export function MyCasesScreen({
         )}
 
         {error && (
-          <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
-            <p className="text-[12px] leading-relaxed text-destructive">
+          <div className="mb-4 rounded-xl border border-destructive bg-destructive-soft p-3">
+            <p className="text-caption leading-relaxed text-foreground">
               {error}
             </p>
           </div>
@@ -194,11 +195,11 @@ export function MyCasesScreen({
 
         {!isLoading && !error && cases.length === 0 && (
           <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/10">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-soft">
               <ShieldCheck className="h-6 w-6 text-success" />
             </div>
-            <h3 className="mt-4 text-[15px] font-semibold text-foreground">No cases against you</h3>
-            <p className="mx-auto mt-1 max-w-[24rem] text-[13px] leading-relaxed text-muted-foreground">
+            <h3 className="mt-4 text-body font-semibold text-foreground">No cases against you</h3>
+            <p className="mx-auto mt-1 max-w-[24rem] text-meta leading-relaxed text-muted-foreground">
               Your building has not opened a pet bylaw case involving your unit. If one is ever opened, it appears
               here with everything your strata has recorded about it.
             </p>
@@ -256,7 +257,7 @@ export function MyCasesScreen({
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-2 mt-4 px-1 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <h2 className="mb-2 mt-4 px-1 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
       {children}
     </h2>
   )
@@ -296,17 +297,17 @@ function CaseCard({
           <StageIcon className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-semibold capitalize text-foreground">{c.type}</p>
-          <p className="truncate text-[11px] text-muted-foreground">
+          <p className="truncate text-body font-semibold capitalize text-foreground">{c.type}</p>
+          <p className="truncate text-caption text-muted-foreground">
             {`Opened ${longDate(c.openedAt)}`}
             {c.petName ? ` · ${c.petName}` : ""}
           </p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-1.5">
           {openDispute && (
-            <Badge className="border-0 bg-warning/10 text-[9px] text-warning-strong">Under appeal</Badge>
+            <Badge variant="warning">Under appeal</Badge>
           )}
-          <Badge className={`border-0 text-[9px] ${style.color}`}>{STAGE_LABEL[c.stage]}</Badge>
+          <Badge className={style.color}>{STAGE_LABEL[c.stage]}</Badge>
           <ChevronDown
             className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
           />
@@ -316,9 +317,9 @@ function CaseCard({
       {open && (
         <div className="border-t border-border px-3 pb-3 pt-3">
           {/* Where it stands, in words. */}
-          <p className="text-[12px] leading-relaxed text-muted-foreground">{LADDER_SENTENCE[c.stage]}</p>
+          <p className="text-caption leading-relaxed text-muted-foreground">{LADDER_SENTENCE[c.stage]}</p>
           {c.resolutionOutcome && isTerminal(c.stage) && (
-            <p className="mt-1.5 text-[12px] leading-relaxed text-foreground">
+            <p className="mt-1.5 text-caption leading-relaxed text-foreground">
               {`Outcome recorded: ${c.resolutionOutcome}`}
             </p>
           )}
@@ -341,7 +342,7 @@ function History({ c }: { c: ResidentCase }) {
     return (
       <div className="mt-3">
         <SubHeading>What has happened</SubHeading>
-        <p className="text-[12px] leading-relaxed text-muted-foreground">
+        <p className="text-caption leading-relaxed text-muted-foreground">
           Nothing has been recorded on this case yet.
         </p>
       </div>
@@ -381,13 +382,13 @@ function History({ c }: { c: ResidentCase }) {
           const opened = e.fromStage === null && !migrated
           return (
             <li key={e.id} className="border-l-2 border-border pl-3">
-              <p className="text-[11px] font-medium text-muted-foreground">
+              <p className="text-caption font-medium text-muted-foreground">
                 {longDate(e.occurredOn ?? e.createdAt)}
               </p>
               {migrated ? (
                 <>
-                  <p className="text-[12px] font-semibold text-muted-foreground">Record-keeping entry</p>
-                  <p className="text-[12px] leading-relaxed text-muted-foreground">
+                  <p className="text-caption font-semibold text-muted-foreground">Record-keeping entry</p>
+                  <p className="text-caption leading-relaxed text-muted-foreground">
                     {`Your building's system renamed its case stages on this date. This case became "${STAGE_LABEL[
                       e.toStage
                     ].toLowerCase()}". Nothing about the case itself changed.`}
@@ -396,15 +397,15 @@ function History({ c }: { c: ResidentCase }) {
               ) : (
                 <>
                   {!isSelf && (
-                    <p className="text-[12px] font-semibold text-foreground">
+                    <p className="text-caption font-semibold text-foreground">
                       {opened
                         ? `Case opened at ${STAGE_LABEL[e.toStage].toLowerCase()}`
                         : `${STAGE_LABEL[e.fromStage!]} → ${STAGE_LABEL[e.toStage]}`}
                     </p>
                   )}
-                  {e.note && <p className="text-[12px] leading-relaxed text-foreground">{e.note}</p>}
+                  {e.note && <p className="text-caption leading-relaxed text-foreground">{e.note}</p>}
                   {!e.note && isSelf && (
-                    <p className="text-[12px] italic leading-relaxed text-muted-foreground">
+                    <p className="text-caption italic leading-relaxed text-muted-foreground">
                       {`A note was recorded on this case at the ${STAGE_LABEL[e.toStage].toLowerCase()} stage.`}
                     </p>
                   )}
@@ -419,7 +420,7 @@ function History({ c }: { c: ResidentCase }) {
 }
 
 function SubHeading({ children }: { children: React.ReactNode }) {
-  return <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>
+  return <p className="mb-1.5 text-caption font-semibold uppercase tracking-wide text-muted-foreground">{children}</p>
 }
 
 /* ------------------------------------------------------------------ */
@@ -439,12 +440,12 @@ function Money({ c }: { c: ResidentCase }) {
           return (
             <div key={f.id} className="flex items-center justify-between rounded-lg bg-muted px-2.5 py-2">
               <div className="min-w-0">
-                <p className="text-[13px] font-bold text-foreground">{money(f.amountCents, f.currency)}</p>
+                <p className="text-meta font-bold text-foreground">{money(f.amountCents, f.currency)}</p>
                 {f.dueOn && (
-                  <p className="text-[11px] text-muted-foreground">{`Due ${longDate(f.dueOn)}`}</p>
+                  <p className="text-caption text-muted-foreground">{`Due ${longDate(f.dueOn)}`}</p>
                 )}
               </div>
-              <Badge className={`flex-shrink-0 border-0 text-[9px] ${words?.tone ?? "bg-muted text-muted-foreground"}`}>
+              <Badge className={words?.tone ?? "bg-muted text-muted-foreground"}>
                 {words?.label ?? f.status.replace(/_/g, " ")}
               </Badge>
             </div>
@@ -459,7 +460,7 @@ function Money({ c }: { c: ResidentCase }) {
          * a resident who finds no way to pay and no explanation concludes the
          * app is broken, and then does nothing.
          */
-        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-caption leading-relaxed text-muted-foreground">
           Fines are paid to your strata directly, the same way as any other levy — Pet10x does not take payments.
           Contact your strata or property manager to arrange it.
         </p>
@@ -490,17 +491,17 @@ function DisputePanel({
 
       {/* State 3: one is open. */}
       {openDispute && (
-        <div className="rounded-lg border border-warning/30 bg-warning/5 p-2.5">
-          <p className="text-[12px] font-semibold text-warning-strong">
+        <div className="rounded-lg border border-border bg-warning-soft p-2.5">
+          <p className="text-caption font-semibold text-foreground">
             {`Waiting on your strata — filed ${longDate(openDispute.filedAt)}`}
           </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-caption text-muted-foreground">
             {`You disputed the ${STAGE_LABEL[openDispute.stage].toLowerCase()} stage. You said:`}
           </p>
-          <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">
+          <p className="mt-1 whitespace-pre-wrap text-caption leading-relaxed text-foreground">
             {openDispute.reason}
           </p>
-          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-2 text-caption leading-relaxed text-muted-foreground">
             While this is open your building cannot move the case forward, and no reminder will be sent about a fine
             it covers.
           </p>
@@ -512,20 +513,20 @@ function DisputePanel({
         <div
           key={`${d.stage}-${d.decidedAt}`}
           className={`mt-1.5 rounded-lg p-2.5 ${
-            d.outcome === "overturned" ? "bg-success/5 border border-success/30" : "bg-muted"
+            d.outcome === "overturned" ? "bg-success-soft border border-border" : "bg-muted"
           }`}
         >
-          <p className="text-[12px] font-semibold text-foreground">
+          <p className="text-caption font-semibold text-foreground">
             {d.outcome === "overturned"
               ? `Appeal succeeded — decided ${longDate(d.decidedAt)}`
               : `Appeal not successful — decided ${longDate(d.decidedAt)}`}
           </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-caption text-muted-foreground">
             {`You disputed the ${STAGE_LABEL[d.stage].toLowerCase()} stage on ${longDate(d.filedAt)}. You said:`}
           </p>
-          <p className="mt-1 whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">{d.reason}</p>
-          <p className="mt-2 text-[11px] text-muted-foreground">Your strata replied:</p>
-          <p className="mt-0.5 whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">
+          <p className="mt-1 whitespace-pre-wrap text-caption leading-relaxed text-foreground">{d.reason}</p>
+          <p className="mt-2 text-caption text-muted-foreground">Your strata replied:</p>
+          <p className="mt-0.5 whitespace-pre-wrap text-caption leading-relaxed text-foreground">
             {d.decidedNote ?? "No reason was given."}
           </p>
         </div>
@@ -534,13 +535,10 @@ function DisputePanel({
       {/* State 1: nothing filed and one may be. */}
       {!openDispute && verdict.ok && (
         <>
-          <button
-            onClick={onDispute}
-            className="w-full rounded-lg bg-primary/10 py-2.5 text-[13px] font-semibold text-primary-text transition-transform active:scale-[0.98]"
-          >
+          <Button variant="secondary" size="sm" onClick={onDispute} className="w-full">
             Dispute this
-          </button>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          </Button>
+          <p className="mt-1.5 text-caption leading-relaxed text-muted-foreground">
             {`You have until ${longDate(disputeDeadline(c.anchorIso))} to contest the ${STAGE_LABEL[
               c.stage
             ].toLowerCase()} stage — ${DISPUTE_WINDOW_DAYS} days from the date it was issued.`}
@@ -558,7 +556,7 @@ function DisputePanel({
         saying the same thing in more detail.
       */}
       {!openDispute && !verdict.ok && !(verdict.reason === "already" && decided.length > 0) && (
-        <p className="text-[12px] leading-relaxed text-muted-foreground">
+        <p className="text-caption leading-relaxed text-muted-foreground">
           {describeWhyNot(verdict.reason, disputeDeadline(c.anchorIso))}
         </p>
       )}
@@ -614,29 +612,29 @@ function DisputeSheet({
       onOpenChange={(next) => {
         if (!next && !busy) onClose()
       }}
-      overlayClassName="flex items-end justify-center bg-black/50 sm:items-center"
+      overlayClassName="flex items-end justify-center bg-black/40 sm:items-center"
       className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-card p-5 sm:rounded-2xl"
     >
           <div className="mb-4 flex items-center justify-between">
-            <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">Dispute this finding</DialogTitle>
+            <DialogTitle className="text-title font-semibold leading-normal text-foreground">Dispute this finding</DialogTitle>
             <button onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-muted-foreground active:bg-muted">
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
 
           <div className="mb-4 rounded-xl bg-muted p-3">
-            <p className="text-[13px] font-semibold capitalize text-foreground">{c.type}</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-meta font-semibold capitalize text-foreground">{c.type}</p>
+            <p className="mt-0.5 text-caption leading-relaxed text-muted-foreground">
               {`You are disputing the ${STAGE_LABEL[c.stage].toLowerCase()} of ${stageDate}.`}
             </p>
             {c.fines.length > 0 && (
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              <p className="mt-1 text-caption leading-relaxed text-muted-foreground">
                 {`While your appeal is open, any unpaid fine on this case is marked as under appeal and your building will not chase it.`}
               </p>
             )}
           </div>
 
-          <label className="mb-1 block text-[12px] font-semibold text-muted-foreground" htmlFor="dispute-reason">
+          <label className="mb-1 block text-caption font-semibold text-muted-foreground" htmlFor="dispute-reason">
             Why do you disagree?
           </label>
           <textarea
@@ -645,22 +643,22 @@ function DisputeSheet({
             onChange={(e) => setReason(e.target.value)}
             rows={6}
             placeholder="Describe what actually happened, and anything your strata should take into account."
-            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-[14px] text-foreground focus:border-primary focus:outline-none"
+            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-body text-foreground focus:border-primary focus:outline-none"
           />
           <div className="mt-1 flex items-center justify-between">
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-caption leading-relaxed text-muted-foreground">
               Your building&rsquo;s managers read this exactly as you write it.
             </p>
             <span
-              className={`flex-shrink-0 text-[11px] tabular-nums ${
-                reason.length > MAX_REASON ? "font-semibold text-destructive" : "text-muted-foreground"
+              className={`flex-shrink-0 text-caption tabular-nums ${
+                reason.length > MAX_REASON ? "font-semibold text-foreground" : "text-muted-foreground"
               }`}
             >
               {`${reason.length} / ${MAX_REASON}`}
             </span>
           </div>
 
-          <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-3 flex items-start gap-1.5 text-caption leading-relaxed text-muted-foreground">
             <Scale className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
             <span>
               You can dispute each stage of a case once. If the case later escalates, you can dispute that stage
@@ -668,14 +666,10 @@ function DisputeSheet({
             </span>
           </p>
 
-          <button
-            onClick={submit}
-            disabled={busy || blocked}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
-          >
+          <Button onClick={submit} disabled={busy || blocked} className="mt-4 w-full">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             Submit appeal
-          </button>
+          </Button>
     </DialogLayer>
   )
 }
@@ -693,24 +687,24 @@ function NoticesReceived() {
 
   const tone = (kind: string) =>
     kind.includes("fine")
-      ? "border-destructive/30 bg-destructive/5"
+      ? "border-destructive bg-destructive-soft"
       : kind === "warning"
-        ? "border-warning/40 bg-warning/10"
+        ? "border-border bg-warning-soft"
         : "border-border bg-card"
 
   return (
     <section className="mb-4">
-      <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <h3 className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
         Notices you have received
       </h3>
       <ul className="flex flex-col gap-2">
         {notices.map((n) => (
           <li key={n.id} className={`rounded-2xl border p-3.5 ${tone(n.kind)}`}>
-            <p className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-foreground">
+            <p className="flex flex-wrap items-center gap-2 text-body font-semibold text-foreground">
               {n.title ?? n.kindLabel}
-              <Badge variant="secondary" className="text-[10px]">{n.kindLabel}</Badge>
+              <Badge variant="secondary">{n.kindLabel}</Badge>
               {n.amountCents ? (
-                <span className="text-[13px] font-semibold tabular-nums text-destructive">
+                <span className="text-meta font-semibold tabular-nums text-foreground">
                   {new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(
                     n.amountCents / 100,
                   )}
@@ -718,9 +712,9 @@ function NoticesReceived() {
               ) : null}
             </p>
             {n.body && (
-              <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-muted-foreground">{n.body}</p>
+              <p className="mt-1 whitespace-pre-wrap text-meta leading-relaxed text-muted-foreground">{n.body}</p>
             )}
-            <p className="mt-1.5 text-[11.5px] tabular-nums text-muted-foreground">
+            <p className="mt-1.5 text-caption tabular-nums text-muted-foreground">
               {/* Time, not just date: two notices on one day still have an order. */}
               {stampOf(n.issuedAt)}
               {n.dueOn ? ` · due ${longDate(n.dueOn)}` : ""}

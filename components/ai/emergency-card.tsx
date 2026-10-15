@@ -1,5 +1,7 @@
 "use client"
 
+import { ErrorText } from "@/components/ui/error-text"
+import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { AlertTriangle, MapPin, Phone, Send, Check } from "lucide-react"
 import type { EmergencyCard as EmergencyCardData } from "@/lib/ai/types"
@@ -20,14 +22,14 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
   const [failed, setFailed] = useState<string | null>(null)
 
   return (
-    <div className="rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-4">
+    <div className="rounded-2xl border-2 border-destructive bg-destructive-soft p-4">
       <div className="flex items-start gap-3">
         <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-destructive">
           <AlertTriangle className="h-5 w-5 text-destructive-foreground" />
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[16px] font-semibold text-destructive">Call a vet now</h3>
-          <p className="mt-1 text-[13px] leading-relaxed text-foreground">
+          <h3 className="text-title font-semibold text-foreground">Call a vet now</h3>
+          <p className="mt-1 text-meta leading-relaxed text-foreground">
             {subject} may need urgent care — {card.reasons.join("; ").toLowerCase()}. Don&apos;t wait for advice here.
           </p>
         </div>
@@ -40,17 +42,17 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
         >
           <Phone className="h-5 w-5 flex-shrink-0" fill="currentColor" />
           <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-medium uppercase tracking-wide opacity-80">
+            <span className="block text-caption font-medium uppercase tracking-wide opacity-80">
               {subject}&apos;s vet{card.vetClinic ? ` · ${card.vetClinic}` : ""}
             </span>
-            <span className="block truncate text-[16px] font-semibold">{card.vetPhone}</span>
+            <span className="block truncate text-title font-semibold">{card.vetPhone}</span>
           </span>
         </a>
       )}
 
       {card.clinics.length > 0 && (
         <div className="mt-3">
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="mb-1.5 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
             Emergency clinics nearby
           </p>
           <div className="flex flex-col gap-1.5">
@@ -61,8 +63,8 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
                   <div className="flex items-start gap-2">
                     <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-semibold text-foreground">{clinic.name}</p>
-                      <p className="truncate text-[11px] text-muted-foreground">
+                      <p className="truncate text-meta font-semibold text-foreground">{clinic.name}</p>
+                      <p className="truncate text-caption text-muted-foreground">
                         {where || "Address not listed"}
                         {clinic.distanceKm != null ? ` · ${clinic.distanceKm.toFixed(1)} km` : ""}
                       </p>
@@ -74,7 +76,7 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
                     {clinic.phone && (
                       <a
                         href={`tel:${clinic.phone.replace(/[^\d+]/g, "")}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-2.5 py-1.5 text-[12px] font-semibold text-destructive-foreground"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-2.5 py-1.5 text-caption font-semibold text-destructive-foreground"
                       >
                         <Phone className="h-3.5 w-3.5" aria-hidden="true" /> Call
                       </a>
@@ -84,44 +86,46 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
                         href={`https://maps.google.com/?q=${encodeURIComponent(`${clinic.name} ${where}`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[12px] font-semibold text-foreground"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-caption font-semibold text-foreground"
                       >
                         <MapPin className="h-3.5 w-3.5" aria-hidden="true" /> Directions
                       </a>
                     )}
                     {clinic.canNotify && card.petId && (
                       told === clinic.id ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success-strong">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-success-soft px-2.5 py-1.5 text-caption font-semibold text-foreground">
                           <Check className="h-3.5 w-3.5" aria-hidden="true" /> They know you are coming
                         </span>
                       ) : (
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           type="button"
                           disabled={busy === clinic.id}
                           onClick={async () => {
-                            if (!card.petId) return
-                            setBusy(clinic.id)
-                            setFailed(null)
-                            const res = await notifyArrival(
-                              clinic.id,
-                              card.petId,
-                              card.reasons.join("; ") || "Emergency",
-                              20,
-                            )
-                            setBusy(null)
-                            if (res.error) setFailed(clinic.id)
-                            else setTold(clinic.id)
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
+ if (!card.petId) return
+ setBusy(clinic.id)
+ setFailed(null)
+ const res = await notifyArrival(
+ clinic.id,
+ card.petId,
+ card.reasons.join("; ") || "Emergency",
+ 20,
+ )
+ setBusy(null)
+ if (res.error) setFailed(clinic.id)
+ else setTold(clinic.id)
+ }}
+                          className="border-destructive"
                         >
                           <Send className="h-3.5 w-3.5" aria-hidden="true" />
                           {busy === clinic.id ? "Telling them…" : "Tell them I'm coming"}
-                        </button>
+                        </Button>
                       )
                     )}
                   </div>
                   {failed === clinic.id && (
-                    <p role="alert" className="mt-2 text-[12px] font-medium text-destructive">
+                    <ErrorText className="mt-2 text-caption font-medium">
                       Couldn&apos;t reach them through Pet10x —{" "}
                       {clinic.phone ? (
                         <>
@@ -134,7 +138,7 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
                       ) : (
                         "try again, or head straight there."
                       )}
-                    </p>
+                    </ErrorText>
                   )}
                 </div>
               )
@@ -144,7 +148,7 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
       )}
 
       <div className="mt-3">
-        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="mb-1.5 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
           If something was swallowed
         </p>
         <div className="flex flex-col gap-1.5">
@@ -156,8 +160,8 @@ export function EmergencyCard({ card }: { card: EmergencyCardData }) {
             >
               <Phone className="h-4 w-4 flex-shrink-0 text-destructive" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-semibold text-foreground">{line.name}</span>
-                <span className="block text-[11px] text-muted-foreground">
+                <span className="block truncate text-meta font-semibold text-foreground">{line.name}</span>
+                <span className="block text-caption text-muted-foreground">
                   {line.phone} · {line.note}
                 </span>
               </span>

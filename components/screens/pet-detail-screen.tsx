@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { RequiredTag } from "@/components/screens/pet/required-tag"
 import { useRef, useState } from "react"
 import Image from "next/image"
@@ -73,13 +74,13 @@ function statusBadge(status: string): string {
     case "current":
     case "active":
     case "approved":
-      return "bg-success/10 text-success-strong"
+      return "bg-success-soft text-foreground"
     case "expiring":
-      return "bg-[#FFF9E6] text-[#B38F00]"
+      return "bg-warning-soft text-foreground"
     case "expired":
     case "rejected":
     case "missing":
-      return "bg-destructive/10 text-destructive"
+      return "bg-destructive-soft text-foreground"
     default:
       return "bg-muted text-muted-foreground"
   }
@@ -118,8 +119,8 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
     return (
       <Shell onBack={onBack}>
         <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
-          <p className="text-[15px] font-semibold text-foreground">Pet not found</p>
-          <button onClick={onBack} className="mt-3 text-[14px] font-medium text-primary-text">
+          <p className="text-body font-semibold text-foreground">Pet not found</p>
+          <button onClick={onBack} className="mt-3 text-body font-medium text-foreground">
             Go back
           </button>
         </div>
@@ -168,11 +169,11 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
         {/* Hero */}
         <div className="relative h-64 w-full bg-muted">
           <Image src={pet.image} alt={pet.name} fill className="object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background to-transparent" />
           <button
             onClick={() => photoInput.current?.click()}
             disabled={uploadingPhoto}
-            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-card/85 backdrop-blur-sm transition-transform active:scale-95"
+            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-card backdrop-blur-sm transition-transform active:scale-95"
             aria-label="Change photo"
           >
             {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4 text-foreground" />}
@@ -181,12 +182,12 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
           <div className="absolute bottom-4 left-4 right-4">
             <h1 className="text-[30px] font-semibold leading-tight text-foreground">{pet.name}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-full bg-card/80 px-2.5 py-1 text-[12px] font-medium text-foreground backdrop-blur-sm">
+              <span className="inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-1 text-caption font-medium text-foreground backdrop-blur-sm">
                 <SpeciesIcon className="h-3.5 w-3.5 text-primary" />
                 {pet.breed || (pet.species === "dog" ? "Dog" : "Cat")}
               </span>
               {pet.age && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-card/80 px-2.5 py-1 text-[12px] font-medium text-foreground backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-1 text-caption font-medium text-foreground backdrop-blur-sm">
                   <Calendar className="h-3.5 w-3.5 text-primary" />
                   {pet.age}
                 </span>
@@ -200,14 +201,14 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
           <div className="px-4 pt-3">
             <button
               onClick={() => onNavigate("ai-chat", pet.id)}
-              className="flex w-full items-center gap-3 rounded-2xl border border-accent/25 bg-accent/5 p-3 text-left transition-transform active:scale-[0.98]"
+              className="flex w-full items-center gap-3 rounded-2xl border border-border bg-primary-soft p-3 text-left transition-transform active:scale-[0.98]"
             >
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                 <Sparkles className="h-4.5 w-4.5" strokeWidth={2.2} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold text-foreground">Ask about {pet.name}</p>
-                <p className="text-[11px] text-muted-foreground">The assistant reads this chart</p>
+                <p className="text-body font-semibold text-foreground">Ask about {pet.name}</p>
+                <p className="text-caption text-muted-foreground">The assistant reads this chart</p>
               </div>
               <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
             </button>
@@ -216,7 +217,7 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
 
         {/* Tabs */}
         <div className="sticky top-[44px] z-30 bg-background px-4 pb-3 pt-3">
-          <div className="flex gap-1 rounded-2xl border border-border bg-muted/60 p-1">
+          <div className="flex gap-1 rounded-2xl border border-border bg-muted p-1">
             {DETAIL_TABS.map((tab) => (
               <button
                 key={tab}
@@ -224,7 +225,7 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
                   setActiveTab(tab)
                   setEditing(false)
                 }}
-                className={`flex-1 rounded-xl py-2 text-[11.5px] font-semibold capitalize transition-all ${
+                className={`flex-1 rounded-xl py-2 text-caption font-semibold capitalize transition-all ${
                   activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground active:text-foreground"
                 }`}
               >
@@ -295,32 +296,32 @@ function OverviewTab({ pet, onStatus }: { pet: ReturnType<typeof usePet>["data"]
           return (
             <div key={item.label} className="rounded-2xl card-raised p-3.5">
               <div className="flex items-center gap-2">
-                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary-soft">
                   <Icon className="h-4 w-4 text-primary" />
                 </span>
-                <span className="text-[12px] font-medium text-muted-foreground">{item.label}</span>
+                <span className="text-caption font-medium text-muted-foreground">{item.label}</span>
               </div>
-              <p className="mt-2 text-[14px] font-semibold text-foreground">{item.value}</p>
+              <p className="mt-2 text-body font-semibold text-foreground">{item.value}</p>
             </div>
           )
         })}
       </div>
       {pet.microchip && (
         <div className="rounded-2xl card-raised p-3">
-          <span className="text-[12px] font-medium text-muted-foreground">Microchip</span>
-          <p className="mt-0.5 font-mono text-[13px] font-semibold text-foreground">{pet.microchip}</p>
+          <span className="text-caption font-medium text-muted-foreground">Microchip</span>
+          <p className="mt-0.5 font-mono text-meta font-semibold text-foreground">{pet.microchip}</p>
         </div>
       )}
 
       <div className="rounded-2xl card-raised p-4">
-        <h3 className="text-[15px] font-semibold text-foreground">Status</h3>
+        <h3 className="text-body font-semibold text-foreground">Status</h3>
         <div className="mt-3 grid grid-cols-4 gap-2">
           {STATUSES.map((s) => (
             <button
               key={s.value}
               onClick={() => onStatus(s.value)}
-              className={`rounded-xl py-2 text-[12px] font-semibold transition-all ${
-                pet.status === s.value ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"
+              className={`rounded-xl py-2 text-caption font-semibold transition-all ${
+                pet.status === s.value ? "bg-success-soft text-foreground ring-2 ring-success" : "bg-muted text-muted-foreground"
               }`}
             >
               {s.label}
@@ -330,14 +331,14 @@ function OverviewTab({ pet, onStatus }: { pet: ReturnType<typeof usePet>["data"]
       </div>
 
       <div className="rounded-2xl card-raised p-4">
-        <h3 className="text-[15px] font-semibold text-foreground">Medical</h3>
+        <h3 className="text-body font-semibold text-foreground">Medical</h3>
         <div className="mt-3 flex flex-col gap-2.5">
           {medicalRows.map(([label, value], i) => (
             <div key={label}>
               {i > 0 && <div className="mb-2.5 h-px bg-border" />}
               <div className="flex items-start justify-between gap-4">
-                <span className="flex-shrink-0 text-[13px] text-muted-foreground">{label}</span>
-                <span className="text-right text-[13px] text-foreground">{value || "None reported"}</span>
+                <span className="flex-shrink-0 text-meta text-muted-foreground">{label}</span>
+                <span className="text-right text-meta text-foreground">{value || "None reported"}</span>
               </div>
             </div>
           ))}
@@ -346,9 +347,9 @@ function OverviewTab({ pet, onStatus }: { pet: ReturnType<typeof usePet>["data"]
 
       {hasVet && (
         <div className="rounded-2xl card-raised p-4">
-          <h3 className="text-[15px] font-semibold text-foreground">Veterinarian</h3>
-          <p className="mt-2 text-[14px] font-medium text-foreground">{m?.vetClinic || m?.vetName || "—"}</p>
-          <p className="text-[12px] text-muted-foreground">
+          <h3 className="text-body font-semibold text-foreground">Veterinarian</h3>
+          <p className="mt-2 text-body font-medium text-foreground">{m?.vetClinic || m?.vetName || "—"}</p>
+          <p className="text-caption text-muted-foreground">
             {[m?.vetName, m?.vetPhone].filter(Boolean).join(" · ") || ""}
           </p>
         </div>
@@ -449,8 +450,8 @@ function EditForm({
             <button
               key={g}
               onClick={() => set("gender", g)}
-              className={`rounded-xl border py-2 text-[13px] font-semibold transition-all ${
-                f.gender === g ? "border-primary bg-primary/5 text-primary-text" : "border-border bg-card text-foreground"
+              className={`rounded-xl border py-2 text-meta font-semibold transition-all ${
+                f.gender === g ? "border-primary bg-primary-soft text-foreground" : "border-border bg-card text-foreground"
               }`}
             >
               {g}
@@ -463,7 +464,7 @@ function EditForm({
         <TextField label="Microchip" value={f.microchip} onChange={(v) => set("microchip", v)} />
       </div>
       <label className="flex items-center justify-between rounded-xl card-raised p-3.5">
-        <span className="text-[14px] font-medium text-foreground">Spayed / Neutered</span>
+        <span className="text-body font-medium text-foreground">Spayed / Neutered</span>
         <button
           role="switch"
           aria-checked={f.neutered}
@@ -474,7 +475,7 @@ function EditForm({
         </button>
       </label>
 
-      <p className="mt-2 px-1 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Medical</p>
+      <p className="mt-2 px-1 text-caption font-semibold uppercase tracking-wide text-muted-foreground">Medical</p>
       <TextField label="Conditions" value={f.conditions} onChange={(v) => set("conditions", v)} />
       <TextField label="Medications" value={f.medications} onChange={(v) => set("medications", v)} />
       <TextField label="Allergies" value={f.allergies} onChange={(v) => set("allergies", v)} />
@@ -486,29 +487,23 @@ function EditForm({
       <TextField label="Vet phone" value={f.vetPhone} onChange={(v) => set("vetPhone", v)} />
 
       <div className="mt-2 flex gap-2">
-        <button
-          onClick={onDone}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl card-interactive py-3 text-[15px] font-semibold text-foreground"
-        >
+        <Button variant="secondary" onClick={onDone} className="flex-1">
           <X className="h-4 w-4" /> Cancel
-        </button>
-        <button
-          onClick={save}
-          disabled={saving || !weightField.valid}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
-        >
+        </Button>
+        <Button onClick={save} disabled={saving || !weightField.valid} className="flex-1">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save
-        </button>
+        </Button>
       </div>
 
       {/* Destructive, and last: below Save so it is never the button a thumb
           lands on by habit, and behind a sheet that asks why. */}
-      <button
+      <Button
+        variant="secondary"
         onClick={() => setRemoving(true)}
-        className="mt-4 flex items-center justify-center gap-1.5 rounded-xl border border-destructive/20 bg-destructive/5 py-3 text-[15px] font-semibold text-destructive"
+        className="mt-4 border-destructive bg-destructive-soft"
       >
         <Trash2 className="h-4 w-4" /> Remove pet
-      </button>
+      </Button>
 
       {removing && (
         <RemovePetSheet petId={pet.id} petName={pet.name} onClose={() => setRemoving(false)} onRemoved={onRemoved} />
@@ -564,8 +559,8 @@ function VaccinationsTab({ petId, species }: { petId: string; species: string | 
                   type="button"
                   onClick={() => setF((p) => ({ ...p, choice: o.key }))}
                   aria-pressed={f.choice === o.key}
-                  className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                    f.choice === o.key ? "border-primary bg-primary/5 text-primary-text" : "border-border bg-card text-foreground"
+                  className={`rounded-full border px-3 py-1.5 text-caption font-semibold transition-colors ${
+                    f.choice === o.key ? "border-primary bg-primary-soft text-foreground" : "border-border bg-card text-foreground"
                   }`}
                 >
                   {o.label}
@@ -593,13 +588,13 @@ function VaccinationsTab({ petId, species }: { petId: string; species: string | 
             <div key={v.id} className={`flex items-center gap-3 p-3.5 ${i < vax.length - 1 ? "border-b border-border" : ""}`}>
               <Syringe className="h-5 w-5 flex-shrink-0 text-success" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-medium text-foreground">{v.name}</p>
-                <p className="text-[12px] text-muted-foreground">
+                <p className="truncate text-body font-medium text-foreground">{v.name}</p>
+                <p className="text-caption text-muted-foreground">
                   {v.givenOn ? `Given ${v.givenOn}` : "Given —"}
                   {v.expiresOn ? ` · Expires ${v.expiresOn}` : ""}
                 </p>
               </div>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${statusBadge(v.status)}`}>{v.status}</span>
+              <span className={`rounded-full px-2 py-0.5 text-caption font-semibold capitalize ${statusBadge(v.status)}`}>{v.status}</span>
               <DeleteBtn onClick={() => remove(v.id)} />
             </div>
           ))}
@@ -671,8 +666,8 @@ function DocumentsTab({ petId }: { petId: string }) {
                 <button
                   key={d.value}
                   onClick={() => setF((p) => ({ ...p, kind: d.value }))}
-                  className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                    f.kind === d.value ? "border-primary bg-primary/5 text-primary-text" : "border-border bg-card text-foreground"
+                  className={`rounded-full border px-3 py-1.5 text-caption font-semibold transition-colors ${
+                    f.kind === d.value ? "border-primary bg-primary-soft text-foreground" : "border-border bg-card text-foreground"
                   }`}
                 >
                   {d.label}
@@ -687,7 +682,7 @@ function DocumentsTab({ petId }: { petId: string }) {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border bg-background px-3.5 py-2.5 text-[13px] text-muted-foreground"
+              className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border bg-background px-3.5 py-2.5 text-meta text-muted-foreground"
             >
               <FileText className="h-4 w-4" />
               {f.file ? f.file.name : "Attach image or PDF"}
@@ -711,16 +706,16 @@ function DocumentsTab({ petId }: { petId: string }) {
         <div className="flex flex-col gap-2.5">
           {docs.map((doc) => (
             <div key={doc.id} className="flex items-center gap-3 rounded-2xl card-raised p-3.5">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-soft">
                 <FileText className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-medium text-foreground">
+                <p className="truncate text-body font-medium text-foreground">
                   {doc.name || DOC_KINDS.find((d) => d.value === doc.kind)?.label || "Document"}
                 </p>
-                <p className="text-[12px] text-muted-foreground">{doc.expiresOn ? `Expires ${doc.expiresOn}` : "No expiry"}</p>
+                <p className="text-caption text-muted-foreground">{doc.expiresOn ? `Expires ${doc.expiresOn}` : "No expiry"}</p>
               </div>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${statusBadge(doc.status)}`}>{doc.status}</span>
+              <span className={`rounded-full px-2 py-0.5 text-caption font-semibold capitalize ${statusBadge(doc.status)}`}>{doc.status}</span>
               {doc.storagePath && (
                 <button onClick={() => view(doc.storagePath)} className="p-1.5 text-primary" aria-label="View document">
                   <ExternalLink className="h-4 w-4" />
@@ -782,14 +777,14 @@ function ContactsTab({ petId }: { petId: string }) {
         <div className="overflow-hidden rounded-2xl card-raised">
           {contacts.map((c, i) => (
             <div key={c.id} className={`flex items-center gap-3 p-3.5 ${i < contacts.length - 1 ? "border-b border-border" : ""}`}>
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-soft">
                 <Phone className="h-4 w-4 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-medium text-foreground">{c.name}</p>
-                <p className="text-[12px] text-muted-foreground">{c.role}</p>
+                <p className="truncate text-body font-medium text-foreground">{c.name}</p>
+                <p className="text-caption text-muted-foreground">{c.role}</p>
               </div>
-              <a href={`tel:${c.phone}`} className="text-[13px] font-medium text-primary-text">
+              <a href={`tel:${c.phone}`} className="text-meta font-medium text-foreground">
                 {c.phone}
               </a>
               <DeleteBtn onClick={() => remove(c.id)} />
@@ -806,11 +801,11 @@ function ContactsTab({ petId }: { petId: string }) {
 function Shell({ children, onBack, action }: { children: React.ReactNode; onBack: () => void; action?: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-40 bg-card/80 pt-safe backdrop-blur-xl">
+      <header className="sticky top-0 z-40 bg-card pt-safe backdrop-blur-xl">
         <div className="flex h-11 items-center justify-between px-4">
-          <button onClick={onBack} className="flex items-center gap-1 text-primary-text">
+          <button onClick={onBack} className="flex items-center gap-1 text-foreground">
             <ArrowLeft className="h-5 w-5" />
-            <span className="text-[17px]">Back</span>
+            <span className="text-title">Back</span>
           </button>
           {action}
         </div>
@@ -822,7 +817,7 @@ function Shell({ children, onBack, action }: { children: React.ReactNode; onBack
 
 function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <p className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <p className="mb-1.5 flex items-center gap-1.5 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
       {children}
       {required && <RequiredTag />}
     </p>
@@ -853,7 +848,7 @@ function TextField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-body focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
       />
     </div>
   )
@@ -868,7 +863,7 @@ function DateField({ label, value, onChange, required }: { label: string; value:
         required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-[14px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-body focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
       />
     </div>
   )
@@ -877,8 +872,8 @@ function DateField({ label, value, onChange, required }: { label: string; value:
 function SectionHeader({ title, onAdd, adding }: { title: string; onAdd: () => void; adding: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <h3 className="text-[15px] font-semibold text-foreground">{title}</h3>
-      <button onClick={onAdd} className="flex items-center gap-1 text-[13px] font-semibold text-primary-text">
+      <h3 className="text-body font-semibold text-foreground">{title}</h3>
+      <button onClick={onAdd} className="flex items-center gap-1 text-meta font-semibold text-foreground">
         {adding ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />} {adding ? "Close" : "Add"}
       </button>
     </div>
@@ -888,16 +883,12 @@ function SectionHeader({ title, onAdd, adding }: { title: string; onAdd: () => v
 function SaveRow({ saving, disabled, onSave, onCancel }: { saving: boolean; disabled?: boolean; onSave: () => void; onCancel: () => void }) {
   return (
     <div className="flex gap-2">
-      <button onClick={onCancel} className="flex-1 rounded-xl card-interactive py-2.5 text-[14px] font-semibold text-foreground">
+      <Button variant="secondary" onClick={onCancel} className="flex-1">
         Cancel
-      </button>
-      <button
-        onClick={onSave}
-        disabled={saving || disabled}
-        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-strong py-2.5 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
-      >
+      </Button>
+      <Button onClick={onSave} disabled={saving || disabled} className="flex-1">
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save
-      </button>
+      </Button>
     </div>
   )
 }
@@ -921,11 +912,11 @@ function Spinner() {
 function Empty({ icon: Icon, text, hint }: { icon: typeof Syringe; text: string; hint?: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-8 text-center">
-      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft">
         <Icon className="h-5 w-5 text-primary" />
       </span>
-      <p className="mt-2.5 text-[14px] font-semibold text-foreground">{text}</p>
-      {hint && <p className="mt-0.5 text-[12px] text-muted-foreground">{hint}</p>}
+      <p className="mt-2.5 text-body font-semibold text-foreground">{text}</p>
+      {hint && <p className="mt-0.5 text-caption text-muted-foreground">{hint}</p>}
     </div>
   )
 }
