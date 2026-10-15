@@ -25,7 +25,10 @@ import { shortDate } from "@/lib/dates"
 import { useIncidents, isOpenIncident } from "@/lib/data/incidents"
 import { IncidentCard } from "@/components/screens/manager/incident-card"
 import { PetDocumentReviewControls } from "@/components/screens/manager/pet-document-review"
-import { SpeciesIcon, Spinner, LoadError, EmptyState } from "@/components/screens/shared/ui"
+import { SpeciesIcon } from "@/components/screens/shared/species-icon"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
 import { approvalsState, defaultApprovalsTab, refreshFailed, type ApprovalsTabId } from "@/lib/data/approvals-view"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useBuildingScope } from "@/lib/data/use-building-scope"
@@ -40,18 +43,19 @@ import {
   Heart,
   ChevronDown,
   ChevronUp,
-  Loader2,
   AlertTriangle,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 
 type ApprovalTab = ApprovalsTabId
 
 /** A row's building, as a small line under its title; only for a manager of more than one. */
 function BuildingLine({ name }: { name: string | null }) {
   if (!name) return null
-  return <p className="truncate text-[11px] font-semibold text-muted-foreground">{name}</p>
+  return <p className="truncate text-caption font-semibold text-muted-foreground">{name}</p>
 }
 
 /**
@@ -81,7 +85,7 @@ function TabBody<T>({
       return (
         <>
           {refreshFailed(q) && (
-            <p className="mb-2 text-[12px] text-muted-foreground" role="status">
+            <p className="mb-2 text-caption text-muted-foreground" role="status">
               Couldn&apos;t refresh. Showing what loaded last.
             </p>
           )}
@@ -203,9 +207,9 @@ export function ManagerApprovalsScreen({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
+              className={`rounded-full px-3 py-1.5 text-caption font-semibold transition-all ${
                 activeTab === tab.id
-                  ? "bg-primary-strong text-primary-foreground"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -229,12 +233,9 @@ export function ManagerApprovalsScreen({
                 detail="History is in Incident reports."
                 action={
                   onNavigate && (
-                    <button
-                      onClick={() => onNavigate("incidents")}
-                      className="text-[13px] font-semibold text-primary-text underline-offset-2 hover:underline"
-                    >
+                    <Button variant="link" size="sm" onClick={() => onNavigate("incidents")}>
                       Incident reports
-                    </button>
+                    </Button>
                   )
                 }
               />
@@ -275,37 +276,37 @@ export function ManagerApprovalsScreen({
                 <div key={reg.id} className="rounded-xl card-raised overflow-hidden">
                   <button
                     onClick={() => setExpandedReg(isOpen ? null : reg.id)}
-                    className="flex w-full items-center gap-3 p-3 text-left active:bg-muted/50"
+                    className="flex w-full items-center gap-3 p-3 text-left active:bg-muted"
                   >
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-soft">
                       <SpeciesIcon species={reg.species} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-semibold text-foreground">{reg.name} — Unit {reg.unit}</p>
+                      <p className="text-body font-semibold text-foreground">{reg.name} — Unit {reg.unit}</p>
                       <BuildingLine name={labelFor(reg.buildingId)} />
-                      <p className="text-[11px] text-muted-foreground">{reg.breed} &middot; {reg.weight} &middot; {reg.age}</p>
+                      <p className="text-caption text-muted-foreground">{reg.breed} &middot; {reg.weight} &middot; {reg.age}</p>
                     </div>
                     {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                   </button>
 
                   {isOpen && (
-                    <div className="border-t border-border bg-muted/30 px-3 pb-3 pt-2.5">
-                      <p className="text-[11px] text-muted-foreground mb-2">Submitted by {reg.resident} on {reg.submitted}</p>
+                    <div className="border-t border-border bg-muted px-3 pb-3 pt-2.5">
+                      <p className="text-caption text-muted-foreground mb-2">Submitted by {reg.resident} on {reg.submitted}</p>
 
                       {/* Flags */}
                       {reg.flags.length > 0 && (
                         <div className="mb-3 flex flex-col gap-1.5">
                           {reg.flags.map((flag, i) => (
-                            <div key={i} className="flex items-start gap-2 rounded-lg bg-warning/5 border border-warning/20 p-2">
-                              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-warning-strong" />
-                              <span className="text-[11px] text-foreground">{flag}</span>
+                            <div key={i} className="flex items-start gap-2 rounded-lg bg-warning-soft border border-warning p-2">
+                              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-warning" />
+                              <span className="text-caption text-foreground">{flag}</span>
                             </div>
                           ))}
                         </div>
                       )}
 
                       {/* Document Checklist */}
-                      <p className="mb-1.5 text-[11px] font-semibold uppercase text-muted-foreground">Documents</p>
+                      <p className="mb-1.5 text-caption font-semibold uppercase text-muted-foreground">Documents</p>
                       <div className="flex flex-col gap-1 mb-3">
                         {Object.entries(reg.documents).map(([key, ok]) => (
                           <div key={key} className="flex items-center gap-2">
@@ -314,28 +315,33 @@ export function ManagerApprovalsScreen({
                             ) : (
                               <XCircle className="h-3.5 w-3.5 text-destructive" />
                             )}
-                            <span className="text-[12px] text-foreground capitalize">{key.replace(/([A-Z])/g, " $1")}</span>
+                            <span className="text-caption text-foreground capitalize">{key.replace(/([A-Z])/g, " $1")}</span>
                           </div>
                         ))}
                       </div>
 
                       {/* Actions */}
                       <div className="flex gap-2">
-                        <button
+                        <Button
+                          className="flex-1"
+                          size="sm"
                           onClick={() => approveRegistration(reg.id, reg.name)}
                           disabled={regBusy === reg.id}
-                          className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success-strong active:scale-[0.97] transition-transform disabled:opacity-60">
+                        >
                           Approve
-                        </button>
+                        </Button>
                         {/* A deny needs a reason the owner reads — the function
                             refuses one without (20261015000001) — so it asks
                             first instead of firing on the tap. */}
-                        <button
+                        <Button
+                          className="flex-1"
+                          size="sm"
+                          variant="secondary"
                           onClick={() => setDenying({ id: reg.id, name: reg.name })}
                           disabled={regBusy === reg.id}
-                          className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive active:scale-[0.97] transition-transform disabled:opacity-60">
-                          Deny
-                        </button>
+                        >
+                          <XCircle className="h-3.5 w-3.5 text-destructive" /> Deny
+                        </Button>
                         {/* No "Request Info" here.
                             It toasted "Messaging the resident isn't built yet",
                             which was a claim about the product rather than
@@ -415,7 +421,7 @@ export function ManagerApprovalsScreen({
           <div className="flex flex-col gap-2.5">
             {/* Expiring Soon Header */}
             <div className="mb-1">
-              <p className="text-[12px] font-semibold text-muted-foreground">
+              <p className="text-caption font-semibold text-muted-foreground">
                 Documents awaiting your verdict — approved or rejected ones leave this list
               </p>
             </div>
@@ -423,28 +429,24 @@ export function ManagerApprovalsScreen({
               <div key={doc.id} className="flex flex-col gap-2.5 rounded-xl card-raised p-3">
                 <div className="flex items-center gap-3">
                   <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
-                    doc.status === "expiring" ? "bg-warning/10" : "bg-info/10"
+                    doc.status === "expiring" ? "bg-warning-soft" : "bg-info-soft"
                   }`}>
                     {doc.status === "expiring" ? (
-                      <Clock className="h-4 w-4 text-warning-strong" />
+                      <Clock className="h-4 w-4 text-warning" />
                     ) : (
                       <Shield className="h-4 w-4 text-info" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="truncate text-[13px] font-semibold text-foreground">{doc.type}</p>
-                    <p className="text-[11px] text-muted-foreground">{doc.pet} &middot; Unit {doc.unit}</p>
+                    <p className="truncate text-meta font-semibold text-foreground">{doc.type}</p>
+                    <p className="text-caption text-muted-foreground">{doc.pet} &middot; Unit {doc.unit}</p>
                     <BuildingLine name={labelFor(doc.buildingId)} />
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <Badge className={`border-0 text-[9px] ${
-                      doc.status === "expiring"
-                        ? "bg-warning/10 text-warning-strong"
-                        : "bg-info/10 text-info"
-                    }`}>
+                    <Badge variant={doc.status === "expiring" ? "warning" : "info"}>
                       {doc.status === "expiring" ? "Expiring" : "To review"}
                     </Badge>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">{doc.expiring}</p>
+                    <p className="mt-0.5 text-caption text-muted-foreground">{doc.expiring}</p>
                   </div>
                 </div>
                 <PetDocumentReviewControls doc={doc} onDone={refetchDocs} />
@@ -523,10 +525,11 @@ function AccommodationsTab({
   )
 }
 
+// The words stay dark; the icon beside each line carries the state's colour.
 const CHECK_TONE: Record<ChecklistItem["state"], string> = {
-  verified: "text-success-strong",
-  provided: "text-warning",
-  rejected: "text-destructive",
+  verified: "text-foreground",
+  provided: "text-foreground",
+  rejected: "text-foreground",
   missing: "text-muted-foreground",
 }
 const CHECK_WORD: Record<ChecklistItem["state"], string> = {
@@ -601,19 +604,19 @@ function AccommodationCard({
     <div className={`rounded-xl card-raised overflow-hidden ${request.status === "withdrawn" ? "opacity-60" : ""}`}>
       <button
         onClick={onToggle}
-        className="flex w-full items-center gap-3 p-3 text-left active:bg-muted/50"
+        className="flex w-full items-center gap-3 p-3 text-left active:bg-muted"
       >
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
-          {request.type === "esa" ? <Heart className="h-5 w-5 text-accent" /> : <Shield className="h-5 w-5 text-accent" />}
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-soft">
+          {request.type === "esa" ? <Heart className="h-5 w-5 text-primary" /> : <Shield className="h-5 w-5 text-primary" />}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="text-[14px] font-semibold text-foreground break-words">
+            <p className="text-body font-semibold text-foreground break-words">
               {ACCOMMODATION_TYPE_LABEL[request.type]}
             </p>
-            <Badge className="border-0 bg-accent/10 text-[9px] text-accent">{STATUS_LABEL[request.status]}</Badge>
+            <Badge variant="brand">{STATUS_LABEL[request.status]}</Badge>
           </div>
-          <p className="text-[11px] text-muted-foreground break-words">
+          <p className="text-caption text-muted-foreground break-words">
             {/* Three different facts, said as three different things. A request
                 may name no pet at all; it may name one whose record this
                 manager cannot read (measured: a live MCR request names a pet
@@ -636,8 +639,8 @@ function AccommodationCard({
       </button>
 
       {isOpen && (
-        <div className="border-t border-border bg-muted/30 px-3 pb-3 pt-2.5">
-          <p className="mb-2 text-[11px] text-muted-foreground break-words">
+        <div className="border-t border-border bg-muted px-3 pb-3 pt-2.5">
+          <p className="mb-2 text-caption text-muted-foreground break-words">
             {request.residentName}
             {request.submittedAt ? ` · submitted ${shortDate(request.submittedAt)}` : ""}
             {request.withdrawnAt ? ` · withdrawn ${shortDate(request.withdrawnAt)}` : ""}
@@ -645,29 +648,29 @@ function AccommodationCard({
 
           {request.animalDesc && (
             <div className="mb-3 rounded-lg border border-border bg-background p-2.5">
-              <p className="text-[11px] font-semibold uppercase text-muted-foreground">In the resident&apos;s words</p>
+              <p className="text-caption font-semibold uppercase text-muted-foreground">In the resident&apos;s words</p>
               {/* break-words, not pre-wrap alone. `whitespace-pre-wrap` wraps at
                   spaces only, and Phase 6 clipped 3526px of a resident's text
                   out of view because the clipping ancestor is overflow-x:auto. */}
-              <p className="mt-1 whitespace-pre-wrap break-words text-[12px] leading-relaxed text-foreground">
+              <p className="mt-1 whitespace-pre-wrap break-words text-caption leading-relaxed text-foreground">
                 {request.animalDesc}
               </p>
             </div>
           )}
 
           {request.legalNote && (
-            <div className="mb-3 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
+            <div className="mb-3 rounded-lg border border-primary bg-primary-soft p-2.5">
               <div className="flex items-start gap-2">
                 <Scale className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold text-primary-text">Guidance (the resident can read this)</p>
-                  <p className="mt-0.5 break-words text-[11px] leading-relaxed text-foreground">{request.legalNote}</p>
+                  <p className="text-caption font-semibold text-foreground">Guidance (the resident can read this)</p>
+                  <p className="mt-0.5 break-words text-caption leading-relaxed text-foreground">{request.legalNote}</p>
                 </div>
               </div>
             </div>
           )}
 
-          <p className="mb-1.5 text-[11px] font-semibold uppercase text-muted-foreground">Documentation</p>
+          <p className="mb-1.5 text-caption font-semibold uppercase text-muted-foreground">Documentation</p>
           <div className="mb-3 flex flex-col gap-1.5">
             {items.map((item) => {
               const doc = item.documentId ? documents.find((d) => d.id === item.documentId) : undefined
@@ -684,27 +687,24 @@ function AccommodationCard({
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="break-words text-[12px] font-medium text-foreground">
+                      <p className="break-words text-caption font-medium text-foreground">
                         {item.label}
                         {item.required ? "" : " (optional)"}
                       </p>
-                      <p className={`text-[11px] ${CHECK_TONE[item.state]}`}>
+                      <p className={`text-caption ${CHECK_TONE[item.state]}`}>
                         {item.kind === "animal_desc" ? DESC_WORD[item.state] : CHECK_WORD[item.state]}
                       </p>
                       {doc && (
-                        <p className="mt-0.5 break-words text-[10px] text-muted-foreground">
+                        <p className="mt-0.5 break-words text-caption text-muted-foreground">
                           {doc.label ?? "Untitled"} &middot; {fileSize(doc.sizeBytes)}
                           {doc.uploadedAt ? ` · ${shortDate(doc.uploadedAt)}` : ""}
                         </p>
                       )}
                     </div>
                     {doc && doc.storagePath && (
-                      <button
-                        onClick={() => setViewing(doc.id)}
-                        className="flex-shrink-0 rounded-lg bg-muted px-2 py-1 text-[11px] font-semibold text-foreground"
-                      >
+                      <Button size="sm" variant="secondary" className="flex-shrink-0" onClick={() => setViewing(doc.id)}>
                         Open
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -715,47 +715,52 @@ function AccommodationCard({
           {isOpenRequest ? (
             <>
               {!readyToApprove && (
-                <p className="mb-2 break-words text-[11px] text-muted-foreground">
+                <p className="mb-2 break-words text-caption text-muted-foreground">
                   {missing.length > 0
                     ? `Approve is unavailable until this is provided: ${missing.join(", ")}.`
                     : "Approve is unavailable until every required document is verified. Open each one and record a verdict."}
                 </p>
               )}
               <div className="flex flex-wrap gap-2">
-                <button
+                <Button
+                  className="flex-1"
+                  size="sm"
                   disabled={!readyToApprove || busy}
                   onClick={() => runDecision("approved", "")}
-                  className="flex-1 rounded-lg bg-success/10 py-2 text-[12px] font-semibold text-success-strong transition-transform active:scale-[0.97] disabled:opacity-50"
                 >
                   Approve
-                </button>
-                <button
+                </Button>
+                <Button
+                  className="flex-1"
+                  size="sm"
+                  variant="secondary"
                   disabled={busy}
                   onClick={() => setDecision("denied")}
-                  className="flex-1 rounded-lg bg-destructive/10 py-2 text-[12px] font-semibold text-destructive transition-transform active:scale-[0.97] disabled:opacity-50"
                 >
-                  Deny
-                </button>
+                  <XCircle className="h-3.5 w-3.5 text-destructive" /> Deny
+                </Button>
                 {/* Was "Verify Docs". It never verified anything — it set
                     info_requested. Renamed to what it does, and it now carries
                     the note that makes "we need more" actionable. */}
-                <button
+                <Button
+                  className="flex-1"
+                  size="sm"
+                  variant="secondary"
                   disabled={busy}
                   onClick={() => setDecision("info_requested")}
-                  className="flex-1 rounded-lg bg-primary/10 py-2 text-[12px] font-semibold text-primary-text transition-transform active:scale-[0.97] disabled:opacity-50"
                 >
                   Request more information
-                </button>
+                </Button>
               </div>
             </>
           ) : (
             <div className="rounded-lg border border-border bg-background p-2.5">
-              <p className="text-[11px] font-semibold text-muted-foreground">
+              <p className="text-caption font-semibold text-muted-foreground">
                 {STATUS_LABEL[request.status]}
                 {request.decidedAt ? ` · ${shortDate(request.decidedAt)}` : ""}
               </p>
               {request.decisionNote && (
-                <p className="mt-1 whitespace-pre-wrap break-words text-[12px] text-foreground">
+                <p className="mt-1 whitespace-pre-wrap break-words text-caption text-foreground">
                   {request.decisionNote}
                 </p>
               )}
@@ -838,39 +843,30 @@ function DecisionSheet({
       overlayClassName="flex items-end justify-center bg-black/50 sm:items-center"
       className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-card p-5 sm:rounded-2xl"
     >
-          <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">
+          <DialogTitle className="text-title font-semibold leading-normal text-foreground">
             {outcome === "denied" ? "Deny this request" : "Ask for more information"}
           </DialogTitle>
-          <DialogDescription className="mt-1 break-words text-[12px] leading-relaxed text-muted-foreground">
+          <DialogDescription className="mt-1 break-words text-caption leading-relaxed text-muted-foreground">
             {outcome === "denied"
               ? "The reasoning is what defends this decision. The resident will be able to read it."
               : "Say what is still needed. The resident will be able to read it."}
           </DialogDescription>
-          <label htmlFor="accom-decision-note" className="mt-3 mb-1 block text-[11px] font-semibold text-muted-foreground">
+          <label htmlFor="accom-decision-note" className="mt-3 mb-1 block text-caption font-semibold text-muted-foreground">
             {needsNote ? "Reason (required)" : "What is needed"}
           </label>
-          <textarea
+          <Textarea
             id="accom-decision-note"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={4}
-            className="w-full rounded-lg border border-border bg-background p-2 text-[13px] text-foreground"
           />
           <div className="mt-3 flex gap-2">
-            <button
-              onClick={onCancel}
-              className="flex-1 rounded-xl bg-muted py-3 text-[15px] font-semibold text-foreground"
-            >
+            <Button className="flex-1" variant="secondary" onClick={onCancel}>
               Cancel
-            </button>
-            <button
-              onClick={onSubmit}
-              disabled={busy || (needsNote && !hasNote)}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
-            >
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            </Button>
+            <Button className="flex-1" onClick={onSubmit} disabled={needsNote && !hasNote} loading={busy}>
               {outcome === "denied" ? "Deny" : "Send"}
-            </button>
+            </Button>
           </div>
     </DialogLayer>
   )

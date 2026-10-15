@@ -46,6 +46,9 @@ import { NotificationSettingsSheet } from "@/components/notification-settings-sh
 import { AuditLogScreen } from "./audit-log-screen"
 import { ComplianceReportScreen } from "./compliance-report-screen"
 import { StaffAccessScreen } from "./staff-access-screen"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 
 const RULE_TOGGLES: { key: keyof PetRules; label: string }[] = [
   { key: "requires_registry", label: "Requires pet registration" },
@@ -133,21 +136,21 @@ export function ManagerSettingsScreen({
 
         {/* Profile Card */}
         <section className="mb-5">
-          <div className="rounded-2xl card-raised p-4">
+          <div className="rounded-lg card-raised p-4">
             <div className="flex items-center gap-3">
               <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-full bg-muted">
                 {user?.avatar ? (
                   <Image src={user.avatar} alt={user.name ?? ""} fill className="object-cover" />
                 ) : (
-                  <span className="flex h-full w-full items-center justify-center text-[18px] font-semibold text-muted-foreground">
+                  <span className="flex h-full w-full items-center justify-center text-title font-semibold text-muted-foreground">
                     {user?.name?.charAt(0) ?? "?"}
                   </span>
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-[17px] font-semibold text-foreground">{user?.name}</h2>
-                <p className="truncate text-[12px] text-muted-foreground">{building?.name ?? "No building assigned"}</p>
-                <Badge className="mt-1 border-0 bg-primary/10 text-[10px] text-primary-text">{PERSONA_LABEL[viewAs]}</Badge>
+                <h2 className="truncate text-title font-semibold text-foreground">{user?.name}</h2>
+                <p className="truncate text-caption text-muted-foreground">{building?.name ?? "No building assigned"}</p>
+                <Badge variant="brand" className="mt-1">{PERSONA_LABEL[viewAs]}</Badge>
               </div>
             </div>
           </div>
@@ -171,7 +174,7 @@ export function ManagerSettingsScreen({
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : !building ? (
-          <p className="rounded-2xl card-raised px-4 py-6 text-center text-[13px] text-muted-foreground">
+          <p className="rounded-lg card-raised px-4 py-6 text-center text-meta text-muted-foreground">
             You aren&apos;t assigned to a building yet. Ask a Pet10x admin to add you.
           </p>
         ) : building.archivedAt ? (
@@ -232,17 +235,14 @@ export function ManagerSettingsScreen({
         <HelpLegalSection title="Support" />
 
         <section className="mb-5">
-          <button
-            onClick={signOut}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 transition-transform active:scale-[0.98]"
-          >
+          <Button variant="secondary" className="w-full" onClick={signOut}>
             <LogOut className="h-5 w-5 text-destructive" />
-            <span className="text-[14px] font-semibold text-destructive">Sign Out</span>
-          </button>
+            Sign Out
+          </Button>
         </section>
 
         <div className="mb-4 text-center">
-          <p className="text-[11px] text-muted-foreground">Pet10x v1.0.0 &middot; Park10x Services Inc.</p>
+          <p className="text-caption text-muted-foreground">Pet10x v1.0.0 &middot; Park10x Services Inc.</p>
         </div>
       </main>
 
@@ -272,7 +272,7 @@ export function ManagerSettingsScreen({
       )}
       {building && sheet === "rules" && (
         <Sheet title="House Rules" onClose={() => setSheet(null)}>
-          <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
+          <p className="mb-3 text-caption leading-relaxed text-muted-foreground">
             Written notices residents read in their account &mdash; parking, noise, waste, common areas. These are
             statements, not compliance checks: nothing here changes a resident&apos;s score.
           </p>
@@ -350,7 +350,7 @@ function BuildingProfileSheet({
         value={form.postalCode}
         onChange={(v) => setForm((p) => ({ ...p, postalCode: v }))}
       />
-      <p className="-mt-1 mb-3 text-[11.5px] leading-relaxed text-muted-foreground">
+      <p className="-mt-1 mb-3 text-caption leading-relaxed text-muted-foreground">
         Residents linked to this building see this as their home address — they don&apos;t retype it. The postal
         code also lets Pet10x recognise residents who sign up without a code.
       </p>
@@ -363,10 +363,10 @@ function BuildingProfileSheet({
         value={form.buildingCode}
         onChange={(v) => setForm((p) => ({ ...p, buildingCode: v.toUpperCase().replace(/[^A-Z0-9]/g, "") }))}
       />
-      <p className="-mt-1 mb-3 text-[11.5px] leading-relaxed text-muted-foreground">
+      <p className="-mt-1 mb-3 text-caption leading-relaxed text-muted-foreground">
         4–12 letters and numbers. Residents enter this to join.
         {codeChanged && (
-          <span className="mt-1 block font-semibold text-warning-strong">
+          <span className="mt-1 block font-semibold text-foreground">
             Changing it stops <span className="font-mono">{building.code}</span> working immediately. Anyone
             part-way through joining with the old code will need the new one. Residents already linked are
             unaffected.
@@ -418,12 +418,12 @@ function BylawsSheet({
 
   return (
     <Sheet title="Pet Bylaws & Policies" onClose={onClose} busy={busy}>
-      <p className="mb-3 text-[12px] text-muted-foreground">
+      <p className="mb-3 text-caption text-muted-foreground">
         These drive every compliance check in the app. Turning one on immediately affects each resident&apos;s score.
       </p>
 
       <div className="mb-4 rounded-xl border border-border p-3">
-        <p className="mb-1 text-[12px] font-semibold text-foreground">Enforcement</p>
+        <p className="mb-1 text-caption font-semibold text-foreground">Enforcement</p>
         <button
           onClick={() => setRules((p) => ({ ...p, allow_direct_fine: !p.allow_direct_fine }))}
           role="switch"
@@ -431,8 +431,8 @@ function BylawsSheet({
           className="flex w-full items-center justify-between gap-3 rounded-xl bg-muted px-3 py-2.5 text-left"
         >
           <span className="min-w-0">
-            <span className="block text-[13px] text-foreground">Allow a fine without a warning</span>
-            <span className="block text-[11.5px] text-muted-foreground">
+            <span className="block text-meta text-foreground">Allow a fine without a warning</span>
+            <span className="block text-caption text-muted-foreground">
               {rules.allow_direct_fine
                 ? "A manager may fine a new case straight away."
                 : "A case must carry a warning before it can carry a fine."}
@@ -444,7 +444,7 @@ function BylawsSheet({
             }`}
           >
             <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-primary-foreground shadow-sm transition-transform ${
                 rules.allow_direct_fine ? "translate-x-4" : "translate-x-0.5"
               }`}
             />
@@ -461,14 +461,14 @@ function BylawsSheet({
             aria-checked={Boolean(rules[r.key])}
             className="flex items-center justify-between rounded-xl bg-muted px-3 py-2.5 text-left"
           >
-            <span className="text-[13px] text-foreground">{r.label}</span>
+            <span className="text-meta text-foreground">{r.label}</span>
             <span
               className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
                 rules[r.key] ? "bg-success" : "bg-border"
               }`}
             >
               <span
-                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-primary-foreground shadow-sm transition-transform ${
                   rules[r.key] ? "translate-x-4" : "translate-x-0.5"
                 }`}
               />
@@ -483,15 +483,14 @@ function BylawsSheet({
         onChange={(v) => setRules((p) => ({ ...p, max_weight_kg: v ? Number(v.replace(/\D/g, "")) : null }))}
       />
       <div className="mb-3">
-        <label htmlFor="bylaw-notes" className="mb-1 block text-[12px] font-semibold text-muted-foreground">
+        <label htmlFor="bylaw-notes" className="mb-1 block text-caption font-semibold text-muted-foreground">
           Notes / bylaw reference
         </label>
-        <textarea
+        <Textarea
           id="bylaw-notes"
           value={rules.notes ?? ""}
           onChange={(e) => setRules((p) => ({ ...p, notes: e.target.value }))}
           rows={4}
-          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-[14px] text-foreground focus:border-primary focus:outline-none"
         />
       </div>
 
@@ -548,7 +547,7 @@ function EmergencyQrSheet({ buildingId, onClose }: { buildingId: string; onClose
 
   return (
     <Sheet title="Emergency QR Code" onClose={onClose} busy={busy}>
-      <p className="mb-3 text-[12px] text-muted-foreground">
+      <p className="mb-3 text-caption text-muted-foreground">
         Issues a time-boxed, read-only link to this building&apos;s pet directory for first responders. Expires after 4
         hours and can be revoked at any time. Supplementary information only — not a life-safety system.
       </p>
@@ -563,25 +562,21 @@ function EmergencyQrSheet({ buildingId, onClose }: { buildingId: string; onClose
             /* eslint-disable-next-line @next/next/no-img-element */
             <img src={qr} alt="Emergency access QR code" className="h-48 w-48 rounded-xl border border-border" />
           )}
-          <p className="text-[12px] text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             Expires {new Date(active.expiresAt).toLocaleString()}
           </p>
-          <button
+          <Button
+            variant="secondary"
             onClick={() => {
               void navigator.clipboard.writeText(url)
               toast.success("Link copied")
             }}
-            className="flex items-center gap-1.5 rounded-xl bg-muted px-4 py-2 text-[13px] font-semibold text-foreground"
           >
             <Copy className="h-3.5 w-3.5" /> Copy link
-          </button>
-          <button
-            onClick={() => revoke(active.id)}
-            disabled={busy}
-            className="flex items-center gap-1.5 rounded-xl bg-destructive/10 px-4 py-2 text-[13px] font-semibold text-destructive disabled:opacity-60"
-          >
-            <Ban className="h-3.5 w-3.5" /> Revoke access
-          </button>
+          </Button>
+          <Button variant="secondary" onClick={() => revoke(active.id)} disabled={busy}>
+            <Ban className="h-3.5 w-3.5 text-destructive" /> Revoke access
+          </Button>
         </div>
       ) : (
         <SheetButton onClick={issue} busy={busy} label="Issue 4-hour access" />
@@ -600,9 +595,12 @@ function StatTile({ label, value, tone }: { label: string; value: string | null;
       {value === null ? (
         <Loader2 className="mx-auto h-4 w-4 animate-spin text-muted-foreground" />
       ) : (
-        <p className={`text-[18px] font-bold ${tone === "danger" ? "text-destructive" : "text-foreground"}`}>{value}</p>
+        <p className="text-title font-bold text-foreground">{value}</p>
       )}
-      <p className="text-[9px] font-medium text-muted-foreground">{label}</p>
+      <p className="flex items-center justify-center gap-1.5 text-caption font-medium text-muted-foreground">
+        {tone === "danger" && <span aria-hidden="true" className="size-2 rounded-full bg-destructive" />}
+        {label}
+      </p>
     </div>
   )
 }
@@ -610,8 +608,8 @@ function StatTile({ label, value, tone }: { label: string; value: string | null;
 function MenuSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-5">
-      <h3 className="mb-2 px-1 text-[11px] font-semibold uppercase text-muted-foreground">{title}</h3>
-      <div className="overflow-hidden rounded-2xl card-raised">{children}</div>
+      <h3 className="mb-2 px-1 text-caption font-semibold uppercase text-muted-foreground">{title}</h3>
+      <div className="overflow-hidden rounded-lg card-raised">{children}</div>
     </section>
   )
 }
@@ -641,8 +639,8 @@ function MenuRow({
       } ${last ? "" : "border-b border-border"}`}
     >
       <Icon className="h-5 w-5 text-primary" />
-      <span className="flex-1 text-[14px] text-foreground">{label}</span>
-      {detail && <span className="truncate text-[12px] text-muted-foreground">{detail}</span>}
+      <span className="flex-1 text-body text-foreground">{label}</span>
+      {detail && <span className="truncate text-caption text-muted-foreground">{detail}</span>}
       {/* No chevron on a row that goes nowhere — the arrow is the strongest
           "this leads somewhere" signal on the row. */}
       {!disabled && <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />}
@@ -677,15 +675,10 @@ function Sheet({
       className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-card p-5 sm:rounded-2xl"
     >
         <div className="mb-4 flex items-center justify-between">
-          <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground">{title}</DialogTitle>
-          <button
-            onClick={onClose}
-            disabled={busy}
-            aria-label="Close"
-            className="rounded-lg p-1 text-muted-foreground active:bg-muted disabled:opacity-50"
-          >
+          <DialogTitle className="text-title font-semibold leading-normal text-foreground">{title}</DialogTitle>
+          <Button variant="quiet" size="icon-sm" onClick={onClose} disabled={busy} aria-label="Close">
             <X className="h-5 w-5" aria-hidden="true" />
-          </button>
+          </Button>
         </div>
         {children}
     </DialogLayer>
@@ -696,26 +689,16 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
   const id = useId()
   return (
     <div className="mb-3">
-      <label htmlFor={id} className="mb-1 block text-[12px] font-semibold text-muted-foreground">{label}</label>
-      <input
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-[14px] text-foreground focus:border-primary focus:outline-none"
-      />
+      <label htmlFor={id} className="mb-1 block text-caption font-semibold text-muted-foreground">{label}</label>
+      <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   )
 }
 
 function SheetButton({ onClick, busy, label }: { onClick: () => void; busy: boolean; label: string }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={busy}
-      className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-strong py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
-    >
-      {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+    <Button className="mt-1 w-full" size="lg" onClick={onClick} loading={busy}>
       {label}
-    </button>
+    </Button>
   )
 }

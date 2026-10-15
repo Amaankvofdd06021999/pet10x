@@ -27,19 +27,31 @@ import { useBuildingScope } from "@/lib/data/use-building-scope"
 import { ledgerColumnKeys } from "@/lib/data/building-scope"
 import { ScopeNotice } from "@/components/screens/manager/scope-notice"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import {
-  SectionCard, Spinner, LoadError, EmptyState, Button, Pill, Modal, Field,
-  TextInput, TextArea, Select, SegmentedTabs, Toolbar, StatTile,
-} from "@/components/screens/shared/ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { EmptyState } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Modal } from "@/components/ui/dialog"
+import { Field } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { NativeSelect } from "@/components/ui/select"
+import { SegmentedTabs } from "@/components/ui/segmented-tabs"
+import { Toolbar } from "@/components/ui/toolbar"
+import { StatTile } from "@/components/ui/stat-tile"
+import { ErrorText } from "@/components/ui/error-text"
 
 type Tab = "cases" | "resolved" | "incidents"
 
-const STAGE_TONE: Record<string, "neutral" | "good" | "warn" | "bad" | "info" | "accent"> = {
+// A stage is a Badge variant; the words stay dark.
+const STAGE_BADGE: Record<string, "neutral" | "success" | "warning" | "danger"> = {
   open: "neutral",
-  warning: "warn",
-  fine_1: "bad",
-  fine_2: "bad",
-  resolved: "good",
+  warning: "warning",
+  fine_1: "danger",
+  fine_2: "danger",
+  resolved: "success",
   dismissed: "neutral",
 }
 
@@ -139,7 +151,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
       render: (v) => (
         <div className="min-w-0">
           <p className="truncate font-semibold text-foreground">{v.pet || "Unidentified"}</p>
-          <p className="truncate text-[11.5px] text-muted-foreground">{v.type}</p>
+          <p className="truncate text-caption text-muted-foreground">{v.type}</p>
         </div>
       ),
     },
@@ -162,11 +174,11 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
       sortValue: (v) => v.stage,
       render: (v) => (
         <span className="flex flex-wrap items-center gap-1">
-          <Pill tone={STAGE_TONE[v.stage] ?? "neutral"}>{v.stageLabel}</Pill>
+          <Badge variant={STAGE_BADGE[v.stage] ?? "neutral"}>{v.stageLabel}</Badge>
           {v.openDispute && (
-            <Pill tone="info" title="An appeal is open — decide it before this case can move">
+            <Badge variant="info" title="An appeal is open — decide it before this case can move">
               Appeal · decide
-            </Pill>
+            </Badge>
           )}
         </span>
       ),
@@ -181,7 +193,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
         v.amount === 0 ? (
           <span className="text-muted-foreground">—</span>
         ) : (
-          <span className={v.outstanding > 0 ? "font-semibold text-destructive" : "text-success-strong"}>
+          <span className={v.outstanding > 0 ? "font-semibold text-foreground" : "text-foreground"}>
             {v.outstanding > 0 ? fromDollars(v.outstanding) : "Settled"}
           </span>
         ),
@@ -208,7 +220,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
       <ScopeNotice notice={notice} />
       {/* Phone only: on desktop the tables carry a Building column. */}
       {showBuilding && activeName && (
-        <p className="text-[13px] font-semibold text-muted-foreground md:hidden">{activeName}</p>
+        <p className="text-meta font-semibold text-muted-foreground md:hidden">{activeName}</p>
       )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Open cases" value={active.data.length} />
@@ -269,11 +281,11 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Pet, resident, unit or type"
-              className="w-full rounded-xl border border-input bg-card py-2 pl-9 pr-3 text-[13.5px] outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="w-full rounded-xl border border-input bg-card py-2 pl-9 pr-3 text-meta outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary"
             />
           </div>
           <label htmlFor="viol-stage" className="sr-only">Filter by stage</label>
-          <Select id="viol-stage" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} className="w-auto">
+          <NativeSelect id="viol-stage" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} className="w-auto">
             <option value="all">All stages ({counts.all})</option>
             <option value="outstanding">Fines owed ({counts.outstanding})</option>
             <option value="disputed">Under appeal ({counts.disputed})</option>
@@ -281,7 +293,7 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
             <option value="warning">Warning</option>
             <option value="fine_1">First fine</option>
             <option value="fine_2">Second fine</option>
-          </Select>
+          </NativeSelect>
         </Toolbar>
       )}
 
@@ -373,7 +385,7 @@ function IncidentsTable({
       render: (i) => (
         <div className="min-w-0">
           <p className="truncate font-semibold capitalize text-foreground">{String(i.type).replace(/_/g, " ")}</p>
-          <p className="truncate text-[11.5px] text-muted-foreground">{i.reference ?? "—"}</p>
+          <p className="truncate text-caption text-muted-foreground">{i.reference ?? "—"}</p>
         </div>
       ),
     },
@@ -387,9 +399,9 @@ function IncidentsTable({
       key: "status",
       header: "Status",
       sortValue: (i) => i.status,
-      render: (i) => <Pill tone={i.status === "dismissed" ? "neutral" : i.status === "linked_to_violation" ? "accent" : "warn"}>
+      render: (i) => <Badge variant={i.status === "dismissed" ? "neutral" : i.status === "linked_to_violation" ? "brand" : "warning"}>
         {String(i.status).replace(/_/g, " ")}
-      </Pill>,
+      </Badge>,
     },
     {
       key: "evidence",
@@ -405,12 +417,12 @@ function IncidentsTable({
       align: "right",
       render: (i) =>
         i.status === "linked_to_violation" ? (
-          <span className="text-[11.5px] text-muted-foreground">Escalated</span>
+          <span className="text-caption text-muted-foreground">Escalated</span>
         ) : (
           <span className="flex justify-end gap-1.5">
             <Button
               size="sm"
-              busy={busy === i.id}
+              loading={busy === i.id}
               onClick={async (e) => {
                 e.stopPropagation()
                 if (!i.petId) {
@@ -428,7 +440,7 @@ function IncidentsTable({
             </Button>
             <Button
               size="sm"
-              variant="ghost"
+              variant="quiet"
               onClick={async (e) => {
                 e.stopPropagation()
                 setBusy(i.id)
@@ -545,7 +557,7 @@ function LogViolationModal({
         step === 1 ? (
           <>
             <Button variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button busy={busy} onClick={() => void createCase()}>Open case &amp; continue</Button>
+            <Button loading={busy} onClick={() => void createCase()}>Open case &amp; continue</Button>
           </>
         ) : (
           <Button
@@ -567,14 +579,14 @@ function LogViolationModal({
         <div className="flex flex-col gap-3">
           <Field label="Search" hint="Pet name, resident name or unit number">
             {(p) => (
-              <TextInput {...p} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Bramble, Novak, 402…" />
+              <Input {...p} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Bramble, Novak, 402…" />
             )}
           </Field>
 
           {subjects.isLoading ? (
             <Spinner />
           ) : matches.length === 0 ? (
-            <p className="text-[12.5px] text-muted-foreground">No pet, resident or unit matches that.</p>
+            <p className="text-caption text-muted-foreground">No pet, resident or unit matches that.</p>
           ) : (
             <ul className="flex max-h-56 flex-col gap-1 overflow-y-auto">
               {matches.map((s) => {
@@ -586,16 +598,16 @@ function LogViolationModal({
                       onClick={() => setPicked(s)}
                       aria-pressed={on}
                       className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left ${
-                        on ? "border-primary bg-primary/10" : "border-border hover:bg-secondary"
+                        on ? "border-primary bg-primary-soft" : "border-border hover:bg-muted"
                       }`}
                     >
                       <span className="min-w-0">
-                        <span className="block truncate text-[13.5px] font-semibold text-foreground">{s.petName}</span>
-                        <span className="block truncate text-[12px] text-muted-foreground">
+                        <span className="block truncate text-meta font-semibold text-foreground">{s.petName}</span>
+                        <span className="block truncate text-caption text-muted-foreground">
                           {s.residentName} · Unit {s.unitNumber}
                         </span>
                       </span>
-                      {on && <Pill tone="accent">Selected</Pill>}
+                      {on && <Badge variant="brand">Selected</Badge>}
                     </button>
                   </li>
                 )
@@ -605,7 +617,7 @@ function LogViolationModal({
 
           <Field label="What happened" required error={error}>
             {(p) => (
-              <Select {...p} value={type} onChange={(e) => setType(e.target.value)}>
+              <NativeSelect {...p} value={type} onChange={(e) => setType(e.target.value)}>
                 <option value="noise">Noise</option>
                 <option value="aggressive">Aggressive behaviour</option>
                 <option value="off_leash">Off leash</option>
@@ -613,7 +625,7 @@ function LogViolationModal({
                 <option value="damage">Damage</option>
                 <option value="unregistered">Unregistered pet</option>
                 <option value="other">Other</option>
-              </Select>
+              </NativeSelect>
             )}
           </Field>
         </div>
@@ -643,13 +655,13 @@ function Stepper({ step }: { step: 1 | 2 }) {
         return (
           <li key={label} className="flex flex-1 items-center gap-2">
             <span
-              className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                done ? "bg-success-strong text-success-foreground" : on ? "bg-primary-strong text-primary-foreground" : "bg-secondary text-muted-foreground"
+              className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-caption font-bold ${
+                done ? "bg-success text-success-foreground" : on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}
             >
               {done ? "✓" : n}
             </span>
-            <span className={`truncate text-[12px] ${on ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+            <span className={`truncate text-caption ${on ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
               {label}
             </span>
             {i === 0 && <span className="h-px flex-1 bg-border" aria-hidden="true" />}
@@ -796,12 +808,12 @@ function CaseModal({
         wide
         footer={
           violation.openDispute ? (
-            <p className="text-[12px] text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               Decide the appeal above before this case can move again.
             </p>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => setClosing("dismiss")}>Dismiss</Button>
+              <Button variant="quiet" onClick={() => setClosing("dismiss")}>Dismiss</Button>
               <Button variant="secondary" onClick={() => setClosing("resolve")}>Mark resolved</Button>
               {degree && (
                 <Button variant="danger" onClick={() => setMoney({ kind: "fine", degree })}>
@@ -842,19 +854,19 @@ function CaseModal({
                 {owed.map((f) => (
                   <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                     <span className="flex items-center gap-2">
-                      <span className="text-[13.5px] font-semibold tabular-nums text-foreground">
+                      <span className="text-meta font-semibold tabular-nums text-foreground">
                         {fromCents(f.amountCents)}
                         {f.currency.toUpperCase() !== "CAD" && ` ${f.currency.toUpperCase()}`}
                       </span>
-                      <Pill tone={f.status === "issued" ? "bad" : "warn"}>
+                      <Badge variant={f.status === "issued" ? "danger" : "warning"}>
                         {f.status === "issued" ? "Owed" : "Partly paid"}
-                      </Pill>
+                      </Badge>
                     </span>
                     <span className="flex gap-1.5">
                       <Button size="sm" variant="secondary" onClick={() => setMoney({ kind: "paid", fine: f })}>
                         Mark paid
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setMoney({ kind: "waived", fine: f })}>
+                      <Button size="sm" variant="quiet" onClick={() => setMoney({ kind: "waived", fine: f })}>
                         Waive
                       </Button>
                     </span>
@@ -1023,7 +1035,7 @@ function MoneyActModal({
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button variant={act.kind === "fine" ? "danger" : "primary"} busy={busy} onClick={() => void submit()}>
+          <Button variant={act.kind === "fine" ? "danger" : "primary"} loading={busy} onClick={() => void submit()}>
             {confirmLabel}
           </Button>
         </>
@@ -1031,7 +1043,7 @@ function MoneyActModal({
     >
       <div className="flex flex-col gap-3">
         {(act.kind === "paid" || act.kind === "waived") && (
-          <p className="text-[13px] leading-relaxed text-foreground">
+          <p className="text-meta leading-relaxed text-foreground">
             {act.kind === "paid" ? (
               <>
                 Record the <span className="font-semibold">{fromCents(act.fine.amountCents)}</span> fine as paid. This
@@ -1047,7 +1059,7 @@ function MoneyActModal({
           </p>
         )}
         {act.kind === "remind" && (
-          <p className="text-[13px] leading-relaxed text-foreground">
+          <p className="text-meta leading-relaxed text-foreground">
             The resident is reminded of everything still owed on this case ({fromDollars(violation.outstanding)}). One
             reminder per case per day.
           </p>
@@ -1055,13 +1067,13 @@ function MoneyActModal({
         {act.kind === "fine" && (
           <>
             {noSchedule ? (
-              <p className="rounded-xl border border-warning/40 bg-warning/5 p-3 text-[12px] leading-relaxed text-foreground">
+              <p className="rounded-xl border border-warning bg-warning-soft p-3 text-caption leading-relaxed text-foreground">
                 <span className="font-semibold">This building has no fine schedule.</span> Nothing in its bylaws says what a{" "}
                 {degree === "fine_1" ? "first" : "second"} fine should cost, so the amount below is yours. Say what it is
                 based on — the note is kept with the case.
               </p>
             ) : (
-              <p className="rounded-xl bg-primary/5 p-3 text-[12px] leading-relaxed text-foreground">
+              <p className="rounded-xl bg-primary-soft p-3 text-caption leading-relaxed text-foreground">
                 <span className="font-semibold">
                   Bylaw schedule: ${formatCentsForInput(bylawCents)} {schedule?.currency}
                 </span>{" "}
@@ -1071,10 +1083,10 @@ function MoneyActModal({
             )}
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Amount" required hint={deviates ? "Differs from the bylaw schedule — explain below." : "Dollars, e.g. 250 or 1,000"}>
-                {(p) => <TextInput {...p} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}
+                {(p) => <Input {...p} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}
               </Field>
               <Field label="Due by">
-                {(p) => <TextInput {...p} type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} />}
+                {(p) => <Input {...p} type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} />}
               </Field>
             </div>
           </>
@@ -1084,9 +1096,9 @@ function MoneyActModal({
           required={act.kind === "fine" && noteRequired}
           hint="The resident reads this exactly as written."
         >
-          {(p) => <TextArea {...p} value={note} onChange={(e) => setNote(e.target.value)} />}
+          {(p) => <Textarea {...p} value={note} onChange={(e) => setNote(e.target.value)} />}
         </Field>
-        {error && <p className="text-[12.5px] font-medium text-destructive">{error}</p>}
+        {error && <ErrorText className="text-caption font-medium">{error}</ErrorText>}
       </div>
     </Modal>
   )
@@ -1118,13 +1130,13 @@ function NoticeForm({
   return (
     <div className="flex flex-col gap-3">
       <fieldset>
-        <legend className="mb-1.5 text-[12px] font-semibold text-foreground">What are you issuing?</legend>
+        <legend className="mb-1.5 text-caption font-semibold text-foreground">What are you issuing?</legend>
         <div className="flex flex-col gap-1.5">
           {kinds.data.map((k) => (
             <label
               key={k.code}
               className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 ${
-                kind === k.code ? "border-primary bg-primary/5" : "border-border"
+                kind === k.code ? "border-primary bg-primary-soft" : "border-border"
               }`}
             >
               <input
@@ -1140,14 +1152,14 @@ function NoticeForm({
                 className="mt-1"
               />
               <span className="min-w-0">
-                <span className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-foreground">
+                <span className="flex flex-wrap items-center gap-2 text-meta font-semibold text-foreground">
                   {k.label}
-                  {k.movesCase && <Pill tone="warn">Moves the case</Pill>}
-                  {k.createsFine && <Pill tone="bad">Levies money</Pill>}
+                  {k.movesCase && <Badge variant="warning">Moves the case</Badge>}
+                  {k.createsFine && <Badge variant="danger">Levies money</Badge>}
                 </span>
-                {k.description && <span className="block text-[12px] text-muted-foreground">{k.description}</span>}
+                {k.description && <span className="block text-caption text-muted-foreground">{k.description}</span>}
                 {k.code === "fine" && stage === "open" && (
-                  <span className="mt-1 block text-[11.5px] text-warning-strong">
+                  <span className="mt-1 block text-caption text-foreground">
                     This case has no warning yet. Unless your building allows a direct fine, this will be refused.
                   </span>
                 )}
@@ -1158,25 +1170,25 @@ function NoticeForm({
       </fieldset>
 
       <Field label="Heading" hint="Left blank, the notice uses the type's own name.">
-        {(p) => <TextInput {...p} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={chosen?.label ?? ""} />}
+        {(p) => <Input {...p} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={chosen?.label ?? ""} />}
       </Field>
 
       <Field label="What it says" required={chosen?.requiresBody} hint="The resident reads this exactly as written.">
-        {(p) => <TextArea {...p} value={body} onChange={(e) => setBody(e.target.value)} />}
+        {(p) => <Textarea {...p} value={body} onChange={(e) => setBody(e.target.value)} />}
       </Field>
 
       {chosen?.requiresAmount && (
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Amount" required hint="Dollars, e.g. 250 or 1,000">
-            {(p) => <TextInput {...p} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}
+            {(p) => <Input {...p} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />}
           </Field>
           <Field label="Due by">
-            {(p) => <TextInput {...p} type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} />}
+            {(p) => <Input {...p} type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} />}
           </Field>
         </div>
       )}
 
-      <label className="flex items-start gap-2 rounded-xl bg-secondary p-3 text-[12.5px]">
+      <label className="flex items-start gap-2 rounded-xl bg-muted p-3 text-caption">
         <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} className="mt-0.5" />
         <span>
           <span className="font-semibold text-foreground">The resident can see this</span>
@@ -1186,11 +1198,11 @@ function NoticeForm({
         </span>
       </label>
 
-      {error && <p className="text-[12.5px] font-medium text-destructive">{error}</p>}
+      {error && <ErrorText className="text-caption font-medium">{error}</ErrorText>}
 
       <div className="flex justify-end">
         <Button
-          busy={busy}
+          loading={busy}
           onClick={async () => {
             setError(null)
             let cents: number | null = null
@@ -1245,9 +1257,9 @@ function ClosedTable({
         const { label, tone } = closedCaseLabel(r.stage)
         return (
           <span className="flex min-w-0 flex-col items-start gap-0.5">
-            <Pill tone={tone}>{label}</Pill>
+            <Badge variant={tone === "good" ? "success" : "neutral"}>{label}</Badge>
             {r.outcome && (
-              <span title={r.outcome} className="line-clamp-2 text-[12px] text-muted-foreground">{r.outcome}</span>
+              <span title={r.outcome} className="line-clamp-2 text-caption text-muted-foreground">{r.outcome}</span>
             )}
           </span>
         )
@@ -1292,13 +1304,13 @@ function Timeline({ events }: { events: CaseEvent[] }) {
             className={`absolute -left-[15px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-card ${dot[e.tone]}`}
             aria-hidden="true"
           />
-          <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-semibold text-foreground">
+          <p className="flex flex-wrap items-center gap-2 text-meta font-semibold text-foreground">
             {e.title}
-            {e.amountCents !== null && <Pill tone="bad">{fromCents(e.amountCents)}</Pill>}
+            {e.amountCents !== null && <Badge variant="danger">{fromCents(e.amountCents)}</Badge>}
           </p>
-          <p className="text-[11.5px] tabular-nums text-muted-foreground">{stampOf(e.at)}</p>
+          <p className="text-caption tabular-nums text-muted-foreground">{stampOf(e.at)}</p>
           {e.detail && (
-            <p className="mt-1 whitespace-pre-wrap text-[12.5px] leading-relaxed text-muted-foreground">{e.detail}</p>
+            <p className="mt-1 whitespace-pre-wrap text-caption leading-relaxed text-muted-foreground">{e.detail}</p>
           )}
         </li>
       ))}
@@ -1334,19 +1346,19 @@ function AppealPanel({
 }) {
   const filed = violation.openDispute?.filedAt
   return (
-    <div className="rounded-xl border-2 border-info/40 bg-info/5 p-4">
-      <p className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-info">
-        <Gavel className="h-4 w-4" aria-hidden="true" />
+    <div className="rounded-xl border-2 border-info bg-info-soft p-4">
+      <p className="flex flex-wrap items-center gap-2 text-body font-semibold text-foreground">
+        <Gavel className="h-4 w-4 text-info" aria-hidden="true" />
         The resident has appealed
-        <Pill tone="info">Awaiting your decision</Pill>
+        <Badge variant="info">Awaiting your decision</Badge>
       </p>
-      {filed && <p className="mt-0.5 text-[11.5px] tabular-nums text-muted-foreground">Filed {stampOf(filed)}</p>}
+      {filed && <p className="mt-0.5 text-caption tabular-nums text-muted-foreground">Filed {stampOf(filed)}</p>}
 
-      <blockquote className="mt-2 whitespace-pre-wrap border-l-2 border-info/40 pl-3 text-[13px] leading-relaxed text-foreground">
+      <blockquote className="mt-2 whitespace-pre-wrap border-l-2 border-info pl-3 text-meta leading-relaxed text-foreground">
         {violation.openDispute?.reason || "No reason given."}
       </blockquote>
 
-      <p className="mt-3 text-[12px] text-muted-foreground">
+      <p className="mt-3 text-caption text-muted-foreground">
         Nothing else can happen on this case until you answer — the ladder refuses every other move, and no
         fine reminder is sent. You give your reasoning in the next step; the resident reads it exactly as written.
       </p>
@@ -1355,24 +1367,24 @@ function AppealPanel({
         <button
           type="button"
           onClick={() => onChoose("upheld")}
-          className="rounded-xl border border-warning/50 bg-warning/10 p-3 text-left transition-colors hover:bg-warning/15"
+          className="rounded-xl border border-warning bg-warning-soft p-3 text-left transition-colors"
         >
-          <span className="block text-[13.5px] font-semibold text-warning-strong">
+          <span className="block text-meta font-semibold text-foreground">
             Uphold
           </span>
-          <span className="mt-0.5 block text-[11.5px] text-muted-foreground">
+          <span className="mt-0.5 block text-caption text-muted-foreground">
             The appeal fails. The case stays where it is and any disputed fine goes back to owed.
           </span>
         </button>
         <button
           type="button"
           onClick={() => onChoose("overturned")}
-          className="rounded-xl border border-success/50 bg-success/10 p-3 text-left transition-colors hover:bg-success/15"
+          className="rounded-xl border border-success bg-success-soft p-3 text-left transition-colors"
         >
-          <span className="block text-[13.5px] font-semibold text-success-strong">
+          <span className="block text-meta font-semibold text-foreground">
             Overturn
           </span>
-          <span className="mt-0.5 block text-[11.5px] text-muted-foreground">
+          <span className="mt-0.5 block text-caption text-muted-foreground">
             The appeal succeeds. The case is dismissed and its fines are waived.
           </span>
         </button>

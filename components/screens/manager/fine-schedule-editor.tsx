@@ -21,7 +21,10 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { setFineSchedule } from "@/lib/data/building-rules-live"
 import { readFineSchedule, parseAmountToCents, formatCentsForInput } from "@/lib/data/fine-schedule"
-import { Loader2, Coins } from "lucide-react"
+import { Coins } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ErrorText } from "@/components/ui/error-text"
 
 /** What a typed field currently is: a number of cents, "no schedule", or wrong. */
 type Parsed = number | null | "invalid"
@@ -96,9 +99,9 @@ export function FineScheduleEditor({
     <div className="mt-4 border-t border-border pt-4">
       <div className="mb-1 flex items-center gap-2">
         <Coins className="h-4 w-4 flex-shrink-0 text-warning" />
-        <h4 className="text-[13.5px] font-semibold text-foreground">Bylaw fine schedule</h4>
+        <h4 className="text-meta font-semibold text-foreground">Bylaw fine schedule</h4>
       </div>
-      <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
+      <p className="mb-3 text-caption leading-relaxed text-muted-foreground">
         What a first and second offence cost under the building&apos;s bylaws. A fine issued from the Violations
         screen defaults to these amounts, and a manager can still override one case by case.
       </p>
@@ -123,28 +126,25 @@ export function FineScheduleEditor({
       </div>
 
       <div className="mt-2.5 max-w-[10rem]">
-        <label className="mb-1 block text-[11.5px] font-semibold text-muted-foreground" htmlFor="fine-currency">
+        <label className="mb-1 block text-caption font-semibold text-muted-foreground" htmlFor="fine-currency">
           Currency
         </label>
-        <input
+        <Input
           id="fine-currency"
           value={currency}
           onChange={(e) => setCurrency(e.target.value.toUpperCase().slice(0, 3))}
           maxLength={3}
-          className={`w-full rounded-lg border bg-background px-3 py-2 text-[13px] uppercase text-foreground focus:outline-none ${
-            currencyOk ? "border-border focus:border-info" : "border-destructive"
-          }`}
+          aria-invalid={currencyOk ? undefined : true}
+          className="uppercase"
         />
-        {!currencyOk && (
-          <p className="mt-1 text-[11.5px] text-destructive">Use a three-letter code, like CAD.</p>
-        )}
+        {!currencyOk && <ErrorText className="mt-1 text-caption">Use a three-letter code, like CAD.</ErrorText>}
       </div>
 
       {/* Leaving a field empty is a real setting, not an omission, so it says
           what it costs. Phase 2 shipped the refusal (`no_fine_amount`) with no
           way to configure the thing it refuses for; this is the sentence that
           connects the two. */}
-      <p className="mt-2.5 text-[11.5px] leading-relaxed text-muted-foreground">
+      <p className="mt-2.5 text-caption leading-relaxed text-muted-foreground">
         Leave a field empty for &ldquo;no schedule for this degree&rdquo;. With no amount set, a manager must type
         an amount on every fine of that degree.
       </p>
@@ -155,18 +155,13 @@ export function FineScheduleEditor({
           building can read it. That is defensible — a bylaw fine schedule is
           not a secret from the people it applies to — but it must be a choice
           somebody made, not a surprise. */}
-      <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
+      <p className="mt-1 text-caption leading-relaxed text-muted-foreground">
         Residents can see the fine schedule for their building.
       </p>
 
-      <button
-        onClick={save}
-        disabled={saving || blocked || !dirty}
-        className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-warning px-4 py-2 text-[13px] font-semibold text-warning-foreground transition-colors disabled:opacity-50"
-      >
-        {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+      <Button className="mt-3" onClick={save} disabled={blocked || !dirty} loading={saving}>
         {dirty ? "Save fine schedule" : hasSchedule ? "Fine schedule saved" : "No fine schedule set"}
-      </button>
+      </Button>
     </div>
   )
 }
@@ -200,35 +195,34 @@ function AmountField({
   const bad = parsed === "invalid"
   return (
     <div>
-      <label className="mb-1 block text-[11.5px] font-semibold text-muted-foreground" htmlFor={id}>
+      <label className="mb-1 block text-caption font-semibold text-muted-foreground" htmlFor={id}>
         {label}
       </label>
       <div className="relative">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-meta text-muted-foreground">
           $
         </span>
-        <input
+        <Input
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           inputMode="decimal"
           placeholder="No schedule"
-          className={`w-full rounded-lg border bg-background py-2 pl-7 pr-3 text-[13px] text-foreground focus:outline-none ${
-            bad ? "border-destructive" : "border-border focus:border-info"
-          }`}
+          aria-invalid={bad ? true : undefined}
+          className="pl-7"
         />
       </div>
       {/* The reason is shown inline, next to the field that caused it, rather
           than as a toast on save. The bounds are the RPC's own — this component
           and `manager_set_fine_schedule` agree on which amounts exist. */}
       {bad ? (
-        <p className="mt-1 text-[11.5px] text-destructive">
+        <ErrorText className="mt-1 text-caption">
           Enter an amount between $0.01 and $10,000.00, like 250 or 1,250.50.
-        </p>
+        </ErrorText>
       ) : parsed === null ? (
-        <p className="mt-1 text-[11.5px] text-muted-foreground">No schedule for this degree.</p>
+        <p className="mt-1 text-caption text-muted-foreground">No schedule for this degree.</p>
       ) : (
-        <p className="mt-1 text-[11.5px] text-muted-foreground">
+        <p className="mt-1 text-caption text-muted-foreground">
           {formatCentsForInput(parsed)} {currency.toUpperCase()}
         </p>
       )}

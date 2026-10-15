@@ -54,6 +54,8 @@ import { Loader2, Lock, X, FileText, CheckCircle2, XCircle } from "lucide-react"
 import { signAccommodationDoc } from "@/lib/data/accommodation-docs"
 import { fileSize, DOC_KIND_LABEL, type AccommodationDocumentRow } from "@/lib/data/accommodations"
 import { shortDate } from "@/lib/dates"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 
 export interface AccommodationDocumentViewerProps {
   document: AccommodationDocumentRow
@@ -104,35 +106,31 @@ export function AccommodationDocumentViewer({ document, onVerdict, onClose }: Ac
     >
           <div className="flex items-start justify-between gap-3 border-b border-border p-4">
             <div className="min-w-0">
-              <DialogTitle className="text-[17px] font-semibold leading-normal text-foreground break-words">
+              <DialogTitle className="text-title font-semibold leading-normal text-foreground break-words">
                 {DOC_KIND_LABEL[document.kind]}
               </DialogTitle>
               {/* break-words on the FILENAME as well as the body. `pre-wrap`
                   wraps at spaces only, and an uploaded file can easily be named
                   one 200-character unbroken token. */}
-              <DialogDescription className="mt-0.5 text-[12px] text-muted-foreground break-words">
+              <DialogDescription className="mt-0.5 text-caption text-muted-foreground break-words">
                 {document.label ?? "Untitled"} · {fileSize(document.sizeBytes)}
                 {document.uploadedAt ? ` · uploaded ${shortDate(document.uploadedAt)}` : ""}
               </DialogDescription>
             </div>
-            <button
-              onClick={onClose}
-              aria-label="Close document"
-              className="flex-shrink-0 rounded-lg p-1 text-muted-foreground active:bg-muted"
-            >
+            <Button variant="quiet" size="icon-sm" onClick={onClose} aria-label="Close document">
               <X className="h-5 w-5" aria-hidden="true" />
-            </button>
+            </Button>
           </div>
 
-          <div className="flex items-start gap-2 border-b border-border bg-primary/5 px-4 py-2.5">
+          <div className="flex items-start gap-2 border-b border-border bg-primary-soft px-4 py-2.5">
             <Lock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
-            <p className="text-[11px] leading-relaxed text-foreground break-words">
+            <p className="text-caption leading-relaxed text-foreground break-words">
               This document is confidential. Only this building&rsquo;s managers, the resident who filed the
               request, and a Pet10x administrator can open it.
             </p>
           </div>
 
-          <div className="min-h-[240px] flex-1 overflow-auto bg-muted/30 p-3">
+          <div className="min-h-[240px] flex-1 overflow-auto bg-muted p-3">
             {state === "loading" && (
               <div className="flex h-full min-h-[200px] items-center justify-center">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -141,7 +139,7 @@ export function AccommodationDocumentViewer({ document, onVerdict, onClose }: Ac
             {state === "purged" && (
               <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-2 px-6 text-center">
                 <FileText className="h-6 w-6 text-muted-foreground" />
-                <p className="text-[13px] text-muted-foreground break-words">
+                <p className="text-meta text-muted-foreground break-words">
                   The file was removed under the retention rule. The record that it was provided
                   {document.verifiedAt ? ` and verified on ${shortDate(document.verifiedAt)}` : ""} remains.
                 </p>
@@ -149,15 +147,12 @@ export function AccommodationDocumentViewer({ document, onVerdict, onClose }: Ac
             )}
             {state === "failed" && (
               <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-3 px-6 text-center">
-                <p className="text-[13px] text-muted-foreground break-words">
+                <p className="text-meta text-muted-foreground break-words">
                   That link has expired or could not be opened.
                 </p>
-                <button
-                  onClick={() => void mint()}
-                  className="rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground"
-                >
+                <Button size="sm" variant="secondary" onClick={() => void mint()}>
                   Try again
-                </button>
+                </Button>
               </div>
             )}
             {state === "ready" && url && isPdf && (
@@ -169,7 +164,7 @@ export function AccommodationDocumentViewer({ document, onVerdict, onClose }: Ac
                 aria-label="Supporting document"
                 className="h-[55dvh] w-full rounded-lg bg-background"
               >
-                <p className="p-4 text-[13px] text-muted-foreground">
+                <p className="p-4 text-meta text-muted-foreground">
                   This browser cannot display a PDF inline.
                 </p>
               </object>
@@ -184,47 +179,47 @@ export function AccommodationDocumentViewer({ document, onVerdict, onClose }: Ac
           {onVerdict && (
             <div className="border-t border-border p-4">
               {document.verifiedAt && (
-                <p className="mb-2 text-[11px] text-muted-foreground break-words">
+                <p className="mb-2 text-caption text-muted-foreground break-words">
                   {document.verified ? "Verified" : "Rejected"} on {shortDate(document.verifiedAt)}
                   {document.reviewNote ? ` — ${document.reviewNote}` : ""}
                 </p>
               )}
-              <label htmlFor="accom-doc-note" className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+              <label htmlFor="accom-doc-note" className="mb-1 block text-caption font-semibold text-muted-foreground">
                 Note (the resident can read this)
               </label>
-              <textarea
+              <Textarea
                 id="accom-doc-note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={2}
                 placeholder="Why this letter does or does not satisfy the requirement"
-                className="w-full rounded-lg border border-border bg-background p-2 text-[13px] text-foreground"
               />
               <div className="mt-2 flex gap-2">
-                <button
-                  disabled={busy}
+                <Button
+                  className="flex-1"
+                  loading={busy}
                   onClick={async () => {
                     setBusy(true)
                     await onVerdict(true, note)
                     setBusy(false)
                   }}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-success/10 py-2 text-[13px] font-semibold text-success-strong disabled:opacity-60"
                 >
-                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                  {!busy && <CheckCircle2 className="h-3.5 w-3.5" />}
                   Verify
-                </button>
-                <button
-                  disabled={busy}
+                </Button>
+                <Button
+                  className="flex-1"
+                  variant="secondary"
+                  loading={busy}
                   onClick={async () => {
                     setBusy(true)
                     await onVerdict(false, note)
                     setBusy(false)
                   }}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-destructive/10 py-2 text-[13px] font-semibold text-destructive disabled:opacity-60"
                 >
-                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
+                  {!busy && <XCircle className="h-3.5 w-3.5 text-destructive" />}
                   Reject
-                </button>
+                </Button>
               </div>
             </div>
           )}

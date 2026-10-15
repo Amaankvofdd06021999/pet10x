@@ -21,6 +21,8 @@ import { shortDate } from "@/lib/dates"
 import type { ResidentLinkRow, ManagerPet } from "@/lib/data"
 import { toast } from "sonner"
 import { Search, Check, X, Clock, UserMinus, Loader2, Users, Dog, Cat, ChevronDown, Shield } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 export function ManagerResidentsScreen() {
   const [search, setSearch] = useState("")
@@ -124,7 +126,7 @@ export function ManagerResidentsScreen() {
             placeholder="Search resident, email, or unit…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground outline-none"
+            className="flex-1 bg-transparent text-body text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
       </div>
@@ -140,12 +142,12 @@ export function ManagerResidentsScreen() {
             {/* Pending requests */}
             <section className="mb-6">
               <div className="mb-2.5 flex items-center gap-2">
-                <Clock className="h-4 w-4 text-warning-strong" />
-                <h2 className="text-[15px] font-semibold text-foreground">Pending requests</h2>
-                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning-strong">{pending.length}</span>
+                <Clock className="h-4 w-4 text-warning" />
+                <h2 className="text-body font-semibold text-foreground">Pending requests</h2>
+                <Badge variant="warning">{pending.length}</Badge>
               </div>
               {pending.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-[13px] text-muted-foreground">
+                <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-meta text-muted-foreground">
                   No pending requests
                 </div>
               ) : (
@@ -153,13 +155,13 @@ export function ManagerResidentsScreen() {
                   {pending.map((r) => {
                     const gaps = gapsFor(r)
                     return (
-                    <div key={r.linkId} className="rounded-xl border border-warning/30 bg-[#FFFBEF] p-3.5">
-                      <p className="text-[15px] font-semibold text-foreground">{r.residentName}</p>
+                    <div key={r.linkId} className="rounded-xl border border-warning bg-warning-soft p-3.5">
+                      <p className="text-body font-semibold text-foreground">{r.residentName}</p>
                       {showBuilding && buildingName(r.buildingId) && (
-                        <p className="text-[11px] font-semibold text-muted-foreground">{buildingName(r.buildingId)}</p>
+                        <p className="text-caption font-semibold text-muted-foreground">{buildingName(r.buildingId)}</p>
                       )}
-                      <p className="text-[12px] text-muted-foreground">{r.residentEmail || "—"}</p>
-                      <p className="text-[12px] text-muted-foreground">
+                      <p className="text-caption text-muted-foreground">{r.residentEmail || "—"}</p>
+                      <p className="text-caption text-muted-foreground">
                         Unit {r.unit ?? "not given"} · requested {shortDate(r.requestedAt)}
                       </p>
 
@@ -168,21 +170,16 @@ export function ManagerResidentsScreen() {
                           discovered afterwards. */}
                       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                         {gaps.length === 0 ? (
-                          <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success-strong">
-                            All details provided
-                          </span>
+                          <Badge variant="success">All details provided</Badge>
                         ) : (
                           <>
                             {gaps.slice(0, 3).map((g) => (
-                              <span
-                                key={`${g.id}:${g.petId ?? "self"}`}
-                                className="rounded-full bg-card px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
-                              >
+                              <Badge key={`${g.id}:${g.petId ?? "self"}`} variant="neutral">
                                 {g.label}
-                              </span>
+                              </Badge>
                             ))}
                             {gaps.length > 3 && (
-                              <span className="text-[11px] text-muted-foreground">+{gaps.length - 3}</span>
+                              <span className="text-caption text-muted-foreground">+{gaps.length - 3}</span>
                             )}
                           </>
                         )}
@@ -196,20 +193,24 @@ export function ManagerResidentsScreen() {
                       </div>
 
                       <div className="mt-3 flex gap-2">
-                        <button
+                        <Button
+                          className="flex-1"
+                          size="sm"
                           onClick={() => approve(r.linkId)}
                           disabled={busy === r.linkId}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-success py-2 text-[13px] font-semibold text-success-foreground transition-transform active:scale-[0.97] disabled:opacity-60"
+                          loading={busy === r.linkId}
                         >
-                          {busy === r.linkId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Approve
-                        </button>
-                        <button
+                          {busy !== r.linkId && <Check className="h-3.5 w-3.5" />} Approve
+                        </Button>
+                        <Button
+                          className="flex-1"
+                          size="sm"
+                          variant="secondary"
                           onClick={() => setConfirming({ kind: "deny", resident: r })}
                           disabled={busy === r.linkId}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg card-interactive py-2 text-[13px] font-semibold text-foreground transition-transform active:scale-[0.97] disabled:opacity-60"
                         >
-                          <X className="h-3.5 w-3.5" /> Deny
-                        </button>
+                          <X className="h-3.5 w-3.5 text-destructive" /> Deny
+                        </Button>
                       </div>
                     </div>
                     )
@@ -222,11 +223,11 @@ export function ManagerResidentsScreen() {
             <section>
               <div className="mb-2.5 flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
-                <h2 className="text-[15px] font-semibold text-foreground">Members</h2>
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary-text">{members.length}</span>
+                <h2 className="text-body font-semibold text-foreground">Members</h2>
+                <Badge variant="brand">{members.length}</Badge>
               </div>
               {members.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-[13px] text-muted-foreground">
+                <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-meta text-muted-foreground">
                   No members yet
                 </div>
               ) : (
@@ -295,41 +296,42 @@ function MemberCard({
       <div className="flex items-center gap-3 p-3.5">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-[13px] font-bold text-foreground"
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-meta font-bold text-foreground"
         >
           {member.unit || member.residentName.slice(0, 1).toUpperCase()}
         </button>
         <button onClick={() => setOpen((v) => !v)} className="min-w-0 flex-1 text-left">
-          <p className="truncate text-[14px] font-semibold text-foreground">{member.residentName}</p>
-          <p className="truncate text-[12px] text-muted-foreground">
+          <p className="truncate text-body font-semibold text-foreground">{member.residentName}</p>
+          <p className="truncate text-caption text-muted-foreground">
             {pets.length} pet{pets.length === 1 ? "" : "s"} · {member.residentEmail || "—"}
           </p>
-          {buildingName && <p className="truncate text-[11px] font-semibold text-muted-foreground">{buildingName}</p>}
+          {buildingName && <p className="truncate text-caption font-semibold text-muted-foreground">{buildingName}</p>}
         </button>
         <ChevronDown className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </div>
       {open && (
         <div className="border-t border-border p-3">
           {pets.length === 0 ? (
-            <p className="text-[12px] text-muted-foreground">No pets registered.</p>
+            <p className="text-caption text-muted-foreground">No pets registered.</p>
           ) : (
             <div className="flex flex-col gap-2">
               {pets.map((p) => {
                 const Icon = p.species === "dog" ? Dog : Cat
+                // The words stay dark; the shield carries how compliant the pet is.
                 const color =
-                  p.compliancePct >= 100 ? "text-success-strong" : p.compliancePct >= 50 ? "text-warning-strong" : "text-destructive"
+                  p.compliancePct >= 100 ? "text-success" : p.compliancePct >= 50 ? "text-warning" : "text-destructive"
                 return (
-                  <div key={p.id} className="flex items-center gap-2.5 rounded-lg bg-muted/40 p-2.5">
+                  <div key={p.id} className="flex items-center gap-2.5 rounded-lg bg-muted p-2.5">
                     <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-semibold text-foreground">{p.name}</p>
-                      <p className="truncate text-[11px] text-muted-foreground">
+                      <p className="truncate text-meta font-semibold text-foreground">{p.name}</p>
+                      <p className="truncate text-caption text-muted-foreground">
                         {p.breed || "Pet"}
                         {p.missing.length ? ` · missing: ${p.missing.join(", ")}` : ""}
                       </p>
                     </div>
-                    <span className={`flex flex-shrink-0 items-center gap-1 text-[12px] font-semibold ${color}`}>
-                      <Shield className="h-3.5 w-3.5" />
+                    <span className="flex flex-shrink-0 items-center gap-1 text-caption font-semibold text-foreground">
+                      <Shield className={`h-3.5 w-3.5 ${color}`} />
                       {p.compliancePct}%
                     </span>
                   </div>
@@ -339,14 +341,10 @@ function MemberCard({
           )}
           {/* In the expanded panel, labelled, rather than an icon beside the
               chevron where a tap meant for "open" could land on it. */}
-          <button
-            onClick={onRemove}
-            disabled={busy}
-            className="mt-3 flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-destructive transition-colors active:bg-destructive/10 disabled:opacity-60"
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}
+          <Button className="mt-3" variant="secondary" onClick={onRemove} loading={busy}>
+            {!busy && <UserMinus className="h-4 w-4 text-destructive" />}
             Remove from building
-          </button>
+          </Button>
         </div>
       )}
     </div>

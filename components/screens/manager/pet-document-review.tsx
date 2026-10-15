@@ -2,12 +2,14 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { CheckCircle2, ExternalLink, Loader2, XCircle } from "lucide-react"
+import { CheckCircle2, ExternalLink, XCircle } from "lucide-react"
 import { reviewPetDocument } from "@/lib/data/manager-queues"
 import { canApprovePetDocument } from "@/lib/data/pet-document-review"
 import { petFileSignedUrl } from "@/lib/supabase/storage"
 import { localDayKey } from "@/lib/dates"
 import type { DocumentReviewItem } from "@/lib/data/types"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 
 /**
  * View / Approve / Reject for one pet document.
@@ -64,66 +66,56 @@ export function PetDocumentReviewControls({
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-1.5">
         {doc.storagePath && (
-          <button
-            onClick={() => void view()}
-            disabled={busy !== null}
-            className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-50"
-          >
-            {busy === "view" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
+          <Button size="sm" variant="secondary" onClick={() => void view()} disabled={busy !== null} loading={busy === "view"}>
+            {busy !== "view" && <ExternalLink className="h-3.5 w-3.5" />}
             View
-          </button>
+          </Button>
         )}
         {canApprovePetDocument(doc, localDayKey(new Date())) && (
-          <button
-            onClick={() => void decide("approve")}
-            disabled={busy !== null}
-            className="flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-50"
-          >
-            {busy === "approve" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+          <Button size="sm" onClick={() => void decide("approve")} disabled={busy !== null} loading={busy === "approve"}>
+            {busy !== "approve" && <CheckCircle2 className="h-3.5 w-3.5" />}
             Approve
-          </button>
+          </Button>
         )}
         {!rejecting && (
-          <button
-            onClick={() => setRejecting(true)}
-            disabled={busy !== null}
-            className="flex items-center gap-1 rounded-lg bg-destructive/10 px-2.5 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
-          >
-            <XCircle className="h-3.5 w-3.5" /> Reject
-          </button>
+          <Button size="sm" variant="secondary" onClick={() => setRejecting(true)} disabled={busy !== null}>
+            <XCircle className="h-3.5 w-3.5 text-destructive" /> Reject
+          </Button>
         )}
       </div>
       {rejecting && (
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11.5px] font-semibold text-foreground" htmlFor={`reject-${doc.id}`}>
+          <label className="text-caption font-semibold text-foreground" htmlFor={`reject-${doc.id}`}>
             Why? The owner reads this exactly as written.
           </label>
-          <textarea
+          <Textarea
             id={`reject-${doc.id}`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}
             placeholder="The licence shown expired in March — please upload the renewal."
-            className="w-full rounded-lg border border-input bg-card px-2.5 py-1.5 text-[12.5px] text-foreground focus:border-primary focus:outline-none"
           />
           <div className="flex gap-1.5">
-            <button
+            <Button
+              size="sm"
+              variant="danger"
               onClick={() => void decide("reject")}
               disabled={busy !== null || !note.trim()}
-              className="flex items-center gap-1 rounded-lg bg-destructive px-2.5 py-1.5 text-[12px] font-semibold text-destructive-foreground disabled:opacity-50"
+              loading={busy === "reject"}
             >
-              {busy === "reject" && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Reject and tell the owner
-            </button>
-            <button
+              Reject and tell the owner
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => {
                 setRejecting(false)
                 setNote("")
               }}
               disabled={busy !== null}
-              className="rounded-lg bg-muted px-2.5 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-50"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}

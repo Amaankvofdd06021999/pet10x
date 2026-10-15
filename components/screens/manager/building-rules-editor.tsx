@@ -39,6 +39,12 @@ import {
   type BuildingRuleCategory,
 } from "@/lib/data/building-rules"
 import { Loader2, Plus, ArrowUp, ArrowDown, Eye, EyeOff, Pencil, X, FileText, ExternalLink } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { NativeSelect } from "@/components/ui/select"
+import { LoadError } from "@/components/ui/load-error"
 
 const TITLE_MAX = 120
 const BODY_MAX = 8000
@@ -168,9 +174,7 @@ export function BuildingRulesEditor({
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       ) : error ? (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-[12.5px] text-destructive">
-          {error}
-        </p>
+        <LoadError message={error} />
       ) : (
         <>
           {/* The legacy note offer. It writes nothing on its own: it fills the
@@ -178,23 +182,23 @@ export function BuildingRulesEditor({
               original keys are untouched — no automatic migration, no silent
               display of prose nobody chose to publish. */}
           {offerLegacy && (
-            <div className="rounded-xl border border-info/30 bg-info/5 p-3">
+            <div className="rounded-xl border border-info bg-info-soft p-3">
               <div className="mb-1 flex items-center gap-2">
                 <FileText className="h-4 w-4 flex-shrink-0 text-info" />
-                <p className="text-[13px] font-semibold text-foreground">There is note text stored with the bylaws</p>
+                <p className="text-meta font-semibold text-foreground">There is note text stored with the bylaws</p>
               </div>
-              <p className="mb-2 text-[12px] leading-relaxed text-muted-foreground">
+              <p className="mb-2 text-caption leading-relaxed text-muted-foreground">
                 This building keeps some written notes inside its compliance settings, where no resident screen shows
                 them. Copy them into a rule you can edit and publish?
               </p>
-              <button
+              <Button
+                size="sm"
                 onClick={() =>
                   setDraft({ id: null, category: "other", title: "House rules", body: legacy as string })
                 }
-                className="rounded-lg bg-info px-3 py-1.5 text-[12.5px] font-semibold text-info-foreground"
               >
                 Copy into a draft
-              </button>
+              </Button>
             </div>
           )}
 
@@ -210,12 +214,9 @@ export function BuildingRulesEditor({
               bodyOver={bodyOver}
             />
           ) : (
-            <button
-              onClick={() => setDraft(BLANK)}
-              className="flex items-center gap-1.5 rounded-xl bg-primary-strong px-3 py-2 text-[13px] font-semibold text-primary-foreground"
-            >
+            <Button size="sm" className="self-start" onClick={() => setDraft(BLANK)}>
               <Plus className="h-4 w-4" /> New house rule
-            </button>
+            </Button>
           )}
 
           {/* THE ONLY WAY A MANAGER REACHES THE RESIDENT SCREEN.
@@ -229,16 +230,13 @@ export function BuildingRulesEditor({
               a preview is an assertion about another screen. This is how the
               assertion gets checked against the thing itself. */}
           {onNavigate && (
-            <button
-              onClick={() => onNavigate("building-rules")}
-              className="flex items-center gap-1.5 self-start rounded-xl border border-border px-3 py-2 text-[12.5px] font-semibold text-foreground"
-            >
+            <Button variant="secondary" size="sm" className="self-start" onClick={() => onNavigate("building-rules")}>
               <ExternalLink className="h-4 w-4" /> Open the resident screen
-            </button>
+            </Button>
           )}
 
           {groups.length === 0 && draft === null && (
-            <p className="rounded-lg bg-muted/50 px-3 py-3 text-[12.5px] text-muted-foreground">
+            <p className="rounded-lg bg-muted px-3 py-3 text-caption text-muted-foreground">
               No house rules yet{buildingName ? ` for ${buildingName}` : ""}. Residents see an honest empty state
               until you publish one.
             </p>
@@ -246,7 +244,7 @@ export function BuildingRulesEditor({
 
           {groups.map((group) => (
             <div key={group.category}>
-              <h5 className="mb-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <h5 className="mb-1.5 px-0.5 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
                 {group.label}
               </h5>
               <div className="space-y-2">
@@ -270,14 +268,14 @@ export function BuildingRulesEditor({
           ))}
 
           {rules.length > 0 && (
-            <label className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2">
+            <label className="flex items-start gap-2 rounded-lg bg-muted px-3 py-2">
               <input
                 type="checkbox"
                 checked={notify}
                 onChange={(e) => setNotify(e.target.checked)}
                 className="mt-0.5 h-4 w-4 flex-shrink-0 accent-primary"
               />
-              <span className="text-[12.5px] leading-relaxed text-foreground">
+              <span className="text-caption leading-relaxed text-foreground">
                 Notify residents when I publish
                 {typeof residentCount === "number" && (
                   <span className="text-muted-foreground">
@@ -316,93 +314,86 @@ function Composer({
   return (
     <div className="rounded-xl border border-border p-3">
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-[13px] font-semibold text-foreground">{draft.id ? "Edit rule" : "New rule"}</p>
-        <button onClick={onCancel} className="rounded-lg p-1 text-muted-foreground" aria-label="Cancel">
+        <p className="text-meta font-semibold text-foreground">{draft.id ? "Edit rule" : "New rule"}</p>
+        <Button variant="quiet" size="icon-sm" onClick={onCancel} aria-label="Cancel">
           <X className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
 
-      <label className="mb-1 block text-[11.5px] font-semibold text-muted-foreground" htmlFor="rule-category">
+      <label className="mb-1 block text-caption font-semibold text-muted-foreground" htmlFor="rule-category">
         Category
       </label>
-      <select
+      <NativeSelect
         id="rule-category"
         value={draft.category}
         onChange={(e) => onChange({ ...draft, category: e.target.value as BuildingRuleCategory })}
-        className="mb-2.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] text-foreground focus:border-info focus:outline-none"
+        className="mb-2.5"
       >
         {CATEGORY_ORDER.map((c) => (
           <option key={c} value={c}>
             {CATEGORY_LABEL[c]}
           </option>
         ))}
-      </select>
+      </NativeSelect>
 
       <div className="mb-1 flex items-baseline justify-between">
-        <label className="text-[11.5px] font-semibold text-muted-foreground" htmlFor="rule-title">
+        <label className="text-caption font-semibold text-muted-foreground" htmlFor="rule-title">
           Title
         </label>
-        <span className={`text-[11px] ${titleOver ? "text-destructive" : "text-muted-foreground"}`}>
+        <span className={`text-caption ${titleOver ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
           {draft.title.length}/{TITLE_MAX}
         </span>
       </div>
-      <input
+      <Input
         id="rule-title"
         value={draft.title}
         onChange={(e) => onChange({ ...draft, title: e.target.value })}
         placeholder="Visitor parking"
-        className={`mb-2.5 w-full rounded-lg border bg-background px-3 py-2 text-[13px] text-foreground focus:outline-none ${
-          titleOver ? "border-destructive" : "border-border focus:border-info"
-        }`}
+        aria-invalid={titleOver ? true : undefined}
+        className="mb-2.5"
       />
 
       <div className="mb-1 flex items-baseline justify-between">
-        <label className="text-[11.5px] font-semibold text-muted-foreground" htmlFor="rule-body">
+        <label className="text-caption font-semibold text-muted-foreground" htmlFor="rule-body">
           Rule text
         </label>
-        <span className={`text-[11px] ${bodyOver ? "text-destructive" : "text-muted-foreground"}`}>
+        <span className={`text-caption ${bodyOver ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
           {draft.body.length}/{BODY_MAX}
         </span>
       </div>
       {/* No trim, no normalise, on the way in or out. The manager's line breaks
           and blank lines ARE the content; only the outermost whitespace is
           trimmed, once, by the RPC. */}
-      <textarea
+      <Textarea
         id="rule-body"
         value={draft.body}
         onChange={(e) => onChange({ ...draft, body: e.target.value })}
         rows={8}
         placeholder={"Residents may park in visitor stalls for up to 4 hours.\n\nOvernight parking requires a permit from the office."}
-        className={`w-full rounded-lg border bg-background px-3 py-2 font-sans text-[13px] leading-relaxed text-foreground focus:outline-none ${
-          bodyOver ? "border-destructive" : "border-border focus:border-info"
-        }`}
+        aria-invalid={bodyOver ? true : undefined}
+        className="leading-relaxed"
       />
-      <p className="mt-1 text-[11.5px] text-muted-foreground">
+      <p className="mt-1 text-caption text-muted-foreground">
         Plain text. Residents see exactly this, line breaks and all &mdash; no formatting is applied.
       </p>
 
       {draft.body.trim() !== "" && (
-        <div className="mt-2.5 rounded-lg bg-muted/50 p-3">
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="mt-2.5 rounded-lg bg-muted p-3">
+          <p className="mb-1 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
             What a resident will see
           </p>
-          <p className="break-words text-[13.5px] font-semibold text-foreground">{draft.title || "Untitled"}</p>
+          <p className="break-words text-meta font-semibold text-foreground">{draft.title || "Untitled"}</p>
           {/* The SAME rendering the resident screen uses. If this and that ever
               differ, the preview is a lie about the thing it is previewing. */}
-          <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-foreground">{draft.body}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-meta leading-relaxed text-foreground">{draft.body}</p>
         </div>
       )}
 
-      <button
-        onClick={onSave}
-        disabled={saving || blocked}
-        className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-primary-strong px-4 py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
-      >
-        {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+      <Button className="mt-3" size="sm" onClick={onSave} disabled={blocked} loading={saving}>
         {draft.id ? "Save changes" : "Save draft"}
-      </button>
+      </Button>
       {!draft.id && (
-        <p className="mt-1.5 text-[11.5px] text-muted-foreground">
+        <p className="mt-1.5 text-caption text-muted-foreground">
           Saving does not publish. Residents see nothing until you press Publish.
         </p>
       )}
@@ -432,19 +423,15 @@ function RuleCard({
   return (
     <div className="rounded-xl border border-border p-3">
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 break-words text-[13.5px] font-semibold text-foreground">{rule.title}</p>
-        <span
-          className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${
-            rule.isPublished ? "bg-success/10 text-success-strong" : "bg-muted text-muted-foreground"
-          }`}
-        >
+        <p className="min-w-0 flex-1 break-words text-meta font-semibold text-foreground">{rule.title}</p>
+        <Badge variant={rule.isPublished ? "success" : "neutral"} className="flex-shrink-0">
           {rule.isPublished ? "Published" : "Draft"}
-        </span>
+        </Badge>
       </div>
       {/* The entire body, `whitespace-pre-wrap`, shortened by nothing — the
           same rendering the resident screen uses. A collapsed bylaw is a bylaw
           nobody read, and "show more" is a cut with a nicer name. */}
-      <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-muted-foreground">{rule.body}</p>
+      <p className="mt-1 whitespace-pre-wrap break-words text-caption leading-relaxed text-muted-foreground">{rule.body}</p>
 
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
         <SmallButton onClick={onEdit} disabled={busy} icon={Pencil} label="Edit" />
@@ -479,14 +466,8 @@ function SmallButton({
   primary?: boolean
 }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold disabled:opacity-40 ${
-        primary ? "bg-primary-strong text-primary-foreground" : "bg-muted text-foreground"
-      }`}
-    >
+    <Button size="sm" variant={primary ? "primary" : "secondary"} onClick={onClick} disabled={disabled}>
       <Icon className="h-3.5 w-3.5" /> {label}
-    </button>
+    </Button>
   )
 }

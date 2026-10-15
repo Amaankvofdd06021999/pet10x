@@ -26,27 +26,28 @@ import {
   DollarSign,
   ChevronRight,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 /**
  * Manager dashboard.
  *
- * Colours come from the app's tokens only — primary/accent/success/warning/
- * destructive. The previous version used `--info` (#007AFF, iOS system blue)
+ * Colours come from the app's tokens only — primary/success/warning/
+ * destructive/info. The previous version used `--info` (iOS system blue)
  * for the compliance banner, the Approvals tile and the Members stat, which
  * introduced a hue that appears nowhere in the Pet10x palette.
  */
 
 const QUICK_ACTIONS = [
-  { icon: UserCheck, label: "Review Residents", tint: "bg-primary/10 text-primary", screen: "residents" },
-  { icon: AlertTriangle, label: "Violations", tint: "bg-destructive/10 text-destructive", screen: "violations" },
-  { icon: Shield, label: "Approvals", tint: "bg-success/10 text-success", screen: "approvals" },
-  { icon: Megaphone, label: "Incident Reports", tint: "bg-warning/10 text-warning-strong", screen: "incidents" },
+  { icon: UserCheck, label: "Review Residents", tint: "bg-primary-soft text-primary", screen: "residents" },
+  { icon: AlertTriangle, label: "Violations", tint: "bg-destructive-soft text-destructive", screen: "violations" },
+  { icon: Shield, label: "Approvals", tint: "bg-success-soft text-success", screen: "approvals" },
+  { icon: Megaphone, label: "Incident Reports", tint: "bg-warning-soft text-foreground", screen: "incidents" },
   /* Phone only: the desktop sidebar carries Community, and the mobile tab bar
      has no slot for it. Full width so the grid stays even with five tiles. */
   {
     icon: MessageSquare,
     label: "Community",
-    tint: "bg-accent/10 text-accent",
+    tint: "bg-primary-soft text-primary",
     screen: "community",
     className: "col-span-2 md:hidden",
   },
@@ -61,11 +62,11 @@ const QUICK_ACTIONS = [
  * the `??` fallback instead.
  */
 const STAGE_TILE: Record<ViolationStage, { tint: string; icon: typeof Gavel }> = {
-  open: { tint: "bg-destructive/10 text-destructive", icon: AlertTriangle },
-  warning: { tint: "bg-primary/10 text-primary", icon: FileText },
-  fine_1: { tint: "bg-destructive/10 text-destructive", icon: DollarSign },
-  fine_2: { tint: "bg-destructive/10 text-destructive", icon: DollarSign },
-  resolved: { tint: "bg-success/10 text-success", icon: Gavel },
+  open: { tint: "bg-destructive-soft text-destructive", icon: AlertTriangle },
+  warning: { tint: "bg-primary-soft text-primary", icon: FileText },
+  fine_1: { tint: "bg-destructive-soft text-destructive", icon: DollarSign },
+  fine_2: { tint: "bg-destructive-soft text-destructive", icon: DollarSign },
+  resolved: { tint: "bg-success-soft text-success", icon: Gavel },
   dismissed: { tint: "bg-muted text-muted-foreground", icon: Gavel },
 }
 
@@ -135,7 +136,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
           >
             <Bell className="h-5 w-5 text-foreground" />
             {unreadCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-caption font-semibold text-destructive-foreground">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
@@ -150,7 +151,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
             Welcome back, {user?.name?.split(" ")[0]}
           </h1>
           {(building?.name || user?.building) && (
-            <p className="mt-1 text-[14px] text-muted-foreground">{building?.name ?? user?.building}</p>
+            <p className="mt-1 text-body text-muted-foreground">{building?.name ?? user?.building}</p>
           )}
         </section>
 
@@ -170,20 +171,20 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
 
         {/* Headline pair — the building at a glance */}
         <section className="mb-6 grid grid-cols-2 gap-3">
-          <div className="relative overflow-hidden rounded-2xl bg-primary-strong p-4">
+          <div className="relative overflow-hidden rounded-lg bg-primary p-4">
             <PawPrint
-              className="absolute -bottom-3 -right-2 h-20 w-20 text-primary-foreground/20"
+              className="absolute -bottom-3 -right-2 h-20 w-20 text-primary-hover"
               fill="currentColor"
               aria-hidden
             />
-            <p className="relative text-[13px] font-medium text-primary-foreground/90">Total pets</p>
+            <p className="relative text-meta font-medium text-primary-foreground">Total pets</p>
             <p className="relative mt-0.5 text-[30px] font-bold leading-none text-primary-foreground">
               {loading ? "—" : pets.length}
             </p>
           </div>
-          <div className="rounded-2xl card-raised p-4">
-            <p className="text-[13px] font-medium text-muted-foreground">Residents w/ pets</p>
-            <p className="mt-0.5 text-[30px] font-bold leading-none text-primary-text">
+          <div className="rounded-lg card-raised p-4">
+            <p className="text-meta font-medium text-muted-foreground">Residents w/ pets</p>
+            <p className="mt-0.5 text-[30px] font-bold leading-none text-foreground">
               {loading ? "—" : ownersWithPets}
             </p>
           </div>
@@ -200,14 +201,14 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
                   <button
                     key={action.label}
                     onClick={() => handleQuickAction(action.screen)}
-                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl card-interactive px-3 py-5 transition-transform active:scale-[0.97] ${
+                    className={`flex flex-col items-center justify-center gap-2 rounded-lg card-interactive px-3 py-5 transition-transform active:scale-[0.97] ${
                       "className" in action ? action.className : ""
                     }`}
                   >
                     <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${action.tint}`}>
                       <Icon className="h-5 w-5" />
                     </span>
-                    <span className="text-center text-[13px] font-semibold leading-tight text-foreground">
+                    <span className="text-center text-meta font-semibold leading-tight text-foreground">
                       {action.label}
                     </span>
                   </button>
@@ -218,16 +219,13 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
 
           {/* Violation tracking */}
           <section className="mb-6">
-            <div className="rounded-2xl card-raised p-4">
+            <div className="rounded-lg card-raised p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="text-[17px] font-semibold text-foreground">Violation tracking</h2>
+                <h2 className="text-title font-semibold text-foreground">Violation tracking</h2>
                 {violations.length > 0 && (
-                  <button
-                    onClick={() => onNavigate?.("violations")}
-                    className="flex-shrink-0 text-[13px] font-semibold text-primary-text"
-                  >
+                  <Button variant="link" size="sm" className="flex-shrink-0" onClick={() => onNavigate?.("violations")}>
                     View all
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -238,8 +236,8 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
               ) : violations.length === 0 ? (
                 <div className="flex flex-col items-center gap-1 py-6 text-center">
                   <Shield className="h-6 w-6 text-success" />
-                  <p className="text-[14px] font-semibold text-foreground">No open violations</p>
-                  <p className="text-[12px] text-muted-foreground">Reported incidents will appear here.</p>
+                  <p className="text-body font-semibold text-foreground">No open violations</p>
+                  <p className="text-caption text-muted-foreground">Reported incidents will appear here.</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
@@ -250,16 +248,16 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
                       <button
                         key={v.id}
                         onClick={() => onNavigate?.("violations")}
-                        className="flex items-center gap-3 rounded-xl bg-muted/50 p-2.5 text-left transition-colors active:bg-muted"
+                        className="flex items-center gap-3 rounded-xl bg-muted p-2.5 text-left transition-colors active:bg-muted"
                       >
                         <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${tile.tint}`}>
                           <Icon className="h-4.5 w-4.5" />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[14px] font-semibold text-foreground">
+                          <span className="block truncate text-body font-semibold text-foreground">
                             {v.stageLabel}
                           </span>
-                          <span className="block truncate text-[12px] text-muted-foreground">
+                          <span className="block truncate text-caption text-muted-foreground">
                             {v.pet} · Unit {v.unit}
                           </span>
                         </span>
@@ -278,10 +276,10 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
         {pending > 0 && (
           <button
             onClick={() => onNavigate?.("residents")}
-            className="mb-6 flex w-full items-center gap-3 rounded-2xl border-l-4 border-success bg-success/10 p-4 text-left transition-transform active:scale-[0.99]"
+            className="mb-6 flex w-full items-center gap-3 rounded-lg border-l-4 border-success bg-success-soft p-4 text-left transition-transform active:scale-[0.99]"
           >
             <span className="min-w-0 flex-1">
-              <span className="block text-[14px] font-semibold text-success-strong">Residents awaiting approval</span>
+              <span className="block text-body font-semibold text-foreground">Residents awaiting approval</span>
               <span className="mt-0.5 block text-[24px] font-bold leading-tight text-foreground">
                 {pending} new application{pending === 1 ? "" : "s"}
               </span>
@@ -297,21 +295,21 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
           <section className="mb-6">
             <SectionLabel>Species breakdown</SectionLabel>
             {loading ? (
-              <div className="flex justify-center rounded-2xl card-raised py-10">
+              <div className="flex justify-center rounded-lg card-raised py-10">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
             ) : pets.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+              <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center">
                 <Dog className="mx-auto h-7 w-7 text-muted-foreground" />
-                <p className="mt-2 text-[14px] font-semibold text-foreground">No registered pets yet</p>
-                <p className="mt-1 text-[12px] text-muted-foreground">
+                <p className="mt-2 text-body font-semibold text-foreground">No registered pets yet</p>
+                <p className="mt-1 text-caption text-muted-foreground">
                   Pets appear here once residents join and add them.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                <SpeciesCard icon={Dog} tint="bg-primary/10 text-primary" label="Dogs" value={dogs} />
-                <SpeciesCard icon={Cat} tint="bg-accent/10 text-accent" label="Cats" value={cats} />
+                <SpeciesCard icon={Dog} tint="bg-primary-soft text-primary" label="Dogs" value={dogs} />
+                <SpeciesCard icon={Cat} tint="bg-info-soft text-info" label="Cats" value={cats} />
                 {/* Only when there are any — the app registers seven species,
                     and folding them into a permanent zero would read as a bug. */}
                 {others > 0 && (
@@ -330,7 +328,6 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
                 value={expiredDocs}
                 total={pets.length}
                 bar="bg-destructive"
-                tone="text-destructive"
                 loading={loading}
               />
               <StatBar label="Members" value={members} total={members + pending} bar="bg-success" loading={loading} />
@@ -339,7 +336,6 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
                 value={pending}
                 total={members + pending}
                 bar="bg-warning"
-                tone="text-warning-strong"
                 loading={loading}
               />
             </div>
@@ -348,11 +344,11 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
 
         {/* Building compliance */}
         <section className="mb-2">
-          <div className="flex items-center gap-4 rounded-2xl card-raised p-4">
+          <div className="flex items-center gap-4 rounded-lg card-raised p-4">
             <ComplianceRing pct={loading ? 0 : avgCompliance} />
             <div className="min-w-0 flex-1">
-              <p className="text-[16px] font-semibold text-foreground">Building compliance</p>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
+              <p className="text-body font-semibold text-foreground">Building compliance</p>
+              <p className="mt-0.5 text-meta text-muted-foreground">
                 {pets.length === 0
                   ? "No registered pets yet."
                   : needsAttention === 0
@@ -369,7 +365,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <h2 className="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>
+    <h2 className="mb-2.5 text-caption font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>
   )
 }
 
@@ -385,13 +381,13 @@ function SpeciesCard({
   value: number
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl card-raised p-3.5">
+    <div className="flex items-center gap-3 rounded-lg card-raised p-3.5">
       <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${tint}`}>
         <Icon className="h-5 w-5" />
       </span>
       <div className="min-w-0">
-        <p className="truncate text-[13px] font-medium text-muted-foreground">{label}</p>
-        <p className="text-[20px] font-bold leading-tight text-foreground">{value}</p>
+        <p className="truncate text-meta font-medium text-muted-foreground">{label}</p>
+        <p className="text-heading font-bold leading-tight text-foreground">{value}</p>
       </div>
     </div>
   )
@@ -402,21 +398,19 @@ function StatBar({
   value,
   total,
   bar,
-  tone = "text-foreground",
   loading,
 }: {
   label: string
   value: number
   total: number
   bar: string
-  tone?: string
   loading: boolean
 }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0
   return (
-    <div className="rounded-2xl card-raised p-3.5">
-      <p className="truncate text-[13px] font-medium text-muted-foreground">{label}</p>
-      <p className={`mt-0.5 text-[22px] font-bold leading-tight ${tone}`}>{loading ? "—" : value}</p>
+    <div className="rounded-lg card-raised p-3.5">
+      <p className="truncate text-meta font-medium text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-heading font-bold leading-tight text-foreground">{loading ? "—" : value}</p>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
         <div className={`h-full rounded-full transition-all ${bar}`} style={{ width: `${loading ? 0 : pct}%` }} />
       </div>
@@ -446,7 +440,7 @@ function ComplianceRing({ pct }: { pct: number }) {
           strokeDashoffset={circumference * (1 - Math.min(Math.max(pct, 0), 100) / 100)}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[14px] font-bold text-foreground">
+      <span className="absolute inset-0 flex items-center justify-center text-body font-bold text-foreground">
         {pct}%
       </span>
     </div>

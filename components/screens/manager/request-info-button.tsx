@@ -2,8 +2,9 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Loader2, MailQuestion, Check } from "lucide-react"
+import { MailQuestion, Check } from "lucide-react"
 import type { ResidentLinkRow } from "@/lib/data"
+import { Button } from "@/components/ui/button"
 
 /**
  * "Ask for details" — the manager's half of the completeness loop.
@@ -57,22 +58,21 @@ export function RequestInfoButton({
 
   if (missing.length === 0) {
     return (
-      <span className="flex items-center gap-1 text-[12px] font-semibold text-success-strong">
-        <Check className="h-3.5 w-3.5" strokeWidth={3} /> Complete
+      <span className="flex items-center gap-1 text-caption font-semibold text-foreground">
+        <Check className="h-3.5 w-3.5 text-success" strokeWidth={3} /> Complete
       </span>
     )
   }
 
   return (
-    <button
+    <Button
+      size="sm"
+      variant={askedRecently ? "quiet" : "secondary"}
       onClick={send}
-      disabled={sending}
-      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${
-        askedRecently ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary-text"
-      }`}
+      loading={sending}
     >
-      {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MailQuestion className="h-3.5 w-3.5" />}
+      {!sending && <MailQuestion className="h-3.5 w-3.5" />}
       {askedRecently ? "Ask again" : "Ask for details"}
-    </button>
+    </Button>
   )
 }

@@ -8,6 +8,8 @@ import { downloadCsv } from "@/lib/csv"
 import type { BuildingRules } from "@/lib/data/compliance"
 import { complianceCensusCsv, nextExpiry, STAGE_LABEL } from "@/lib/data/compliance-report"
 import { useComplianceReport } from "@/lib/data/compliance-report-live"
+import { Button } from "@/components/ui/button"
+import { LoadError } from "@/components/ui/load-error"
 
 /**
  * Settings › Compliance Report. One building's pets against its rules: who is
@@ -52,34 +54,22 @@ export function ComplianceReportScreen({
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : error || !report ? (
-          <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-center">
-            <p className="text-[13px] text-foreground">{error ?? "Couldn't load the compliance report."}</p>
-            <button onClick={() => void refetch()} className="mt-2 text-[13px] font-semibold text-primary-text">
-              Try again
-            </button>
-          </div>
+          <LoadError message={error ?? "Couldn't load the compliance report."} onRetry={() => void refetch()} />
         ) : (
           <>
             <div className="no-print mb-4 flex gap-2">
-              <button
-                onClick={exportCsv}
-                disabled={report.rows.length === 0}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary-strong py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-50"
-              >
+              <Button className="flex-1" size="sm" onClick={exportCsv} disabled={report.rows.length === 0}>
                 <Download className="h-4 w-4" /> Download CSV
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-muted py-2.5 text-[13.5px] font-semibold text-foreground"
-              >
+              </Button>
+              <Button className="flex-1" size="sm" variant="secondary" onClick={() => window.print()}>
                 <Printer className="h-4 w-4" /> Print
-              </button>
+              </Button>
             </div>
 
             <article className="print-root space-y-4">
               <header>
-                <h2 className="text-[18px] font-semibold text-foreground">{buildingName} — pet compliance</h2>
-                <p className="text-[12px] text-muted-foreground">Generated {generated}</p>
+                <h2 className="text-title font-semibold text-foreground">{buildingName} — pet compliance</h2>
+                <p className="text-caption text-muted-foreground">Generated {generated}</p>
               </header>
 
               <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -149,31 +139,34 @@ export function ComplianceReportScreen({
 function Figure({ label, value, tone }: { label: string; value: number; tone?: "warn" }) {
   return (
     <div className="print-card rounded-xl card-raised p-3">
-      <p className={`text-[20px] font-bold tabular-nums ${tone === "warn" ? "text-warning-strong" : "text-foreground"}`}>{value}</p>
-      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+      <p className="text-heading font-bold tabular-nums text-foreground">{value}</p>
+      <p className="flex items-center gap-1.5 text-caption font-medium text-muted-foreground">
+        {tone === "warn" && <span aria-hidden="true" className="size-2 rounded-full bg-warning" />}
+        {label}
+      </p>
     </div>
   )
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="print-card rounded-2xl card-raised p-3.5">
-      <h3 className="mb-2 text-[13px] font-semibold text-foreground">{title}</h3>
+    <section className="print-card rounded-lg card-raised p-3.5">
+      <h3 className="mb-2 text-meta font-semibold text-foreground">{title}</h3>
       {children}
     </section>
   )
 }
 
 function Empty({ text }: { text: string }) {
-  return <p className="text-[12.5px] text-muted-foreground">{text}</p>
+  return <p className="text-caption text-muted-foreground">{text}</p>
 }
 
 function Table({ head, rows }: { head: string[]; rows: string[][] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-[12.5px]">
+      <table className="w-full text-caption">
         <thead>
-          <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+          <tr className="border-b border-border text-left text-caption uppercase tracking-wide text-muted-foreground">
             {head.map((h) => (
               <th key={h} className="py-1.5 pr-3 font-semibold">
                 {h}
@@ -183,7 +176,7 @@ function Table({ head, rows }: { head: string[]; rows: string[][] }) {
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className="border-b border-border/60 last:border-0">
+            <tr key={i} className="border-b border-border last:border-0">
               {r.map((c, j) => (
                 <td key={j} className="py-1.5 pr-3 text-foreground">
                   {c}

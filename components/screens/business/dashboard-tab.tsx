@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { useMemo } from "react"
 import { profileCompleteness, formatPrice, type MyBusiness } from "@/lib/data/business"
 import { useOwnerBookings, useBusinessServices, useBusinessReviews } from "@/lib/data/bookings"
@@ -43,29 +44,29 @@ export function DashboardTab({
     <div className="space-y-4">
       {/* Q1: Am I visible? */}
       {business.isVerified ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-success/30 bg-success/10 p-4">
+        <div className="flex items-start gap-3 rounded-lg border border-success bg-success-soft p-4">
           <BadgeCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-success" />
           <div>
-            <p className="text-[14px] font-semibold text-foreground">Verified &amp; listed</p>
-            <p className="text-[12.5px] text-muted-foreground">
+            <p className="text-body font-semibold text-foreground">Verified &amp; listed</p>
+            <p className="text-caption text-muted-foreground">
               You appear in the Services directory for pet owners nearby.
               {completeness.pct < 100 && ` Your profile is ${completeness.pct}% complete.`}
             </p>
           </div>
         </div>
       ) : (
-        <div className="flex items-start gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4">
+        <div className="flex items-start gap-3 rounded-lg border border-warning bg-warning-soft p-4">
           <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning" />
           <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-semibold text-foreground">Not yet visible to customers</p>
-            <p className="text-[12.5px] text-muted-foreground">
+            <p className="text-body font-semibold text-foreground">Not yet visible to customers</p>
+            <p className="text-caption text-muted-foreground">
               Your listing is hidden until Pet10x verifies your business.
             </p>
             <div className="mt-2 max-w-xs">
               <div className="h-2 overflow-hidden rounded-full bg-border">
-                <div className="h-full rounded-full bg-accent" style={{ width: `${completeness.pct}%` }} />
+                <div className="h-full rounded-full bg-primary" style={{ width: `${completeness.pct}%` }} />
               </div>
-              <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
+              <div className="mt-1 flex justify-between text-caption text-muted-foreground">
                 <span>Profile {completeness.pct}% complete</span>
                 <span>
                   {completeness.done} / {completeness.total}
@@ -73,9 +74,9 @@ export function DashboardTab({
               </div>
             </div>
             {completeness.missing.length > 0 && (
-              <button onClick={() => onOpenTab("storefront")} className="mt-2 text-[12.5px] font-semibold text-accent">
-                Next: {completeness.missing.filter((m) => m !== "Pet10x verification")[0] ?? "awaiting Pet10x review"} →
-              </button>
+              <Button variant="link" size="sm" className="mt-2" onClick={() => onOpenTab("storefront")}>
+                Next: {completeness.missing.filter((m) => m !== "Pet10x verification")[0] ?? "awaiting Pet10x review"}
+              </Button>
             )}
           </div>
         </div>
@@ -116,7 +117,7 @@ export function DashboardTab({
       {/* Needs you now */}
       <SectionCard title="Needs you now">
         {requests.length === 0 && awaitingPayment.length === 0 && unreplied.length === 0 ? (
-          <p className="py-4 text-center text-[13px] text-muted-foreground">You&apos;re all caught up.</p>
+          <p className="py-4 text-center text-meta text-muted-foreground">You&apos;re all caught up.</p>
         ) : (
           <div className="space-y-2">
             {requests.map((b) => {
@@ -161,19 +162,19 @@ export function DashboardTab({
 
       <SectionCard title="Upcoming schedule">
         {todayJobs.length === 0 ? (
-          <p className="py-4 text-center text-[13px] text-muted-foreground">Nothing scheduled today.</p>
+          <p className="py-4 text-center text-meta text-muted-foreground">Nothing scheduled today.</p>
         ) : (
           <div className="space-y-2">
             {todayJobs.map((b) => (
               <div key={b.id} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
-                <CalendarDays className="h-4 w-4 flex-shrink-0 text-accent" />
+                <CalendarDays className="h-4 w-4 flex-shrink-0 text-primary" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13.5px] font-semibold text-foreground">
+                  <p className="truncate text-meta font-semibold text-foreground">
                     {b.serviceName} — {b.petName}
                   </p>
-                  <p className="text-[12px] text-muted-foreground">{b.customerName}</p>
+                  <p className="text-caption text-muted-foreground">{b.customerName}</p>
                 </div>
-                <span className="text-[12.5px] font-semibold text-foreground">
+                <span className="text-caption font-semibold text-foreground">
                   {new Date(b.scheduledFor!).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
                 </span>
               </div>
@@ -187,8 +188,8 @@ export function DashboardTab({
           <div className="flex items-start gap-3">
             <Stars rating={reviews[0]?.rating ?? 0} />
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] text-foreground">{reviews[0]?.comment}</p>
-              <p className="mt-0.5 text-[11.5px] text-muted-foreground">— {reviews[0]?.authorName}</p>
+              <p className="text-meta text-foreground">{reviews[0]?.comment}</p>
+              <p className="mt-0.5 text-caption text-muted-foreground">— {reviews[0]?.authorName}</p>
             </div>
           </div>
         </SectionCard>
@@ -218,10 +219,10 @@ function Row({
       <span className={`h-2 w-2 flex-shrink-0 rounded-full ${dot}`} />
       <span className="flex-shrink-0 text-muted-foreground">{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px] font-semibold text-foreground">{title}</span>
-        <span className="block truncate text-[12px] text-muted-foreground">{sub}</span>
+        <span className="block truncate text-meta font-semibold text-foreground">{title}</span>
+        <span className="block truncate text-caption text-muted-foreground">{sub}</span>
       </span>
-      <span className="flex flex-shrink-0 items-center gap-1 text-[11.5px] text-muted-foreground">
+      <span className="flex flex-shrink-0 items-center gap-1 text-caption text-muted-foreground">
         <Clock className="h-3.5 w-3.5" />
         {meta}
       </span>

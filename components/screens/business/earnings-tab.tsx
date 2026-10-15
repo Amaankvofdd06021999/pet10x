@@ -7,6 +7,8 @@ import { earningsSummary, feePercentLabel } from "@/lib/data/fees"
 import { toCsv, downloadCsv } from "@/lib/csv"
 import { StatTile, SectionCard, Spinner, EmptyState } from "./business-ui"
 import { Download, DollarSign } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 export function EarningsTab({ businessId }: { businessId: string }) {
   const { data: bookings, isLoading } = useOwnerBookings(businessId)
@@ -61,12 +63,9 @@ export function EarningsTab({ businessId }: { businessId: string }) {
         title="Per-booking ledger"
         action={
           ledger.length > 0 ? (
-            <button
-              onClick={exportCsv}
-              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white"
-            >
+            <Button size="sm" onClick={exportCsv}>
               <Download className="h-3.5 w-3.5" /> Export CSV
-            </button>
+            </Button>
           ) : null
         }
       >
@@ -74,9 +73,9 @@ export function EarningsTab({ businessId }: { businessId: string }) {
           <EmptyState icon={<DollarSign className="h-8 w-8" />} title="No earnings yet" sub="Completed bookings show up here with the price, the Pet10x fee and what you keep." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+            <table className="w-full text-meta">
               <thead>
-                <tr className="border-b border-border text-left text-[11.5px] uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b border-border text-left text-caption uppercase tracking-wide text-muted-foreground">
                   <th className="py-2 pr-3 font-semibold">Date</th>
                   <th className="py-2 pr-3 font-semibold">Service</th>
                   <th className="py-2 pr-3 font-semibold">Customer</th>
@@ -88,23 +87,21 @@ export function EarningsTab({ businessId }: { businessId: string }) {
               </thead>
               <tbody>
                 {ledger.map((b) => (
-                  <tr key={b.id} className="border-b border-border/60 last:border-0">
+                  <tr key={b.id} className="border-b border-border last:border-0">
                     <td className="py-2 pr-3 text-muted-foreground">
                       {new Date(b.scheduledFor ?? b.createdAt).toLocaleDateString()}
                     </td>
                     <td className="py-2 pr-3 font-medium text-foreground">{b.serviceName ?? "—"}</td>
                     <td className="py-2 pr-3 text-muted-foreground">{b.customerName}</td>
                     <td className="py-2 pr-3 text-right tabular-nums">{formatPrice(b.amountCents, b.currency)}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-destructive">−{formatPrice(b.commissionCents, b.currency)}</td>
-                    <td className="py-2 pr-3 text-right font-semibold tabular-nums text-success-strong">
+                    <td className="py-2 pr-3 text-right tabular-nums text-foreground">−{formatPrice(b.commissionCents, b.currency)}</td>
+                    <td className="py-2 pr-3 text-right font-semibold tabular-nums text-foreground">
                       {formatPrice(b.amountCents - b.commissionCents, b.currency)}
                     </td>
                     <td className="py-2 text-right">
-                      <span
-                        className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${b.status === "paid" ? "bg-success/15 text-success-strong" : "bg-warning/15 text-warning"}`}
-                      >
+                      <Badge variant={b.status === "paid" ? "success" : "warning"}>
                         {BOOKING_STATUS_LABEL[b.status]}
-                      </span>
+                      </Badge>
                     </td>
                   </tr>
                 ))}

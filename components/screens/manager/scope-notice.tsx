@@ -8,7 +8,7 @@ export function ScopeNotice({ notice, className = "" }: { notice: string | null;
   return (
     <p
       role="status"
-      className={`rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-[12px] font-medium text-warning-strong ${className}`}
+      className={`rounded-lg border border-warning bg-warning-soft px-3 py-2 text-caption font-medium text-foreground ${className}`}
     >
       {notice}
     </p>

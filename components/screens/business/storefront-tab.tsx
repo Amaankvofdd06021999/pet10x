@@ -1,5 +1,11 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { NativeSelect } from "@/components/ui/select"
+import { ErrorText } from "@/components/ui/error-text"
 import { useState } from "react"
 import { toast } from "sonner"
 import {
@@ -32,7 +38,7 @@ import { validateContact, type ContactErrors } from "@/lib/data/business-contact
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { SectionCard, TextInput, Field, Spinner, Stars } from "./business-ui"
-import { Loader2, Navigation, Plus, Archive, ArchiveRestore, ChevronDown, Store, MapPin, Star, Eye, Pencil, Phone, Mail } from "lucide-react"
+import { Navigation, Plus, Archive, ArchiveRestore, ChevronDown, Store, MapPin, Star, Eye, Pencil, Phone, Mail } from "lucide-react"
 
 const CATEGORIES = ["Veterinary", "Grooming", "Boarding", "Dog walking", "Training", "Pet store", "Other"]
 
@@ -123,46 +129,44 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
       {/* Live preview of the customer-facing card */}
       <SectionCard
         title={
-          <span className="flex items-center gap-1.5 text-[14px] font-semibold text-foreground">
-            <Eye className="h-4 w-4 text-accent" /> What customers see
+          <span className="flex items-center gap-1.5 text-body font-semibold text-foreground">
+            <Eye className="h-4 w-4 text-primary" /> What customers see
           </span>
         }
       >
         <div className="rounded-xl border border-border bg-background p-3.5">
           <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
-              <Store className="h-5 w-5 text-accent" />
+            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary-soft">
+              <Store className="h-5 w-5 text-primary" />
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-[15px] font-semibold text-foreground">{f.name || "Your business name"}</p>
+                <p className="text-body font-semibold text-foreground">{f.name || "Your business name"}</p>
                 {business.isVerified && (
-                  <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-success-strong">Verified</span>
+                  <Badge variant="success">Verified</Badge>
                 )}
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${openNow ? "bg-success/15 text-success-strong" : "bg-muted text-muted-foreground"}`}
-                >
+                <Badge variant={openNow ? "success" : "neutral"}>
                   {openNow ? "Open now" : "Closed"}
-                </span>
+                </Badge>
               </div>
-              <p className="text-[12px] text-muted-foreground">
+              <p className="text-caption text-muted-foreground">
                 {f.category}
                 {f.priceRange ? ` · ${f.priceRange}` : ""}
               </p>
               {(f.address || f.city) && (
-                <p className="mt-0.5 inline-flex items-center gap-1 text-[12px] text-muted-foreground">
+                <p className="mt-0.5 inline-flex items-center gap-1 text-caption text-muted-foreground">
                   <MapPin className="h-3 w-3" />
                   {[f.address, f.city, f.region].filter(Boolean).join(", ")}
                 </p>
               )}
               <div className="mt-0.5 flex items-center gap-1.5">
                 <Stars rating={business.ratingAvg} />
-                <span className="text-[11.5px] text-muted-foreground">
+                <span className="text-caption text-muted-foreground">
                   {business.ratingCount > 0 ? `${business.ratingAvg} (${business.ratingCount})` : "No reviews yet"}
                 </span>
               </div>
               {(f.contactPhone.trim() || f.contactEmail.trim()) && (
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[12px] text-muted-foreground">
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-caption text-muted-foreground">
                   {f.contactPhone.trim() && (
                     <span className="inline-flex items-center gap-1">
                       <Phone className="h-3 w-3" /> {f.contactPhone.trim()}
@@ -175,11 +179,11 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
                   )}
                 </p>
               )}
-              {f.description && <p className="mt-1.5 line-clamp-2 text-[12.5px] text-muted-foreground">{f.description}</p>}
+              {f.description && <p className="mt-1.5 line-clamp-2 text-caption text-muted-foreground">{f.description}</p>}
               {previewTags.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {previewTags.map((t) => (
-                    <span key={t} className="rounded-md bg-muted px-1.5 py-0.5 text-[10.5px] text-muted-foreground">
+                    <span key={t} className="rounded-md bg-muted px-1.5 py-0.5 text-caption text-muted-foreground">
                       {t}
                     </span>
                   ))}
@@ -197,23 +201,21 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
             <TextInput value={f.name} onChange={(v) => setF((p) => ({ ...p, name: v }))} />
           </Field>
           <Field label="Category">
-            <select
+            <NativeSelect
               value={f.category}
               onChange={(e) => setF((p) => ({ ...p, category: e.target.value }))}
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground focus:border-accent focus:outline-none"
             >
               {CATEGORIES.map((c) => (
                 <option key={c}>{c}</option>
               ))}
-            </select>
+            </NativeSelect>
           </Field>
           <Field label="Description">
-            <textarea
+            <Textarea
               value={f.description}
               onChange={(e) => setF((p) => ({ ...p, description: e.target.value }))}
               rows={3}
               placeholder="What you offer, specialties, what makes you different…"
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
@@ -247,24 +249,20 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
               <TextInput value={f.latitude} onChange={(v) => setF((p) => ({ ...p, latitude: v }))} placeholder="Latitude" />
               <TextInput value={f.longitude} onChange={(v) => setF((p) => ({ ...p, longitude: v }))} placeholder="Longitude" />
             </div>
-            <p className="mt-1.5 text-[11.5px] text-muted-foreground">
+            <p className="mt-1.5 text-caption text-muted-foreground">
               Residents outside your {f.radiusKm || "—"}{" "}
               km service radius can filter you out, so keep both accurate.
             </p>
-            <button
-              onClick={useGps}
-              disabled={gps}
-              className="mt-2 flex items-center gap-1.5 rounded-xl border border-border bg-background px-3.5 py-2 text-[13px] font-semibold text-foreground disabled:opacity-60"
-            >
-              {gps ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />} Use current location
-            </button>
+            <Button variant="secondary" size="sm" className="mt-2" onClick={useGps} loading={gps}>
+              {!gps && <Navigation className="h-4 w-4" />} Use current location
+            </Button>
           </Field>
         </div>
       </SectionCard>
 
       {/* Contact — shown on your page and on every confirmed booking. */}
       <SectionCard title="How customers reach you">
-        <p className="mb-3 text-[12.5px] text-muted-foreground">
+        <p className="mb-3 text-caption text-muted-foreground">
           Shown on your page and on customers&apos; confirmed bookings, so they can call or email you about a visit.
           Both are optional.
         </p>
@@ -300,7 +298,7 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
 
       {/* Hours */}
       <SectionCard title="Business hours">
-        <p className="mb-3 text-[12.5px] text-muted-foreground">
+        <p className="mb-3 text-caption text-muted-foreground">
           Hours drive the “Open now” badge automatically — no switch to remember.
         </p>
         <div className="space-y-1.5">
@@ -308,38 +306,40 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
             const v = hours[d]
             return (
               <div key={d} className="flex flex-wrap items-center gap-2">
-                <span className="w-24 flex-shrink-0 text-[13px] text-foreground">{DAY_LABEL[d]}</span>
+                <span className="w-24 flex-shrink-0 text-meta text-foreground">{DAY_LABEL[d]}</span>
                 {v ? (
                   <>
-                    <input
+                    <Input
                       type="time"
                       value={v.open}
                       onChange={(e) => setHours((p) => ({ ...p, [d]: { ...v, open: e.target.value } }))}
-                      className="min-w-0 rounded-lg border border-border bg-background px-2 py-1.5 text-base text-foreground focus:border-accent focus:outline-none md:text-[13px]"
                     />
                     <span className="text-muted-foreground">–</span>
-                    <input
+                    <Input
                       type="time"
                       value={v.close}
                       onChange={(e) => setHours((p) => ({ ...p, [d]: { ...v, close: e.target.value } }))}
-                      className="min-w-0 rounded-lg border border-border bg-background px-2 py-1.5 text-base text-foreground focus:border-accent focus:outline-none md:text-[13px]"
                     />
-                    <button
+                    <Button
+                      variant="quiet"
+                      size="sm"
+                      className="ml-auto"
                       onClick={() => setHours((p) => ({ ...p, [d]: null }))}
-                      className="ml-auto text-[12px] font-semibold text-muted-foreground hover:text-destructive"
                     >
                       Closed
-                    </button>
+                    </Button>
                   </>
                 ) : (
                   <>
-                    <span className="text-[13px] text-muted-foreground">Closed</span>
-                    <button
+                    <span className="text-meta text-muted-foreground">Closed</span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="ml-auto"
                       onClick={() => setHours((p) => ({ ...p, [d]: { open: "09:00", close: "17:00" } }))}
-                      className="ml-auto text-[12px] font-semibold text-accent"
                     >
                       Set hours
-                    </button>
+                    </Button>
                   </>
                 )}
               </div>
@@ -348,13 +348,9 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
         </div>
       </SectionCard>
 
-      <button
-        onClick={save}
-        disabled={saving}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-[15px] font-semibold text-white disabled:opacity-60"
-      >
-        {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save storefront
-      </button>
+      <Button size="lg" className="w-full" onClick={save} loading={saving}>
+        Save storefront
+      </Button>
 
       {/* Catalog */}
       <ServiceCatalog businessId={business.id} services={services} isLoading={svcLoading} refetch={refetchServices} />
@@ -385,10 +381,10 @@ function ContactInput({
   const errorId = `${id}-error`
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <label htmlFor={id} className="mb-1.5 block text-caption font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </label>
-      <input
+      <Input
         id={id}
         type={type}
         inputMode={type === "tel" ? "tel" : "email"}
@@ -399,12 +395,11 @@ function ContactInput({
         placeholder={placeholder}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className={`w-full min-w-0 rounded-xl border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 ${error ? "border-destructive" : "border-border"}`}
       />
       {error && (
-        <p id={errorId} role="alert" className="mt-1 text-[11.5px] text-destructive">
+        <ErrorText id={errorId} className="mt-1 text-caption">
           {error}
-        </p>
+        </ErrorText>
       )}
     </div>
   )
@@ -479,15 +474,12 @@ function ServiceCatalog({
     <SectionCard
       title="Services & prices"
       action={
-        <button
-          onClick={() => setAdding((v) => !v)}
-          className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white"
-        >
+        <Button size="sm" onClick={() => setAdding((v) => !v)}>
           <Plus className="h-3.5 w-3.5" /> {adding ? "Close" : "Add service"}
-        </button>
+        </Button>
       }
     >
-      <p className="mb-3 text-[12.5px] text-muted-foreground">
+      <p className="mb-3 text-caption text-muted-foreground">
         This is the list residents browse and book from. A booking always references one of these. Customers pay you
         directly; Pet10x keeps {feePercentLabel()} of each completed booking.
       </p>
@@ -496,20 +488,16 @@ function ServiceCatalog({
         <div className="mb-3 flex flex-col gap-2 rounded-xl border border-border bg-background p-3">
           <ServiceFields value={n} onChange={setN} errors={errors} currency={currency} />
           <TextInput value={description} onChange={setDescription} placeholder="Short description" />
-          <button
-            onClick={add}
-            disabled={busy}
-            className="flex items-center justify-center gap-2 rounded-xl bg-accent py-2 text-[13px] font-semibold text-white disabled:opacity-60"
-          >
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Add to catalog
-          </button>
+          <Button size="sm" onClick={add} loading={busy}>
+            Add to catalog
+          </Button>
         </div>
       )}
 
       {isLoading ? (
         <Spinner />
       ) : live.length === 0 ? (
-        <p className="py-6 text-center text-[13px] text-muted-foreground">
+        <p className="py-6 text-center text-meta text-muted-foreground">
           {archived.length > 0
             ? "No services on your catalog — add one or restore an archived one so residents can book you."
             : "No services yet — add one so residents can book you."}
@@ -520,26 +508,18 @@ function ServiceCatalog({
             <div key={s.id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="text-[14px] font-semibold text-foreground">{s.name}</p>
-                  {s.durationMin ? <span className="text-[11.5px] text-muted-foreground">{s.durationMin} min</span> : null}
+                  <p className="text-body font-semibold text-foreground">{s.name}</p>
+                  {s.durationMin ? <span className="text-caption text-muted-foreground">{s.durationMin} min</span> : null}
                 </div>
-                {s.description && <p className="truncate text-[12px] text-muted-foreground">{s.description}</p>}
+                {s.description && <p className="truncate text-caption text-muted-foreground">{s.description}</p>}
               </div>
-              <p className="text-[15px] font-bold text-foreground">{formatPrice(s.priceCents, s.currency)}</p>
-              <button
-                onClick={() => setEditing(s)}
-                aria-label={`Edit ${s.name}`}
-                className="rounded-lg bg-muted p-2 text-muted-foreground hover:text-foreground"
-              >
+              <p className="text-body font-bold text-foreground">{formatPrice(s.priceCents, s.currency)}</p>
+              <Button size="icon" variant="secondary" onClick={() => setEditing(s)} aria-label={`Edit ${s.name}`}>
                 <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => setArchiving(s)}
-                aria-label={`Archive ${s.name}`}
-                className="rounded-lg bg-muted p-2 text-muted-foreground hover:text-destructive"
-              >
-                <Archive className="h-3.5 w-3.5" />
-              </button>
+              </Button>
+              <Button size="icon" variant="secondary" onClick={() => setArchiving(s)} aria-label={`Archive ${s.name}`}>
+                <Archive className="h-3.5 w-3.5 text-destructive" />
+              </Button>
             </div>
           ))}
         </div>
@@ -551,7 +531,7 @@ function ServiceCatalog({
           <button
             onClick={() => setShowArchived((v) => !v)}
             aria-expanded={showArchived}
-            className="flex items-center gap-1 text-[12.5px] font-semibold text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-1 text-caption font-semibold text-muted-foreground hover:text-foreground"
           >
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showArchived ? "rotate-180" : ""}`} />
             Archived ({archived.length})
@@ -561,18 +541,14 @@ function ServiceCatalog({
               {archived.map((s) => (
                 <div key={s.id} className="flex items-center gap-3 rounded-xl border border-dashed border-border p-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[14px] font-semibold text-muted-foreground">{s.name}</p>
-                    <p className="text-[12px] text-muted-foreground">Hidden from customers</p>
+                    <p className="text-body font-semibold text-muted-foreground">{s.name}</p>
+                    <p className="text-caption text-muted-foreground">Hidden from customers</p>
                   </div>
-                  <p className="text-[14px] text-muted-foreground">{formatPrice(s.priceCents, s.currency)}</p>
-                  <button
-                    onClick={() => restore(s)}
-                    disabled={restoring === s.id}
-                    className="flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-[11.5px] font-semibold text-foreground disabled:opacity-50"
-                  >
-                    {restoring === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArchiveRestore className="h-3.5 w-3.5" />}
+                  <p className="text-body text-muted-foreground">{formatPrice(s.priceCents, s.currency)}</p>
+                  <Button size="sm" variant="secondary" onClick={() => restore(s)} loading={restoring === s.id}>
+                    {restoring !== s.id && <ArchiveRestore className="h-3.5 w-3.5" />}
                     Restore
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -648,21 +624,21 @@ function PriceInput({
   const parsed = parsePriceCents(value)
   return (
     <div>
-      <div className="flex items-center rounded-xl border border-border bg-background focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20">
-        <span className="pl-3.5 text-[14px] text-muted-foreground">{currencySymbol(currency)}</span>
+      <div className="flex items-center rounded-xl border border-border bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-primary">
+        <span className="pl-3.5 text-body text-muted-foreground">{currencySymbol(currency)}</span>
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           inputMode="decimal"
           aria-label="Price"
           placeholder="85"
-          className="w-full min-w-0 bg-transparent py-2.5 pl-1.5 pr-3.5 text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+          className="w-full min-w-0 bg-transparent py-2.5 pl-1.5 pr-3.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none"
         />
       </div>
       {error ? (
         <FieldError message={error} />
       ) : (
-        <p className="mt-1 text-[11.5px] text-muted-foreground">
+        <p className="mt-1 text-caption text-muted-foreground">
           {parsed.ok
             ? `You receive ${formatPrice(youReceiveCents(parsed.cents), currency)}`
             : `You receive the price minus the ${feePercentLabel()} Pet10x fee`}
@@ -675,9 +651,7 @@ function PriceInput({
 function FieldError({ message }: { message?: string }) {
   if (!message) return null
   return (
-    <p role="alert" className="mt-1 text-[11.5px] text-destructive">
-      {message}
-    </p>
+    <ErrorText className="mt-1 text-caption">{message}</ErrorText>
   )
 }
 
@@ -751,16 +725,12 @@ function EditServiceForm({
         <ServiceFields value={v} onChange={setV} errors={errors} currency={service.currency} />
       </div>
       <div className="flex gap-2">
-        <button onClick={onCancel} disabled={busy} className="flex-1 rounded-xl bg-muted py-2.5 text-[13px] font-semibold text-foreground">
+        <Button variant="secondary" className="flex-1" onClick={onCancel} disabled={busy}>
           Cancel
-        </button>
-        <button
-          onClick={save}
-          disabled={busy}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-[13px] font-semibold text-white disabled:opacity-60"
-        >
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />} Save
-        </button>
+        </Button>
+        <Button className="flex-1" onClick={save} loading={busy}>
+          Save
+        </Button>
       </div>
     </>
   )

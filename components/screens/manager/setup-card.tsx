@@ -13,6 +13,7 @@ import {
   type StaffCount,
   setupHiddenKey,
 } from "@/lib/data/building-setup"
+import { Button } from "@/components/ui/button"
 
 /**
  * Staff other than the viewer, for the "add a co-manager" row. A head count
@@ -115,24 +116,24 @@ export function SetupCard({
 
   return (
     <section className="mb-6" aria-labelledby="setup-title">
-      <div className="rounded-2xl card-raised p-4">
+      <div className="rounded-lg card-raised p-4">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 id="setup-title" className="text-[17px] font-semibold text-foreground">
+            <h2 id="setup-title" className="text-title font-semibold text-foreground">
               Get your building ready
             </h2>
-            <p className="text-[12px] text-muted-foreground">Share the code so residents can join {building.name}.</p>
+            <p className="text-caption text-muted-foreground">Share the code so residents can join {building.name}.</p>
           </div>
           {complete && (
-            <button onClick={hide} className="flex-shrink-0 text-[13px] font-semibold text-primary-text">
+            <Button variant="quiet" size="sm" className="flex-shrink-0" onClick={hide}>
               Hide
-            </button>
+            </Button>
           )}
         </div>
 
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl bg-muted/60 px-4 py-3">
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl bg-muted px-4 py-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase text-muted-foreground">Building code</p>
+            <p className="text-caption font-medium uppercase text-muted-foreground">Building code</p>
             <span
               ref={codeRef}
               className="block select-all break-all font-mono text-[28px] font-bold leading-tight tracking-widest text-foreground"
@@ -140,12 +141,9 @@ export function SetupCard({
               {building.code}
             </span>
           </div>
-          <button
-            onClick={() => void copy()}
-            className="flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-primary-strong px-3.5 py-2 text-[13px] font-semibold text-primary-foreground active:scale-[0.97]"
-          >
+          <Button size="sm" className="flex-shrink-0" onClick={() => void copy()}>
             <Copy className="h-3.5 w-3.5" /> Copy
-          </button>
+          </Button>
         </div>
 
         <ul className="flex flex-col">
@@ -157,13 +155,13 @@ export function SetupCard({
               >
                 <span
                   className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border ${
-                    row.done ? "border-success-strong bg-success-strong text-success-foreground" : "border-border"
+                    row.done ? "border-success bg-success text-success-foreground" : "border-border"
                   }`}
                   aria-hidden
                 >
                   {row.done && <Check className="h-3 w-3" strokeWidth={3} />}
                 </span>
-                <span className={`flex-1 text-[14px] ${row.done ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                <span className={`flex-1 text-body ${row.done ? "text-muted-foreground line-through" : "text-foreground"}`}>
                   {row.label}
                 </span>
                 <span className="sr-only">{row.done ? "Done" : "To do"}</span>

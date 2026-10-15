@@ -17,8 +17,10 @@ import { bookingContactState } from "@/lib/data/business-contact"
 import type { BookingContact } from "@/lib/data/cancel-errors"
 import { ContactLinks } from "@/components/screens/shared/contact-links"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { SectionCard, EmptyState, Spinner, LoadError, TextInput } from "./business-ui"
-import { Inbox, Check, X, Play, CircleCheck, DollarSign, Clock, Dog, Loader2, CalendarDays } from "lucide-react"
+import { Inbox, Check, X, Play, CircleCheck, DollarSign, Clock, Dog, CalendarDays } from "lucide-react"
 
 type Segment = "requests" | "upcoming" | "active" | "history"
 
@@ -29,14 +31,15 @@ const SEGMENTS: { id: Segment; label: string; statuses: BookingStatus[] }[] = [
   { id: "history", label: "History", statuses: ["completed", "paid", "declined", "cancelled"] },
 ]
 
-const STATUS_STYLE: Record<BookingStatus, string> = {
-  requested: "bg-warning/15 text-warning",
-  confirmed: "bg-accent/15 text-accent",
-  in_progress: "bg-info/15 text-info",
-  completed: "bg-success/15 text-success-strong",
-  paid: "bg-success/15 text-success-strong",
-  declined: "bg-destructive/10 text-destructive",
-  cancelled: "bg-muted text-muted-foreground",
+// A status is a Badge variant; the words stay dark.
+const STATUS_BADGE: Record<BookingStatus, "neutral" | "brand" | "success" | "warning" | "danger" | "info"> = {
+  requested: "warning",
+  confirmed: "brand",
+  in_progress: "info",
+  completed: "success",
+  paid: "success",
+  declined: "danger",
+  cancelled: "neutral",
 }
 
 function hoursSince(iso: string): number {
@@ -107,13 +110,13 @@ export function BookingsTab({ businessId }: { businessId: string }) {
               setSeg(s.id)
               setAutoPicked(true)
             }}
-            className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors ${
-              seg === s.id ? "bg-card text-accent shadow-sm" : "text-muted-foreground"
+            className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-meta font-semibold transition-colors ${
+              seg === s.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
             }`}
           >
             {s.label}
             {counts[s.id] > 0 && (
-              <span className={`rounded-full px-1.5 text-[10.5px] ${seg === s.id ? "bg-accent/15" : "bg-background"}`}>
+              <span className={`rounded-full px-1.5 text-caption ${seg === s.id ? "bg-primary-soft" : "bg-background"}`}>
                 {counts[s.id]}
               </span>
             )}
@@ -200,13 +203,11 @@ function BookingCard({
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[b.status]}`}>
-              {BOOKING_STATUS_LABEL[b.status]}
-            </span>
-            <span className="text-[14px] font-semibold text-foreground">{b.serviceName ?? "Service"}</span>
-            {b.durationMin ? <span className="text-[11.5px] text-muted-foreground">· {b.durationMin} min</span> : null}
+            <Badge variant={STATUS_BADGE[b.status]}>{BOOKING_STATUS_LABEL[b.status]}</Badge>
+            <span className="text-body font-semibold text-foreground">{b.serviceName ?? "Service"}</span>
+            {b.durationMin ? <span className="text-caption text-muted-foreground">· {b.durationMin} min</span> : null}
           </div>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[12.5px] text-muted-foreground">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Dog className="h-3.5 w-3.5" />
               {b.petName ?? "Pet"}
@@ -214,12 +215,12 @@ function BookingCard({
             </span>
             <span>· {b.customerName}</span>
           </p>
-          <p className="mt-0.5 inline-flex items-center gap-1 text-[12.5px] text-muted-foreground">
+          <p className="mt-0.5 inline-flex items-center gap-1 text-caption text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5" /> {when(b.scheduledFor)}
           </p>
-          {b.note && <p className="mt-1.5 rounded-lg bg-muted/50 px-2.5 py-1.5 text-[12.5px] text-foreground">“{b.note}”</p>}
+          {b.note && <p className="mt-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-caption text-foreground">“{b.note}”</p>}
           {b.declinedReason && (
-            <p className="mt-1.5 text-[12px] text-destructive">Declined: {b.declinedReason}</p>
+            <p className="mt-1.5 text-caption text-foreground">Declined: {b.declinedReason}</p>
           )}
           <CustomerContact bookingId={b.id} status={b.status} name={b.customerName} />
         </div>
@@ -227,19 +228,19 @@ function BookingCard({
         {/* The customer pays this price to you; Pet10x bills its fee separately.
             What you keep is always visible before accepting. */}
         <div className="text-right">
-          <p className="text-[16px] font-bold text-foreground">{formatPrice(b.amountCents, b.currency)}</p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-body font-bold text-foreground">{formatPrice(b.amountCents, b.currency)}</p>
+          <p className="text-caption text-muted-foreground">
             −{formatPrice(b.commissionCents, b.currency)} Pet10x fee
           </p>
-          <p className="text-[12px] font-semibold text-success-strong">
+          <p className="text-caption font-semibold text-foreground">
             {formatPrice(b.amountCents - b.commissionCents, b.currency)} you keep
           </p>
         </div>
       </div>
 
       {b.status === "requested" && (
-        <p className={`mt-2 inline-flex items-center gap-1 text-[11.5px] ${overdue ? "text-destructive" : "text-muted-foreground"}`}>
-          <Clock className="h-3.5 w-3.5" />
+        <p className={`mt-2 inline-flex items-center gap-1 text-caption ${overdue ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+          <Clock className={`h-3.5 w-3.5 ${overdue ? "text-destructive" : ""}`} />
           {overdue ? "Overdue — " : ""}
           requested {age < 1 ? "just now" : `${Math.floor(age)}h ago`} · 4h response target
         </p>
@@ -249,20 +250,21 @@ function BookingCard({
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <TextInput value={reason} onChange={setReason} placeholder="Reason (shared with the customer)" />
           <div className="flex gap-2">
-            <button
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={busy}
               onClick={() =>
                 onAct(b.id, "Booking declined", () =>
                   setBookingStatus(b.id, "declined", { declinedReason: reason.trim() || "Unavailable" }),
                 ).then(onDeclined)
               }
-              disabled={busy}
-              className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-2 text-[12.5px] font-semibold text-destructive disabled:opacity-50"
             >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />} Confirm decline
-            </button>
-            <button onClick={onCancelDecline} className="rounded-lg bg-muted px-3 py-2 text-[12.5px] font-semibold text-foreground">
+              {!busy && <X className="h-3.5 w-3.5 text-destructive" />} Confirm decline
+            </Button>
+            <Button size="sm" variant="quiet" onClick={onCancelDecline}>
               Keep
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
@@ -271,14 +273,14 @@ function BookingCard({
             <>
               <Action busy={busy} tone="accept" icon={<Check className="h-3.5 w-3.5" />} label="Accept"
                 onClick={() => onAct(b.id, "Booking confirmed", () => setBookingStatus(b.id, "confirmed"))} />
-              <Action busy={busy} tone="deny" icon={<X className="h-3.5 w-3.5" />} label="Decline" onClick={onStartDecline} />
+              <Action busy={busy} tone="deny" icon={<X className="h-3.5 w-3.5 text-destructive" />} label="Decline" onClick={onStartDecline} />
             </>
           )}
           {b.status === "confirmed" && (
             <>
               <Action busy={busy} tone="accept" icon={<Play className="h-3.5 w-3.5" />} label="Start job"
                 onClick={() => onAct(b.id, "Job started", () => setBookingStatus(b.id, "in_progress"))} />
-              <Action busy={busy} tone="neutral" icon={<X className="h-3.5 w-3.5" />} label="Cancel" onClick={onStartCancel} />
+              <Action busy={busy} tone="neutral" icon={<X className="h-3.5 w-3.5 text-destructive" />} label="Cancel" onClick={onStartCancel} />
             </>
           )}
           {b.status === "in_progress" && (
@@ -288,7 +290,7 @@ function BookingCard({
           {b.status === "completed" && (
             <>
               {/* The customer pays you directly; marking it paid is your record that they did. */}
-              <p className="w-full text-[12.5px] font-semibold text-foreground">
+              <p className="w-full text-caption font-semibold text-foreground">
                 Completed — collect {formatPrice(b.amountCents, b.currency)}
               </p>
               <Action busy={busy} tone="money" icon={<DollarSign className="h-3.5 w-3.5" />} label="Mark paid"
@@ -324,14 +326,14 @@ function CustomerContact({ bookingId, status, name }: { bookingId: string; statu
   }, [bookingId, key, state])
 
   if (state === "after_confirm") {
-    return <p className="mt-1.5 text-[11.5px] text-muted-foreground">Contact shared once you confirm</p>
+    return <p className="mt-1.5 text-caption text-muted-foreground">Contact shared once you confirm</p>
   }
   if (state !== "shared") return null
   const current = loaded?.key === key ? loaded : null
-  if (!current) return <p className="mt-1.5 text-[11.5px] text-muted-foreground">Loading contact details…</p>
-  if (current.error) return <p className="mt-1.5 text-[11.5px] text-muted-foreground">{current.error}</p>
+  if (!current) return <p className="mt-1.5 text-caption text-muted-foreground">Loading contact details…</p>
+  if (current.error) return <p className="mt-1.5 text-caption text-muted-foreground">{current.error}</p>
   if (!current.contact?.phone && !current.contact?.email) {
-    return <p className="mt-1.5 text-[11.5px] text-muted-foreground">{name} hasn&apos;t added a phone or email.</p>
+    return <p className="mt-1.5 text-caption text-muted-foreground">{name} hasn&apos;t added a phone or email.</p>
   }
   return (
     <div className="mt-1.5">
@@ -353,22 +355,13 @@ function Action({
   busy: boolean
   tone: "accept" | "deny" | "neutral" | "money"
 }) {
-  const cls =
-    tone === "accept"
-      ? "bg-success/15 text-success-strong hover:bg-success/25"
-      : tone === "deny"
-        ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
-        : tone === "money"
-          ? "bg-accent/15 text-accent hover:bg-accent/25"
-          : "bg-muted text-foreground hover:bg-muted/70"
+  // Accept and money are the forward steps (primary); deny and cancel are
+  // secondary, with the red on the icon rather than the words.
+  const forward = tone === "accept" || tone === "money"
   return (
-    <button
-      onClick={onClick}
-      disabled={busy}
-      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-50 ${cls}`}
-    >
-      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : icon}
+    <Button size="sm" variant={forward ? "primary" : "secondary"} onClick={onClick} loading={busy}>
+      {!busy && icon}
       {label}
-    </button>
+    </Button>
   )
 }

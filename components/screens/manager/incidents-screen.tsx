@@ -1,5 +1,6 @@
 "use client"
 
+import { Input } from "@/components/ui/input"
 import { useMemo, useState } from "react"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { AlertTriangle, Inbox, Loader2, Search } from "lucide-react"
@@ -106,7 +107,7 @@ export function ManagerIncidentsScreen() {
               role="tab"
               aria-selected={source === t.id}
               onClick={() => setSource(t.id)}
-              className={`flex-1 rounded-lg py-1.5 text-[13px] font-semibold transition-colors ${
+              className={`flex-1 rounded-lg py-1.5 text-meta font-semibold transition-colors ${
                 source === t.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
@@ -118,12 +119,12 @@ export function ManagerIncidentsScreen() {
           <>
             <div className="relative mb-2.5">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
+              <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search by reference, pet, unit or text"
                 aria-label="Search incident reports"
-                className="w-full rounded-xl border border-input bg-card py-2.5 pl-9 pr-3 text-[14px] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                className="pl-9"
               />
             </div>
             <div className="flex flex-wrap gap-2">
@@ -131,8 +132,8 @@ export function ManagerIncidentsScreen() {
                 <button
                   key={f.id}
                   onClick={() => setFilter(f.id)}
-                  className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-all ${
-                    filter === f.id ? "bg-primary-strong text-primary-foreground" : "bg-muted text-muted-foreground"
+                  className={`rounded-full px-3 py-1.5 text-caption font-semibold transition-all ${
+                    filter === f.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {f.label}
@@ -153,18 +154,18 @@ export function ManagerIncidentsScreen() {
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : visible.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+          <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft">
               {incidents.length === 0 ? (
                 <Inbox className="h-6 w-6 text-primary" />
               ) : (
                 <AlertTriangle className="h-6 w-6 text-primary" />
               )}
             </div>
-            <h3 className="mt-4 text-[15px] font-semibold text-foreground">
+            <h3 className="mt-4 text-body font-semibold text-foreground">
               {incidents.length === 0 ? "No reports yet" : "Nothing matches"}
             </h3>
-            <p className="mx-auto mt-1 max-w-[24rem] text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mx-auto mt-1 max-w-[24rem] text-meta leading-relaxed text-muted-foreground">
               {incidents.length === 0
                 ? "Reports filed by residents, or by anyone with your building code, land here."
                 : "Try a different filter or search term."}

@@ -4,12 +4,12 @@ import { useState } from "react"
 import Image from "next/image"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Camera,
   CheckCircle2,
   Clock,
   Gavel,
-  Loader2,
   MapPin,
   PawPrint,
   UserX,
@@ -58,13 +58,13 @@ export function locationLabel(location: string): string {
  * `database.types.ts` -> this map is missing a key. Until 2026-08-23 it was a
  * hand-written union with the same six members, and this comment claimed a
  * guarantee that stopped at the hand. */
-const INCIDENT_STATUS_STYLE: Record<IncidentStatus, string> = {
-  submitted: "bg-destructive/10 text-destructive",
-  triaged: "bg-primary/10 text-primary-text",
-  investigating: "bg-warning/10 text-warning-strong",
-  linked_to_violation: "bg-primary/10 text-primary-text",
-  dismissed: "bg-muted text-muted-foreground",
-  resolved: "bg-success/10 text-success-strong",
+const INCIDENT_STATUS_BADGE: Record<IncidentStatus, "neutral" | "brand" | "success" | "warning" | "danger" | "info"> = {
+  submitted: "danger",
+  triaged: "brand",
+  investigating: "warning",
+  linked_to_violation: "brand",
+  dismissed: "neutral",
+  resolved: "success",
 }
 
 export function IncidentCard({
@@ -105,24 +105,24 @@ export function IncidentCard({
   }
 
   return (
-    <div className="rounded-2xl card-raised p-4">
+    <div className="rounded-lg card-raised p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-[15px] font-semibold text-foreground">
+            <h3 className="text-body font-semibold text-foreground">
               {INCIDENT_TYPE_LABEL[incident.type]}
             </h3>
-            <Badge className={`border-0 text-[10px] ${INCIDENT_STATUS_STYLE[incident.status] ?? "bg-muted"}`}>
+            <Badge variant={INCIDENT_STATUS_BADGE[incident.status] ?? "neutral"}>
               {INCIDENT_STATUS_LABEL[incident.status]}
             </Badge>
             {incident.isAnonymous && (
-              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1 text-caption text-muted-foreground">
                 <UserX className="h-3 w-3" /> Anonymous
               </span>
             )}
           </div>
-          {buildingName && <p className="mt-1 text-[11px] font-semibold text-muted-foreground">{buildingName}</p>}
-          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{incident.description}</p>
+          {buildingName && <p className="mt-1 text-caption font-semibold text-muted-foreground">{buildingName}</p>}
+          <p className="mt-1.5 text-meta leading-relaxed text-muted-foreground">{incident.description}</p>
 
           {/* What the reporter photographed. Most reports carry nothing, so this
               renders only when there is something to show — an empty state here
@@ -131,7 +131,7 @@ export function IncidentCard({
               silent strip and an empty one would otherwise read the same. */}
           {incident.evidenceCount > 0 && (
             <div className="mt-2.5">
-              <p className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+              <p className="flex items-center gap-1 text-caption font-semibold text-muted-foreground">
                 <Camera className="h-3 w-3" />
                 {incident.evidenceUrls.length === 0
                   ? `${incident.evidenceCount} photo${incident.evidenceCount === 1 ? "" : "s"} attached — couldn't load ${incident.evidenceCount === 1 ? "it" : "them"} just now`
@@ -177,25 +177,25 @@ export function IncidentCard({
                 )}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13.5px] font-semibold text-foreground">
+                <p className="truncate text-meta font-semibold text-foreground">
                   {incident.petName}
                   {incident.petBreed ? (
                     <span className="font-normal text-muted-foreground"> · {incident.petBreed}</span>
                   ) : null}
                 </p>
-                <p className="truncate text-[11.5px] text-muted-foreground">
+                <p className="truncate text-caption text-muted-foreground">
                   {[incident.petUnit && `Unit ${incident.petUnit}`, incident.petOwnerName]
                     .filter(Boolean)
                     .join(" · ") || "Owner not on file"}
                 </p>
               </div>
-              <span className="flex-shrink-0 rounded-md bg-card px-2 py-1 text-[10px] font-semibold text-muted-foreground">
+              <Badge variant="neutral" className="flex-shrink-0">
                 Identified by reporter
-              </span>
+              </Badge>
             </div>
           )}
 
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
+          <p className="mt-1.5 text-caption text-muted-foreground">
             {incident.reference && <span className="font-mono">{incident.reference}</span>}
             {incident.location && (
               <>
@@ -204,7 +204,7 @@ export function IncidentCard({
                   href={mapUrl(incident.location)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 text-primary-text underline decoration-dotted underline-offset-2"
+                  className="inline-flex items-center gap-0.5 text-foreground underline decoration-dotted underline-offset-2"
                   title="Open in Google Maps"
                 >
                   <MapPin className="h-3 w-3" />
@@ -223,45 +223,30 @@ export function IncidentCard({
       {open && (
         <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
           {incident.status === "submitted" && (
-            <button
-              onClick={() => move("triaged", "Acknowledged")}
-              disabled={busy}
-              className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60"
-            >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            <Button size="sm" variant="secondary" loading={busy} onClick={() => move("triaged", "Acknowledged")}>
+              {!busy && <CheckCircle2 className="h-3.5 w-3.5" />}
               Acknowledge
-            </button>
+            </Button>
           )}
           {incident.status !== "investigating" && (
-            <button
-              onClick={() => move("investigating", "Marked as investigating")}
+            <Button
+              size="sm"
+              variant="secondary"
               disabled={busy}
-              className="flex items-center gap-1.5 rounded-lg bg-warning/10 px-3 py-1.5 text-[12px] font-semibold text-warning-strong disabled:opacity-60"
+              onClick={() => move("investigating", "Marked as investigating")}
             >
-              <Clock className="h-3.5 w-3.5" /> Investigate
-            </button>
+              <Clock className="h-3.5 w-3.5 text-warning" /> Investigate
+            </Button>
           )}
-          <button
-            onClick={escalate}
-            disabled={busy}
-            className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-60"
-          >
-            <Gavel className="h-3.5 w-3.5" /> Escalate to violation
-          </button>
-          <button
-            onClick={() => move("resolved", "Marked resolved")}
-            disabled={busy}
-            className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-[12px] font-semibold text-success-strong disabled:opacity-60"
-          >
+          <Button size="sm" variant="secondary" disabled={busy} onClick={escalate}>
+            <Gavel className="h-3.5 w-3.5 text-destructive" /> Escalate to violation
+          </Button>
+          <Button size="sm" disabled={busy} onClick={() => move("resolved", "Marked resolved")}>
             <CheckCircle2 className="h-3.5 w-3.5" /> Resolve
-          </button>
-          <button
-            onClick={() => move("dismissed", "Dismissed")}
-            disabled={busy}
-            className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-[12px] font-semibold text-muted-foreground disabled:opacity-60"
-          >
+          </Button>
+          <Button size="sm" variant="quiet" disabled={busy} onClick={() => move("dismissed", "Dismissed")}>
             <XCircle className="h-3.5 w-3.5" /> Dismiss
-          </button>
+          </Button>
         </div>
       )}
     </div>

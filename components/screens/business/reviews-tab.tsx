@@ -4,8 +4,9 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { useBusinessReviews, replyToReview, type ReviewItem } from "@/lib/data/bookings"
 import type { MyBusiness } from "@/lib/data/business"
+import { Button } from "@/components/ui/button"
 import { SectionCard, Spinner, EmptyState, Stars, StatTile } from "./business-ui"
-import { MessageSquare, Loader2, CornerDownRight } from "lucide-react"
+import { MessageSquare, CornerDownRight } from "lucide-react"
 
 export function ReviewsTab({ business }: { business: MyBusiness }) {
   const { data: reviews, isLoading, refetch } = useBusinessReviews(business.id)
@@ -61,21 +62,21 @@ function ReviewCard({ review, onReplied }: { review: ReviewItem; onReplied: () =
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Stars rating={review.rating} />
-            <span className="text-[13.5px] font-semibold text-foreground">{review.authorName}</span>
+            <span className="text-meta font-semibold text-foreground">{review.authorName}</span>
           </div>
-          {review.comment && <p className="mt-1 text-[13px] text-foreground">{review.comment}</p>}
+          {review.comment && <p className="mt-1 text-meta text-foreground">{review.comment}</p>}
         </div>
-        <span className="flex-shrink-0 text-[11.5px] text-muted-foreground">
+        <span className="flex-shrink-0 text-caption text-muted-foreground">
           {new Date(review.createdAt).toLocaleDateString()}
         </span>
       </div>
 
       {review.ownerReply ? (
-        <div className="mt-3 flex gap-2 rounded-lg bg-muted/60 p-3">
-          <CornerDownRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
+        <div className="mt-3 flex gap-2 rounded-lg bg-muted p-3">
+          <CornerDownRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
           <div>
-            <p className="text-[12.5px] text-foreground">{review.ownerReply}</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="text-caption text-foreground">{review.ownerReply}</p>
+            <p className="mt-0.5 text-caption text-muted-foreground">
               Your reply{review.repliedAt ? ` · ${new Date(review.repliedAt).toLocaleDateString()}` : ""}
             </p>
           </div>
@@ -87,25 +88,21 @@ function ReviewCard({ review, onReplied }: { review: ReviewItem; onReplied: () =
             onChange={(e) => setText(e.target.value)}
             rows={2}
             placeholder="Thank them, or address the issue publicly…"
-            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-[13px] text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-meta text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <div className="flex gap-2">
-            <button
-              onClick={send}
-              disabled={busy}
-              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-60"
-            >
-              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Post reply
-            </button>
-            <button onClick={() => setReplying(false)} className="rounded-lg bg-muted px-3 py-1.5 text-[12.5px] font-semibold text-foreground">
+            <Button size="sm" onClick={send} loading={busy}>
+              Post reply
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setReplying(false)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
-        <button onClick={() => setReplying(true)} className="mt-3 text-[12.5px] font-semibold text-accent">
-          Reply to this review →
-        </button>
+        <Button variant="link" size="sm" className="mt-3" onClick={() => setReplying(true)}>
+          Reply to this review
+        </Button>
       )}
     </SectionCard>
   )
