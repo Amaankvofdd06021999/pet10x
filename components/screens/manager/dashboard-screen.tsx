@@ -41,7 +41,7 @@ const QUICK_ACTIONS = [
   { icon: UserCheck, label: "Review Residents", tint: "bg-primary-soft text-primary", screen: "residents" },
   { icon: AlertTriangle, label: "Violations", tint: "bg-destructive-soft text-destructive", screen: "violations" },
   { icon: Shield, label: "Approvals", tint: "bg-success-soft text-success", screen: "approvals" },
-  { icon: Megaphone, label: "Incident Reports", tint: "bg-warning-soft text-foreground", screen: "incidents" },
+  { icon: Megaphone, label: "Incident Reports", tint: "bg-warning-soft text-warning", screen: "incidents" },
   /* Phone only: the desktop sidebar carries Community, and the mobile tab bar
      has no slot for it. Full width so the grid stays even with five tiles. */
   {
@@ -248,7 +248,7 @@ export function ManagerDashboardScreen({ onNavigate }: DashboardScreenProps) {
                       <button
                         key={v.id}
                         onClick={() => onNavigate?.("violations")}
-                        className="flex items-center gap-3 rounded-xl bg-muted p-2.5 text-left transition-colors active:bg-muted"
+                        className="flex items-center gap-3 rounded-xl bg-muted p-2.5 text-left transition-colors hover:bg-border active:bg-border"
                       >
                         <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${tile.tint}`}>
                           <Icon className="h-4.5 w-4.5" />

@@ -5,7 +5,10 @@ import { useOwnerBookings, BOOKING_STATUS_LABEL } from "@/lib/data/bookings"
 import { formatPrice } from "@/lib/data/business"
 import { earningsSummary, feePercentLabel } from "@/lib/data/fees"
 import { toCsv, downloadCsv } from "@/lib/csv"
-import { StatTile, SectionCard, Spinner, EmptyState } from "./business-ui"
+import { StatTile } from "@/components/ui/stat-tile"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty"
 import { Download, DollarSign } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -53,15 +56,15 @@ export function EarningsTab({ businessId }: { businessId: string }) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {/* Gross, fee and net are one set (completed + paid), so Gross − Fee = Net.
             The customer pays the business directly, so the fee is owed, not withheld. */}
-        <StatTile label="Gross earned" value={money(e.grossCents)} sub={`${e.countedBookings} completed booking${e.countedBookings === 1 ? "" : "s"}`} />
-        <StatTile label="Pet10x fee owed" value={money(e.feeCents)} sub="Pet10x invoices this separately." tone="destructive" />
-        <StatTile label="Net to you" value={money(e.netCents)} sub={`after the ${feePercentLabel()} Pet10x fee`} tone="success" />
-        <StatTile label="Waiting for payment" value={money(e.waitingCents)} sub={`${e.waitingCount} completed, not yet paid · included above`} tone="accent" />
+        <StatTile label="Gross earned" value={money(e.grossCents)} hint={`${e.countedBookings} completed booking${e.countedBookings === 1 ? "" : "s"}`} />
+        <StatTile label="Pet10x fee owed" value={money(e.feeCents)} hint="Pet10x invoices this separately." tone="bad" />
+        <StatTile label="Net to you" value={money(e.netCents)} hint={`after the ${feePercentLabel()} Pet10x fee`} tone="good" />
+        <StatTile label="Waiting for payment" value={money(e.waitingCents)} hint={`${e.waitingCount} completed, not yet paid · included above`} tone="accent" />
       </div>
 
       <SectionCard
         title="Per-booking ledger"
-        action={
+        actions={
           ledger.length > 0 ? (
             <Button size="sm" onClick={exportCsv}>
               <Download className="h-3.5 w-3.5" /> Export CSV
@@ -70,7 +73,7 @@ export function EarningsTab({ businessId }: { businessId: string }) {
         }
       >
         {ledger.length === 0 ? (
-          <EmptyState icon={<DollarSign className="h-8 w-8" />} title="No earnings yet" sub="Completed bookings show up here with the price, the Pet10x fee and what you keep." />
+          <EmptyState icon={<DollarSign className="h-8 w-8" />} title="No earnings yet" detail="Completed bookings show up here with the price, the Pet10x fee and what you keep." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-meta">

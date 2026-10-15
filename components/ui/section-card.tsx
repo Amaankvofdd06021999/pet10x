@@ -13,7 +13,7 @@ export function SectionCard({
   children,
   className = '',
 }: {
-  title?: string
+  title?: ReactNode
   subtitle?: string
   actions?: ReactNode
   children: ReactNode

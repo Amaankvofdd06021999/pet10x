@@ -5,7 +5,10 @@ import { useMemo } from "react"
 import { profileCompleteness, formatPrice, type MyBusiness } from "@/lib/data/business"
 import { useOwnerBookings, useBusinessServices, useBusinessReviews } from "@/lib/data/bookings"
 import { earningsSummary } from "@/lib/data/fees"
-import { StatTile, SectionCard, Spinner, Stars } from "./business-ui"
+import { StatTile } from "@/components/ui/stat-tile"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { Stars } from "./business-ui"
 import { BadgeCheck, AlertTriangle, Inbox, CalendarDays, DollarSign, MessageSquare, ChevronRight, Clock } from "lucide-react"
 
 export function DashboardTab({
@@ -84,34 +87,36 @@ export function DashboardTab({
 
       {/* Q2 + Q4 */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <button onClick={() => onOpenTab("bookings")} className="text-left">
-          <StatTile label="New requests" value={requests.length} sub="awaiting your reply" tone={requests.length ? "warning" : "default"} />
-        </button>
+        <StatTile
+          label="New requests"
+          value={requests.length}
+          hint="awaiting your reply"
+          tone={requests.length ? "warn" : "default"}
+          onClick={() => onOpenTab("bookings")}
+        />
         <StatTile
           label="Jobs today"
           value={todayJobs.length}
-          sub={
+          hint={
             todayJobs.length
               ? `next at ${new Date(todayJobs[0].scheduledFor!).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
               : "nothing scheduled"
           }
         />
-        <button onClick={() => onOpenTab("earnings")} className="text-left">
-          <StatTile
-            label="Booked (30d)"
-            value={formatPrice(Math.round(booked30d * 100), currency)}
-            sub={`${formatPrice(earnings.netCents, currency)} earned after Pet10x fee`}
-            tone="accent"
-          />
-        </button>
-        <button onClick={() => onOpenTab("reviews")} className="text-left">
-          <StatTile
-            label="Rating"
-            value={business.ratingCount ? business.ratingAvg.toFixed(1) : "—"}
-            sub={business.ratingCount ? `from ${business.ratingCount} review${business.ratingCount === 1 ? "" : "s"}` : "no reviews yet"}
-            tone="success"
-          />
-        </button>
+        <StatTile
+          label="Booked (30d)"
+          value={formatPrice(Math.round(booked30d * 100), currency)}
+          hint={`${formatPrice(earnings.netCents, currency)} earned after Pet10x fee`}
+          tone="accent"
+          onClick={() => onOpenTab("earnings")}
+        />
+        <StatTile
+          label="Rating"
+          value={business.ratingCount ? business.ratingAvg.toFixed(1) : "—"}
+          hint={business.ratingCount ? `from ${business.ratingCount} review${business.ratingCount === 1 ? "" : "s"}` : "no reviews yet"}
+          tone="good"
+          onClick={() => onOpenTab("reviews")}
+        />
       </div>
 
       {/* Needs you now */}

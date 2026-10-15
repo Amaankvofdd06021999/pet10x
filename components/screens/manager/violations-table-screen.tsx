@@ -276,12 +276,12 @@ export function ManagerViolationsScreen({ onNavigate }: { onNavigate?: (screen: 
           <div className="relative min-w-[220px] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <label htmlFor="viol-search" className="sr-only">Search cases</label>
-            <input
+            <Input
               id="viol-search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Pet, resident, unit or type"
-              className="w-full rounded-xl border border-input bg-card py-2 pl-9 pr-3 text-meta outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary"
+              className="pl-9"
             />
           </div>
           <label htmlFor="viol-stage" className="sr-only">Filter by stage</label>
@@ -1367,7 +1367,7 @@ function AppealPanel({
         <button
           type="button"
           onClick={() => onChoose("upheld")}
-          className="rounded-xl border border-warning bg-warning-soft p-3 text-left transition-colors"
+          className="rounded-xl border border-warning bg-warning-soft p-3 text-left transition-colors hover:border-foreground"
         >
           <span className="block text-meta font-semibold text-foreground">
             Uphold
@@ -1379,7 +1379,7 @@ function AppealPanel({
         <button
           type="button"
           onClick={() => onChoose("overturned")}
-          className="rounded-xl border border-success bg-success-soft p-3 text-left transition-colors"
+          className="rounded-xl border border-success bg-success-soft p-3 text-left transition-colors hover:border-foreground"
         >
           <span className="block text-meta font-semibold text-foreground">
             Overturn

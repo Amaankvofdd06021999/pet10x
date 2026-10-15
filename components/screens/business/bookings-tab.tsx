@@ -19,7 +19,11 @@ import { ContactLinks } from "@/components/screens/shared/contact-links"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { SectionCard, EmptyState, Spinner, LoadError, TextInput } from "./business-ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { EmptyState } from "@/components/ui/empty"
+import { Spinner } from "@/components/ui/spinner"
+import { LoadError } from "@/components/ui/load-error"
+import { TextInput } from "./business-ui"
 import { Inbox, Check, X, Play, CircleCheck, DollarSign, Clock, Dog, CalendarDays } from "lucide-react"
 
 type Segment = "requests" | "upcoming" | "active" | "history"
@@ -128,7 +132,7 @@ export function BookingsTab({ businessId }: { businessId: string }) {
         <EmptyState
           icon={<Inbox className="h-8 w-8" />}
           title={seg === "requests" ? "No new requests" : "Nothing here yet"}
-          sub={seg === "requests" ? "New booking requests from residents land here." : undefined}
+          detail={seg === "requests" ? "New booking requests from residents land here." : undefined}
         />
       ) : (
         <div className="space-y-2">

@@ -525,13 +525,6 @@ function AccommodationsTab({
   )
 }
 
-// The words stay dark; the icon beside each line carries the state's colour.
-const CHECK_TONE: Record<ChecklistItem["state"], string> = {
-  verified: "text-foreground",
-  provided: "text-foreground",
-  rejected: "text-foreground",
-  missing: "text-muted-foreground",
-}
 const CHECK_WORD: Record<ChecklistItem["state"], string> = {
   verified: "Verified",
   provided: "Provided, not yet verified",
@@ -691,7 +684,7 @@ function AccommodationCard({
                         {item.label}
                         {item.required ? "" : " (optional)"}
                       </p>
-                      <p className={`text-caption ${CHECK_TONE[item.state]}`}>
+                      <p className={`text-caption ${item.state === "missing" ? "text-muted-foreground" : "text-foreground"}`}>
                         {item.kind === "animal_desc" ? DESC_WORD[item.state] : CHECK_WORD[item.state]}
                       </p>
                       {doc && (

@@ -5,7 +5,12 @@ import { toast } from "sonner"
 import { useBusinessReviews, replyToReview, type ReviewItem } from "@/lib/data/bookings"
 import type { MyBusiness } from "@/lib/data/business"
 import { Button } from "@/components/ui/button"
-import { SectionCard, Spinner, EmptyState, Stars, StatTile } from "./business-ui"
+import { Textarea } from "@/components/ui/textarea"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty"
+import { StatTile } from "@/components/ui/stat-tile"
+import { Stars } from "./business-ui"
 import { MessageSquare, CornerDownRight } from "lucide-react"
 
 export function ReviewsTab({ business }: { business: MyBusiness }) {
@@ -17,16 +22,16 @@ export function ReviewsTab({ business }: { business: MyBusiness }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
-        <StatTile label="Rating" value={business.ratingCount ? business.ratingAvg.toFixed(1) : "—"} sub="average" tone="success" />
-        <StatTile label="Reviews" value={business.ratingCount} sub="total" />
-        <StatTile label="Awaiting reply" value={unreplied} sub="replying builds trust" tone={unreplied ? "warning" : "default"} />
+        <StatTile label="Rating" value={business.ratingCount ? business.ratingAvg.toFixed(1) : "—"} hint="average" tone="good" />
+        <StatTile label="Reviews" value={business.ratingCount} hint="total" />
+        <StatTile label="Awaiting reply" value={unreplied} hint="replying builds trust" tone={unreplied ? "warn" : "default"} />
       </div>
 
       {reviews.length === 0 ? (
         <EmptyState
           icon={<MessageSquare className="h-8 w-8" />}
           title="No reviews yet"
-          sub="Customers can review you once a booking is completed."
+          detail="Customers can review you once a booking is completed."
         />
       ) : (
         <div className="space-y-2">
@@ -83,12 +88,11 @@ function ReviewCard({ review, onReplied }: { review: ReviewItem; onReplied: () =
         </div>
       ) : replying ? (
         <div className="mt-3 flex flex-col gap-2">
-          <textarea
+          <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={2}
             placeholder="Thank them, or address the issue publicly…"
-            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-meta text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <div className="flex gap-2">
             <Button size="sm" onClick={send} loading={busy}>

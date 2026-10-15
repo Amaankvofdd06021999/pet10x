@@ -5,6 +5,7 @@ import { ChevronRight, Loader2 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { loadingProps } from '@/lib/loading-props'
+import { buttonType } from '@/lib/button-type'
 
 /*
  * The one button (spec §2). Five looks, three sizes.
@@ -81,6 +82,7 @@ function Button({
   asChild = false,
   loading = false,
   disabled,
+  type,
   children,
   ...props
 }: ButtonProps) {
@@ -91,6 +93,7 @@ function Button({
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      type={buttonType(asChild, type)}
       {...loadingProps(loading, disabled)}
       {...props}
     >

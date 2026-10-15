@@ -16,7 +16,10 @@ import {
 import type { MyBusiness } from "@/lib/data/business"
 import { campaignLaunchBlock } from "@/lib/data/campaign-launch"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { SectionCard, Spinner, EmptyState, TextInput, Field } from "./business-ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { EmptyState } from "@/components/ui/empty"
+import { TextInput, Field } from "./business-ui"
 import { Megaphone, Plus, Trash2, Building2, Users, Dog, Cat } from "lucide-react"
 
 const KINDS: CampaignKind[] = ["community_sponsored", "directory_featured", "banner"]
@@ -77,7 +80,7 @@ export function PromotionsTab({ business }: { business: MyBusiness }) {
     <div className="space-y-4">
       <SectionCard
         title="Campaigns"
-        action={
+        actions={
           <Button size="sm" onClick={() => setCreating((v) => !v)}>
             <Plus className="h-3.5 w-3.5" /> {creating ? "Close" : "New campaign"}
           </Button>
@@ -162,7 +165,7 @@ export function PromotionsTab({ business }: { business: MyBusiness }) {
         {isLoading ? (
           <Spinner />
         ) : campaigns.length === 0 ? (
-          <EmptyState icon={<Megaphone className="h-8 w-8" />} title="No campaigns yet" sub="Sponsor a building to reach its pet owners." />
+          <EmptyState icon={<Megaphone className="h-8 w-8" />} title="No campaigns yet" detail="Sponsor a building to reach its pet owners." />
         ) : (
           <div className="space-y-2">
             {campaigns.map((c) => (

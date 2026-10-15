@@ -37,7 +37,9 @@ import {
 import { validateContact, type ContactErrors } from "@/lib/data/business-contact"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { SectionCard, TextInput, Field, Spinner, Stars } from "./business-ui"
+import { SectionCard } from "@/components/ui/section-card"
+import { Spinner } from "@/components/ui/spinner"
+import { TextInput, Field, Stars } from "./business-ui"
 import { Navigation, Plus, Archive, ArchiveRestore, ChevronDown, Store, MapPin, Star, Eye, Pencil, Phone, Mail } from "lucide-react"
 
 const CATEGORIES = ["Veterinary", "Grooming", "Boarding", "Dog walking", "Training", "Pet store", "Other"]
@@ -311,12 +313,14 @@ export function StorefrontTab({ business, onSaved }: { business: MyBusiness; onS
                   <>
                     <Input
                       type="time"
+                      className="w-auto min-w-0 flex-1"
                       value={v.open}
                       onChange={(e) => setHours((p) => ({ ...p, [d]: { ...v, open: e.target.value } }))}
                     />
                     <span className="text-muted-foreground">–</span>
                     <Input
                       type="time"
+                      className="w-auto min-w-0 flex-1"
                       value={v.close}
                       onChange={(e) => setHours((p) => ({ ...p, [d]: { ...v, close: e.target.value } }))}
                     />
@@ -473,7 +477,7 @@ function ServiceCatalog({
   return (
     <SectionCard
       title="Services & prices"
-      action={
+      actions={
         <Button size="sm" onClick={() => setAdding((v) => !v)}>
           <Plus className="h-3.5 w-3.5" /> {adding ? "Close" : "Add service"}
         </Button>
