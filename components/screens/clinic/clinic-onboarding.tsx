@@ -8,6 +8,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { Button, Field, TextInput, Select, SectionCard, Spinner } from "@/components/screens/shared/ui"
 import { useBusinessTypes } from "@/lib/data/business-types"
 import { clinicSignupHref, readTargetParam } from "@/lib/navigation"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /** Plain-English names for the console modules a type turns on. */
 const MODULE_BLURB: Record<string, string> = {
@@ -181,7 +182,7 @@ export function RegisterPractice({
       address: phoneless.trim() || null,
     })
     if (insErr) {
-      setFailed(insErr.message)
+      setFailed(dbErrorMessage(insErr, "Couldn't create your practice. Try again."))
       setBusy(false)
       return
     }

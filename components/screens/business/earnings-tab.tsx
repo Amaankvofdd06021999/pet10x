@@ -51,7 +51,7 @@ export function EarningsTab({ businessId }: { businessId: string }) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {/* Gross, fee and net are one set (completed + paid), so Gross − Fee = Net.
             The customer pays the business directly, so the fee is owed, not withheld. */}
-        <StatTile label="Gross collected" value={money(e.grossCents)} sub={`${e.countedBookings} completed booking${e.countedBookings === 1 ? "" : "s"}`} />
+        <StatTile label="Gross earned" value={money(e.grossCents)} sub={`${e.countedBookings} completed booking${e.countedBookings === 1 ? "" : "s"}`} />
         <StatTile label="Pet10x fee owed" value={money(e.feeCents)} sub="Pet10x invoices this separately." tone="destructive" />
         <StatTile label="Net to you" value={money(e.netCents)} sub={`after the ${feePercentLabel()} Pet10x fee`} tone="success" />
         <StatTile label="Waiting for payment" value={money(e.waitingCents)} sub={`${e.waitingCount} completed, not yet paid · included above`} tone="accent" />

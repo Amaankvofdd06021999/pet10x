@@ -185,7 +185,7 @@ export function MyCasesScreen({
         {error && (
           <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
             <p className="text-[12px] leading-relaxed text-destructive">
-              {`We could not load your cases: ${error}`}
+              {error}
             </p>
           </div>
         )}
