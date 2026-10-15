@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /**
  * The consent gate, recorded on profiles.ai_consent_at.
@@ -32,7 +33,7 @@ export async function POST() {
 
   const consentedAt = new Date().toISOString()
   const { error } = await supabase.from("profiles").update({ ai_consent_at: consentedAt }).eq("id", user.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: dbErrorMessage(error, "Couldn't save your consent. Try again.") }, { status: 500 })
 
   return NextResponse.json({ consentedAt })
 }

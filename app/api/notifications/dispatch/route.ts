@@ -13,6 +13,7 @@ import {
   pushPayload,
   type EmailCandidate,
 } from "@/lib/notifications/dispatch"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /**
  * Deliver notifications beyond the app: email, then web push.
@@ -79,7 +80,7 @@ async function emailPass(supabase: Admin, started: number) {
     p_kinds: [...EMAIL_KINDS],
     p_max_recipients: EMAIL_MAX_RECIPIENTS,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't claim notification emails.") }
 
   const now = Date.now()
   const rows = (data ?? []).filter((n) => isEmailEligible(n, now))
@@ -148,7 +149,8 @@ function configurePush(): { ok: true } | { ok: false; why: string } {
     webpush.setVapidDetails(subject, pub, priv)
     return { ok: true }
   } catch (e) {
-    return { ok: false, why: e instanceof Error ? e.message : "invalid VAPID configuration" }
+    console.error("[dispatch] VAPID configuration rejected", e)
+    return { ok: false, why: "invalid VAPID configuration" }
   }
 }
 
@@ -157,7 +159,7 @@ async function pushPass(supabase: Admin, started: number) {
   if (!configured.ok) return { skipped: configured.why }
 
   const { data: claimed, error } = await supabase.rpc("claim_notification_pushes", { p_limit: PUSH_MAX_PER_RUN })
-  if (error) return { error: error.message }
+  if (error) return { error: dbErrorMessage(error, "Couldn't claim notification pushes.") }
   const notes = claimed ?? []
   if (notes.length === 0) return { claimed: 0, pushed: 0 }
 
@@ -168,7 +170,7 @@ async function pushPass(supabase: Admin, started: number) {
     .in("profile_id", profileIds)
   if (subsErr) {
     await supabase.from("notifications").update({ push_claimed_at: null }).in("id", notes.map((n) => n.id))
-    return { error: subsErr.message }
+    return { error: dbErrorMessage(subsErr, "Couldn't read push subscriptions; the pushes were released for the next run.") }
   }
 
   const byProfile = new Map<string, NonNullable<typeof subs>>()

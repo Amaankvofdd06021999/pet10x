@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 import type { AiMessage, Citation, TriageLevel } from "@/lib/ai/types"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /** One thread with its messages, for resuming a conversation. */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -28,7 +29,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     .eq("conversation_id", id)
     .order("created_at", { ascending: true })
     .limit(200)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: dbErrorMessage(error, "Couldn't load this conversation. Try again.") }, { status: 500 })
 
   const messages: AiMessage[] = (rows ?? [])
     .filter((r) => r.role !== "system")

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /**
  * Dismiss a suggestion card.
@@ -22,7 +23,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     .update({ status: "dismissed" })
     .eq("id", id)
     .eq("profile_id", user.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: dbErrorMessage(error, "Couldn't dismiss the suggestion. Try again.") }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }

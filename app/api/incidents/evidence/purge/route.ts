@@ -242,8 +242,8 @@ async function purge(request: Request): Promise<Summary> {
     try {
       stillClaimed = await claimedAmong(admin, group)
     } catch (err) {
-      summary.error = (err as Error).message
-      console.error("[incidents] evidence purge stopped mid-sweep", summary)
+      summary.error = "Couldn't re-check which evidence is still attached, so the sweep stopped."
+      console.error("[incidents] evidence purge stopped mid-sweep", summary, err)
       return summary
     }
     const { remove: batch, spared: lateClaims } = unclaimed(group, stillClaimed)
@@ -263,8 +263,9 @@ async function purge(request: Request): Promise<Summary> {
       // is only knowable from the log and the returned summary. Throwing here
       // would discard both and leave an operator investigating a missing photo
       // with nothing at all to read.
-      summary.error = `Couldn't remove evidence: ${error.message}`
-      console.error("[incidents] evidence purge stopped mid-sweep", summary)
+      // The response carries a sentence; Storage's own text goes to the log.
+      summary.error = "Couldn't remove evidence."
+      console.error("[incidents] evidence purge stopped mid-sweep", summary, error)
       return summary
     }
     // What storage says it removed, not what was asked for — a path that had
@@ -292,7 +293,7 @@ export async function POST(request: Request) {
     // throwing call added inside it would silently move back into this branch
     // and take the account of an irreversible delete with it.
     console.error("[incidents] evidence purge failed", err)
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return NextResponse.json({ error: "The purge couldn't start. The server log has the detail." }, { status: 500 })
   }
 }
 

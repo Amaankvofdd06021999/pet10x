@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ...(await purge()) })
   } catch (err) {
     console.error("[ai] media purge failed", err)
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return NextResponse.json({ error: "The purge couldn't finish. The server log has the detail." }, { status: 500 })
   }
 }
 

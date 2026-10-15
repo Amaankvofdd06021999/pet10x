@@ -374,8 +374,8 @@ async function purge(request: Request): Promise<Summary> {
     } catch (err) {
       // Nothing irreversible has happened to a FILE yet, so this is reportable
       // rather than fatal: carry on and sweep the objects.
-      summary.error = `Abandoned drafts could not be deleted: ${(err as Error).message}`
-      console.error("[accommodations] purge left abandoned drafts alone", logView(summary))
+      summary.error = "Abandoned drafts could not be deleted."
+      console.error("[accommodations] purge left abandoned drafts alone", logView(summary), err)
     }
   }
 
@@ -401,8 +401,8 @@ async function purge(request: Request): Promise<Summary> {
       )
       live = new Set(stillClassified.remove.map((v) => v.path))
     } catch (err) {
-      summary.error = (err as Error).message
-      console.error("[accommodations] purge stopped mid-sweep", logView(summary))
+      summary.error = "Couldn't re-check which documents are still attached, so the sweep stopped."
+      console.error("[accommodations] purge stopped mid-sweep", logView(summary), err)
       return summary
     }
     const batch = group.filter((p) => live.has(p))
@@ -424,8 +424,9 @@ async function purge(request: Request): Promise<Summary> {
       // Stop, but keep the account. Vercel Cron records the status and not the
       // body, and the deletion cannot be undone, so what already went is only
       // knowable from the log and this summary.
-      summary.error = `Couldn't remove documents: ${error.message}`
-      console.error("[accommodations] purge stopped mid-sweep", logView(summary))
+      // The response carries a sentence; Storage's own text goes to the log.
+      summary.error = "Couldn't remove documents."
+      console.error("[accommodations] purge stopped mid-sweep", logView(summary), error)
       return summary
     }
     const gone = (data ?? []).map((object) => object.name)
@@ -483,8 +484,8 @@ async function purge(request: Request): Promise<Summary> {
   } catch (err) {
     // The files are gone either way. Report the bookkeeping failure rather
     // than discarding the account of what was destroyed.
-    summary.error = `Files removed, but the rows could not be updated: ${(err as Error).message}`
-    console.error("[accommodations] purge left rows out of step", logView(summary))
+    summary.error = "Files removed, but the rows could not be updated."
+    console.error("[accommodations] purge left rows out of step", logView(summary), err)
     return summary
   }
 
@@ -501,7 +502,7 @@ export async function POST(request: Request) {
     // and the pre-loop reference read throw. Once the removal loop is running,
     // every failure inside it returns a partial summary instead of throwing.
     console.error("[accommodations] purge failed", err)
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return NextResponse.json({ error: "The purge couldn't start. The server log has the detail." }, { status: 500 })
   }
 }
 

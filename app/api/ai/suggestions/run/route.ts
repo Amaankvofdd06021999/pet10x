@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 import { runSuggestions } from "@/lib/ai/suggestions/run"
 import type { AiSuggestion, SuggestionKind } from "@/lib/ai/types"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -27,7 +28,7 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(20)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: dbErrorMessage(error, "Couldn't load your suggestions. Try again.") }, { status: 500 })
 
   const suggestions: AiSuggestion[] = (data ?? []).map((row) => ({
     id: row.id,

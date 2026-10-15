@@ -73,7 +73,7 @@ import { deletionBlocker, isOwnCommunityObject, objectPaths } from "@/lib/accoun
  * constraint name is a diagnostic, not something to show a person who asked
  * to be forgotten, and it goes to the log instead.
  */
-function refuse(stage: string, detail: string) {
+function refuse(stage: string, detail: unknown) {
   console.error(`[account] deletion refused at ${stage}`, detail)
   return NextResponse.json(
     { error: "We couldn't delete your account. Please contact support so we can finish it for you." },
@@ -234,16 +234,16 @@ export async function POST() {
   //    care entries, vaccinations, documents and contacts.
   // ---------------------------------------------------------------------
   const petsDelete = await admin.from("pets").delete().eq("owner_id", uid)
-  if (petsDelete.error) return refuse("pets", petsDelete.error.message)
+  if (petsDelete.error) return refuse("pets", petsDelete.error)
 
   const businessesDelete = await admin.from("businesses").delete().eq("owner_id", uid)
-  if (businessesDelete.error) return refuse("businesses", businessesDelete.error.message)
+  if (businessesDelete.error) return refuse("businesses", businessesDelete.error)
 
   const linksDelete = await admin.from("resident_links").delete().eq("profile_id", uid)
-  if (linksDelete.error) return refuse("resident_links", linksDelete.error.message)
+  if (linksDelete.error) return refuse("resident_links", linksDelete.error)
 
   const { error } = await admin.auth.admin.deleteUser(uid)
-  if (error) return refuse("deleteUser", error.message)
+  if (error) return refuse("deleteUser", error)
 
   // ---------------------------------------------------------------------
   // 4. Only now, and only for an account that is actually gone.

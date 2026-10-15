@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase/server"
 import type { AiConversation } from "@/lib/ai/types"
+import { dbErrorMessage } from "@/lib/data/db-error"
 
 /** The owner's threads, newest first. RLS scopes the read; the filter documents it. */
 export async function GET() {
@@ -20,7 +21,7 @@ export async function GET() {
     .order("updated_at", { ascending: false })
     .limit(50)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: dbErrorMessage(error, "Couldn't load your conversations. Try again.") }, { status: 500 })
 
   const conversations: AiConversation[] = (data ?? []).map((row) => ({
     id: row.id,
