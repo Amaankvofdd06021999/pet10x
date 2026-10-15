@@ -40,6 +40,13 @@ tester.run("no-raw-colors", rule, {
     jsx("dark:hover:bg-muted focus-visible:!ring-foreground data-[state=open]:bg-muted *:[svg]:text-destructive"),
     // Not class strings: comparisons, lookups, other calls.
     `<div className={cn(variant === "text-only" && "px-2", MAP["bg-x"], f("text-orange-600"))} />`,
+    // A class half-built at a `+` join is not judged; whole classes either side pass.
+    `<div className={"bg-" + tone + "-soft text-foreground " + extra} />`,
+    `cn("p-2 " + (open ? "bg-muted" : "bg-card"))`,
+    // cva's variant names are keys, not classes.
+    `cva("x", { variants: { variant: { "text-only": "px-2" } } })`,
+    // Mask stops take lengths, percentages and black.
+    jsx("mask-b-from-50% mask-linear-to-black"),
     // A class half-built in a template literal is not judged.
     "<div className={`bg-${tone}-soft text-foreground`} />",
     // Strings outside className / cn are not class strings.
@@ -82,6 +89,15 @@ tester.run("no-raw-colors", rule, {
     fails(`const STATUS_STYLE = { open: "bg-info/10", done: "bg-success-soft" }`),
     fails(`const toneClasses = ["text-success-strong"]`),
     fails(`const x = { iconClass: "text-teal-500" }`),
+    // String concatenation is read on both sides of every `+`.
+    fails(`<div className={"text-orange-600 " + x} />`),
+    fails(`cn("p-2 " + "bg-red-500")`),
+    fails(`<div className={x + " bg-info/10 " + y} />`),
+    // Maps named for colours and tones are read too.
+    fails(`const STATUS_COLOR = { open: "text-teal-600" }`),
+    fails(`const toneMap = { warn: "bg-warning/10" }`),
+    // A mask stop is a colour slot like any other.
+    fails(jsx("mask-b-from-red-500")),
     // A cn inside className is reported once, not twice.
     fails(`<div className={cn("bg-accent")} />`),
   ],

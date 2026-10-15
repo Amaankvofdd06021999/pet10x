@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button"
 /**
  * Dark footer, per the reference.
  *
- * Built on `foreground`/`background` rather than a literal dark hex, so it
- * inverts with the theme instead of staying near-black on a dark page — the
- * mistake a hardcoded #1F1F1F would make.
+ * Always dark, in either page theme: the `dark` class scopes the dark-mode
+ * tokens to the footer, so its surface is the dark `card` and its copy is the
+ * palette's own foreground and muted grey — tokens, not a literal dark hex.
  */
 export function SiteFooter() {
   // `href: null` is a name with nowhere to go yet — it renders as text, not
@@ -52,7 +52,7 @@ export function SiteFooter() {
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-[0.1]"
-        style={{ background: "radial-gradient(60% 70% at 82% 0%, var(--primary), transparent 60%)" }}
+        style={{ background: "radial-gradient(60% 70% at 82% 0%, color-mix(in oklab, var(--primary) 90%, transparent), transparent 60%)" }}
       />
       <div className="relative mx-auto max-w-7xl">
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">

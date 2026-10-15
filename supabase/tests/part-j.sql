@@ -10,6 +10,7 @@
 --     (snoozed_until is null or snoozed_until <= now()) — leaves out a
 --     dismissed row and a sleeping one, and keeps a row whose snooze is over.
 --   * both dispatcher claims carry the same two filters.
+--   * a new appointment type with no colour defaults to brand orange, not teal.
 --
 -- The actor and the stranger are any two non-admin profiles, chosen from live
 -- data; the rows are inserted here. Nothing survives: the file ends in
@@ -177,5 +178,17 @@ begin
   raise notice 'ok: anon cannot execute the notification RPCs (42501)';
 end $$;
 reset role;
+
+-- No teal default: a new appointment type that names no colour is orange.
+do $$
+declare v_default text;
+begin
+  select column_default into v_default from information_schema.columns
+   where table_schema = 'public' and table_name = 'appointment_types' and column_name = 'colour';
+  if v_default is distinct from '''#FD9340''::text' then
+    raise exception 'FAIL: appointment_types.colour default is %, expected #FD9340', v_default;
+  end if;
+  raise notice 'ok: appointment_types.colour defaults to #FD9340';
+end $$;
 
 rollback;

@@ -208,6 +208,11 @@ $$;
 revoke all on function public.claim_notification_pushes(integer) from public, anon, authenticated;
 grant execute on function public.claim_notification_pushes(integer) to service_role;
 
+-- UI system: teal is gone from the palette, so a new appointment type that
+-- names no colour gets the brand orange. Existing rows keep the colour their
+-- clinic chose (or the old default) — this changes the default only.
+alter table public.appointment_types alter column colour set default '#FD9340';
+
 
 -- Record them, so the Supabase CLI / MCP know they are applied.
 do $$ begin

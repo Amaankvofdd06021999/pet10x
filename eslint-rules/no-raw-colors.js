@@ -203,10 +203,11 @@ const NON_PAINT_PROPERTY = /^(--[a-z0-9-]+|background-size|background-position|b
 // JSX attributes that hold classes.
 const CLASS_ATTR = /^(class|className|[a-zA-Z]+ClassName)$/
 // Constants and object keys that, by name, hold classes or class maps:
-// `iconClass`, `toneClasses`, `LINK_CLASS`, `STATUS_STYLE`, `STAGE_TONES`.
+// `iconClass`, `toneClasses`, `LINK_CLASS`, `STATUS_STYLE`, `STAGE_TONES`,
+// `STATUS_COLOR`, `TONE`, `toneMap`.
 // Lower-case `style` is left out on purpose — that is an inline style object,
 // where a colour is data.
-const CLASS_NAME = /([cC]lass(es|Name)?|CLASS(ES|NAME)?|_STYLES?|_TONES?)$/
+const CLASS_NAME = /([cC]lass(es|Name)?|CLASS(ES|NAME)?|_STYLES?|_TONES?|_COLOU?RS?|^TONES?|[tT]one(s|Map)?)$/
 
 // Callees whose arguments are class strings.
 const CLASS_CALLEES = new Set(["cn", "clsx", "cva", "cx", "twMerge", "twJoin"])
@@ -237,6 +238,12 @@ function checkClass(cls) {
   if (COLOUR_LITERAL.test(utility)) return "a raw colour literal"
   const property = /^\[([a-z-][a-z0-9-]*):/.exec(utility)
   if (property) return NON_PAINT_PROPERTY.test(property[1]) ? null : "an arbitrary property that can paint a colour"
+  // Tailwind 4.1 mask stops (`mask-b-from-50%`) can take a colour too.
+  const mask = /^mask-(?:[trblxy]|linear|radial|conic)-(?:from|to)-(.+)$/.exec(utility)
+  if (mask) {
+    if (new RegExp("^(\\d+%?|" + LENGTH + ")$").test(mask[1]) || TOKEN_SET.has(mask[1]) || mask[1] === "black") return null
+    return mask[1].includes("/") ? "an opacity modifier on a colour (use a -soft token, a solid token, or an allowed overlay)" : "not a palette token"
+  }
   let prefix = null
   for (const p of COLOUR_PREFIXES) {
     if (utility === p || utility.startsWith(p + "-")) {
@@ -276,46 +283,113 @@ function report(context, node, text, { partialStart, partialEnd }) {
   })
 }
 
+// Operators whose result is a boolean, never a class.
+const COMPARISON = new Set(["===", "!==", "==", "!=", "<", ">", "<=", ">=", "in", "instanceof"])
+/**
+ * The literal text at one edge of a `+` operand, when it can be read: a
+ * string, a template's first/last quasi, or the matching side of a nested
+ * `+`. Null when the edge is an expression (an unknown join).
+ */
+function edgeText(node, side) {
+  if (node.type === "Literal" && typeof node.value === "string") return node.value
+  if (node.type === "TemplateLiteral") {
+    const q = side === "start" ? node.quasis[0] : node.quasis[node.quasis.length - 1]
+    return q.value.cooked ?? q.value.raw
+  }
+  if (node.type === "BinaryExpression" && node.operator === "+") {
+    return edgeText(side === "start" ? node.left : node.right, side)
+  }
+  return null
+}
+
+/** A join is clean when the text across it starts (or ends) with whitespace. */
+function joined(text, side) {
+  if (!text) return true
+  return side === "start" ? !/^\s/.test(text) : !/\s$/.test(text)
+}
+
+// Callees that take clsx-style objects, whose keys are classes. `cva`'s
+// second argument is a config object: its keys are variant names.
+const KEYED_CALLEES = new Set(["cn", "clsx", "cx"])
+
 /**
  * Walks an expression and checks every string that can end up as a class.
  * `seen` is shared per file so a `cn(…)` inside `className={…}` is checked once.
+ *
+ * `edge` says whether something is joined onto this node's start or end —
+ * a `${…}` in a template, or the other side of a `+`. A class touching that
+ * join is only half a class (`"bg-" + tone`) and is not judged. That is
+ * accepted on purpose: a class built at runtime (`text-orange-${n}`) is not a
+ * literal the rule can read, and Tailwind cannot see it either.
+ * `keys` says whether object keys in this subtree are classes.
  */
-function checkStrings(context, root, seen) {
-  const visit = (node) => {
+function checkStrings(context, root, seen, keys = false) {
+  const visit = (node, edge = {}, keyed = keys) => {
     if (!node || typeof node.type !== "string" || seen.has(node)) return
     seen.add(node)
-    // Parts of an expression that never become a class: a comparison
-    // (`variant === "text-only"`) and a ternary's test are booleans, a
-    // computed key (`MAP["x"]`) is a lookup, and another function's arguments
-    // are its own business (its result is not a literal we can read).
-    if (node.type === "BinaryExpression") return
-    if (node.type === "ConditionalExpression") {
-      visit(node.consequent)
-      visit(node.alternate)
+    if (node.type === "BinaryExpression") {
+      // A comparison (`variant === "text-only"`) is a boolean, never a class.
+      if (COMPARISON.has(node.operator)) return
+      // A string join: both sides are class text, and each meets the other.
+      if (node.operator === "+") {
+        // The left's last class is cut only if the right goes on without a
+        // space ("bg-" + tone); "p-2 " + "bg-red-500" is two whole classes.
+        visit(node.left, { start: edge.start, end: joined(edgeText(node.right, "start"), "start") }, keyed)
+        visit(node.right, { start: joined(edgeText(node.left, "end"), "end"), end: edge.end }, keyed)
+      }
+      // Anything else (`-`, `*`, `|` …) is arithmetic: a number.
       return
     }
+    // A ternary's test is a boolean; its branches are what lands in the class.
+    if (node.type === "ConditionalExpression") {
+      visit(node.consequent, edge, keyed)
+      visit(node.alternate, edge, keyed)
+      return
+    }
+    if (node.type === "LogicalExpression") {
+      visit(node.left, {}, keyed)
+      visit(node.right, edge, keyed)
+      return
+    }
+    // A computed key (`MAP["x"]`) is a lookup.
     if (node.type === "MemberExpression") return
-    if (node.type === "CallExpression" && !(node.callee.type === "Identifier" && CLASS_CALLEES.has(node.callee.name))) return
+    if (node.type === "CallExpression") {
+      // Another function's arguments are its own business (its result is not
+      // a literal we can read). A class callee's arguments are classes.
+      if (!(node.callee.type === "Identifier" && CLASS_CALLEES.has(node.callee.name))) return
+      const keyedArgs = KEYED_CALLEES.has(node.callee.name)
+      node.arguments.forEach((arg) => visit(arg, {}, keyedArgs))
+      return
+    }
+    if (node.type === "Property") {
+      if (keyed && !node.computed) visit(node.key, {}, keyed)
+      visit(node.value, {}, keyed)
+      return
+    }
     if (node.type === "Literal" && typeof node.value === "string") {
-      report(context, node, node.value, {})
+      report(context, node, node.value, {
+        partialStart: edge.start && !/^\s/.test(node.value),
+        partialEnd: edge.end && !/\s$/.test(node.value),
+      })
       return
     }
     if (node.type === "TemplateLiteral") {
+      const last = node.quasis.length - 1
       node.quasis.forEach((q, i) => {
         const raw = q.value.cooked ?? q.value.raw
         report(context, q, raw, {
-          partialStart: i > 0 && !/^\s/.test(raw),
-          partialEnd: i < node.quasis.length - 1 && !/\s$/.test(raw),
+          partialStart: (i > 0 || edge.start) && !/^\s/.test(raw),
+          partialEnd: (i < last || edge.end) && !/\s$/.test(raw),
         })
       })
-      node.expressions.forEach(visit)
+      node.expressions.forEach((e) => visit(e, {}, keyed))
       return
     }
     for (const key of Object.keys(node)) {
       if (key === "parent" || key === "loc" || key === "range") continue
       const child = node[key]
-      if (Array.isArray(child)) child.forEach(visit)
-      else if (child && typeof child === "object") visit(child)
+      if (Array.isArray(child)) child.forEach((c) => visit(c, {}, keyed))
+      else if (child && typeof child === "object") visit(child, {}, keyed)
     }
   }
   visit(root)
@@ -351,7 +425,7 @@ const rule = {
       },
       CallExpression(node) {
         if (node.callee.type === "Identifier" && CLASS_CALLEES.has(node.callee.name)) {
-          node.arguments.forEach((arg) => checkStrings(context, arg, seen))
+          node.arguments.forEach((arg) => checkStrings(context, arg, seen, KEYED_CALLEES.has(node.callee.name)))
         }
       },
     }

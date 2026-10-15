@@ -154,9 +154,7 @@ export default function EmergencyPage({ params }: { params: Promise<{ code: stri
           >
             <Clock className={`h-3 w-3 ${urgent ? "text-destructive" : "text-muted-foreground"}`} />
             <span
-              className={`font-mono text-[12px] font-bold tabular-nums ${
-                "text-foreground"
-              }`}
+              className="font-mono text-[12px] font-bold tabular-nums text-foreground"
             >
               {clock}
             </span>

@@ -108,7 +108,7 @@ function mapAppointment(r: ApptJoined): Appointment {
     staffName: r.business_staff?.profiles?.full_name ?? "Unassigned",
     typeId: r.type_id,
     typeName: r.appointment_types?.name ?? r.reason ?? "Appointment",
-    colour: r.appointment_types?.colour ?? "#0E6E68",
+    colour: r.appointment_types?.colour ?? "#FD9340",
     arrivedAt: r.arrived_at,
     behaviouralAlert: r.clinic_patients?.behavioural_alert ?? null,
   }

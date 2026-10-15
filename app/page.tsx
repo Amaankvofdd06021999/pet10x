@@ -400,7 +400,7 @@ export default function LandingPage() {
               className="pointer-events-none absolute inset-0 opacity-[0.14]"
               style={{
                 background:
-                  "radial-gradient(70% 90% at 88% 12%, var(--primary), transparent 62%)",
+                  "radial-gradient(70% 90% at 88% 12%, color-mix(in oklab, var(--primary) 90%, transparent), transparent 62%)",
               }}
             />
             <div className="relative grid items-center gap-9 lg:grid-cols-[1.25fr_1fr]">
@@ -418,7 +418,16 @@ export default function LandingPage() {
                   it is no longer needed.
                 </p>
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <Button asChild variant="secondary" size="lg" className="group">
+                  {/* Secondary, but white as it was before the band went dark:
+                      inside `.dark` a secondary fill is the band's own colour,
+                      so the button lost its edge. White ground, and
+                      `text-background` (near-black inside the dark scope). */}
+                  <Button
+                    asChild
+                    variant="secondary"
+                    size="lg"
+                    className="group border-transparent bg-white text-background hover:bg-white hover:brightness-95"
+                  >
                     <Link href="/help#emergency-access">
                       See how it works
                       <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />

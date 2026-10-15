@@ -16,6 +16,12 @@ describe('buttonVariants', () => {
     const c = classes({ variant: legacy as never })
     expect(c.filter((x) => /^(hover:)?(bg|text)-/.test(x) && !x.startsWith('text-body'))).toEqual([])
   })
+  it('legacy names are type errors too', () => {
+    // @ts-expect-error — `outline` is no longer a variant; tsc fails if it comes back.
+    buttonVariants({ variant: 'outline' })
+    // @ts-expect-error — `default` is no longer a size.
+    buttonVariants({ size: 'default' })
+  })
   it('legacy size default is gone', () => {
     expect(classes({ size: 'default' as never })).not.toContain('min-h-11')
   })
