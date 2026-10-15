@@ -46,7 +46,12 @@ begin
   end if;
   -- The sheet only offers times inside this window; anything else is a
   -- client bug or a hand-made call, not a choice someone made.
-  if p_until is null or p_until <= now() or p_until > now() + interval '7 days' then
+  -- A time that has passed (a sheet left open, a slow clock) is named as
+  -- such; only a time too far ahead, or none, is about the 7-day window.
+  if p_until is not null and p_until <= now() then
+    raise exception 'That time has passed. Pick another.' using errcode = '22023';
+  end if;
+  if p_until is null or p_until > now() + interval '7 days' then
     raise exception 'Pick a time within the next 7 days' using errcode = '22023';
   end if;
   update public.notifications

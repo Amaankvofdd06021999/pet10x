@@ -90,12 +90,18 @@ begin
   begin
     perform public.snooze_notification(v_id, now() - interval '1 minute');
     raise exception 'FAIL: a snooze in the past was accepted';
-  exception when sqlstate '22023' then null;
+  exception when sqlstate '22023' then
+    if sqlerrm <> 'That time has passed. Pick another.' then
+      raise exception 'FAIL: a past snooze raised the wrong sentence: %', sqlerrm;
+    end if;
   end;
   begin
     perform public.snooze_notification(v_id, now() + interval '8 days');
     raise exception 'FAIL: an 8-day snooze was accepted';
-  exception when sqlstate '22023' then null;
+  exception when sqlstate '22023' then
+    if sqlerrm <> 'Pick a time within the next 7 days' then
+      raise exception 'FAIL: an 8-day snooze raised the wrong sentence: %', sqlerrm;
+    end if;
   end;
   begin
     perform public.snooze_notification(v_id, null);

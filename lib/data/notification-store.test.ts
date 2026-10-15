@@ -236,6 +236,29 @@ describe("notification store — whose list it is", () => {
 })
 
 describe("notification store — snooze and delete", () => {
+  it("a load for another profile drops the previous account's pending deletes", async () => {
+    const persistRestore = vi.fn(async () => ({ error: null }))
+    const s = storeWith({
+      load: (() => {
+        let n = 0
+        return async () => (n++ === 0 ? ok(rows(), "alice") : ok(rows(), "bob"))
+      })(),
+      persistDismiss: () => new Promise(() => {}), // alice's delete never settles
+      persistRestore,
+    })
+    await s.refresh()
+    void s.dismiss("b")
+    expect(ids(s)).toEqual(["a", "c"])
+    // A focus refresh for bob lands before the auth context clears the store.
+    await s.refresh()
+    expect(s.profileId()).toBe("bob")
+    expect(ids(s)).toEqual(["a", "b", "c"])
+    // Alice's Undo must not put her row into bob's list or write anything.
+    expect(await s.restore("b")).toEqual({ error: null })
+    expect(persistRestore).not.toHaveBeenCalled()
+    expect(ids(s)).toEqual(["a", "b", "c"])
+  })
+
   it("deletes optimistically, before the write settles", async () => {
     let settle!: (v: { error: string | null }) => void
     const persistDismiss = vi.fn(() => new Promise<{ error: string | null }>((r) => (settle = r)))

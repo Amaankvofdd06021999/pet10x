@@ -193,6 +193,10 @@ export function createNotificationStore<T extends ReadableItem>(
         if (res.profileId !== owner) {
           pending.clear()
           restoring.clear()
+          // The previous account's pending deletes and snoozes are not theirs.
+          hidden.clear()
+          removed.clear()
+          dismissing.clear()
         }
         const next = res.data.filter((n) => !isHidden(n.id)).map((n) => (pending.has(n.id) && !n.read ? { ...n, read: true } : n))
         restoring.forEach((was, id) => {

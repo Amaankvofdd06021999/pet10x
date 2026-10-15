@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AlarmClock, AlertTriangle, Calendar, CheckCircle2, FileText, Shield, Sparkles, Syringe, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -118,17 +118,36 @@ export function NotificationRow({
      overwrite the times of this one. */
   const snoozeTicket = useRef(0)
 
-  const openSnooze = () => {
+  /* The times are worked out when the sheet opens, not when the row
+     rendered — a row left on screen since the afternoon must not offer
+     "This evening" at eight. */
+  const computeOptions = () => {
     const ticket = ++snoozeTicket.current
-    setOptions(null)
-    setSnoozeOpen(true)
-    /* The times are worked out when the sheet opens, not when the row
-       rendered — a row left on screen since the afternoon must not offer
-       "This evening" at eight. */
     void snoozeZone().then((tz) => {
       if (ticket === snoozeTicket.current) setOptions(snoozeOptions(new Date(), tz))
     })
   }
+
+  const openSnooze = () => {
+    setOptions(null)
+    setSnoozeOpen(true)
+    computeOptions()
+  }
+
+  /* A sheet left open while the tab is in the background would still offer
+     a time that has since passed; work the times out again on return. */
+  useEffect(() => {
+    if (!snoozeOpen) return
+    const refresh = () => {
+      if (document.visibilityState === "visible") computeOptions()
+    }
+    window.addEventListener("focus", refresh)
+    document.addEventListener("visibilitychange", refresh)
+    return () => {
+      window.removeEventListener("focus", refresh)
+      document.removeEventListener("visibilitychange", refresh)
+    }
+  }, [snoozeOpen])
 
   const snooze = (until: Date) => {
     focusSoon(focusAfterRemoval(rowRef.current))
