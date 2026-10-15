@@ -3274,6 +3274,7 @@ export type Database = {
           body: string | null
           building_id: string | null
           created_at: string
+          dismissed_at: string | null
           email_claimed_at: string | null
           email_failed_at: string | null
           emailed_at: string | null
@@ -3284,6 +3285,7 @@ export type Database = {
           pushed_at: string | null
           read_at: string | null
           severity: string
+          snoozed_until: string | null
           title: string
         }
         Insert: {
@@ -3292,6 +3294,7 @@ export type Database = {
           body?: string | null
           building_id?: string | null
           created_at?: string
+          dismissed_at?: string | null
           email_claimed_at?: string | null
           email_failed_at?: string | null
           emailed_at?: string | null
@@ -3302,6 +3305,7 @@ export type Database = {
           pushed_at?: string | null
           read_at?: string | null
           severity?: string
+          snoozed_until?: string | null
           title: string
         }
         Update: {
@@ -3310,6 +3314,7 @@ export type Database = {
           body?: string | null
           building_id?: string | null
           created_at?: string
+          dismissed_at?: string | null
           email_claimed_at?: string | null
           email_failed_at?: string | null
           emailed_at?: string | null
@@ -3320,6 +3325,7 @@ export type Database = {
           pushed_at?: string | null
           read_at?: string | null
           severity?: string
+          snoozed_until?: string | null
           title?: string
         }
         Relationships: [
@@ -6952,6 +6958,7 @@ export type Database = {
         }[]
       }
       customer_cancel_booking: { Args: { p_booking: string }; Returns: undefined }
+      dismiss_notification: { Args: { p_id: string }; Returns: Json }
       dispute_violation: {
         Args: { p_reason: string; p_violation: string }
         Returns: Json
@@ -7190,9 +7197,14 @@ export type Database = {
         Args: { p_lat?: number; p_lng?: number; p_postal?: string }
         Returns: Json
       }
+      restore_notification: { Args: { p_id: string }; Returns: Json }
       search_buildings_public: { Args: { q: string }; Returns: Json }
       set_my_unit: { Args: { p_unit: string }; Returns: Json }
       shares_managed_building_with: { Args: { p: string }; Returns: boolean }
+      snooze_notification: {
+        Args: { p_id: string; p_until: string }
+        Returns: Json
+      }
       staff_of_business: { Args: { p_business: string }; Returns: boolean }
       staff_role_in: {
         Args: { p_business: string }

@@ -34,6 +34,11 @@ import { cronFailure } from "@/lib/cron-failure"
  * A row this run claimed but had no time left to send is released at the
  * end, so the next tick takes it.
  *
+ * NOTHING THE INBOX HIDES IS SENT. Both claims skip a row the person deleted
+ * (`dismissed_at`) or snoozed and still asleep (`snoozed_until` in the
+ * future) — 20261018000001. A sleeping row not yet sent is claimed when it
+ * wakes, inside the same 24-hour window as any other row.
+ *
  * Each pass has its OWN time budget. With one shared clock a slow email
  * backlog could spend the whole run and starve push every tick.
  */

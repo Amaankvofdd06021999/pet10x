@@ -212,6 +212,8 @@ export function AlertsScreen({
                persona named here is the other one. */
             const target = alert.actionTarget
             const other = !route && target && onSwitchAndOpen ? personaForTarget(target, personas, viewAs) : null
+            /* Snooze and Delete live on the row itself (swipe, hover or Tab),
+               and take it out of this list through the shared store. */
             return (
               <NotificationRow
                 key={alert.id}

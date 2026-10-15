@@ -33,11 +33,15 @@ function storeWith(overrides: Partial<Parameters<typeof createNotificationStore<
     load: async () => ok(),
     persistRead: async () => ({ error: null }),
     persistAllRead: async () => ({ error: null }),
+    persistSnooze: async () => ({ error: null }),
+    persistDismiss: async () => ({ error: null }),
+    persistRestore: async () => ({ error: null }),
     ...overrides,
   })
 }
 
 const unread = (s: ReturnType<typeof storeWith>) => (s.get() ?? []).filter((n) => !n.read).map((n) => n.id)
+const ids = (s: ReturnType<typeof storeWith>) => (s.get() ?? []).map((n) => n.id)
 
 describe("notification store — read state", () => {
   it("loads once however many readers ask", async () => {
@@ -228,5 +232,132 @@ describe("notification store — whose list it is", () => {
     await s.refresh() // bob's load failed — alice's list must not be kept for him
     expect(s.get()).toBeNull()
     expect(s.profileId()).toBeNull()
+  })
+})
+
+describe("notification store — snooze and delete", () => {
+  it("deletes optimistically, before the write settles", async () => {
+    let settle!: (v: { error: string | null }) => void
+    const persistDismiss = vi.fn(() => new Promise<{ error: string | null }>((r) => (settle = r)))
+    const s = storeWith({ persistDismiss })
+    await s.refresh()
+    const pending = s.dismiss("b")
+    expect(ids(s)).toEqual(["a", "c"])
+    expect(persistDismiss).toHaveBeenCalledWith("b")
+    settle({ error: null })
+    expect(await pending).toEqual({ error: null })
+    expect(ids(s)).toEqual(["a", "c"])
+  })
+
+  it("puts a deleted row back where it was when the write fails", async () => {
+    const s = storeWith({ persistDismiss: async () => ({ error: "denied" }) })
+    await s.refresh()
+    expect(await s.dismiss("b")).toEqual({ error: "denied" })
+    expect(ids(s)).toEqual(["a", "b", "c"])
+  })
+
+  it("undo restores the row in place and writes the restore", async () => {
+    const persistRestore = vi.fn(async () => ({ error: null }))
+    const s = storeWith({ persistRestore })
+    await s.refresh()
+    await s.dismiss("b")
+    expect(await s.restore("b")).toEqual({ error: null })
+    expect(ids(s)).toEqual(["a", "b", "c"])
+    expect(persistRestore).toHaveBeenCalledWith("b")
+  })
+
+  it("a refused undo hides the row again and returns the error", async () => {
+    const s = storeWith({ persistRestore: async () => ({ error: "offline" }) })
+    await s.refresh()
+    await s.dismiss("b")
+    expect(await s.restore("b")).toEqual({ error: "offline" })
+    expect(ids(s)).toEqual(["a", "c"])
+  })
+
+  it("a refresh landing mid-delete does not bring the row back", async () => {
+    let settle!: (v: { error: string | null }) => void
+    const s = storeWith({ persistDismiss: () => new Promise((r) => (settle = r)) })
+    await s.refresh()
+    const write = s.dismiss("a")
+    await s.refresh() // the server has not seen the delete yet
+    expect(ids(s)).toEqual(["b", "c"])
+    settle({ error: null })
+    await write
+    expect(ids(s)).toEqual(["b", "c"])
+  })
+
+  it("snoozes optimistically and passes the time through", async () => {
+    const persistSnooze = vi.fn(async () => ({ error: null }))
+    const s = storeWith({ persistSnooze })
+    await s.refresh()
+    const until = new Date(Date.now() + 3600_000)
+    expect(await s.snooze("a", until)).toEqual({ error: null })
+    expect(ids(s)).toEqual(["b", "c"])
+    expect(persistSnooze).toHaveBeenCalledWith("a", until)
+  })
+
+  it("puts a snoozed row back when the write fails", async () => {
+    const s = storeWith({ persistSnooze: async () => ({ error: "too far" }) })
+    await s.refresh()
+    expect(await s.snooze("a", new Date(Date.now() + 3600_000))).toEqual({ error: "too far" })
+    expect(ids(s)).toEqual(["a", "b", "c"])
+  })
+
+  it("a snoozed row a stale refresh still returns stays hidden until it wakes", async () => {
+    let clock = 1_000_000
+    const s = storeWith({ now: () => clock })
+    await s.refresh()
+    await s.snooze("a", new Date(clock + 3600_000))
+    await s.refresh() // a response that does not know about the snooze
+    expect(ids(s)).toEqual(["b", "c"])
+    clock += 3600_000 + 1
+    await s.refresh() // awake: the server sends it, and it shows
+    expect(ids(s)).toEqual(["a", "b", "c"])
+  })
+
+  it("does not write for an unknown row", async () => {
+    const persistDismiss = vi.fn(async () => ({ error: null }))
+    const persistSnooze = vi.fn(async () => ({ error: null }))
+    const s = storeWith({ persistDismiss, persistSnooze })
+    await s.refresh()
+    await s.dismiss("zzz")
+    await s.snooze("zzz", new Date())
+    expect(persistDismiss).not.toHaveBeenCalled()
+    expect(persistSnooze).not.toHaveBeenCalled()
+  })
+
+  it("a delete that settles after sign-out does not touch the next list", async () => {
+    let settle!: (v: { error: string | null }) => void
+    const s = storeWith({ persistDismiss: () => new Promise((r) => (settle = r)) })
+    await s.refresh()
+    const write = s.dismiss("a")
+    s.clear()
+    await s.refresh()
+    settle({ error: "denied" })
+    await write
+    expect(ids(s)).toEqual(["a", "b", "c"]) // the fresh load, untouched by the revert
+  })
+
+  it("undo during an unfinished delete waits for it, then restores", async () => {
+    const order: string[] = []
+    let settle!: (v: { error: string | null }) => void
+    const s = storeWith({
+      persistDismiss: () =>
+        new Promise((r) => (settle = r)).then((v) => {
+          order.push("dismiss")
+          return v as { error: string | null }
+        }),
+      persistRestore: async () => {
+        order.push("restore")
+        return { error: null }
+      },
+    })
+    await s.refresh()
+    const del = s.dismiss("a")
+    const undo = s.restore("a")
+    expect(ids(s)).toEqual(["a", "b", "c"]) // back at once
+    settle({ error: null })
+    await Promise.all([del, undo])
+    expect(order).toEqual(["dismiss", "restore"])
   })
 })

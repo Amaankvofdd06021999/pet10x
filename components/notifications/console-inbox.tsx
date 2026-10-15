@@ -23,6 +23,9 @@ import { resolveConsoleTarget, type ConsoleRoute } from "@/lib/navigation"
  * is the same shared store the resident's Alerts screen reads
  * (lib/data/notification-store.ts), so reading one here reads it everywhere.
  *
+ * Each row swipes (or, here on a desktop, hovers) to Snooze and Delete —
+ * NotificationRow carries both, so the console and Alerts behave alike.
+ *
  * A notification's button exists only when its target names THIS console
  * (`business:bookings` in /businessaccess, `clinic:billing` in /clinic); an
  * /app target has nowhere to go from here, so it renders no button.
@@ -134,7 +137,8 @@ export function ConsoleInbox({
                         <NotificationRow
                           key={n.id}
                           notification={n}
-                          className="rounded-xl border border-border p-3"
+                          className="rounded-xl border border-border"
+                          contentClassName="p-3"
                           onOpen={() => read(n.id)}
                           onAction={
                             tab

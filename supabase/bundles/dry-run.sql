@@ -1,33 +1,215 @@
--- DRY RUN — generated 2026-10-15 from branch perf-and-leftovers by bundles/build.sh.
--- Applies every migration from 20261017000001 on, runs supabase/tests/part-*.sql,
+-- DRY RUN — generated 2026-10-15 from branch ui-system by bundles/build.sh.
+-- Applies every migration from 20261018000001 on, runs supabase/tests/part-*.sql,
 -- then RAISES ON PURPOSE so the whole transaction rolls back. Nothing is saved.
 -- SUCCESS looks like the error:  DRY RUN OK — ...
 -- Any other error is the first thing that broke; fix it before running apply.sql.
 begin;
 set local lock_timeout = '5s';
 
--- ===== migration 20261017000001_home_performance.sql =====
--- Home performance: suggestions are built nightly (and once on a resident's
--- first visit) instead of on every Home visit.
+-- ===== migration 20261018000001_ui_system.sql =====
+-- UI system — notifications can be snoozed or deleted with a swipe.
 --
---   * cron_cursors — where a nightly sweep stopped, so a run that hits its
---     time budget resumes after the last profile it finished. Server-only:
---     RLS on, no policies, no grants to the app roles; the cron route reaches
---     it with the service role.
---   * profiles.suggestions_last_run_at — null until the owner's suggestions
---     have been built once. Home reads it to decide whether this visit is the
---     first-visit build.
+--   * notifications.snoozed_until — the row is asleep until then: out of the
+--     inbox and the unread count, and not pushed or emailed. Snoozing clears
+--     read_at, so the row comes back unread when it wakes.
+--   * notifications.dismissed_at — "deleted" in the inbox. The row is hidden,
+--     never erased: delivery bookkeeping (emailed_at, pushed_at, the claims)
+--     stays intact, and Undo is restore_notification clearing the stamp.
+--   * snooze_notification / dismiss_notification / restore_notification —
+--     the only writers of the two columns. Security definer because
+--     notifs_update would also let an admin (is_admin) touch other people's
+--     rows through the API; these take the caller's OWN row and nobody
+--     else's, admin or not. A row that is not the caller's (or does not
+--     exist) is the same 'forbidden', so the answer says nothing about
+--     whose ids are real.
+--   * claim_notification_emails / claim_notification_pushes — copied from
+--     their newest definitions (20261011000005 and 20261011000002) with one
+--     filter added each: not dismissed, and not still asleep. A sleeping row
+--     not yet sent is claimed when it wakes, not before.
 
-create table if not exists public.cron_cursors (
-  name       text primary key,
-  cursor     text,
-  updated_at timestamptz not null default now()
-);
+alter table public.notifications
+  add column if not exists snoozed_until timestamptz,
+  add column if not exists dismissed_at  timestamptz;
 
-alter table public.cron_cursors enable row level security;
-revoke all on public.cron_cursors from anon, authenticated;
+create or replace function public.snooze_notification(p_id uuid, p_until timestamptz)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_me    uuid := auth.uid();
+  v_owner uuid;
+begin
+  select n.profile_id into v_owner from public.notifications n where n.id = p_id;
+  -- NULL-safe: no session, no row, or someone else's row are all refused.
+  if v_me is null or v_owner is null or v_owner <> v_me then
+    return jsonb_build_object('ok', false, 'error', 'forbidden');
+  end if;
+  -- The sheet only offers times inside this window; anything else is a
+  -- client bug or a hand-made call, not a choice someone made.
+  if p_until is null or p_until <= now() or p_until > now() + interval '7 days' then
+    raise exception 'Pick a time within the next 7 days' using errcode = '22023';
+  end if;
+  update public.notifications
+     set snoozed_until = p_until,
+         read_at = null
+   where id = p_id;
+  return jsonb_build_object('ok', true);
+end
+$$;
 
-alter table public.profiles add column if not exists suggestions_last_run_at timestamptz;
+create or replace function public.dismiss_notification(p_id uuid)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_me    uuid := auth.uid();
+  v_owner uuid;
+begin
+  select n.profile_id into v_owner from public.notifications n where n.id = p_id;
+  if v_me is null or v_owner is null or v_owner <> v_me then
+    return jsonb_build_object('ok', false, 'error', 'forbidden');
+  end if;
+  -- coalesce: a second delete keeps the first stamp.
+  update public.notifications set dismissed_at = coalesce(dismissed_at, now()) where id = p_id;
+  return jsonb_build_object('ok', true);
+end
+$$;
+
+create or replace function public.restore_notification(p_id uuid)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_me    uuid := auth.uid();
+  v_owner uuid;
+begin
+  select n.profile_id into v_owner from public.notifications n where n.id = p_id;
+  if v_me is null or v_owner is null or v_owner <> v_me then
+    return jsonb_build_object('ok', false, 'error', 'forbidden');
+  end if;
+  update public.notifications set dismissed_at = null where id = p_id;
+  return jsonb_build_object('ok', true);
+end
+$$;
+
+revoke all on function public.snooze_notification(uuid, timestamptz) from public, anon;
+revoke all on function public.dismiss_notification(uuid) from public, anon;
+revoke all on function public.restore_notification(uuid) from public, anon;
+grant execute on function public.snooze_notification(uuid, timestamptz) to authenticated;
+grant execute on function public.dismiss_notification(uuid) to authenticated;
+grant execute on function public.restore_notification(uuid) to authenticated;
+
+-- claim_notification_emails: verbatim from 20261011000005, plus the two
+-- lines marked 20261018000001.
+create or replace function public.claim_notification_emails(
+  p_kinds public.notification_kind[], p_max_recipients integer default 200)
+returns table (
+  id uuid, profile_id uuid, email text, full_name text,
+  kind public.notification_kind, severity text, title text, body text,
+  action_label text, action_target text, created_at timestamptz,
+  read_at timestamptz, notify_email boolean)
+language sql
+volatile
+security definer
+set search_path = public, pg_temp
+as $$
+  with candidates as (
+    select n.id, n.profile_id, n.created_at
+      from public.notifications n
+     where n.emailed_at is null
+       and n.email_failed_at is null  -- 20261011000005: refused for good
+       and n.dismissed_at is null  -- 20261018000001: deleted in the inbox
+       and (n.snoozed_until is null or n.snoozed_until <= now())  -- 20261018000001: still asleep
+       and n.read_at is null
+       and n.created_at > now() - interval '24 hours'
+       and n.created_at <= now() - interval '2 minutes'
+       and (n.email_claimed_at is null or n.email_claimed_at < now() - interval '15 minutes')
+       and n.kind = any (p_kinds)
+       /* A practice's reminder goes by email only when its rule says Email
+          (20261011000003). `clinic_reminder_action('notify')` links the item
+          to the notification it wrote; an in-app or call-list rule's
+          reminder stays in the app (and push). */
+       and not exists (select 1 from public.reminder_items ri
+                        where ri.notification_id = n.id and ri.channel <> 'email')
+       and exists (select 1 from public.profiles p
+                    where p.id = n.profile_id and p.notify_email and not p.is_suspended
+                      -- An account with no address is never claimed, rather
+                      -- than re-leased all day for an email it cannot get.
+                      and coalesce((select u.email::text from auth.users u where u.id = p.id),
+                                   p.email, '') <> '')
+     for update of n skip locked
+  ),
+  recipients as (
+    select c.profile_id
+      from candidates c
+     group by c.profile_id
+     order by min(c.created_at)
+     limit greatest(coalesce(p_max_recipients, 200), 1)
+  ),
+  claimed as (
+    update public.notifications n
+       set email_claimed_at = now()
+      from candidates c
+      join recipients r on r.profile_id = c.profile_id
+     where n.id = c.id
+    returning n.id, n.profile_id, n.kind, n.severity, n.title, n.body,
+              n.action_label, n.action_target, n.created_at, n.read_at
+  )
+  select cl.id, cl.profile_id, coalesce(u.email::text, p.email), p.full_name,
+         cl.kind, cl.severity, cl.title, cl.body, cl.action_label, cl.action_target,
+         cl.created_at, cl.read_at, p.notify_email
+    from claimed cl
+    join public.profiles p on p.id = cl.profile_id
+    left join auth.users u on u.id = cl.profile_id
+   order by cl.profile_id, cl.created_at
+$$;
+revoke all on function public.claim_notification_emails(public.notification_kind[], integer) from public, anon, authenticated;
+grant execute on function public.claim_notification_emails(public.notification_kind[], integer) to service_role;
+
+-- claim_notification_pushes: verbatim from 20261011000002 (its only
+-- definition), plus the two lines marked 20261018000001.
+create or replace function public.claim_notification_pushes(p_limit integer default 500)
+returns table (
+  id uuid, profile_id uuid, kind public.notification_kind, severity text,
+  title text, body text, action_target text, created_at timestamptz)
+language sql
+volatile
+security definer
+set search_path = public, pg_temp
+as $$
+  with candidates as (
+    select n.id
+      from public.notifications n
+     where n.pushed_at is null
+       and n.dismissed_at is null  -- 20261018000001: deleted in the inbox
+       and (n.snoozed_until is null or n.snoozed_until <= now())  -- 20261018000001: still asleep
+       and n.read_at is null
+       and n.created_at > now() - interval '24 hours'
+       and (n.push_claimed_at is null or n.push_claimed_at < now() - interval '15 minutes')
+       and exists (select 1 from public.profiles p
+                    where p.id = n.profile_id and p.notify_push and not p.is_suspended)
+       and exists (select 1 from public.web_push_subscriptions s where s.profile_id = n.profile_id)
+     order by n.created_at
+     limit greatest(coalesce(p_limit, 500), 1)
+     for update of n skip locked
+  )
+  update public.notifications n
+     set push_claimed_at = now()
+    from candidates c
+   where n.id = c.id
+  returning n.id, n.profile_id, n.kind, n.severity, n.title, n.body, n.action_target, n.created_at
+$$;
+revoke all on function public.claim_notification_pushes(integer) from public, anon, authenticated;
+grant execute on function public.claim_notification_pushes(integer) to service_role;
 
 
 -- ===== checks part-a-archive =====
@@ -4674,6 +4856,179 @@ begin
 end $$;
 reset role;
 select set_config('request.jwt.claims', '', true);
+
+rollback to savepoint checks; reset role;
+
+
+-- ===== checks part-j =====
+-- Part J — notification snooze and delete, in ONE rolled-back transaction.
+--
+-- Covers 20261018000001:
+--   * snooze_notification / dismiss_notification / restore_notification work
+--     on the caller's own row; another account gets 'forbidden'.
+--   * a snooze in the past, or more than 7 days out, raises 22023.
+--   * snoozing clears read_at, so the row wakes unread.
+--   * the inbox filter every read uses — dismissed_at is null and
+--     (snoozed_until is null or snoozed_until <= now()) — leaves out a
+--     dismissed row and a sleeping one, and keeps a row whose snooze is over.
+--   * both dispatcher claims carry the same two filters.
+--
+-- The actor and the stranger are any two non-admin profiles, chosen from live
+-- data; the rows are inserted here. Nothing survives: the file ends in
+-- ROLLBACK.
+
+savepoint checks;
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+do $$
+declare v_actor uuid; v_stranger uuid; v_fn text; v_def text;
+begin
+  select pr.id into v_actor from public.profiles pr
+   where not coalesce(pr.is_super_admin, false) and not pr.is_suspended
+   order by pr.created_at, pr.id limit 1;
+  select pr.id into v_stranger from public.profiles pr
+   where not coalesce(pr.is_super_admin, false) and not pr.is_suspended and pr.id <> v_actor
+   order by pr.created_at, pr.id limit 1;
+  if v_actor is null or v_stranger is null then raise exception 'FIXTURE: need two non-admin profiles'; end if;
+  perform set_config('part_j.actor', v_actor::text, true);
+  perform set_config('part_j.stranger', v_stranger::text, true);
+
+  -- Four rows for the actor: one to act on (already read), one dismissed,
+  -- one asleep, one whose snooze has ended. Written as the table owner, the
+  -- way the app's triggers and crons write notifications.
+  insert into public.notifications (id, profile_id, kind, severity, title, read_at, dismissed_at, snoozed_until) values
+    ('00000000-0000-4000-8000-0000000a0001', v_actor, 'system', 'info', 'Part J target',    now(), null,  null),
+    ('00000000-0000-4000-8000-0000000a0002', v_actor, 'system', 'info', 'Part J dismissed', null,  now(), null),
+    ('00000000-0000-4000-8000-0000000a0003', v_actor, 'system', 'info', 'Part J asleep',    null,  null,  now() + interval '1 hour'),
+    ('00000000-0000-4000-8000-0000000a0004', v_actor, 'system', 'info', 'Part J awake',     null,  null,  now() - interval '1 minute');
+
+  -- The dispatcher must not send what the inbox hides.
+  foreach v_fn in array array['claim_notification_emails', 'claim_notification_pushes'] loop
+    select pg_get_functiondef(p.oid) into v_def
+      from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+     where ns.nspname = 'public' and p.proname = v_fn;
+    if v_def is null
+       or position('n.dismissed_at is null' in v_def) = 0
+       or position('(n.snoozed_until is null or n.snoozed_until <= now())' in v_def) = 0 then
+      raise exception 'FAIL: % does not skip dismissed and sleeping rows', v_fn;
+    end if;
+  end loop;
+  raise notice 'ok: both dispatcher claims skip dismissed and sleeping rows';
+end $$;
+
+-- The owner.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_j.actor'), 'role', 'authenticated')::text, true);
+do $$
+declare
+  v_id constant uuid := '00000000-0000-4000-8000-0000000a0001';
+  r jsonb; v_until timestamptz; v_read timestamptz; v_dismissed timestamptz; v_n int;
+begin
+  if public.is_admin() then raise exception 'FIXTURE: actor is an admin'; end if;
+
+  -- The inbox filter, exactly as the app's reads apply it.
+  select count(*) into v_n from public.notifications n
+   where n.profile_id = auth.uid()
+     and n.id in ('00000000-0000-4000-8000-0000000a0002', '00000000-0000-4000-8000-0000000a0003')
+     and n.dismissed_at is null and (n.snoozed_until is null or n.snoozed_until <= now());
+  if v_n <> 0 then raise exception 'FAIL: inbox filter kept % dismissed/sleeping row(s)', v_n; end if;
+  select count(*) into v_n from public.notifications n
+   where n.profile_id = auth.uid()
+     and n.id in ('00000000-0000-4000-8000-0000000a0001', '00000000-0000-4000-8000-0000000a0004')
+     and n.dismissed_at is null and (n.snoozed_until is null or n.snoozed_until <= now());
+  if v_n <> 2 then raise exception 'FAIL: inbox filter dropped a visible or woken row (% of 2)', v_n; end if;
+  raise notice 'ok: inbox filter hides dismissed and sleeping rows, keeps visible and woken ones';
+
+  r := public.snooze_notification(v_id, now() + interval '1 hour');
+  select snoozed_until, read_at into v_until, v_read from public.notifications where id = v_id;
+  if r is distinct from '{"ok": true}'::jsonb or v_until is distinct from now() + interval '1 hour' or v_read is not null then
+    raise exception 'FAIL: owner snooze returned % / until=% read_at=%', r, v_until, v_read;
+  end if;
+  raise notice 'ok: owner can snooze; read_at cleared';
+
+  begin
+    perform public.snooze_notification(v_id, now() - interval '1 minute');
+    raise exception 'FAIL: a snooze in the past was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.snooze_notification(v_id, now() + interval '8 days');
+    raise exception 'FAIL: an 8-day snooze was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.snooze_notification(v_id, null);
+    raise exception 'FAIL: a snooze with no time was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+  raise notice 'ok: past, 8-day and empty snoozes raise 22023';
+
+  r := public.dismiss_notification(v_id);
+  select dismissed_at into v_dismissed from public.notifications where id = v_id;
+  if r is distinct from '{"ok": true}'::jsonb or v_dismissed is null then
+    raise exception 'FAIL: owner dismiss returned % / dismissed_at=%', r, v_dismissed;
+  end if;
+  r := public.restore_notification(v_id);
+  select dismissed_at into v_dismissed from public.notifications where id = v_id;
+  if r is distinct from '{"ok": true}'::jsonb or v_dismissed is not null then
+    raise exception 'FAIL: owner restore returned % / dismissed_at=%', r, v_dismissed;
+  end if;
+  raise notice 'ok: owner can dismiss and restore';
+
+  -- Dismiss again, so the stranger has a stamp to try to clear.
+  perform public.dismiss_notification(v_id);
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+-- Someone else.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_j.stranger'), 'role', 'authenticated')::text, true);
+do $$
+declare v_id constant uuid := '00000000-0000-4000-8000-0000000a0001'; r jsonb;
+begin
+  if public.is_admin() then raise exception 'FIXTURE: stranger is an admin'; end if;
+  r := public.snooze_notification(v_id, now() + interval '1 hour');
+  if r is distinct from '{"ok": false, "error": "forbidden"}'::jsonb then raise exception 'FAIL: stranger snooze returned %', r; end if;
+  r := public.dismiss_notification(v_id);
+  if r is distinct from '{"ok": false, "error": "forbidden"}'::jsonb then raise exception 'FAIL: stranger dismiss returned %', r; end if;
+  r := public.restore_notification(v_id);
+  if r is distinct from '{"ok": false, "error": "forbidden"}'::jsonb then raise exception 'FAIL: stranger restore returned %', r; end if;
+  -- A row that does not exist reads the same as someone else's.
+  r := public.dismiss_notification(gen_random_uuid());
+  if r is distinct from '{"ok": false, "error": "forbidden"}'::jsonb then raise exception 'FAIL: unknown id returned %', r; end if;
+  raise notice 'ok: a stranger is forbidden on every call';
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
+
+-- The stranger's calls changed nothing.
+do $$
+declare v_dismissed timestamptz; v_until timestamptz;
+begin
+  select dismissed_at, snoozed_until into v_dismissed, v_until
+    from public.notifications where id = '00000000-0000-4000-8000-0000000a0001';
+  if v_dismissed is null or v_until is distinct from now() + interval '1 hour' then
+    raise exception 'FAIL: the stranger changed the row (dismissed_at=%, snoozed_until=%)', v_dismissed, v_until;
+  end if;
+  raise notice 'ok: the row is as its owner left it';
+end $$;
+
+-- An anonymous caller cannot reach the functions at all.
+set local role anon;
+do $$
+begin
+  begin
+    perform public.dismiss_notification('00000000-0000-4000-8000-0000000a0001');
+    raise exception 'FAIL: anon executed dismiss_notification';
+  exception when insufficient_privilege then null;
+  end;
+  raise notice 'ok: anon cannot execute the notification RPCs (42501)';
+end $$;
+reset role;
 
 rollback to savepoint checks; reset role;
 

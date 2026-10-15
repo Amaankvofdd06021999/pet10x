@@ -1446,6 +1446,18 @@ function mapNotification(row: {
  */
 const NOTIFICATIONS_LOAD_FAILED = "Couldn't load your notifications. Check your connection and try again."
 
+/**
+ * The PostgREST `or` for "not asleep": never snoozed, or snoozed until a time
+ * that has passed (20261018000001). Paired with `.is("dismissed_at", null)`
+ * on every inbox read and write below — the list, and "mark all read", which
+ * means the rows the person can see, not the ones they put away. The time is
+ * the device's; a clock a minute out shows a row a minute early or late,
+ * which the next refresh corrects.
+ */
+function awakeFilter(): string {
+  return `snoozed_until.is.null,snoozed_until.lte.${new Date().toISOString()}`
+}
+
 async function loadNotifications(): Promise<NotificationLoad<AppNotification>> {
   // Offline/mock mode has no inbox; a fixed owner lets the empty list cache.
   if (!ENABLED) return { data: [], error: null, profileId: "offline" }
@@ -1482,6 +1494,8 @@ async function loadNotifications(): Promise<NotificationLoad<AppNotification>> {
     .from("notifications")
     .select("id, kind, severity, title, body, action_label, action_target, read_at, created_at")
     .eq("profile_id", user.id)
+    .is("dismissed_at", null)
+    .or(awakeFilter())
     .order("created_at", { ascending: false })
     .limit(100)
   if (error) {
@@ -1517,14 +1531,63 @@ async function persistAllNotificationsRead(): Promise<{ error: string | null }> 
     .update({ read_at: new Date().toISOString() })
     .eq("profile_id", user.id)
     .is("read_at", null)
+    .is("dismissed_at", null)
+    .or(awakeFilter())
   if (error) console.error("[notifications] mark all read failed", error)
   return { error: error ? "Couldn't mark everything as read. Try again." : null }
+}
+
+/* Snooze, delete and undo go through their RPCs (20261018000001), which take
+   the caller's own row only — an admin's notifs_update reach does not apply.
+   'forbidden' is the one refusal they return. A snooze outside the 7-day
+   window raises its own sentence (db-sentences.ts); the sheet never offers
+   one, but a stale tab could. */
+const NOTIFICATION_ACTION_ERRORS: Record<string, string> = {
+  forbidden: "That notification isn't yours to change.",
+}
+const NOTIFICATION_ACTION_UNCONFIGURED = "Notifications can't be updated right now — backend not configured."
+const SNOOZE_FAILED = "Couldn't snooze that notification. Try again."
+const DISMISS_FAILED = "Couldn't delete that notification. Try again."
+const RESTORE_FAILED = "Couldn't bring that notification back. Try again."
+
+/** The jsonb `{ ok, error }` the three RPCs answer with, as a sentence. */
+function notificationActionOutcome(data: unknown, fallback: string): { error: string | null } {
+  const r = data as { ok?: boolean; error?: string } | null
+  if (r?.ok) return { error: null }
+  return { error: NOTIFICATION_ACTION_ERRORS[r?.error ?? ""] ?? fallback }
+}
+
+async function persistNotificationSnooze(id: string, until: Date): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: NOTIFICATION_ACTION_UNCONFIGURED }
+  const { data, error } = await supabase.rpc("snooze_notification", { p_id: id, p_until: until.toISOString() })
+  if (error) return { error: dbErrorMessage(error, SNOOZE_FAILED) }
+  return notificationActionOutcome(data, SNOOZE_FAILED)
+}
+
+async function persistNotificationDismiss(id: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: NOTIFICATION_ACTION_UNCONFIGURED }
+  const { data, error } = await supabase.rpc("dismiss_notification", { p_id: id })
+  if (error) return { error: dbErrorMessage(error, DISMISS_FAILED) }
+  return notificationActionOutcome(data, DISMISS_FAILED)
+}
+
+async function persistNotificationRestore(id: string): Promise<{ error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { error: NOTIFICATION_ACTION_UNCONFIGURED }
+  const { data, error } = await supabase.rpc("restore_notification", { p_id: id })
+  if (error) return { error: dbErrorMessage(error, RESTORE_FAILED) }
+  return notificationActionOutcome(data, RESTORE_FAILED)
 }
 
 const notificationStore = createNotificationStore<AppNotification>({
   load: loadNotifications,
   persistRead: persistNotificationRead,
   persistAllRead: persistAllNotificationsRead,
+  persistSnooze: persistNotificationSnooze,
+  persistDismiss: persistNotificationDismiss,
+  persistRestore: persistNotificationRestore,
 })
 
 /* A manager decides the link from their own device, so nothing in this tab
@@ -1620,6 +1683,48 @@ export function markNotificationRead(id: string): Promise<{ error: string | null
 /** Every unread row of the signed-in account. Optimistic, reverted on failure. */
 export function markAllNotificationsRead(): Promise<{ error: string | null }> {
   return notificationStore.markAllRead()
+}
+
+/** Out of the inbox until `until` (at most 7 days), then back unread.
+    Optimistic; the row returns in place if the write is refused. */
+export function snoozeNotification(id: string, until: Date): Promise<{ error: string | null }> {
+  return notificationStore.snooze(id, until)
+}
+
+/** "Delete" — hidden, not erased, so `restoreNotification` can undo it. */
+export function dismissNotification(id: string): Promise<{ error: string | null }> {
+  return notificationStore.dismiss(id)
+}
+
+/** Undo a delete. */
+export function restoreNotification(id: string): Promise<{ error: string | null }> {
+  return notificationStore.restore(id)
+}
+
+/* The signed-in account's `profiles.timezone`, read once per account. The
+   auth context writes it (ensureTimezone) but does not carry it on the user
+   object, and only the snooze sheet needs it — so it is read here, on the
+   first snooze, rather than added to every session load. */
+let timezoneCache: { profileId: string; tz: string | null } | null = null
+
+/** The account's recorded IANA zone, or null when it has none or the read
+    fails — the caller then uses the device's zone. */
+export async function getMyTimezone(): Promise<string | null> {
+  const supabase = getSupabaseBrowserClient()
+  if (!ENABLED || !supabase) return null
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
+  if (timezoneCache?.profileId === user.id) return timezoneCache.tz
+  const { data, error } = await supabase.from("profiles").select("timezone").eq("id", user.id).maybeSingle()
+  if (error) {
+    console.error("[notifications] timezone read failed", error)
+    return null // not cached: the next snooze tries again
+  }
+  const tz = data?.timezone ?? null
+  timezoneCache = { profileId: user.id, tz }
+  return tz
 }
 
 /* ----------------------------- community feed ------------------------------ */

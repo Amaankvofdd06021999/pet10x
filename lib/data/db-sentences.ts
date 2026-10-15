@@ -46,6 +46,7 @@ export const RAISED_SENTENCES: ReadonlySet<string> = new Set([
   "Only the practice owner can change their own role or access",
   "Only the practice's owner or a manager can answer a verification request",
   "Only the review author can change the rating or comment",
+  "Pick a time within the next 7 days",
   "Say what you need — the business sees this note",
   "Say why the bill is void — the reason is kept on the bill",
   "Say why the request is not approved — the business sees this note",
