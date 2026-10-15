@@ -3,7 +3,7 @@ import {
   invoiceStatusLabel, INVOICE_STATUS_LABEL, PAYMENT_METHODS, validatePayment,
   invoiceActions, takenTodayCents, billingViewFor, invoicesForView, liveInvoiceByVisit,
   checkoutCompletes, convertedTotalNote, PAYMENT_METHOD_CODE, paymentMethodLabel, remainingCents,
-  isPartlyPaid, invoiceStatusView, paymentProgress, paymentRows, recordPaymentError, voidInvoiceError,
+  isPartlyPaid, shortPaidNote, invoiceStatusView, paymentProgress, paymentRows, recordPaymentError, voidInvoiceError,
 } from "./billing"
 
 describe("invoiceStatusLabel", () => {
@@ -344,5 +344,19 @@ describe("convertedTotalNote", () => {
   it("names both totals when they differ", () => {
     expect(convertedTotalNote(12000, 14550)).toBe("This invoice is $145.50; the approved estimate was $120.00.")
     expect(convertedTotalNote(12000, 9000, "usd")).toBe("This invoice is US$90.00; the approved estimate was US$120.00.")
+  })
+})
+
+describe("shortPaidNote", () => {
+  const base = { status: "paid", payments: [] as unknown[], paidCents: 4000, totalCents: 10000, currency: "usd" }
+
+  it("says what was received on an old bill marked paid short, with no payments on record", () => {
+    expect(shortPaidNote(base)).toBe("US$40.00 received")
+  })
+
+  it("stays quiet once payments are listed, when it is paid in full, or when the bill is not paid", () => {
+    expect(shortPaidNote({ ...base, payments: [{}] })).toBeNull()
+    expect(shortPaidNote({ ...base, paidCents: 10000 })).toBeNull()
+    expect(shortPaidNote({ ...base, status: "sent" })).toBeNull()
   })
 })

@@ -68,6 +68,20 @@ export function isPartlyPaid(b: { kind: string; status: string } & Money): boole
   )
 }
 
+/**
+ * Bills marked paid before payments were recorded in parts can have taken less
+ * than the total and have no payment rows to explain it. Say what was received
+ * rather than letting the bill read as paid in full.
+ */
+export function shortPaidNote(
+  b: { status: string; payments: readonly unknown[] } & Money & { currency: string },
+): string | null {
+  if (b.status === "paid" && b.payments.length === 0 && b.paidCents < b.totalCents) {
+    return `${formatMoney(b.paidCents, b.currency)} received`
+  }
+  return null
+}
+
 /** The pill a bill wears in Billing: its status, or "Partly paid" when it is. */
 export function invoiceStatusView(b: { kind: string; status: string } & Money): { label: string; tone: StatusTone } {
   if (isPartlyPaid(b)) return { label: "Partly paid", tone: "warn" }

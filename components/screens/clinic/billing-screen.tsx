@@ -9,7 +9,7 @@ import {
   useBillableVisits, type Invoice,
 } from "@/lib/data/clinic/shop"
 import {
-  invoiceStatusView, invoiceActions, invoicesForView, billingViewFor, isPartlyPaid, paymentProgress,
+  invoiceStatusView, invoiceActions, invoicesForView, billingViewFor, isPartlyPaid, shortPaidNote, paymentProgress,
   remainingCents, paymentRows, paymentMethodLabel, liveInvoiceByVisit, convertedTotalNote, takenTodayCents,
   validatePayment, PAYMENT_METHODS, type BillingView, type InvoiceAction, type PaymentErrors, type PaymentMethodCode,
 } from "@/lib/data/clinic/billing"
@@ -193,6 +193,7 @@ export function ClinicBillingScreen({
                       {formatDateShort(i.issuedOn ?? i.createdAt)} · {i.lines.length} line
                       {i.lines.length === 1 ? "" : "s"}
                       {isPartlyPaid(i) ? ` · ${formatMoney(i.paidCents, i.currency)} paid, ${formatMoney(remainingCents(i), i.currency)} left` : ""}
+                      {shortPaidNote(i) ? ` · ${shortPaidNote(i)}` : ""}
                     </p>
                   </button>
                   <div className="flex flex-wrap items-center gap-2">
@@ -271,6 +272,9 @@ export function ClinicBillingScreen({
               </p>
               {isPartlyPaid(openBill) && (
                 <p className="text-[12.5px] text-muted-foreground">{paymentProgress(openBill)}</p>
+              )}
+              {shortPaidNote(openBill) && (
+                <p className="text-[12.5px] text-muted-foreground">{shortPaidNote(openBill)}</p>
               )}
               {openBill.payments.length > 0 && (
                 <div className="flex flex-col gap-1.5">
@@ -404,10 +408,14 @@ function TakenTodayTile({
   failed: boolean
   onRetry: () => void
 }) {
+  const hintId = useId()
   return (
     <div className="rounded-2xl border border-border bg-card p-4 text-left">
       <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Taken today</p>
-      <p className="mt-1 text-[26px] font-semibold leading-none tabular-nums text-success-strong">
+      <p
+        aria-describedby={hintId}
+        className="mt-1 text-[26px] font-semibold leading-none tabular-nums text-success-strong"
+      >
         {failed ? "—" : loading ? "…" : formatMoney(cents)}
       </p>
       {failed ? (
@@ -422,7 +430,7 @@ function TakenTodayTile({
           </button>
         </p>
       ) : null}
-      <p className="mt-1 text-[12px] text-muted-foreground">
+      <p id={hintId} className="mt-1 text-[12px] text-muted-foreground">
         Payments on voided bills aren&apos;t counted.
       </p>
     </div>
