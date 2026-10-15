@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { AlarmClock, AlertTriangle, Calendar, CheckCircle2, FileText, Shield, Sparkles, Syringe, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,7 @@ import {
   type AppNotification,
   type NotificationIconKey,
 } from "@/lib/data"
-import { deviceTimezone, snoozeOptions, type SnoozeOption } from "@/lib/notifications/snooze"
+import { deviceTimezone, safeTimeZone, snoozeOptions, type SnoozeOption } from "@/lib/notifications/snooze"
 
 const NOTIFICATION_ICONS: Record<NotificationIconKey, typeof Syringe> = {
   syringe: Syringe,
@@ -35,6 +35,42 @@ const SEVERITY_STYLES = {
 
 /** How long Undo stays on the "Notification deleted" toast. */
 const UNDO_MS = 5000
+
+/**
+ * The zone the snooze times are worked out in. The profile's, when Intl
+ * accepts it; the device's otherwise — including when reading the profile
+ * fails or throws. Never rejects, so the sheet always gets its times.
+ */
+async function snoozeZone(): Promise<string> {
+  const device = deviceTimezone()
+  try {
+    return safeTimeZone(await getMyTimezone(), device)
+  } catch (e) {
+    console.error("[notifications] could not read the profile timezone; using the device's", e)
+    return device
+  }
+}
+
+/**
+ * Where keyboard focus goes when this row leaves the list: the next row, or
+ * the list itself when it was the last. Without this, focus falls to <body>
+ * and a keyboard user starts again from the top of the page. Rows and lists
+ * are found by the data attributes the two inboxes set.
+ */
+function focusAfterRemoval(row: HTMLElement | null): HTMLElement | null {
+  const list = row?.closest<HTMLElement>("[data-notification-list]") ?? null
+  if (!row || !list) return null
+  const rows = Array.from(list.querySelectorAll<HTMLElement>("[data-notification-row]"))
+  const next = rows[rows.indexOf(row) + 1]
+  return next?.querySelector<HTMLElement>('[role="button"]') ?? list
+}
+
+/* After React has removed the row, and after any Radix layer closing with it
+   has put focus back where it found it (its own deferred restore). */
+function focusSoon(el: HTMLElement | null) {
+  if (!el) return
+  requestAnimationFrame(() => setTimeout(() => el.isConnected && el.focus(), 0))
+}
 
 /**
  * One notification, as the Alerts screen draws it — and the business and
@@ -77,19 +113,25 @@ export function NotificationRow({
   const Icon = NOTIFICATION_ICONS[n.iconKey]
   const [snoozeOpen, setSnoozeOpen] = useState(false)
   const [options, setOptions] = useState<SnoozeOption[] | null>(null)
+  const rowRef = useRef<HTMLDivElement>(null)
+  /* Bumped on every open, so a slow zone read from an earlier open cannot
+     overwrite the times of this one. */
+  const snoozeTicket = useRef(0)
 
   const openSnooze = () => {
+    const ticket = ++snoozeTicket.current
     setOptions(null)
     setSnoozeOpen(true)
     /* The times are worked out when the sheet opens, not when the row
        rendered — a row left on screen since the afternoon must not offer
-       "This evening" at eight. The profile's zone, else the device's. */
-    void getMyTimezone()
-      .catch(() => null)
-      .then((tz) => setOptions(snoozeOptions(new Date(), tz ?? deviceTimezone())))
+       "This evening" at eight. */
+    void snoozeZone().then((tz) => {
+      if (ticket === snoozeTicket.current) setOptions(snoozeOptions(new Date(), tz))
+    })
   }
 
   const snooze = (until: Date) => {
+    focusSoon(focusAfterRemoval(rowRef.current))
     setSnoozeOpen(false)
     void snoozeNotification(n.id, until).then(({ error }) => {
       if (error) toast.error(error)
@@ -100,6 +142,7 @@ export function NotificationRow({
      if the write is refused the store puts the row back, and the Undo toast
      is swapped for the reason. */
   const remove = () => {
+    focusSoon(focusAfterRemoval(rowRef.current))
     const undoToast = toast("Notification deleted", {
       duration: UNDO_MS,
       action: {
@@ -122,6 +165,8 @@ export function NotificationRow({
   return (
     <>
       <SwipeRow
+        rootRef={rowRef}
+        data-notification-row=""
         className={className}
         actions={[
           { label: "Snooze", icon: AlarmClock, onPress: openSnooze },
@@ -133,6 +178,9 @@ export function NotificationRow({
           tabIndex={0}
           onClick={onOpen}
           onKeyDown={(e) => {
+            // Only the row's own keys: Enter on the action link inside it
+            // must reach the link, not open the row.
+            if (e.target !== e.currentTarget) return
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault()
               onOpen()

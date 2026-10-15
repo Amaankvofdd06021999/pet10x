@@ -4865,7 +4865,8 @@ rollback to savepoint checks; reset role;
 --
 -- Covers 20261018000001:
 --   * snooze_notification / dismiss_notification / restore_notification work
---     on the caller's own row; another account gets 'forbidden'.
+--     on the caller's own row; another account gets 'forbidden'; anon
+--     cannot execute any of them (42501).
 --   * a snooze in the past, or more than 7 days out, raises 22023.
 --   * snoozing clears read_at, so the row wakes unread.
 --   * the inbox filter every read uses — dismissed_at is null and
@@ -5022,8 +5023,18 @@ set local role anon;
 do $$
 begin
   begin
+    perform public.snooze_notification('00000000-0000-4000-8000-0000000a0001', now() + interval '1 hour');
+    raise exception 'FAIL: anon executed snooze_notification';
+  exception when insufficient_privilege then null;
+  end;
+  begin
     perform public.dismiss_notification('00000000-0000-4000-8000-0000000a0001');
     raise exception 'FAIL: anon executed dismiss_notification';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.restore_notification('00000000-0000-4000-8000-0000000a0001');
+    raise exception 'FAIL: anon executed restore_notification';
   exception when insufficient_privilege then null;
   end;
   raise notice 'ok: anon cannot execute the notification RPCs (42501)';

@@ -78,6 +78,24 @@ export function snoozeOptions(now: Date, tz: string): SnoozeOption[] {
   return options
 }
 
+/**
+ * The zone to use: the stored one if Intl accepts it, else `deviceFallback`.
+ *
+ * `profiles.timezone` is free text. Postgres knows zone names ICU does not,
+ * and support can type anything; a zone Intl rejects throws a RangeError from
+ * every formatter, which would leave the snooze sheet with no times at all.
+ * So the stored value is used only once a formatter has been built with it.
+ */
+export function safeTimeZone(stored: string | null | undefined, deviceFallback: string): string {
+  if (typeof stored !== "string" || stored.trim() === "") return deviceFallback
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: stored })
+    return stored
+  } catch {
+    return deviceFallback
+  }
+}
+
 /** The device's zone, for an account whose profile has none recorded. */
 export function deviceTimezone(): string {
   try {

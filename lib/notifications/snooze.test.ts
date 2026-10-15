@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { snoozeOptions } from "./snooze"
+import { safeTimeZone, snoozeOptions } from "./snooze"
 
 /**
  * The snooze sheet's three choices, worked out in the person's own zone. The
@@ -75,5 +75,22 @@ describe("snoozeOptions", () => {
     expect(snoozeOptions(now, TORONTO).map((o) => o.key)).not.toContain("evening")
     const evening = snoozeOptions(now, "America/Vancouver").find((o) => o.key === "evening")!
     expect(wall(evening.until, "America/Vancouver")).toBe("2026-10-15 18:00")
+  })
+})
+
+describe("safeTimeZone", () => {
+  it("keeps a zone Intl accepts", () => {
+    expect(safeTimeZone("America/Toronto", "Europe/London")).toBe("America/Toronto")
+  })
+
+  it("falls back for a zone Intl rejects, without throwing", () => {
+    expect(safeTimeZone("Mars/Olympus_Mons", "Europe/London")).toBe("Europe/London")
+    expect(safeTimeZone("not a zone", "Europe/London")).toBe("Europe/London")
+  })
+
+  it("falls back when nothing is stored", () => {
+    expect(safeTimeZone(null, "Europe/London")).toBe("Europe/London")
+    expect(safeTimeZone(undefined, "Europe/London")).toBe("Europe/London")
+    expect(safeTimeZone("", "Europe/London")).toBe("Europe/London")
   })
 })

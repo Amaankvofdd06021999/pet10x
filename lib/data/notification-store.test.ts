@@ -360,4 +360,42 @@ describe("notification store — snooze and delete", () => {
     await Promise.all([del, undo])
     expect(order).toEqual(["dismiss", "restore"])
   })
+
+  it("a refresh landing mid-undo does not drop the restored row", async () => {
+    let settle!: (v: { error: string | null }) => void
+    const load = vi.fn(async () => ok())
+    const s = storeWith({ load, persistRestore: () => new Promise((r) => (settle = r)) })
+    await s.refresh()
+    await s.dismiss("b")
+    const undo = s.restore("b")
+    // The server has not cleared dismissed_at yet, so its list lacks "b".
+    load.mockResolvedValueOnce(ok(rows().filter((n) => n.id !== "b")))
+    await s.refresh()
+    expect(ids(s)).toEqual(["a", "b", "c"])
+    settle({ error: null })
+    await undo
+    expect(ids(s)).toEqual(["a", "b", "c"])
+  })
+
+  it("re-reads the list once after an undo lands", async () => {
+    const load = vi.fn(async () => ok())
+    const s = storeWith({ load })
+    await s.refresh()
+    await s.dismiss("b")
+    load.mockClear()
+    await s.restore("b")
+    await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1))
+  })
+
+  it("a refused undo does not re-read", async () => {
+    const load = vi.fn(async () => ok())
+    const s = storeWith({ load, persistRestore: async () => ({ error: "offline" }) })
+    await s.refresh()
+    await s.dismiss("b")
+    load.mockClear()
+    await s.restore("b")
+    await Promise.resolve()
+    expect(load).not.toHaveBeenCalled()
+    expect(ids(s)).toEqual(["a", "c"])
+  })
 })

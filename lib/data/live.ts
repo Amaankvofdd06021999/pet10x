@@ -23,6 +23,7 @@ import { toViolationStage } from "./violations"
 import { formatReward } from "./community"
 import { uploadCommunityImage } from "./community-media"
 import { createNotificationStore, type NotificationLoad } from "./notification-store"
+import { awakeFilter } from "@/lib/notifications/inbox-filter"
 import { careLogged, onCareLogged } from "./care-log-signal"
 import { createBuildingLinkStore, createLinkDecisionWatch, type BuildingLinkLoad } from "./building-link-store"
 import { computeCompliance, type BuildingRules } from "./compliance"
@@ -1446,17 +1447,6 @@ function mapNotification(row: {
  */
 const NOTIFICATIONS_LOAD_FAILED = "Couldn't load your notifications. Check your connection and try again."
 
-/**
- * The PostgREST `or` for "not asleep": never snoozed, or snoozed until a time
- * that has passed (20261018000001). Paired with `.is("dismissed_at", null)`
- * on every inbox read and write below — the list, and "mark all read", which
- * means the rows the person can see, not the ones they put away. The time is
- * the device's; a clock a minute out shows a row a minute early or late,
- * which the next refresh corrects.
- */
-function awakeFilter(): string {
-  return `snoozed_until.is.null,snoozed_until.lte.${new Date().toISOString()}`
-}
 
 async function loadNotifications(): Promise<NotificationLoad<AppNotification>> {
   // Offline/mock mode has no inbox; a fixed owner lets the empty list cache.
@@ -1490,12 +1480,16 @@ async function loadNotifications(): Promise<NotificationLoad<AppNotification>> {
     return { data: [], error: null, profileId: null }
   }
 
+  /* Neither deleted nor asleep (20261018000001) — the same pair "mark all
+     read" below uses, so it marks exactly the rows the person can see. The
+     time is the device's; a clock a minute out shows a row a minute early or
+     late, which the next refresh corrects. */
   const { data: rows, error } = await supabase
     .from("notifications")
     .select("id, kind, severity, title, body, action_label, action_target, read_at, created_at")
     .eq("profile_id", user.id)
     .is("dismissed_at", null)
-    .or(awakeFilter())
+    .or(awakeFilter(new Date()))
     .order("created_at", { ascending: false })
     .limit(100)
   if (error) {
@@ -1532,7 +1526,7 @@ async function persistAllNotificationsRead(): Promise<{ error: string | null }> 
     .eq("profile_id", user.id)
     .is("read_at", null)
     .is("dismissed_at", null)
-    .or(awakeFilter())
+    .or(awakeFilter(new Date()))
   if (error) console.error("[notifications] mark all read failed", error)
   return { error: error ? "Couldn't mark everything as read. Try again." : null }
 }
@@ -1714,8 +1708,14 @@ export async function getMyTimezone(): Promise<string | null> {
   if (!ENABLED || !supabase) return null
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user) {
+    if (authError && authError.name !== "AuthSessionMissingError") {
+      console.error("[notifications] getUser failed reading the timezone", authError)
+    }
+    return null
+  }
   if (timezoneCache?.profileId === user.id) return timezoneCache.tz
   const { data, error } = await supabase.from("profiles").select("timezone").eq("id", user.id).maybeSingle()
   if (error) {

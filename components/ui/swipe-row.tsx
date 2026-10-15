@@ -22,16 +22,30 @@ import { swipeIntent } from "@/lib/swipe"
  * closes on a tap anywhere else, on any scroll, and on Escape.
  *
  * Mouse and keyboard: hovering the row (on a device that can hover) or
- * keyboard focus inside it slides it open the same way, so the actions are
- * the SAME buttons in the DOM — real `Button`s with visible labels, reached
- * by Tab — not a second copy for desktop. `:focus-visible`, not plain focus,
- * so a tap that focuses the row on a phone does not open it.
+ * keyboard focus inside it lifts the SAME buttons — real `Button`s with
+ * visible labels, reached by Tab, not a second copy for desktop — into a
+ * small overlay at the row's right edge. The content does not slide: in the
+ * consoles' 400px panel a 144px slide hid the start of every hovered row.
+ * Hover and focus are CSS states, not "open", so they stay out of the
+ * one-open signal. `:focus-visible`, not plain focus, so a tap that focuses
+ * the row on a phone does not lift them.
  *
  * Built on pointer events, no gesture library.
  */
 
 /** How far the row slides to show its actions (two 72px buttons). */
 const REVEAL = 144
+
+/* The hover / keyboard overlay, written out per state because Tailwind only
+   generates class names it can read whole. Tailwind 4's hover variants apply
+   only where the device can hover, so a phone's sticky "hover" after a tap
+   does not lift them. */
+const OVERLAY_TRAY =
+  "group-hover/swipe:z-20 group-hover/swipe:inset-y-auto group-hover/swipe:top-1/2 group-hover/swipe:right-2 group-hover/swipe:w-auto group-hover/swipe:-translate-y-1/2 group-hover/swipe:gap-1 group-hover/swipe:rounded-md group-hover/swipe:bg-card group-hover/swipe:p-1 group-hover/swipe:shadow-md " +
+  "group-has-[:focus-visible]/swipe:z-20 group-has-[:focus-visible]/swipe:inset-y-auto group-has-[:focus-visible]/swipe:top-1/2 group-has-[:focus-visible]/swipe:right-2 group-has-[:focus-visible]/swipe:w-auto group-has-[:focus-visible]/swipe:-translate-y-1/2 group-has-[:focus-visible]/swipe:gap-1 group-has-[:focus-visible]/swipe:rounded-md group-has-[:focus-visible]/swipe:bg-card group-has-[:focus-visible]/swipe:p-1 group-has-[:focus-visible]/swipe:shadow-md"
+const OVERLAY_BUTTON =
+  "group-hover/swipe:h-9 group-hover/swipe:flex-none group-hover/swipe:flex-row group-hover/swipe:rounded-md group-hover/swipe:px-2.5 " +
+  "group-has-[:focus-visible]/swipe:h-9 group-has-[:focus-visible]/swipe:flex-none group-has-[:focus-visible]/swipe:flex-row group-has-[:focus-visible]/swipe:rounded-md group-has-[:focus-visible]/swipe:px-2.5"
 
 /* "Which row is open" for every SwipeRow on the page. Opening one tells the
    rest, and they close. */
@@ -64,15 +78,21 @@ export function SwipeRow({
   onOpenChange,
   className,
   children,
+  rootRef,
+  ...rootProps
 }: {
   actions: SwipeAction[]
   onOpenChange?: (open: boolean) => void
   /** The row's shape (radius, border or shadow). The content gets the card fill. */
   className?: string
   children: React.ReactNode
-}) {
+  /** The outer element, for a caller that moves focus between rows. */
+  rootRef?: React.Ref<HTMLDivElement>
+} & Omit<React.HTMLAttributes<HTMLDivElement>, "className" | "children">) {
   const id = React.useId()
   const root = React.useRef<HTMLDivElement>(null)
+  // The caller's handle on the same element.
+  React.useImperativeHandle(rootRef, () => root.current as HTMLDivElement, [])
   const drag = React.useRef<Drag | null>(null)
   /* Set when a gesture should eat the click that follows its pointerup. */
   const swallowClick = React.useRef(false)
@@ -189,40 +209,41 @@ export function SwipeRow({
   const offset = dragX ?? (open ? -REVEAL : null)
 
   return (
-    <div ref={root} className={cn("group/swipe relative overflow-hidden", className)}>
+    <div
+      {...rootProps}
+      ref={root}
+      className={cn("group/swipe relative overflow-hidden", className)}
+    >
       <div
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onClickCapture={onClickCapture}
-        /* Inline only while dragging or open, so the hover / focus classes
-           below are free to slide it otherwise. `translate`, not `transform`:
-           Tailwind 4's translate utilities set `translate`, and the two
-           properties ADD — an open row that is also hovered would slide
-           twice as far. The same property means the inline value wins. */
         style={offset === null ? undefined : { translate: `${offset}px 0` }}
         className={cn(
           "relative z-10 touch-pan-y bg-card",
           // No easing while the finger is down: the row follows it exactly.
           dragX === null && "motion-safe:transition-transform motion-safe:duration-200",
-          // Tailwind 4's hover variants apply only where the device can hover,
-          // so a phone's sticky "hover" after a tap does not open the row.
-          "group-hover/swipe:-translate-x-[144px] group-has-[:focus-visible]/swipe:-translate-x-[144px]",
         )}
       >
         {children}
       </div>
       {/* After the content, so Tab reaches the row before its actions; the
-          content's z-10 keeps them underneath until it slides. */}
-      <div className="absolute inset-y-0 right-0 flex" style={{ width: REVEAL }}>
+          content's z-10 keeps them underneath until it slides, or until hover
+          or focus lifts them into the overlay. Not while swiped open: then
+          they are already in view at full height. */}
+      <div className={cn("absolute inset-y-0 right-0 flex w-[144px]", !open && dragX === null && OVERLAY_TRAY)}>
         {actions.map(({ label, icon: Icon, onPress, tone = "default" }) => (
           <Button
             key={label}
             type="button"
             variant={tone === "danger" ? "danger" : "primary"}
             // Inset ring: the row clips its edges, so an offset ring would be cut off.
-            className="h-full min-h-0 flex-1 flex-col gap-1 rounded-none px-0 text-caption focus-visible:ring-inset focus-visible:ring-offset-0"
+            className={cn(
+              "h-full min-h-0 flex-1 flex-col gap-1 rounded-none px-0 text-caption focus-visible:ring-inset focus-visible:ring-offset-0",
+              !open && dragX === null && OVERLAY_BUTTON,
+            )}
             onClick={() => {
               change(false)
               onPress()

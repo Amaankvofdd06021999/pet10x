@@ -174,8 +174,9 @@ export function AlertsScreen({
         </button>
         )}
 
-        {/* Alert List */}
-        <div className="flex flex-col gap-2.5">
+        {/* Alert List. Focusable (not tabbable) so focus has somewhere to
+            land when the last row is snoozed or deleted. */}
+        <div data-notification-list="" tabIndex={-1} className="flex flex-col gap-2.5 outline-none">
           {/* A failed load is said as one, with a way to try again — never
               as "You're all caught up", which is a claim about the inbox. */}
           {loadError && (

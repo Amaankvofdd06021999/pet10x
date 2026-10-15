@@ -113,7 +113,10 @@ export function ConsoleInbox({
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3">
+              {/* Focusable (not tabbable), and outside the list so it is still
+                  here once the last row is snoozed or deleted: where focus
+                  lands then. */}
+              <div data-notification-list="" tabIndex={-1} className="flex-1 overflow-y-auto p-3 outline-none">
                 {error ? (
                   // A failed load is said as one — never as "all caught up".
                   <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-center">

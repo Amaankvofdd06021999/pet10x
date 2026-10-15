@@ -109,6 +109,10 @@ export function createNotificationStore<T extends ReadableItem>(
   /* A delete still being written. Undo waits for it, so the restore can
      never reach the server first and then be undone by the delete. */
   const dismissing = new Map<string, Promise<unknown>>()
+  /* Rows being restored right now, and where they stood. The `pending` of
+     Undo: a refresh that lands before the server has cleared dismissed_at
+     would otherwise drop the row the person just brought back. */
+  const restoring = new Map<string, { item: T; index: number }>()
   const now = deps.now ?? Date.now
   const subs = new Set<() => void>()
 
@@ -162,6 +166,7 @@ export function createNotificationStore<T extends ReadableItem>(
     pending.clear()
     hidden.clear()
     removed.clear()
+    restoring.clear()
     notify()
   }
 
@@ -185,8 +190,15 @@ export function createNotificationStore<T extends ReadableItem>(
         owner = null
         error = null
       } else {
-        if (res.profileId !== owner) pending.clear()
-        items = res.data.filter((n) => !isHidden(n.id)).map((n) => (pending.has(n.id) && !n.read ? { ...n, read: true } : n))
+        if (res.profileId !== owner) {
+          pending.clear()
+          restoring.clear()
+        }
+        const next = res.data.filter((n) => !isHidden(n.id)).map((n) => (pending.has(n.id) && !n.read ? { ...n, read: true } : n))
+        restoring.forEach((was, id) => {
+          if (!next.some((n) => n.id === id)) next.splice(Math.min(was.index, next.length), 0, was.item)
+        })
+        items = next
         owner = res.profileId
         error = null
       }
@@ -270,17 +282,28 @@ export function createNotificationStore<T extends ReadableItem>(
       if (!was) return { error: null }
       const at = epoch
       unhide(id)
+      restoring.set(id, was)
       const inFlightDelete = dismissing.get(id)
       if (inFlightDelete) {
         const { error: deleteErr } = (await inFlightDelete) as { error: string | null }
         // The delete never landed, so there is nothing to restore.
-        if (deleteErr) return { error: null }
+        if (deleteErr) {
+          if (at === epoch) restoring.delete(id)
+          return { error: null }
+        }
       }
       const { error: err } = await deps.persistRestore(id)
-      if (at === epoch && err) {
+      if (at !== epoch) return { error: err }
+      restoring.delete(id)
+      if (err) {
         // Back out the way it went: same row, same place.
         hide(id, Infinity)
         if (removed.has(id)) removed.set(id, was)
+      } else {
+        /* Once more from the server, now that it agrees: a refresh that
+           landed mid-undo was patched from memory, and this replaces the
+           patch with the real row. */
+        void refresh()
       }
       return { error: err }
     },
