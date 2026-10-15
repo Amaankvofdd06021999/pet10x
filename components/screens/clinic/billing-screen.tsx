@@ -134,7 +134,12 @@ export function ClinicBillingScreen({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Outstanding" value={formatMoney(outstanding)} tone={outstanding > 0 ? "warn" : "good"} />
-        <StatTile label="Taken today" value={formatMoney(takenToday)} tone="good" />
+        <TakenTodayTile
+          cents={takenToday}
+          loading={payments.isLoading && payments.data.length === 0}
+          failed={payments.error !== null}
+          onRetry={payments.refetch}
+        />
         <StatTile label="Open invoices" value={invoicesForView(invoices.data, "open").length} />
         <StatTile label="Estimates" value={invoicesForView(invoices.data, "estimates").length} />
       </div>
@@ -382,6 +387,44 @@ export function ClinicBillingScreen({
           return { error: null }
         }}
       />
+    </div>
+  )
+}
+
+/**
+ * Taken today, which must never show a confident $0 when the read behind it
+ * failed: "—" with Couldn't load and Retry, and "…" while it loads. StatTile
+ * takes only a string hint, so this tile is its own markup in the same style.
+ */
+function TakenTodayTile({
+  cents, loading, failed, onRetry,
+}: {
+  cents: number
+  loading: boolean
+  failed: boolean
+  onRetry: () => void
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 text-left">
+      <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Taken today</p>
+      <p className="mt-1 text-[26px] font-semibold leading-none tabular-nums text-success-strong">
+        {failed ? "—" : loading ? "…" : formatMoney(cents)}
+      </p>
+      {failed ? (
+        <p role="alert" className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-destructive">
+          Couldn&apos;t load
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          >
+            Retry
+          </button>
+        </p>
+      ) : null}
+      <p className="mt-1 text-[12px] text-muted-foreground">
+        Payments on voided bills aren&apos;t counted.
+      </p>
     </div>
   )
 }

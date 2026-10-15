@@ -290,7 +290,7 @@ const has = (o: Record<string, string>, k: string | undefined | null): k is stri
 /** clinic_record_payment, as a sentence. Null when it went through. */
 export function recordPaymentError(e: BillingRaise, r: BillingAnswer, currency = "cad"): string | null {
   if (e) return e.code === "22023" ? "Enter an amount above zero and choose how they paid." : RETRY
-  if (r?.ok) return null
+  if (r?.ok === true) return null
   if (r?.error === "over_balance") {
     const left = r.remaining
     return typeof left === "number" && Number.isInteger(left) && left >= 0
@@ -307,6 +307,6 @@ export function voidInvoiceError(e: BillingRaise, r: BillingAnswer): string | nu
       ? "Add a reason of 2000 characters or fewer. The owner sees it if they already have the bill."
       : RETRY
   }
-  if (r?.ok) return null
+  if (r?.ok === true) return null
   return has(VOID_ANSWERS, r?.error) ? VOID_ANSWERS[r.error as string] : RETRY
 }

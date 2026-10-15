@@ -254,6 +254,8 @@ describe("recordPaymentError", () => {
     expect(recordPaymentError(null, { ok: false, error: "constraint invoices_paid_check" })).toBe(fallback)
     expect(recordPaymentError(null, { ok: false })).toBe(fallback)
     expect(recordPaymentError(null, null)).toBe(fallback)
+    // Only ok: true is success; a truthy oddity is not.
+    expect(recordPaymentError(null, { ok: "yes" as unknown as boolean })).toBe(fallback)
     // over_balance without a readable balance still never invents a number.
     expect(recordPaymentError(null, { ok: false, error: "over_balance" })).toBe(
       "That's more than is still owed on this invoice.",
@@ -284,6 +286,7 @@ describe("voidInvoiceError", () => {
       "Couldn't save that. Try again.",
     )
     expect(voidInvoiceError(null, { ok: false, error: "something_new" })).toBe("Couldn't save that. Try again.")
+    expect(voidInvoiceError(null, { ok: 1 as unknown as boolean })).toBe("Couldn't save that. Try again.")
   })
 })
 
