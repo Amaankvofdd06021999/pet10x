@@ -55,7 +55,10 @@ set local lock_timeout = '5s';
 --      Only an invoice takes payment (an estimate is converted first:
 --      not_an_invoice); only while sent or approved (not_payable). The method
 --      must be in the allow-list and the amount a positive whole number of
---      cents (22023). An amount over what is still owed is refused, not
+--      cents (22023) — with one exception: when nothing is owed (a $0 bill,
+--      or a total edited down to what was already paid), an amount of 0
+--      settles it: no payment row, status `paid`, audited. A 0 against a
+--      balance is still 22023. An amount over what is still owed is refused, not
 --      capped — {ok:false, error:'over_balance', remaining} — so paid_cents
 --      never exceeds total_cents. When the payments reach the total the bill
 --      moves to `paid`, which is now the ONLY way a bill becomes paid.
@@ -80,12 +83,28 @@ set local lock_timeout = '5s';
 --      resolves and is answered illegal_transition rather than "function
 --      does not exist".
 --
+--   6. invoices_client_guard — BEFORE INSERT OR UPDATE on invoices, security
+--      invoker, the service_bookings guards' `current_user in ('authenticated',
+--      'anon')` test, so definer code (the RPCs above, owner_approve_estimate,
+--      owner_decline_estimate, and invoice_recalc, which derives the totals
+--      from the lines) and the connection role pass untouched. For a client
+--      role: an UPDATE may not change status, paid_cents, subtotal_cents,
+--      tax_cents or total_cents (42501) — without it, invoices_staff (`for
+--      all`) would let staff write status = 'paid' or any paid_cents straight
+--      from the browser, around both RPCs, and paid_cents would drift from
+--      invoice_payments. An INSERT must be a draft with nothing paid and zero
+--      totals (42501), which is exactly what invoiceFromVisit sends (status
+--      'draft', every money column left to its default of 0); the totals then
+--      arrive through invoice_recalc as the lines are inserted. Note-only
+--      updates (what the app writes after a payment today) and line edits keep
+--      working.
+--
 -- WHAT THIS DOES NOT TOUCH
 --   * The invoices status CHECK (draft, sent, approved, declined, paid, void,
 --     from 20261015000005) — no status is added.
---   * invoices_staff (20260901000006) still lets staff write invoice columns
---     directly, as it always has; this migration adds the proper doors and the
---     app moves to them (Task 2). Closing the direct path is a separate change.
+--   * invoices_staff (20260901000006) itself — staff still insert drafts and
+--     edit notes, numbers and dates through it; section 6's guard narrows what
+--     those writes may say, not who may make them.
 --   * Stored notifications, the invoices owner-read policy, invoice_lines and
 --     the totals trigger, and every migration already applied.
 --
@@ -411,13 +430,27 @@ begin
   if not coalesce(p_method in ('cash', 'card', 'e_transfer', 'other'), false) then
     raise exception 'Choose how it was paid: cash, card, e-transfer or other' using errcode = '22023';
   end if;
+  -- greatest(…, 0): a total edited below what was already paid owes nothing,
+  -- it does not owe a negative amount.
+  v_remaining := greatest(inv.total_cents - inv.paid_cents, 0);
+
+  -- Nothing owed (a $0 bill, or a total edited down to what was paid): an
+  -- amount of 0 settles it. No payment row — nothing changed hands — but the
+  -- bill still reaches `paid` through this door, the only one there is.
+  if p_amount_cents = 0 and v_remaining = 0 then
+    update public.invoices set status = 'paid' where id = inv.id;
+    insert into public.audit_log (actor_id, action, entity_type, entity_id, metadata)
+    values (auth.uid(), 'invoice.payment_recorded', 'invoice', inv.id,
+            jsonb_build_object('business_id', inv.business_id, 'amount_cents', 0,
+                               'method', p_method, 'paid_cents', inv.paid_cents,
+                               'from', inv.status, 'to', 'paid', 'settled_nothing_owed', true));
+    return jsonb_build_object('ok', true, 'paid_cents', inv.paid_cents, 'remaining', 0, 'status', 'paid');
+  end if;
+
   if not coalesce(p_amount_cents > 0, false) then
     raise exception 'Enter an amount greater than zero' using errcode = '22023';
   end if;
 
-  -- greatest(…, 0): a total edited below what was already paid owes nothing,
-  -- it does not owe a negative amount.
-  v_remaining := greatest(inv.total_cents - inv.paid_cents, 0);
   if p_amount_cents > v_remaining then
     -- Refused, not capped: the practice re-enters what was actually taken.
     return jsonb_build_object('ok', false, 'error', 'over_balance', 'remaining', v_remaining);
@@ -448,7 +481,7 @@ end;
 $$;
 
 comment on function public.clinic_record_payment(uuid, integer, text) is
-  'Staff of the business or an admin record a payment on a sent or approved invoice (20261016000001). Locks the invoice; {ok:false, error: not_found | forbidden | not_an_invoice | not_payable}; 22023 for a method outside cash|card|e_transfer|other or an amount <= 0; {ok:false, error:over_balance, remaining} for more than is owed. Inserts an invoice_payments row, adds to paid_cents and, when the total is reached, sets status paid — the only way a bill becomes paid. Audited (invoice.payment_recorded); no notification. Returns {ok, paid_cents, remaining, status}.';
+  'Staff of the business or an admin record a payment on a sent or approved invoice (20261016000001). Locks the invoice; {ok:false, error: not_found | forbidden | not_an_invoice | not_payable}; 22023 for a method outside cash|card|e_transfer|other or an amount <= 0 — except 0 when nothing is owed, which sets paid with no payment row; {ok:false, error:over_balance, remaining} for more than is owed. Inserts an invoice_payments row, adds to paid_cents and, when the total is reached, sets status paid — the only way a bill becomes paid. Audited (invoice.payment_recorded); no notification. Returns {ok, paid_cents, remaining, status}.';
 
 revoke all on function public.clinic_record_payment(uuid, integer, text) from public, anon;
 grant execute on function public.clinic_record_payment(uuid, integer, text) to authenticated;
@@ -602,6 +635,59 @@ $$;
 
 comment on function public.clinic_set_invoice_status(uuid, text, integer) is
   'Staff of the business or an admin move a bill draft -> sent (notifying the pet''s owner, target my-vets:bills) and sent -> approved | draft (20261016000001). Paying is clinic_record_payment and voiding is clinic_void_invoice; any other move is {ok:false, error:illegal_transition, from, to}. p_paid_cents is accepted and ignored, kept so older clients'' calls resolve.';
+
+-- ---------------------------------------------------------------------------
+-- 6. Clients cannot write money or status onto an invoice
+-- ---------------------------------------------------------------------------
+-- Security invoker on purpose: current_user is then the caller's role for a
+-- direct client write, and the definer's owner inside every security definer
+-- function (the RPCs, invoice_recalc), which is how definer writes pass.
+-- search_path '' and every reference qualified, as service_bookings_update_
+-- guard (20261015000005).
+create or replace function public.invoices_client_guard()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $guard$
+begin
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    -- What a client may create, stated: a draft, nothing paid, no totals yet
+    -- (invoice_recalc derives them from the lines).
+    if new.status is distinct from 'draft' or new.paid_cents is distinct from 0
+       or new.subtotal_cents is distinct from 0 or new.tax_cents is distinct from 0
+       or new.total_cents is distinct from 0 then
+      raise exception 'Only Pet10x can change that'
+        using errcode = '42501',
+              hint    = 'A new bill starts as a draft with no money on it; lines set its totals.';
+    end if;
+    return new;
+  end if;
+
+  if (new.status, new.paid_cents, new.subtotal_cents, new.tax_cents, new.total_cents)
+     is distinct from
+     (old.status, old.paid_cents, old.subtotal_cents, old.tax_cents, old.total_cents) then
+    raise exception 'Only Pet10x can change that'
+      using errcode = '42501',
+            hint    = 'Send with clinic_set_invoice_status, take payment with clinic_record_payment, void with clinic_void_invoice; totals follow the lines.';
+  end if;
+  return new;
+end;
+$guard$;
+
+comment on function public.invoices_client_guard() is
+  'BEFORE INSERT OR UPDATE on invoices (20261016000001). For client roles (authenticated, anon) only: an insert must be status draft with paid_cents, subtotal_cents, tax_cents and total_cents all 0; an update may not change status, paid_cents, subtotal_cents, tax_cents or total_cents. Raises 42501. Definer functions (clinic_set_invoice_status, clinic_record_payment, clinic_void_invoice, owner_approve_estimate, owner_decline_estimate, invoice_recalc) and the connection role pass, because current_user is not a client role inside them.';
+
+revoke all on function public.invoices_client_guard() from public, anon, authenticated;
+
+drop trigger if exists trg_invoices_client_guard on public.invoices;
+create trigger trg_invoices_client_guard
+  before insert or update on public.invoices
+  for each row execute function public.invoices_client_guard();
 
 
 -- ===== checks part-a-archive =====
@@ -4554,13 +4640,23 @@ rollback to savepoint checks; reset role;
 --     the exact remaining amount makes it paid; a paid invoice is not_payable;
 --     an estimate is not_an_invoice; a method outside the allow-list, and an
 --     amount of zero, are 22023. Each payment is audited and tells nobody.
+--     An approved invoice takes payment too. A bill with nothing owed (PH-Z,
+--     $0) is settled by an amount of 0: paid, no payment row; a 0 against a
+--     balance stays 22023.
 --   * invoice_payments — staff of the clinic and the pet's owner read the
---     invoice's payments; a stranger reads none; staff cannot insert one
---     directly (42501).
+--     invoice's payments; a stranger reads none; the owner reads none on a
+--     draft (a row planted on PH-R only to probe the policy); staff cannot
+--     insert one directly (42501).
+--   * invoices_client_guard — staff updating status, paid_cents or
+--     total_cents directly is 42501; a note-only update still works; a client
+--     insert as paid, or as a draft carrying a total, is 42501; a plain draft
+--     insert (what invoiceFromVisit sends) works, and its line sets its total
+--     through invoice_recalc.
 --   * clinic_void_invoice — a stranger is forbidden; a whitespace-only or
 --     missing reason is 22023 and changes nothing; a paid invoice is voided
 --     with the trimmed reason appended to its note, its payment rows kept, and
 --     the pet's owner told (my-vets:bills, warning, quoting the reason); a
+--     sent unpaid bill's notice has no "already paid" sentence; a
 --     draft is voided and tells nobody; a void bill is not_voidable. Audited.
 --   * clinic_set_invoice_status — sent -> paid and sent -> void are now
 --     illegal_transition; sent -> approved still works; approved -> paid is
@@ -4607,6 +4703,7 @@ declare
   v_building uuid; v_manager uuid; v_owner uuid; v_outsider uuid;
   v_accom uuid; v_clinic uuid; v_pet uuid; v_cust uuid; v_patient uuid;
   v_inv_a uuid; v_inv_b uuid; v_inv_d uuid; v_est uuid;
+  v_inv_c uuid; v_inv_s uuid; v_inv_z uuid; v_inv_r uuid;
 begin
   select b.id into v_building from public.buildings b where upper(b.building_code) = 'MCR2026';
   if v_building is null then raise exception 'FIXTURE: building MCR2026 not found'; end if;
@@ -4665,6 +4762,23 @@ begin
   -- An estimate the owner has — never takes payment.
   insert into public.invoices (business_id, customer_id, patient_id, kind, number, status, total_cents)
   values (v_clinic, v_cust, v_patient, 'estimate', 'PH-E', 'sent', 8000) returning id into v_est;
+  -- C: approved, $20.00 — paid in one go, then a note-only update.
+  insert into public.invoices (business_id, customer_id, patient_id, kind, number, status, total_cents)
+  values (v_clinic, v_cust, v_patient, 'invoice', 'PH-C', 'approved', 2000) returning id into v_inv_c;
+  -- S: sent, $25.00, nothing paid — voided; the owner's notice has no
+  -- "already paid" sentence.
+  insert into public.invoices (business_id, customer_id, patient_id, kind, number, status, total_cents)
+  values (v_clinic, v_cust, v_patient, 'invoice', 'PH-S', 'sent', 2500) returning id into v_inv_s;
+  -- Z: sent, $0 — nothing owed, settled by an amount of 0.
+  insert into public.invoices (business_id, customer_id, patient_id, kind, number, status, total_cents)
+  values (v_clinic, v_cust, v_patient, 'invoice', 'PH-Z', 'sent', 0) returning id into v_inv_z;
+  -- R: a draft with a payment row planted beside it. clinic_record_payment
+  -- never writes one on a draft; the row exists only so the owner-read policy
+  -- has something to hide.
+  insert into public.invoices (business_id, customer_id, patient_id, kind, number, status, total_cents)
+  values (v_clinic, v_cust, v_patient, 'invoice', 'PH-R', 'draft', 1500) returning id into v_inv_r;
+  insert into public.invoice_payments (invoice_id, business_id, amount_cents, method, recorded_by)
+  values (v_inv_r, v_clinic, 500, 'cash', v_owner);
 
   perform set_config('part_h.building', v_building::text, true);
   perform set_config('part_h.manager', v_manager::text, true);
@@ -4676,8 +4790,15 @@ begin
   perform set_config('part_h.inv_b', v_inv_b::text, true);
   perform set_config('part_h.inv_d', v_inv_d::text, true);
   perform set_config('part_h.est', v_est::text, true);
-  raise notice 'fixtures: building % manager % owner % outsider % accommodation % clinic % invoices % % % estimate %',
-    v_building, v_manager, v_owner, v_outsider, v_accom, v_clinic, v_inv_a, v_inv_b, v_inv_d, v_est;
+  perform set_config('part_h.inv_c', v_inv_c::text, true);
+  perform set_config('part_h.inv_s', v_inv_s::text, true);
+  perform set_config('part_h.inv_z', v_inv_z::text, true);
+  perform set_config('part_h.inv_r', v_inv_r::text, true);
+  perform set_config('part_h.cust', v_cust::text, true);
+  perform set_config('part_h.patient', v_patient::text, true);
+  raise notice 'fixtures: building % manager % owner % outsider % accommodation % clinic % invoices % % % % % % % estimate %',
+    v_building, v_manager, v_owner, v_outsider, v_accom, v_clinic, v_inv_a, v_inv_b, v_inv_d,
+    v_inv_c, v_inv_s, v_inv_z, v_inv_r, v_est;
 end $$;
 
 -- ===========================================================================
@@ -4848,6 +4969,91 @@ begin
 end $$;
 
 -- ===========================================================================
+-- 4b. An approved invoice takes payment; nothing owed is settled by 0
+-- ===========================================================================
+do $$
+declare v jsonb;
+begin
+  v := public.clinic_record_payment(current_setting('part_h.inv_c')::uuid, 2000, 'card');
+  if not coalesce((v->>'ok')::boolean, false) or (v->>'paid_cents')::int <> 2000
+     or (v->>'remaining')::int <> 0 or v->>'status' is distinct from 'paid' then
+    raise exception 'FAIL: paying the approved invoice gave %', v;
+  end if;
+
+  v := public.clinic_record_payment(current_setting('part_h.inv_z')::uuid, 0, 'cash');
+  if not coalesce((v->>'ok')::boolean, false) or (v->>'paid_cents')::int <> 0
+     or (v->>'remaining')::int <> 0 or v->>'status' is distinct from 'paid' then
+    raise exception 'FAIL: settling the $0 bill with 0 gave %', v;
+  end if;
+
+  -- 0 against a balance is still no payment at all.
+  begin
+    perform public.clinic_record_payment(current_setting('part_h.inv_b')::uuid, 0, 'cash');
+    raise exception 'FAIL: a payment of 0 against a $50 balance was accepted';
+  exception when invalid_parameter_value then null;
+  end;
+  raise notice 'ok: an approved invoice is paid; a $0 bill is settled by 0; 0 against a balance is 22023';
+end $$;
+
+-- ===========================================================================
+-- 4c. Staff cannot write money or status straight onto an invoice
+-- ===========================================================================
+do $$
+declare
+  v_clinic uuid := current_setting('part_h.clinic')::uuid;
+  v_cust uuid := current_setting('part_h.cust')::uuid;
+  v_patient uuid := current_setting('part_h.patient')::uuid;
+  v_b uuid := current_setting('part_h.inv_b')::uuid;
+  v_new uuid;
+  v_total int;
+begin
+  begin
+    update public.invoices set status = 'paid' where id = v_b;
+    raise exception 'FAIL: staff set status paid directly';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.invoices set paid_cents = 5000 where id = v_b;
+    raise exception 'FAIL: staff set paid_cents directly';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.invoices set total_cents = 1 where id = v_b;
+    raise exception 'FAIL: staff set total_cents directly';
+  exception when insufficient_privilege then null;
+  end;
+
+  -- What the app writes after a payment today: the note, and nothing else.
+  update public.invoices set note = 'Paid at the front desk.' where id = current_setting('part_h.inv_c')::uuid;
+  if not found then raise exception 'FAIL: the note-only update matched no row'; end if;
+
+  begin
+    insert into public.invoices (business_id, customer_id, patient_id, kind, status)
+    values (v_clinic, v_cust, v_patient, 'invoice', 'paid');
+    raise exception 'FAIL: staff inserted an invoice as paid';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.invoices (business_id, customer_id, patient_id, kind, status, total_cents)
+    values (v_clinic, v_cust, v_patient, 'invoice', 'draft', 9999);
+    raise exception 'FAIL: staff inserted a draft carrying its own total';
+  exception when insufficient_privilege then null;
+  end;
+
+  -- invoiceFromVisit's insert, then a line: the total arrives through
+  -- invoice_recalc (definer), which the guard lets through.
+  insert into public.invoices (business_id, customer_id, patient_id, kind, status)
+  values (v_clinic, v_cust, v_patient, 'invoice', 'draft') returning id into v_new;
+  insert into public.invoice_lines (invoice_id, business_id, description, quantity, unit_price_cents)
+  values (v_new, v_clinic, 'Part H exam', 1, 7500);
+  select total_cents into v_total from public.invoices where id = v_new;
+  if v_total is distinct from 7500 then
+    raise exception 'FAIL: the new draft''s total is % after its line, expected 7500', v_total;
+  end if;
+  raise notice 'ok: direct status, paid_cents and total writes 42501; note-only update works; client inserts are plain drafts whose lines set the total';
+end $$;
+
+-- ===========================================================================
 -- 5. The old status doors no longer pay or void
 -- ===========================================================================
 do $$
@@ -4895,6 +5101,10 @@ begin
      or (v->>'owner_notified')::boolean is not true then
     raise exception 'FAIL: voiding the paid invoice gave %', v;
   end if;
+  v := public.clinic_void_invoice(current_setting('part_h.inv_s')::uuid, 'Duplicate bill');
+  if not coalesce((v->>'ok')::boolean, false) or (v->>'owner_notified')::boolean is not true then
+    raise exception 'FAIL: voiding the sent unpaid invoice gave %', v;
+  end if;
   v := public.clinic_void_invoice(current_setting('part_h.inv_d')::uuid, 'Started by mistake');
   if not coalesce((v->>'ok')::boolean, false) or (v->>'owner_notified')::boolean is not false then
     raise exception 'FAIL: voiding the draft gave %', v;
@@ -4912,7 +5122,9 @@ declare v_n int;
 begin
   select count(*) into v_n from public.invoice_payments where invoice_id = current_setting('part_h.inv_a')::uuid;
   if v_n <> 2 then raise exception 'FAIL: the practice reads % payments on PH-A, expected 2', v_n; end if;
-  raise notice 'ok: the practice reads its invoice''s payments';
+  select count(*) into v_n from public.invoice_payments where invoice_id = current_setting('part_h.inv_r')::uuid;
+  if v_n <> 1 then raise exception 'FAIL: the practice reads % payments on the draft PH-R, expected 1', v_n; end if;
+  raise notice 'ok: the practice reads its invoices'' payments, draft included';
 end $$;
 
 select set_config('request.jwt.claims',
@@ -4922,7 +5134,9 @@ declare v_n int;
 begin
   select count(*) into v_n from public.invoice_payments where invoice_id = current_setting('part_h.inv_a')::uuid;
   if v_n <> 2 then raise exception 'FAIL: the pet''s owner reads % payments on their invoice, expected 2', v_n; end if;
-  raise notice 'ok: the pet''s owner reads the payments on their (voided) invoice';
+  select count(*) into v_n from public.invoice_payments where invoice_id = current_setting('part_h.inv_r')::uuid;
+  if v_n <> 0 then raise exception 'FAIL: the pet''s owner reads % payments on a draft, expected 0', v_n; end if;
+  raise notice 'ok: the pet''s owner reads the payments on their (voided) invoice, and none on a draft';
 end $$;
 
 select set_config('request.jwt.claims',
@@ -4981,7 +5195,30 @@ begin
   if exists (select 1 from public.invoice_payments where invoice_id = current_setting('part_h.est')::uuid) then
     raise exception 'FAIL: the estimate has a payment row';
   end if;
-  raise notice 'ok: PH-A paid then void with its reason and both payments kept; PH-B approved and unpaid; PH-D void';
+  -- PH-C: paid by card in one payment, its note written directly.
+  select * into v_inv from public.invoices where id = current_setting('part_h.inv_c')::uuid;
+  if not found or v_inv.status is distinct from 'paid' or v_inv.paid_cents <> 2000
+     or v_inv.note is distinct from 'Paid at the front desk.' then
+    raise exception 'FAIL: PH-C is %', row_to_json(v_inv);
+  end if;
+  select count(*) into v_n from public.invoice_payments
+   where invoice_id = current_setting('part_h.inv_c')::uuid and amount_cents = 2000 and method = 'card';
+  if v_n <> 1 then raise exception 'FAIL: PH-C has % card payments of 2000, expected 1', v_n; end if;
+  -- PH-Z: paid with nothing paid and no payment row.
+  select * into v_inv from public.invoices where id = current_setting('part_h.inv_z')::uuid;
+  if not found or v_inv.status is distinct from 'paid' or v_inv.paid_cents <> 0 then
+    raise exception 'FAIL: PH-Z is %', row_to_json(v_inv);
+  end if;
+  if exists (select 1 from public.invoice_payments where invoice_id = current_setting('part_h.inv_z')::uuid) then
+    raise exception 'FAIL: settling the $0 bill wrote a payment row';
+  end if;
+  -- PH-S: void with its reason, nothing paid.
+  select * into v_inv from public.invoices where id = current_setting('part_h.inv_s')::uuid;
+  if not found or v_inv.status is distinct from 'void' or v_inv.paid_cents <> 0
+     or v_inv.note is distinct from 'Voided: Duplicate bill' then
+    raise exception 'FAIL: PH-S is %', row_to_json(v_inv);
+  end if;
+  raise notice 'ok: PH-A paid then void with its reason and both payments kept; PH-B approved and unpaid; PH-C paid; PH-Z settled with no row; PH-S and PH-D void';
 
   -- The pet's owner: one notice, for the paid bill's void, quoting the reason.
   select count(*) into v_n from public.notifications
@@ -4991,11 +5228,18 @@ begin
      and body = 'Part H Clinic voided the invoice for Part H Rex (100.00 CAD).'
                 || ' Talk to the clinic about anything you already paid. Reason: Wrong patient charged';
   if v_n <> 1 then raise exception 'FAIL: the pet owner got % void notices for PH-A, expected 1', v_n; end if;
-  -- Nothing for the payments, the draft's void, or sent -> approved.
+  -- PH-S had nothing paid: no "already paid" sentence.
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:bills'
+     and kind = 'clinic' and severity = 'warning'
+     and title = 'Invoice voided — Part H Clinic'
+     and body = 'Part H Clinic voided the invoice for Part H Rex (25.00 CAD). Reason: Duplicate bill';
+  if v_n <> 1 then raise exception 'FAIL: the pet owner got % void notices for PH-S without the paid sentence, expected 1', v_n; end if;
+  -- Nothing for the payments, the $0 settle, the draft's void, or sent -> approved.
   select count(*) into v_n from public.notifications
    where profile_id = v_outsider and created_at >= now() and action_target = 'my-vets:bills';
-  if v_n <> 1 then
-    raise exception 'FAIL: the pet owner got % bill notices, expected 1 (payments, a draft''s void and approval are silent)', v_n;
+  if v_n <> 2 then
+    raise exception 'FAIL: the pet owner got % bill notices, expected 2 (payments, a draft''s void and approval are silent)', v_n;
   end if;
   raise notice 'ok: the owner hears of the paid bill''s void, reason quoted; payments and the draft''s void tell nobody';
 
@@ -5003,8 +5247,13 @@ begin
    where action = 'invoice.payment_recorded' and entity_id = v_a and actor_id = v_owner and created_at >= now();
   if v_n <> 2 then raise exception 'FAIL: % payment audit rows on PH-A, expected 2', v_n; end if;
   select count(*) into v_n from public.audit_log
-   where action = 'invoice.voided' and entity_id in (v_a, v_d) and actor_id = v_owner and created_at >= now();
-  if v_n <> 2 then raise exception 'FAIL: % void audit rows, expected 2', v_n; end if;
+   where action = 'invoice.payment_recorded' and actor_id = v_owner and created_at >= now()
+     and entity_id in (current_setting('part_h.inv_c')::uuid, current_setting('part_h.inv_z')::uuid);
+  if v_n <> 2 then raise exception 'FAIL: % payment audit rows on PH-C and PH-Z, expected 2', v_n; end if;
+  select count(*) into v_n from public.audit_log
+   where action = 'invoice.voided' and actor_id = v_owner and created_at >= now()
+     and entity_id in (v_a, v_d, current_setting('part_h.inv_s')::uuid);
+  if v_n <> 3 then raise exception 'FAIL: % void audit rows, expected 3', v_n; end if;
   if not exists (select 1 from public.audit_log
                   where action = 'invoice.voided' and entity_id = v_a and actor_id = v_owner
                     and metadata->>'from' = 'paid' and metadata->>'reason' = 'Wrong patient charged') then

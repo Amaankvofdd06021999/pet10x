@@ -46,7 +46,10 @@
 --      Only an invoice takes payment (an estimate is converted first:
 --      not_an_invoice); only while sent or approved (not_payable). The method
 --      must be in the allow-list and the amount a positive whole number of
---      cents (22023). An amount over what is still owed is refused, not
+--      cents (22023) — with one exception: when nothing is owed (a $0 bill,
+--      or a total edited down to what was already paid), an amount of 0
+--      settles it: no payment row, status `paid`, audited. A 0 against a
+--      balance is still 22023. An amount over what is still owed is refused, not
 --      capped — {ok:false, error:'over_balance', remaining} — so paid_cents
 --      never exceeds total_cents. When the payments reach the total the bill
 --      moves to `paid`, which is now the ONLY way a bill becomes paid.
@@ -71,12 +74,28 @@
 --      resolves and is answered illegal_transition rather than "function
 --      does not exist".
 --
+--   6. invoices_client_guard — BEFORE INSERT OR UPDATE on invoices, security
+--      invoker, the service_bookings guards' `current_user in ('authenticated',
+--      'anon')` test, so definer code (the RPCs above, owner_approve_estimate,
+--      owner_decline_estimate, and invoice_recalc, which derives the totals
+--      from the lines) and the connection role pass untouched. For a client
+--      role: an UPDATE may not change status, paid_cents, subtotal_cents,
+--      tax_cents or total_cents (42501) — without it, invoices_staff (`for
+--      all`) would let staff write status = 'paid' or any paid_cents straight
+--      from the browser, around both RPCs, and paid_cents would drift from
+--      invoice_payments. An INSERT must be a draft with nothing paid and zero
+--      totals (42501), which is exactly what invoiceFromVisit sends (status
+--      'draft', every money column left to its default of 0); the totals then
+--      arrive through invoice_recalc as the lines are inserted. Note-only
+--      updates (what the app writes after a payment today) and line edits keep
+--      working.
+--
 -- WHAT THIS DOES NOT TOUCH
 --   * The invoices status CHECK (draft, sent, approved, declined, paid, void,
 --     from 20261015000005) — no status is added.
---   * invoices_staff (20260901000006) still lets staff write invoice columns
---     directly, as it always has; this migration adds the proper doors and the
---     app moves to them (Task 2). Closing the direct path is a separate change.
+--   * invoices_staff (20260901000006) itself — staff still insert drafts and
+--     edit notes, numbers and dates through it; section 6's guard narrows what
+--     those writes may say, not who may make them.
 --   * Stored notifications, the invoices owner-read policy, invoice_lines and
 --     the totals trigger, and every migration already applied.
 --
@@ -402,13 +421,27 @@ begin
   if not coalesce(p_method in ('cash', 'card', 'e_transfer', 'other'), false) then
     raise exception 'Choose how it was paid: cash, card, e-transfer or other' using errcode = '22023';
   end if;
+  -- greatest(…, 0): a total edited below what was already paid owes nothing,
+  -- it does not owe a negative amount.
+  v_remaining := greatest(inv.total_cents - inv.paid_cents, 0);
+
+  -- Nothing owed (a $0 bill, or a total edited down to what was paid): an
+  -- amount of 0 settles it. No payment row — nothing changed hands — but the
+  -- bill still reaches `paid` through this door, the only one there is.
+  if p_amount_cents = 0 and v_remaining = 0 then
+    update public.invoices set status = 'paid' where id = inv.id;
+    insert into public.audit_log (actor_id, action, entity_type, entity_id, metadata)
+    values (auth.uid(), 'invoice.payment_recorded', 'invoice', inv.id,
+            jsonb_build_object('business_id', inv.business_id, 'amount_cents', 0,
+                               'method', p_method, 'paid_cents', inv.paid_cents,
+                               'from', inv.status, 'to', 'paid', 'settled_nothing_owed', true));
+    return jsonb_build_object('ok', true, 'paid_cents', inv.paid_cents, 'remaining', 0, 'status', 'paid');
+  end if;
+
   if not coalesce(p_amount_cents > 0, false) then
     raise exception 'Enter an amount greater than zero' using errcode = '22023';
   end if;
 
-  -- greatest(…, 0): a total edited below what was already paid owes nothing,
-  -- it does not owe a negative amount.
-  v_remaining := greatest(inv.total_cents - inv.paid_cents, 0);
   if p_amount_cents > v_remaining then
     -- Refused, not capped: the practice re-enters what was actually taken.
     return jsonb_build_object('ok', false, 'error', 'over_balance', 'remaining', v_remaining);
@@ -439,7 +472,7 @@ end;
 $$;
 
 comment on function public.clinic_record_payment(uuid, integer, text) is
-  'Staff of the business or an admin record a payment on a sent or approved invoice (20261016000001). Locks the invoice; {ok:false, error: not_found | forbidden | not_an_invoice | not_payable}; 22023 for a method outside cash|card|e_transfer|other or an amount <= 0; {ok:false, error:over_balance, remaining} for more than is owed. Inserts an invoice_payments row, adds to paid_cents and, when the total is reached, sets status paid — the only way a bill becomes paid. Audited (invoice.payment_recorded); no notification. Returns {ok, paid_cents, remaining, status}.';
+  'Staff of the business or an admin record a payment on a sent or approved invoice (20261016000001). Locks the invoice; {ok:false, error: not_found | forbidden | not_an_invoice | not_payable}; 22023 for a method outside cash|card|e_transfer|other or an amount <= 0 — except 0 when nothing is owed, which sets paid with no payment row; {ok:false, error:over_balance, remaining} for more than is owed. Inserts an invoice_payments row, adds to paid_cents and, when the total is reached, sets status paid — the only way a bill becomes paid. Audited (invoice.payment_recorded); no notification. Returns {ok, paid_cents, remaining, status}.';
 
 revoke all on function public.clinic_record_payment(uuid, integer, text) from public, anon;
 grant execute on function public.clinic_record_payment(uuid, integer, text) to authenticated;
@@ -593,3 +626,56 @@ $$;
 
 comment on function public.clinic_set_invoice_status(uuid, text, integer) is
   'Staff of the business or an admin move a bill draft -> sent (notifying the pet''s owner, target my-vets:bills) and sent -> approved | draft (20261016000001). Paying is clinic_record_payment and voiding is clinic_void_invoice; any other move is {ok:false, error:illegal_transition, from, to}. p_paid_cents is accepted and ignored, kept so older clients'' calls resolve.';
+
+-- ---------------------------------------------------------------------------
+-- 6. Clients cannot write money or status onto an invoice
+-- ---------------------------------------------------------------------------
+-- Security invoker on purpose: current_user is then the caller's role for a
+-- direct client write, and the definer's owner inside every security definer
+-- function (the RPCs, invoice_recalc), which is how definer writes pass.
+-- search_path '' and every reference qualified, as service_bookings_update_
+-- guard (20261015000005).
+create or replace function public.invoices_client_guard()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $guard$
+begin
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    -- What a client may create, stated: a draft, nothing paid, no totals yet
+    -- (invoice_recalc derives them from the lines).
+    if new.status is distinct from 'draft' or new.paid_cents is distinct from 0
+       or new.subtotal_cents is distinct from 0 or new.tax_cents is distinct from 0
+       or new.total_cents is distinct from 0 then
+      raise exception 'Only Pet10x can change that'
+        using errcode = '42501',
+              hint    = 'A new bill starts as a draft with no money on it; lines set its totals.';
+    end if;
+    return new;
+  end if;
+
+  if (new.status, new.paid_cents, new.subtotal_cents, new.tax_cents, new.total_cents)
+     is distinct from
+     (old.status, old.paid_cents, old.subtotal_cents, old.tax_cents, old.total_cents) then
+    raise exception 'Only Pet10x can change that'
+      using errcode = '42501',
+            hint    = 'Send with clinic_set_invoice_status, take payment with clinic_record_payment, void with clinic_void_invoice; totals follow the lines.';
+  end if;
+  return new;
+end;
+$guard$;
+
+comment on function public.invoices_client_guard() is
+  'BEFORE INSERT OR UPDATE on invoices (20261016000001). For client roles (authenticated, anon) only: an insert must be status draft with paid_cents, subtotal_cents, tax_cents and total_cents all 0; an update may not change status, paid_cents, subtotal_cents, tax_cents or total_cents. Raises 42501. Definer functions (clinic_set_invoice_status, clinic_record_payment, clinic_void_invoice, owner_approve_estimate, owner_decline_estimate, invoice_recalc) and the connection role pass, because current_user is not a client role inside them.';
+
+revoke all on function public.invoices_client_guard() from public, anon, authenticated;
+
+drop trigger if exists trg_invoices_client_guard on public.invoices;
+create trigger trg_invoices_client_guard
+  before insert or update on public.invoices
+  for each row execute function public.invoices_client_guard();
