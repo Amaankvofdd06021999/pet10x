@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { readdirSync, readFileSync } from "node:fs"
+import { join, relative } from "node:path"
 import { dbErrorMessage } from "./db-error"
 import { KNOWN_USER_SENTENCES, userError } from "@/lib/user-error"
 
@@ -96,5 +98,90 @@ describe("dbErrorMessage", () => {
     expect(
       dbErrorMessage({ code: "42501", message: "Call manager_advance_violation(p_violation, p_to_stage) instead." }, FALLBACK),
     ).toBe("You don't have access to that.")
+  })
+})
+
+/**
+ * Guard: every dbErrorMessage( call in app/, lib/ and components/ passes a
+ * fallback that is fixed text, never one built at runtime (which could carry
+ * database wording onto a screen).
+ *
+ * Limits of this check: it is a regex scan, not a TypeScript parse. The second
+ * argument is read up to the first top-level comma or closing paren, so a
+ * literal containing a bare "," or ")" inside a template/quote is handled by
+ * skipping quoted spans, but exotic nesting is not. Accepted forms: a quoted
+ * string literal, a template literal with no ${}, or an identifier declared as
+ * a module-level `const NAME = "..."` in the same file. Anything else (a
+ * variable from elsewhere, a call, a ternary) fails and should be rewritten.
+ */
+describe("dbErrorMessage fallbacks", () => {
+  const ROOT = process.cwd()
+  const SKIP = new Set(["node_modules", ".next", ".git"])
+
+  function files(dir: string, out: string[] = []): string[] {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (SKIP.has(e.name)) continue
+      const p = join(dir, e.name)
+      if (e.isDirectory()) files(p, out)
+      else if (/\.tsx?$/.test(e.name)) out.push(p)
+    }
+    return out
+  }
+
+  /** The text of the call's second argument, or null when there is none. */
+  function secondArg(src: string, open: number): string | null {
+    let depth = 0
+    let quote: string | null = null
+    let commas = 0
+    let start = -1
+    for (let i = open; i < src.length; i++) {
+      const c = src[i]
+      if (quote) {
+        if (c === "\\") i++
+        else if (c === quote) quote = null
+        continue
+      }
+      if (c === '"' || c === "'" || c === "`") quote = c
+      else if (c === "(" || c === "[" || c === "{") depth++
+      else if (c === ")" || c === "]" || c === "}") {
+        if (depth === 0) return start < 0 ? null : src.slice(start, i).trim()
+        depth--
+      } else if (c === "," && depth === 0) {
+        commas++
+        if (commas === 1) start = i + 1
+        else return src.slice(start, i).trim()
+      }
+    }
+    return null
+  }
+
+  it("is a string literal or a module-level string const everywhere", () => {
+    const bad: string[] = []
+    let calls = 0
+    for (const dir of ["app", "lib", "components"]) {
+      for (const f of files(join(ROOT, dir))) {
+        if (f === __filename) continue // this file mentions the call in prose
+        const src = readFileSync(f, "utf8")
+        const re = /\bdbErrorMessage\(/g
+        let m: RegExpExecArray | null
+        while ((m = re.exec(src))) {
+          // Skip the definition itself and any import/type mention.
+          const before = src.slice(Math.max(0, m.index - 30), m.index)
+          if (/function\s+$/.test(before)) continue
+          calls++
+          const arg = secondArg(src, m.index + m[0].length)
+          const ok =
+            arg !== null &&
+            (/^"(?:[^"\\]|\\.)*"$/.test(arg) ||
+              /^'(?:[^'\\]|\\.)*'$/.test(arg) ||
+              (/^`[^`$]*`$/.test(arg) && !arg.includes("${")) ||
+              (/^[A-Za-z_$][\w$]*$/.test(arg) &&
+                new RegExp(`^const\\s+${arg.replace(/\$/g, "\\$")}\\s*(?::\\s*string\\s*)?=\\s*(?:"|'|\`)`, "m").test(src)))
+          if (!ok) bad.push(`${relative(ROOT, f)}: ${arg ?? "(no fallback)"}`)
+        }
+      }
+    }
+    expect(calls).toBeGreaterThan(50)
+    expect(bad).toEqual([])
   })
 })

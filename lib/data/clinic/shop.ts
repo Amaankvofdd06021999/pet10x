@@ -262,7 +262,7 @@ export async function setInvoiceStatus(
     return { error: SAVE_FAILED }
   }
   const out = readOutcome(data)
-  if (!out.ok) return { error: sentenceFor(out.error) }
+  if (out.ok !== true) return { error: sentenceFor(out.error) }
   return { error: null }
 }
 
