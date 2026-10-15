@@ -3,50 +3,42 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* One palette (docs/superpowers/specs/2026-10-15-ui-system-design.md §1).
+ *
+ * The rule the whole palette hangs on: text is never orange. Every word is
+ * `--foreground` or `--muted-foreground`, and white appears only on a primary
+ * or destructive fill. Orange is for buttons, icons, indicators and the soft
+ * highlight. That is what lets the brand colour be the true #FD9340 again
+ * instead of the brown stops it used to be deepened to.
+ *
+ * Each status colour has exactly two strengths: the solid (fills, icons, dots)
+ * and `-soft` (the tinted background a badge or banner sits on, always with
+ * `--foreground` text). Opacity tints like `bg-success/10` are not a third
+ * strength — they become the `-soft` token. */
 :root {
-  /* Pet10x Brand — Orange #FD9340
-   *
-   * Two grounds, not one. `--background` used to be #FFFFFF, identical to
-   * `--card`, so nothing in the app could sit ON anything — every card was
-   * white-on-white and only a 1px grey line said where it started. Tinting the
-   * page ground is what lets a card read as a card, and it is the single
-   * change that does most of the work here. */
+  /* Two grounds, not one. A tinted page ground is what lets a white card read
+   * as a card rather than white-on-white with a 1px line. */
   --background: #F8F9FD; /* page ground — cards float on this */
   --card: #FFFFFF; /* every raised surface */
   --popover: #FFFFFF;
 
-  /* Type has two weights of meaning, so it gets two colours: headings carry
-   * the near-black, everything explanatory drops to grey. Applying one colour
-   * to both is what makes a dense screen read as a wall. */
-  --foreground: #2C2E30; /* headings, values, anything you scan for */
+  /* Headings carry the near-black; everything explanatory drops to grey. */
+  --foreground: #2C2E30;
   --card-foreground: #2C2E30;
   --popover-foreground: #2C2E30;
-  --muted-foreground: #646569; /* body, meta, helper text */
+  --muted-foreground: #646569;
 
-  /* #FD9340 is 2.2:1 against white, so it is for surfaces that carry no
-   * words — icon tiles, rings, borders, chart accents, the logo. Anything
-   * that holds text takes one of the two deeper stops: `--primary-strong`
-   * for a fill under white text, `--primary-text` for orange type on the
-   * page or a card. Both clear 4.5:1 (checked in lib/contrast.test.ts). */
+  /* Brand. #FD9340 under white bold text is about 2.2:1 — below AA, a known
+   * trade-off chosen in the brainstorm. Bold weight helps a little, and
+   * because every button reads this one token, a future change is one line. */
   --primary: #FD9340;
-  --primary-strong: #B85A12;
-  --primary-text: #A9520F;
-  /* A solid hover stop: a /90 alpha blends toward white and drops white text
-   * to ~3.9:1. */
-  --primary-strong-hover: #A04E0F;
+  --primary-hover: color-mix(in oklab, #FD9340, black 8%);
+  --primary-soft: #FFF1E6;
   --primary-foreground: #FFFFFF;
 
   --secondary: #EDEEF6;
   --secondary-foreground: #2C2E30;
   --muted: #EDEEF6;
-  --accent: #2FBFB8;
-  --accent-foreground: #FFFFFF;
-
-  /* Reserved for genuine danger — destructive actions and error states — and
-   * deliberately not used as a CTA colour anywhere, so that seeing red in this
-   * UI always means something is wrong. */
-  --destructive: #D93A2B;
-  --destructive-foreground: #FFFFFF;
 
   /* Hairline for a card sitting ON white. Cool-tinted to belong with the
    * ground rather than a neutral grey borrowed from a different palette. */
@@ -54,34 +46,34 @@
   --input: #E1E2EC;
   --ring: #FD9340;
 
-  --chart-1: #FD9340;
-  --chart-2: #2FBFB8;
-  --chart-3: #1E9E62;
-  --chart-4: #2555C7;
-  --chart-5: #F0A81E;
-  --radius: 0.875rem;
-
-  /* Semantic. Deepened off the stock iOS set — #34C759, #FFCC00 and #007AFF
-   * are display colours that go chalky next to a tinted ground and cannot
-   * carry white text at any size. */
+  /* Status. Red is reserved for genuine danger — destructive actions and
+   * error states — never a CTA colour, so red always means something is
+   * wrong. Text on any `-soft` background is `--foreground`. */
   --success: #1E9E62;
-  /* #1E9E62 is 3.4:1 as running text; this is the same green deepened to AA. */
-  --success-strong: #147A4A;
+  --success-soft: #E6F5EE;
   --success-foreground: #FFFFFF;
   --warning: #F0A81E;
+  /* The old hard-coded yellows (#FFF6E0, #FFF9E6, #FFFBEF) all fold into this. */
+  --warning-soft: #FFF6E0;
   --warning-foreground: #2C2E30;
-  /* Amber is unreadable as text at any usable size, so fifteen places had
-   * hardcoded #B8860B to get a legible "pending / investigating" label. That
-   * is a token wearing a disguise — and at 3.25:1 it was not legible either.
-   * Named properly, and deepened to clear 4.5:1 on both white and the amber
-   * tint it always sits on. */
-  --warning-strong: #96660A;
+  --destructive: #D93A2B;
+  --destructive-soft: #FDECEA;
+  --destructive-foreground: #FFFFFF;
   --info: #2555C7;
+  --info-soft: #E9EEFA;
   --info-foreground: #FFFFFF;
 
+  --chart-1: var(--primary);
+  --chart-2: var(--success);
+  --chart-3: var(--info);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+
+  /* Radius: sm 8, md 12, lg 16 (and `full` from Tailwind). */
+  --radius: 1rem;
+
   /* Elevation. Two stops only: a resting card and a floating one. The tint
-   * behind them does most of the separating, so these stay very quiet —
-   * a heavy shadow on a light ground is the fastest way to look dated. */
+   * behind them does most of the separating, so these stay very quiet. */
   --elevation-card:
     0 1px 2px rgba(44, 46, 48, 0.015),
     0 6px 16px rgba(44, 46, 48, 0.028),
@@ -90,6 +82,18 @@
     0 2px 6px rgba(44, 46, 48, 0.025),
     0 12px 30px rgba(44, 46, 48, 0.05),
     0 28px 64px rgba(44, 46, 48, 0.05);
+
+  /* Temporary aliases — removed in Task 7.
+   * Screens not yet moved onto the pieces still name these. They point at the
+   * new palette so the brown stops and teal are already gone everywhere;
+   * the names themselves disappear once every batch has moved. */
+  --primary-strong: var(--primary);
+  --primary-strong-hover: var(--primary-hover);
+  --primary-text: var(--foreground);
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
+  --warning-strong: var(--foreground);
+  --success-strong: var(--foreground);
 }
 
 .dark {
@@ -97,42 +101,51 @@
    * off it. Pure #000 is dropped — it flattens against a near-black card and
    * makes every shadow invisible. */
   --background: #131417;
-  --foreground: #F2F3F5;
   --card: #1C1D21;
-  --card-foreground: #F2F3F5;
   --popover: #1C1D21;
+
+  --foreground: #F2F3F5;
+  --card-foreground: #F2F3F5;
   --popover-foreground: #F2F3F5;
+  --muted-foreground: #9B9CA3;
+
   --primary: #FD9340;
-  /* On the dark ground the brand orange already clears 4.5:1 both as text
-   * and under the dark foreground, so the strong stops equal it. */
-  --primary-strong: #FD9340;
-  --primary-text: #FD9340;
-  --primary-strong-hover: #E67E2A;
-  --primary-foreground: #1F1F1F;
+  --primary-hover: color-mix(in oklab, #FD9340, black 8%);
+  /* Soft grounds in the dark are dark tints of their hue, so the light
+   * `--foreground` text on them stays readable (checked in lib/contrast.test.ts). */
+  --primary-soft: #3A2616;
+  --primary-foreground: #FFFFFF;
+
   --secondary: #26272C;
   --secondary-foreground: #F2F3F5;
   --muted: #26272C;
-  --muted-foreground: #9B9CA3;
-  --accent: #2FBFB8;
-  --accent-foreground: #10201F;
-  --destructive: #F1584A;
-  --destructive-foreground: #FFFFFF;
+
   --border: #2E2F35;
   --input: #35363D;
-  --ring: #FFAB66;
-  --chart-1: #FFAB66;
-  --chart-2: #5FD4CF;
-  --chart-3: #3FBF83;
-  --chart-4: #6E92F2;
-  --chart-5: #FFC94D;
+  --ring: #FD9340;
+
   --success: #3FBF83;
-  --success-strong: #3FBF83;
+  --success-soft: #12301F;
   --success-foreground: #0F1F17;
   --warning: #FFC94D;
+  --warning-soft: #352A0F;
   --warning-foreground: #1F1F1F;
-  --warning-strong: #FFD98A;
+  --destructive: #F1584A;
+  --destructive-soft: #3A1715;
+  --destructive-foreground: #FFFFFF;
   --info: #6E92F2;
+  --info-soft: #18213D;
   --info-foreground: #0F1524;
+
+  /* Redeclared here, not inherited: a custom property resolves its var() on
+   * the element that declares it, so a `.dark` wrapper below :root would
+   * otherwise inherit the light chart colours. */
+  --chart-1: var(--primary);
+  --chart-2: var(--success);
+  --chart-3: var(--info);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+
   --elevation-card:
     0 1px 2px rgba(0, 0, 0, 0.24),
     0 6px 16px rgba(0, 0, 0, 0.22),
@@ -141,6 +154,15 @@
     0 2px 6px rgba(0, 0, 0, 0.3),
     0 12px 30px rgba(0, 0, 0, 0.34),
     0 28px 64px rgba(0, 0, 0, 0.34);
+
+  /* Temporary aliases — removed in Task 7. Same reason as above. */
+  --primary-strong: var(--primary);
+  --primary-strong-hover: var(--primary-hover);
+  --primary-text: var(--foreground);
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
+  --warning-strong: var(--foreground);
+  --success-strong: var(--foreground);
 }
 
 @theme inline {
@@ -153,37 +175,62 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
-  --color-primary-strong: var(--primary-strong);
-  --color-primary-text: var(--primary-text);
-  --color-primary-strong-hover: var(--primary-strong-hover);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-foreground: var(--info-foreground);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --color-success: var(--success);
-  --color-success-strong: var(--success-strong);
-  --color-success-foreground: var(--success-foreground);
-  --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
+
+  /* Temporary aliases — removed in Task 7. */
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-strong-hover: var(--primary-strong-hover);
+  --color-primary-text: var(--primary-text);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-warning-strong: var(--warning-strong);
-  --color-info: var(--info);
-  --color-info-foreground: var(--info-foreground);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --color-success-strong: var(--success-strong);
+
+  /* Type scale, in px as the spec gives it. Pieces use these names; one-off
+   * sizes like text-[13px] are replaced as each batch touches an element.
+   * lib/utils.ts registers them with tailwind-merge as font sizes. */
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-meta: 13px;
+  --text-meta--line-height: 18px;
+  --text-body: 15px;
+  --text-body--line-height: 22px;
+  --text-title: 17px;
+  --text-title--line-height: 24px;
+  --text-heading: 22px;
+  --text-heading--line-height: 28px;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
   --radius-lg: var(--radius);
+  /* Not in the spec's scale; kept so existing rounded-xl callers do not jump
+   * to Tailwind's stock 12px before their batch moves them. */
   --radius-xl: calc(var(--radius) + 4px);
   --shadow-card: var(--elevation-card);
   --shadow-float: var(--elevation-float);

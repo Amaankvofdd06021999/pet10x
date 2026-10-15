@@ -32,28 +32,25 @@ describe('contrastRatio', () => {
 
 describe.each([':root', '.dark'] as const)('AA contrast tokens (%s)', (theme) => {
   const t = (n: string) => token(theme, n)
-  it('primary-strong fill carries primary-foreground text', () => {
-    expect(contrastRatio(t('primary-strong'), t('primary-foreground'))).toBeGreaterThanOrEqual(4.5)
-  })
-  it('primary-text reads on the page ground and on cards', () => {
-    expect(contrastRatio(t('primary-text'), t('background'))).toBeGreaterThanOrEqual(4.5)
-    expect(contrastRatio(t('primary-text'), t('card'))).toBeGreaterThanOrEqual(4.5)
-  })
-  it('success-strong reads on the page ground and on cards', () => {
-    expect(contrastRatio(t('success-strong'), t('background'))).toBeGreaterThanOrEqual(4.5)
-    expect(contrastRatio(t('success-strong'), t('card'))).toBeGreaterThanOrEqual(4.5)
-  })
-  it('primary-strong-hover keeps primary-foreground text readable', () => {
-    expect(contrastRatio(t('primary-strong-hover'), t('primary-foreground'))).toBeGreaterThanOrEqual(4.5)
-  })
-  it('success-strong fill carries white text', () => {
-    // Components pair this fill with text-success-foreground, never a fixed white.
-    expect(contrastRatio(t('success-strong'), t('success-foreground'))).toBeGreaterThanOrEqual(4.5)
+  // The palette's rule is that all text is foreground or muted-foreground, so
+  // those two are what has to clear AA — on both grounds and on every soft
+  // tint a badge or banner can sit on. The orange button (white on #FD9340,
+  // about 2.2:1) is a known, accepted exception and deliberately not asserted.
+  it('foreground reads on the page ground and on cards', () => {
+    expect(contrastRatio(t('foreground'), t('background'))).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(t('foreground'), t('card'))).toBeGreaterThanOrEqual(4.5)
   })
   it('muted-foreground placeholder reads on the page ground and on cards', () => {
     expect(contrastRatio(t('muted-foreground'), t('background'))).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio(t('muted-foreground'), t('card'))).toBeGreaterThanOrEqual(4.5)
   })
+  it.each(['primary-soft', 'success-soft', 'warning-soft', 'destructive-soft', 'info-soft'])(
+    'foreground reads on %s',
+    (soft) => {
+      // In dark mode this is what forces the soft grounds to be dark tints.
+      expect(contrastRatio(t('foreground'), t(soft))).toBeGreaterThanOrEqual(4.5)
+    },
+  )
 })
 
 // A fixed text-white on a theme-aware fill passes in light and fails in dark

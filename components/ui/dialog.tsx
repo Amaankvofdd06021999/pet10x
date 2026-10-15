@@ -6,6 +6,7 @@ import { XIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { keepOpenForToasts } from '@/lib/inside-toast'
+import { Button } from '@/components/ui/button'
 
 function Dialog({
   ...props
@@ -72,7 +73,7 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            className="ring-offset-background focus:ring-ring data-[state=open]:bg-muted data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
             <span className="sr-only">Close</span>
@@ -187,9 +188,76 @@ function DialogLayer({
   )
 }
 
+/**
+ * The titled panel every record screen uses (formerly shared/ui's Modal),
+ * built on DialogLayer: a bottom sheet on a phone, a centred card from `sm`.
+ * Focus trap, Escape, scroll lock, focus restore and a labelled title come
+ * from Radix. It stacks at z-50 like every other Radix layer, so order is
+ * portal order: a ConfirmDialog opened from inside a Modal sits on top.
+ */
+function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  wide = false,
+}: {
+  open: boolean
+  onClose: () => void
+  title: string
+  description?: string
+  children: React.ReactNode
+  footer?: React.ReactNode
+  wide?: boolean
+}) {
+  return (
+    <DialogLayer
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose()
+      }}
+      described={Boolean(description)}
+      overlayClassName="flex items-end justify-center bg-black/40 backdrop-blur-[2px] sm:items-center"
+      className={cn(
+        'relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-lg border border-border bg-card shadow-float sm:rounded-lg',
+        wide ? 'sm:max-w-3xl' : 'sm:max-w-lg',
+      )}
+      // The first field, else the first button that isn't the header's
+      // close — never the X, which Radix would pick by default.
+      onOpenAutoFocus={(e) => {
+        const panel = e.currentTarget as HTMLElement | null
+        const target =
+          panel?.querySelector<HTMLElement>('input, textarea, select') ??
+          panel?.querySelector<HTMLElement>('button:not([data-close]):not([disabled])')
+        if (target) {
+          e.preventDefault()
+          target.focus()
+        }
+      }}
+    >
+      <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+        <div className="min-w-0">
+          <DialogTitle className="text-title font-semibold text-foreground">{title}</DialogTitle>
+          {description && (
+            <DialogDescription className="mt-0.5 text-meta text-muted-foreground">{description}</DialogDescription>
+          )}
+        </div>
+        <Button variant="quiet" size="icon-sm" data-close onClick={onClose} aria-label="Close">
+          <XIcon aria-hidden="true" />
+        </Button>
+      </header>
+      <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+      {footer && <footer className="flex flex-wrap justify-end gap-2 border-t border-border px-5 py-3">{footer}</footer>}
+    </DialogLayer>
+  )
+}
+
 export {
   Dialog,
   DialogLayer,
+  Modal,
   DialogClose,
   DialogContent,
   DialogDescription,

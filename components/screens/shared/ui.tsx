@@ -1,186 +1,62 @@
 "use client"
 
-import { useId, type ReactNode } from "react"
-import { Loader2, X, AlertTriangle, Inbox } from "lucide-react"
-import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
-
 /**
-  * The shared pattern layer for record-heavy console screens.
+ * Compatibility layer — deleted in Task 7 of the UI system plan.
  *
- * The diligence review counted thirteen hand-rolled bottom sheets, ~20 status
- * pill maps and 57 files importing Loader2 directly — and zero overlays with a
- * focus trap. This module is the middle tier that was missing: every screen in
- * /clinic composes these and none of them re-implement a dialog.
+ * Everything that used to be implemented here now lives once in
+ * components/ui (one set of pieces, spec §2). This file only re-exports those
+ * pieces under their old names, and keeps three thin wrappers whose old props
+ * differ from the new piece (Button's `busy`/`ghost`, Pill's tones). Screens
+ * import from components/ui directly as their batch moves; nothing new should
+ * import from here.
  */
 
-/* ------------------------------ surfaces -------------------------------- */
+import type { ReactNode } from "react"
+import { Button as UiButton } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
-export function SectionCard({
-  title,
-  subtitle,
-  actions,
-  children,
-  className = "",
-}: {
-  title?: string
-  subtitle?: string
-  actions?: ReactNode
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <section className={`rounded-2xl border border-border bg-card ${className}`}>
-      {(title || actions) && (
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <div className="min-w-0">
-            {title && <h2 className="text-[15px] font-semibold text-foreground">{title}</h2>}
-            {subtitle && <p className="mt-0.5 text-[12.5px] text-muted-foreground">{subtitle}</p>}
-          </div>
-          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-        </header>
-      )}
-      <div className="p-4">{children}</div>
-    </section>
-  )
-}
-
-export function StatTile({
-  label,
-  value,
-  hint,
-  tone = "default",
-  onClick,
-}: {
-  label: string
-  value: string | number
-  hint?: string
-  tone?: "default" | "good" | "warn" | "bad" | "info" | "accent"
-  onClick?: () => void
-}) {
-  const toneClass = {
-    default: "text-foreground",
-    good: "text-success-strong",
-    warn: "text-warning-strong",
-    bad: "text-destructive",
-    info: "text-info",
-    accent: "text-primary-text",
-  }[tone]
-  const Tag = onClick ? "button" : "div"
-  return (
-    <Tag
-      {...(onClick ? { type: "button" as const, onClick } : {})}
-      className={`rounded-2xl border border-border bg-card p-4 text-left ${
-        onClick ? "transition-colors hover:border-primary/40" : ""
-      }`}
-    >
-      <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-[26px] font-semibold leading-none tabular-nums ${toneClass}`}>{value}</p>
-      {hint && <p className="mt-1 text-[12px] text-muted-foreground">{hint}</p>}
-    </Tag>
-  )
-}
-
-/* ------------------------------- states --------------------------------- */
-
-export function Spinner({ label = "Loading" }: { label?: string }) {
-  return (
-    <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground" role="status">
-      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-      <span className="text-[13px]">{label}…</span>
-    </div>
-  )
-}
-
-export function SkeletonRows({ rows = 4 }: { rows?: number }) {
-  return (
-    <div className="flex flex-col gap-2" aria-hidden="true">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="h-14 animate-pulse rounded-xl bg-secondary" />
-      ))}
-    </div>
-  )
-}
-
-export function LoadError({ message, onRetry }: { message: string; onRetry?: () => void }) {
-  return (
-    <div className="flex flex-col items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-      <p className="flex items-center gap-2 text-[13px] font-semibold text-destructive">
-        <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-        Could not load this
-      </p>
-      <p className="text-[12.5px] text-muted-foreground">{message}</p>
-      {onRetry && (
-        <Button variant="secondary" size="sm" onClick={onRetry}>
-          Try again
-        </Button>
-      )}
-    </div>
-  )
-}
-
-export function EmptyState({
-  title,
-  detail,
-  action,
-  icon,
-}: {
-  title: string
-  detail?: string
-  action?: ReactNode
-  icon?: ReactNode
-}) {
-  return (
-    <div className="flex flex-col items-center rounded-2xl border border-dashed border-border bg-card px-6 py-10 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        {icon ?? <Inbox className="h-5 w-5" aria-hidden="true" />}
-      </div>
-      <p className="mt-3 text-[14px] font-semibold text-foreground">{title}</p>
-      {detail && <p className="mt-1 max-w-[24rem] text-[12.5px] text-muted-foreground">{detail}</p>}
-      {action && <div className="mt-3">{action}</div>}
-    </div>
-  )
-}
-
-/* -------------------------------- pills --------------------------------- */
+export { SectionCard } from "@/components/ui/section-card"
+export { StatTile } from "@/components/ui/stat-tile"
+export { Spinner } from "@/components/ui/spinner"
+export { SkeletonRows } from "@/components/ui/skeleton"
+export { LoadError } from "@/components/ui/load-error"
+export { EmptyState } from "@/components/ui/empty"
+export { Field } from "@/components/ui/field"
+export { Input as TextInput } from "@/components/ui/input"
+export { Textarea as TextArea } from "@/components/ui/textarea"
+export { NativeSelect as Select } from "@/components/ui/select"
+export { SegmentedTabs } from "@/components/ui/segmented-tabs"
+export { Modal } from "@/components/ui/dialog"
+export { Toolbar } from "@/components/ui/toolbar"
+export { SpeciesIcon } from "@/components/screens/shared/species-icon"
+export { LinkedBadge } from "@/components/screens/clinic/linked-badge"
 
 export type Tone = "neutral" | "good" | "warn" | "bad" | "info" | "accent"
 
-const TONE_CLASS: Record<Tone, string> = {
-  neutral: "bg-secondary text-secondary-foreground",
-  good: "bg-success/12 text-success-strong",
-  warn: "bg-warning/15 text-warning-strong",
-  bad: "bg-destructive/12 text-destructive",
-  info: "bg-info/12 text-info",
-  accent: "bg-primary/12 text-primary-text",
-}
+const TONE_VARIANT = {
+  neutral: "neutral",
+  good: "success",
+  warn: "warning",
+  bad: "danger",
+  info: "info",
+  accent: "brand",
+} as const satisfies Record<Tone, string>
 
-export function Pill({
-  children,
-  tone = "neutral",
-  title,
-}: {
-  children: ReactNode
-  tone?: Tone
-  title?: string
-}) {
+/** Old name for Badge with the old tone names. */
+export function Pill({ children, tone = "neutral", title }: { children: ReactNode; tone?: Tone; title?: string }) {
   return (
-    <span
-      title={title}
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${TONE_CLASS[tone]}`}
-    >
+    <Badge variant={TONE_VARIANT[tone]} title={title}>
       {children}
-    </span>
+    </Badge>
   )
 }
 
-/* ------------------------------- controls -------------------------------- */
-
+/** Old Button props (`busy`, `ghost`, sizes sm/md) on the one Button. */
 export function Button({
-  children,
   variant = "primary",
   size = "md",
-  className = "",
   busy = false,
+  type = "button",
   ...rest
 }: {
   children: ReactNode
@@ -188,222 +64,13 @@ export function Button({
   size?: "sm" | "md"
   busy?: boolean
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const base =
-    "inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none"
-  const sizes = { sm: "px-2.5 py-1.5 text-[12.5px]", md: "px-3.5 py-2 text-[13.5px]" }[size]
-  const variants = {
-    primary: "bg-primary-strong text-primary-foreground hover:bg-primary-strong-hover",
-    secondary: "border border-border bg-card text-foreground hover:bg-secondary",
-    ghost: "text-muted-foreground hover:bg-secondary hover:text-foreground",
-    danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-  }[variant]
   return (
-    <button type="button" className={`${base} ${sizes} ${variants} ${className}`} disabled={busy || rest.disabled} {...rest}>
-      {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
-      {children}
-    </button>
+    <UiButton
+      type={type}
+      variant={variant === "ghost" ? "quiet" : variant}
+      size={size}
+      loading={busy}
+      {...rest}
+    />
   )
-}
-
-/** A labelled control. The label is a real <label htmlFor>, and errors bind. */
-export function Field({
-  label,
-  hint,
-  error,
-  children,
-  required,
-}: {
-  label: string
-  hint?: string
-  error?: string | null
-  required?: boolean
-  children: (props: { id: string; "aria-describedby"?: string; "aria-invalid"?: boolean }) => ReactNode
-}) {
-  const id = useId()
-  const hintId = hint ? `${id}-hint` : undefined
-  const errId = error ? `${id}-err` : undefined
-  const described = [hintId, errId].filter(Boolean).join(" ") || undefined
-  return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-[12px] font-semibold text-foreground">
-        {label}
-        {required && <span className="ml-0.5 text-destructive">*</span>}
-      </label>
-      {children({ id, "aria-describedby": described, "aria-invalid": error ? true : undefined })}
-      {hint && !error && (
-        <p id={hintId} className="text-[11.5px] text-muted-foreground">
-          {hint}
-        </p>
-      )}
-      {error && (
-        <p id={errId} role="alert" className="text-[11.5px] font-medium text-destructive">
-          {error}
-        </p>
-      )}
-    </div>
-  )
-}
-
-const INPUT_CLASS =
-  "w-full rounded-xl border border-input bg-card px-3 py-2 text-base text-foreground outline-none md:text-[13.5px] placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
-
-export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`${INPUT_CLASS} ${props.className ?? ""}`} />
-}
-
-export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`${INPUT_CLASS} min-h-[80px] ${props.className ?? ""}`} />
-}
-
-export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={`${INPUT_CLASS} ${props.className ?? ""}`} />
-}
-
-/** Tabs that behave like tabs: roles, aria-selected and arrow keys. */
-export function SegmentedTabs<T extends string>({
-  tabs,
-  active,
-  onChange,
-  label,
-}: {
-  tabs: Array<{ id: T; label: string; count?: number }>
-  active: T
-  onChange: (id: T) => void
-  label: string
-}) {
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    const i = tabs.findIndex((t) => t.id === active)
-    if (e.key === "ArrowRight") {
-      e.preventDefault()
-      onChange(tabs[(i + 1) % tabs.length].id)
-    } else if (e.key === "ArrowLeft") {
-      e.preventDefault()
-      onChange(tabs[(i - 1 + tabs.length) % tabs.length].id)
-    }
-  }
-  return (
-    <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className="flex flex-wrap gap-1.5">
-      {tabs.map((t) => {
-        const on = t.id === active
-        return (
-          <button
-            key={t.id}
-            role="tab"
-            type="button"
-            aria-selected={on}
-            tabIndex={on ? 0 : -1}
-            onClick={() => onChange(t.id)}
-            className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-              on ? "bg-primary-strong text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-            {typeof t.count === "number" && <span className="ml-1 opacity-70 tabular-nums">({t.count})</span>}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-/* -------------------------------- dialog -------------------------------- */
-
-/**
- * One dialog for the whole console, built on Radix (components/ui/dialog):
- * focus trap, Escape, scroll lock, focus restore, aria-modal and a labelled
- * title. Every overlay in /clinic uses it.
- *
- * It stacks at z-50 like every other Radix layer, so order is portal order:
- * a ConfirmDialog opened from inside a Modal mounts later and sits on top.
- * (It used to be z-[100] with its own trap, which covered the confirmation.)
- */
-export function Modal({
-  open,
-  onClose,
-  title,
-  description,
-  children,
-  footer,
-  wide = false,
-}: {
-  open: boolean
-  onClose: () => void
-  title: string
-  description?: string
-  children: ReactNode
-  footer?: ReactNode
-  wide?: boolean
-}) {
-  return (
-    <DialogLayer
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) onClose()
-      }}
-      described={Boolean(description)}
-      overlayClassName="flex items-end justify-center bg-foreground/40 backdrop-blur-[2px] sm:items-center"
-      className={`relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-border bg-card shadow-float sm:rounded-3xl ${
-        wide ? "sm:max-w-3xl" : "sm:max-w-lg"
-      }`}
-      // As before: the first field, else the first button that isn't the
-      // header's close — never the X, which Radix would pick by default.
-      onOpenAutoFocus={(e) => {
-        const panel = e.currentTarget as HTMLElement | null
-        const target =
-          panel?.querySelector<HTMLElement>("input, textarea, select") ??
-          panel?.querySelector<HTMLElement>("button:not([data-close]):not([disabled])")
-        if (target) {
-          e.preventDefault()
-          target.focus()
-        }
-      }}
-    >
-      <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
-        <div className="min-w-0">
-          <DialogTitle className="text-[16px] font-semibold leading-normal text-foreground">{title}</DialogTitle>
-          {description && (
-            <DialogDescription className="mt-0.5 text-[12.5px] text-muted-foreground">{description}</DialogDescription>
-          )}
-        </div>
-        <button
-          type="button"
-          data-close
-          onClick={onClose}
-          aria-label="Close"
-          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-        >
-          <X className="h-4 w-4" aria-hidden="true" />
-        </button>
-      </header>
-      <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-      {footer && <footer className="flex flex-wrap justify-end gap-2 border-t border-border px-5 py-3">{footer}</footer>}
-    </DialogLayer>
-  )
-}
-
-/* ------------------------------ misc bits -------------------------------- */
-
-export function SpeciesIcon({ species }: { species: string | null }) {
-  const glyph = species === "cat" ? "🐈" : species === "bird" ? "🐦" : species === "dog" ? "🐕" : "🐾"
-  return (
-    <span aria-hidden="true" className="text-[15px]">
-      {glyph}
-    </span>
-  )
-}
-
-export function LinkedBadge({ linked }: { linked: boolean }) {
-  return linked ? (
-    <Pill tone="accent" title="This patient is linked to a Pet10x account">
-      Pet10x
-    </Pill>
-  ) : (
-    <Pill tone="neutral" title="Not linked to a Pet10x account — the practice holds this record on its own">
-      Local
-    </Pill>
-  )
-}
-
-export function Toolbar({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-2">{children}</div>
 }

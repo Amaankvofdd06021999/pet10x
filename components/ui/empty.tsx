@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
+import { Inbox } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
@@ -73,7 +75,7 @@ function EmptyDescription({ className, ...props }: React.ComponentProps<'p'>) {
     <div
       data-slot="empty-description"
       className={cn(
-        'text-muted-foreground [&>a:hover]:text-primary-text text-sm/relaxed [&>a]:underline [&>a]:underline-offset-4',
+        'text-muted-foreground [&>a:hover]:text-foreground text-sm/relaxed [&>a]:underline [&>a]:underline-offset-4',
         className,
       )}
       {...props}
@@ -94,7 +96,37 @@ function EmptyContent({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
+/**
+ * The one empty state: an orange icon on a soft tile, a dark title, a grey
+ * line of detail and an optional action. Built from the Empty parts above.
+ */
+function EmptyState({
+  title,
+  detail,
+  action,
+  icon,
+}: {
+  title: string
+  detail?: string
+  action?: ReactNode
+  icon?: ReactNode
+}) {
+  return (
+    <Empty className="flex-none gap-3 border border-border bg-card px-6 py-10 md:p-10">
+      <EmptyHeader className="gap-1">
+        <EmptyMedia className="mb-2 size-12 rounded-full bg-primary-soft text-primary">
+          {icon ?? <Inbox className="size-5" aria-hidden="true" />}
+        </EmptyMedia>
+        <EmptyTitle className="text-body font-semibold text-foreground">{title}</EmptyTitle>
+        {detail && <EmptyDescription className="text-meta">{detail}</EmptyDescription>}
+      </EmptyHeader>
+      {action && <EmptyContent>{action}</EmptyContent>}
+    </Empty>
+  )
+}
+
 export {
+  EmptyState,
   Empty,
   EmptyHeader,
   EmptyTitle,

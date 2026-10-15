@@ -4,34 +4,60 @@ import { cva, type VariantProps } from 'class-variance-authority'
 
 import { cn } from '@/lib/utils'
 
+/*
+ * The one pill (spec §2): a soft background with dark text, and an optional
+ * solid dot in the tone's own colour. The text is always `foreground` — the
+ * tone is carried by the tint and the dot, never by coloured words.
+ *
+ * `default`, `secondary`, `destructive` and `outline` are the shadcn names,
+ * kept as aliases until the callers that use them move.
+ */
 const badgeVariants = cva(
-  'inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden',
+  'inline-flex items-center justify-center gap-1 rounded-full border border-transparent px-2 py-0.5 text-caption font-semibold text-foreground w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 [&>svg]:pointer-events-none overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2',
   {
     variants: {
       variant: {
-        default:
-          'border-transparent bg-primary-strong text-primary-foreground [a&]:hover:bg-primary-strong-hover',
-        secondary:
-          'border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90',
-        destructive:
-          'border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
-        outline:
-          'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
+        neutral: 'bg-muted',
+        brand: 'bg-primary-soft',
+        success: 'bg-success-soft',
+        warning: 'bg-warning-soft',
+        danger: 'bg-destructive-soft',
+        info: 'bg-info-soft',
+        // Legacy shadcn names → the spec variants.
+        default: 'bg-primary-soft',
+        secondary: 'bg-muted',
+        destructive: 'bg-destructive-soft',
+        outline: 'border-border bg-transparent',
       },
     },
     defaultVariants: {
-      variant: 'default',
+      variant: 'neutral',
     },
   },
 )
 
+const DOT: Record<string, string> = {
+  neutral: 'bg-muted-foreground',
+  secondary: 'bg-muted-foreground',
+  outline: 'bg-muted-foreground',
+  brand: 'bg-primary',
+  default: 'bg-primary',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-destructive',
+  destructive: 'bg-destructive',
+  info: 'bg-info',
+}
+
 function Badge({
   className,
   variant,
+  dot = false,
   asChild = false,
+  children,
   ...props
 }: React.ComponentProps<'span'> &
-  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+  VariantProps<typeof badgeVariants> & { asChild?: boolean; dot?: boolean }) {
   const Comp = asChild ? Slot : 'span'
 
   return (
@@ -39,7 +65,12 @@ function Badge({
       data-slot="badge"
       className={cn(badgeVariants({ variant }), className)}
       {...props}
-    />
+    >
+      {dot && !asChild && (
+        <span aria-hidden="true" className={cn('size-1.5 rounded-full', DOT[variant ?? 'neutral'])} />
+      )}
+      {children}
+    </Comp>
   )
 }
 
