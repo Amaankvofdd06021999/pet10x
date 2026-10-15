@@ -23,9 +23,9 @@
 --     invoice's payments; a stranger reads none; the owner reads none on a
 --     draft (a row planted on PH-R only to probe the policy); staff cannot
 --     insert one directly (42501).
---   * invoices_client_guard — staff updating status, paid_cents or
---     total_cents directly is 42501; a note-only update still works; a client
---     insert as paid, or as a draft carrying a total, is 42501; a plain draft
+--   * invoices_client_guard — staff updating status, paid_cents,
+--     total_cents or owner_approved_at directly is 42501; a note-only update
+--     still works; a client insert as paid, or as a draft carrying a total, is 42501; a plain draft
 --     insert (what invoiceFromVisit sends) works, and its line sets its total
 --     through invoice_recalc.
 --   * clinic_void_invoice — a stranger is forbidden; a whitespace-only or
@@ -398,6 +398,11 @@ begin
     raise exception 'FAIL: staff set total_cents directly';
   exception when insufficient_privilege then null;
   end;
+  begin
+    update public.invoices set owner_approved_at = now() where id = v_b;
+    raise exception 'FAIL: staff stamped the owner''s approval directly';
+  exception when insufficient_privilege then null;
+  end;
 
   -- What the app writes after a payment today: the note, and nothing else.
   update public.invoices set note = 'Paid at the front desk.' where id = current_setting('part_h.inv_c')::uuid;
@@ -426,7 +431,7 @@ begin
   if v_total is distinct from 7500 then
     raise exception 'FAIL: the new draft''s total is % after its line, expected 7500', v_total;
   end if;
-  raise notice 'ok: direct status, paid_cents and total writes 42501; note-only update works; client inserts are plain drafts whose lines set the total';
+  raise notice 'ok: direct status, paid_cents, total and owner_approved_at writes 42501; note-only update works; client inserts are plain drafts whose lines set the total';
 end $$;
 
 -- ===========================================================================

@@ -89,7 +89,8 @@ set local lock_timeout = '5s';
 --      owner_decline_estimate, and invoice_recalc, which derives the totals
 --      from the lines) and the connection role pass untouched. For a client
 --      role: an UPDATE may not change status, paid_cents, subtotal_cents,
---      tax_cents or total_cents (42501) — without it, invoices_staff (`for
+--      tax_cents, total_cents or owner_approved_at (42501; only
+--      owner_approve_estimate stamps the owner's approval) — without it, invoices_staff (`for
 --      all`) would let staff write status = 'paid' or any paid_cents straight
 --      from the browser, around both RPCs, and paid_cents would drift from
 --      invoice_payments. An INSERT must be a draft with nothing paid and zero
@@ -668,9 +669,11 @@ begin
     return new;
   end if;
 
-  if (new.status, new.paid_cents, new.subtotal_cents, new.tax_cents, new.total_cents)
+  -- owner_approved_at too: only owner_approve_estimate (definer) stamps it,
+  -- and a practice must not be able to forge the owner's approval.
+  if (new.status, new.paid_cents, new.subtotal_cents, new.tax_cents, new.total_cents, new.owner_approved_at)
      is distinct from
-     (old.status, old.paid_cents, old.subtotal_cents, old.tax_cents, old.total_cents) then
+     (old.status, old.paid_cents, old.subtotal_cents, old.tax_cents, old.total_cents, old.owner_approved_at) then
     raise exception 'Only Pet10x can change that'
       using errcode = '42501',
             hint    = 'Send with clinic_set_invoice_status, take payment with clinic_record_payment, void with clinic_void_invoice; totals follow the lines.';
@@ -680,7 +683,7 @@ end;
 $guard$;
 
 comment on function public.invoices_client_guard() is
-  'BEFORE INSERT OR UPDATE on invoices (20261016000001). For client roles (authenticated, anon) only: an insert must be status draft with paid_cents, subtotal_cents, tax_cents and total_cents all 0; an update may not change status, paid_cents, subtotal_cents, tax_cents or total_cents. Raises 42501. Definer functions (clinic_set_invoice_status, clinic_record_payment, clinic_void_invoice, owner_approve_estimate, owner_decline_estimate, invoice_recalc) and the connection role pass, because current_user is not a client role inside them.';
+  'BEFORE INSERT OR UPDATE on invoices (20261016000001). For client roles (authenticated, anon) only: an insert must be status draft with paid_cents, subtotal_cents, tax_cents and total_cents all 0; an update may not change status, paid_cents, subtotal_cents, tax_cents, total_cents or owner_approved_at. Raises 42501. Definer functions (clinic_set_invoice_status, clinic_record_payment, clinic_void_invoice, owner_approve_estimate, owner_decline_estimate, invoice_recalc) and the connection role pass, because current_user is not a client role inside them.';
 
 revoke all on function public.invoices_client_guard() from public, anon, authenticated;
 
@@ -4647,9 +4650,9 @@ rollback to savepoint checks; reset role;
 --     invoice's payments; a stranger reads none; the owner reads none on a
 --     draft (a row planted on PH-R only to probe the policy); staff cannot
 --     insert one directly (42501).
---   * invoices_client_guard — staff updating status, paid_cents or
---     total_cents directly is 42501; a note-only update still works; a client
---     insert as paid, or as a draft carrying a total, is 42501; a plain draft
+--   * invoices_client_guard — staff updating status, paid_cents,
+--     total_cents or owner_approved_at directly is 42501; a note-only update
+--     still works; a client insert as paid, or as a draft carrying a total, is 42501; a plain draft
 --     insert (what invoiceFromVisit sends) works, and its line sets its total
 --     through invoice_recalc.
 --   * clinic_void_invoice — a stranger is forbidden; a whitespace-only or
@@ -5022,6 +5025,11 @@ begin
     raise exception 'FAIL: staff set total_cents directly';
   exception when insufficient_privilege then null;
   end;
+  begin
+    update public.invoices set owner_approved_at = now() where id = v_b;
+    raise exception 'FAIL: staff stamped the owner''s approval directly';
+  exception when insufficient_privilege then null;
+  end;
 
   -- What the app writes after a payment today: the note, and nothing else.
   update public.invoices set note = 'Paid at the front desk.' where id = current_setting('part_h.inv_c')::uuid;
@@ -5050,7 +5058,7 @@ begin
   if v_total is distinct from 7500 then
     raise exception 'FAIL: the new draft''s total is % after its line, expected 7500', v_total;
   end if;
-  raise notice 'ok: direct status, paid_cents and total writes 42501; note-only update works; client inserts are plain drafts whose lines set the total';
+  raise notice 'ok: direct status, paid_cents, total and owner_approved_at writes 42501; note-only update works; client inserts are plain drafts whose lines set the total';
 end $$;
 
 -- ===========================================================================
