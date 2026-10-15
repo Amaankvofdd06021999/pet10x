@@ -12,6 +12,8 @@ D=$(date +%F)
   echo "-- SUCCESS looks like the error:  DRY RUN OK — ..."
   echo "-- Any other error is the first thing that broke; fix it before running apply.sql."
   echo "begin;"
+  # Fail fast instead of queueing behind a long-held lock on a live table.
+  echo "set local lock_timeout = '5s';"
   for f in "${M[@]}"; do printf '\n-- ===== migration %s =====\n' "$f"; cat "migrations/$f"; echo; done
   for t in part-a-archive part-b part-c part-e part-d part-f part-g; do
     printf '\n-- ===== checks %s =====\n' "$t"
@@ -25,6 +27,8 @@ D=$(date +%F)
   echo "-- APPLY — generated $D from branch ux-required-fixes by bundles/build.sh. Run dry-run.sql first."
   echo "-- One transaction: either every migration lands or none does."
   echo "begin;"
+  # Fail fast instead of queueing behind a long-held lock on a live table.
+  echo "set local lock_timeout = '5s';"
   for f in "${M[@]}"; do printf '\n-- ===== migration %s =====\n' "$f"; cat "migrations/$f"; echo; done
   echo
   echo "-- Record them, so the Supabase CLI / MCP know they are applied."

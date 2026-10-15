@@ -39,6 +39,9 @@ export function validateVerification(v: VerificationInput): VerificationResult {
   else if (value.issuingBody.length < 2 || value.issuingBody.length > 80)
     errors.issuingBody = "Use 2 to 80 characters."
 
+  // Optional; business_resubmit_verification refuses more than 80 (20261015000003).
+  if (value.contactName.length > 80) errors.contactName = "Use 80 characters or fewer."
+
   if (value.contactPhone !== "" && !PHONE.test(value.contactPhone))
     errors.contactPhone = "Use 7 to 20 digits, spaces, brackets, dashes or a leading +."
 

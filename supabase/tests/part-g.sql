@@ -42,11 +42,17 @@
 --   * customer_cancel_booking still works, sets cancelled_by customer, tells
 --     the business and does NOT tell the customer. A customer's insert cannot
 --     pre-fill cancelled_by / cancelled_reason (the insert guard clears them).
+--   * service_bookings_update_guard — the business owner's direct update
+--     cannot cancel a booking or change its amount (42501), nor mark it paid;
+--     a direct confirm (what setBookingStatus sends) still works and tells
+--     the customer; business_cancel_booking still works through it.
 --   * business_booking_contact — the customer's email and phone to the
 --     business owner while confirmed or completed; null fields for a
 --     requested or cancelled booking, and for anyone else.
---   * Appointments: an inserted request notifies the practice (clinic:today);
---     owner_cancel_appointment refuses a non-owner (42501), an over-long
+--   * Appointments: an inserted request, and an online booking inserted
+--     booked, notify the practice (clinic:today); a booking the front desk
+--     made does not; owner_cancel_appointment refuses a non-owner and a
+--     suspended owner (42501), an over-long
 --     reason (22023), a visit 1 hour away (too_late) and a cancelled one
 --     (not_cancellable), and cancels a visit 3 days away, telling the
 --     practice; the practice confirming, declining a request, cancelling and
@@ -58,8 +64,8 @@
 --     declined, the note appended after the practice's, and the practice told
 --     (clinic:billing).
 --   Fixtures planted in section 11: Part G Salon (the Part G owner's), its
---   service and three bookings by the outsider; the outsider's pet "Part G
---   Rex", its chart at Part G Clinic (section 5), four appointments and two
+--   service and four bookings by the outsider; the outsider's pet "Part G
+--   Rex", its chart at Part G Clinic (section 5), five appointments and two
 --   estimates. The owner is the business side throughout, the outsider the
 --   customer and pet owner.
 --
@@ -70,7 +76,9 @@
 --   slot for its first type on the next Monday at least two days out. A new
 --   grooming business gets Bath & brush and Full groom, neither online-
 --   bookable. seed_business_defaults called again adds nothing, and no client
---   role can execute it.
+--   role can execute it. The backfill's call (p_bookable false) on a clinic
+--   with no types and no hours seeds the three types NOT online-bookable, and
+--   the hours.
 --
 -- Actors are chosen from live data, not invented: Maple Court Residences
 -- (MCR2026), a non-admin manager of it, and two non-admin profiles that manage
@@ -93,7 +101,12 @@
 --
 -- Rows this transaction writes are found by `created_at >= now()`: now() is
 -- the transaction's start time, and column defaults use the same clock, so
--- that matches only what was written here.
+-- that matches only what was written here. Counts also name the fixture's
+-- actor or entity, so a concurrent write elsewhere cannot change them.
+--
+-- Every connection-role block that follows an impersonation clears
+-- request.jwt.claims first: `reset role` does not, and a trigger reading
+-- auth.uid() would otherwise take the last impersonated user as the actor.
 
 begin;
 
@@ -315,6 +328,7 @@ end $$;
 -- 4. What was written: statuses, notifications, audit rows
 -- ===========================================================================
 reset role;
+select set_config('request.jwt.claims', '', true);
 do $$
 declare
   v_pet uuid := current_setting('part_g.pet')::uuid;
@@ -399,6 +413,8 @@ end $$;
 -- 8): one empty but for a colleague, one with a clinic patient, one with a
 -- booking still to answer. An active super admin from live data runs the
 -- console's side.
+reset role;
+select set_config('request.jwt.claims', '', true);
 do $$
 declare
   v_owner uuid := current_setting('part_g.owner')::uuid;
@@ -595,6 +611,7 @@ end $$;
 -- 9. What happened: one business gone and audited, the others intact
 -- ===========================================================================
 reset role;
+select set_config('request.jwt.claims', '', true);
 do $$
 declare
   v_admin uuid := current_setting('part_g.admin')::uuid;
@@ -624,7 +641,9 @@ begin
   end if;
 
   select count(*) into v_n from public.audit_log
-   where action = 'business.deleted' and created_at >= now();
+   where action = 'business.deleted' and created_at >= now() and actor_id = v_admin
+     and entity_id in (v_empty, current_setting('part_g.biz_clinic')::uuid,
+                       current_setting('part_g.biz_booked')::uuid);
   if v_n <> 1 then raise exception 'FAIL: % business.deleted audit rows, expected 1 (refusals audit nothing)', v_n; end if;
   if not exists (select 1 from public.audit_log
                   where action = 'business.deleted' and entity_id = v_empty and actor_id = v_admin
@@ -639,6 +658,7 @@ end $$;
 -- 20261015000003 — asking a clinic for information, and its answer
 -- ---------------------------------------------------------------------------
 reset role;
+select set_config('request.jwt.claims', '', true);
 do $$
 declare v_clinic uuid := current_setting('part_g.biz_clinic')::uuid; v_r uuid; v_old uuid;
 begin
@@ -716,6 +736,7 @@ begin
 end $$;
 
 reset role;
+select set_config('request.jwt.claims', '', true);
 do $$
 begin
   if not exists (select 1 from public.notifications
@@ -723,8 +744,14 @@ begin
                     and title like 'Pet10x needs more information:%' and created_at >= now()) then
     raise exception 'FAIL: the owner was not notified';
   end if;
-  if not exists (select 1 from public.audit_log where action = 'business.verification_info_requested' and created_at >= now())
-     or not exists (select 1 from public.audit_log where action = 'business.verification_resubmitted' and created_at >= now()) then
+  if not exists (select 1 from public.audit_log
+                  where action = 'business.verification_info_requested' and created_at >= now()
+                    and entity_id = current_setting('part_g.biz_clinic')::uuid
+                    and actor_id = current_setting('part_g.admin')::uuid)
+     or not exists (select 1 from public.audit_log
+                     where action = 'business.verification_resubmitted' and created_at >= now()
+                       and entity_id = current_setting('part_g.biz_clinic')::uuid
+                       and actor_id = current_setting('part_g.owner')::uuid) then
     raise exception 'FAIL: the ask and the resubmit were not both audited';
   end if;
   raise notice 'ok: owner notified; both audited';
@@ -779,9 +806,9 @@ declare
   v_owner uuid := current_setting('part_g.owner')::uuid;
   v_outsider uuid := current_setting('part_g.outsider')::uuid;
   v_clinic uuid := current_setting('part_g.biz_clinic')::uuid;
-  v_salon uuid; v_svc uuid; v_b_conf uuid; v_b_done uuid; v_b_req uuid;
+  v_salon uuid; v_svc uuid; v_b_conf uuid; v_b_done uuid; v_b_req uuid; v_b_guard uuid;
   v_pet uuid; v_cust uuid; v_patient uuid;
-  v_a_req uuid; v_a_soon uuid; v_a_dec uuid; v_a_conf uuid;
+  v_a_req uuid; v_a_soon uuid; v_a_dec uuid; v_a_conf uuid; v_a_online uuid;
   v_e_sent uuid; v_e_appr uuid;
   v_email text; v_phone text;
 begin
@@ -797,6 +824,9 @@ begin
   values (v_salon, v_outsider, v_svc, 'completed', now() - interval '3 days', 4500) returning id into v_b_done;
   insert into public.service_bookings (business_id, customer_id, service_id, status, scheduled_for, amount_cents)
   values (v_salon, v_outsider, v_svc, 'requested', now() + interval '6 days', 4500) returning id into v_b_req;
+  -- For the update guard (section 12): the owner tries direct writes on it.
+  insert into public.service_bookings (business_id, customer_id, service_id, status, scheduled_for, amount_cents)
+  values (v_salon, v_outsider, v_svc, 'requested', now() + interval '7 days', 4500) returning id into v_b_guard;
 
   -- The outsider's pet, charted at Part G Clinic (owned by the Part G owner).
   insert into public.pets (owner_id, name, species)
@@ -820,6 +850,11 @@ begin
   insert into public.appointments (business_id, customer_id, patient_id, starts_at, ends_at, status, reason, source)
   values (v_clinic, v_cust, v_patient, now() + interval '1 hour', now() + interval '90 minutes',
           'booked', 'Vaccination', 'staff') returning id into v_a_soon;
+  -- An online booking of a type that needs no confirmation lands booked
+  -- (owner_book_appointment), and the practice hears of it too.
+  insert into public.appointments (business_id, customer_id, patient_id, starts_at, ends_at, status, reason, source, booked_by)
+  values (v_clinic, v_cust, v_patient, now() + interval '6 days', now() + interval '6 days 30 minutes',
+          'booked', 'Vaccination', 'online', v_outsider) returning id into v_a_online;
 
   insert into public.invoices (business_id, customer_id, patient_id, kind, number, status, total_cents, note)
   values (v_clinic, v_cust, v_patient, 'estimate', 'PG-E1', 'sent', 12000, 'Includes bloodwork')
@@ -838,6 +873,7 @@ begin
   perform set_config('part_g.b_conf', v_b_conf::text, true);
   perform set_config('part_g.b_done', v_b_done::text, true);
   perform set_config('part_g.b_req', v_b_req::text, true);
+  perform set_config('part_g.b_guard', v_b_guard::text, true);
   perform set_config('part_g.a_req', v_a_req::text, true);
   perform set_config('part_g.a_dec', v_a_dec::text, true);
   perform set_config('part_g.a_conf', v_a_conf::text, true);
@@ -846,8 +882,9 @@ begin
   perform set_config('part_g.e_appr', v_e_appr::text, true);
   perform set_config('part_g.cust_email', coalesce(v_email, ''), true);
   perform set_config('part_g.cust_phone', coalesce(v_phone, ''), true);
-  raise notice 'fixtures: salon % bookings % % % pet % appointments % % % % estimates % %',
-    v_salon, v_b_conf, v_b_done, v_b_req, v_pet, v_a_req, v_a_dec, v_a_conf, v_a_soon, v_e_sent, v_e_appr;
+  raise notice 'fixtures: salon % bookings % % % % pet % appointments % % % % % estimates % %',
+    v_salon, v_b_conf, v_b_done, v_b_req, v_b_guard, v_pet, v_a_req, v_a_dec, v_a_conf, v_a_soon, v_a_online,
+    v_e_sent, v_e_appr;
 end $$;
 
 do $$
@@ -858,7 +895,17 @@ begin
      and kind = 'clinic' and action_target = 'clinic:today'
      and title = 'Appointment request — Part G Rex' and body like '%asked for Checkup for Part G Rex on %';
   if v_n <> 3 then raise exception 'FAIL: the practice owner got % request notifications, expected 3', v_n; end if;
-  raise notice 'ok: each inserted appointment request notifies the practice (clinic:today)';
+  select count(*) into v_n from public.notifications
+   where profile_id = current_setting('part_g.owner')::uuid and created_at >= now()
+     and kind = 'clinic' and action_target = 'clinic:today'
+     and title = 'New appointment booked online — Part G Rex' and body like '%booked Vaccination for Part G Rex on %';
+  if v_n <> 1 then
+    raise exception 'FAIL: the practice owner got % online-booking notifications, expected 1 (the front desk''s booking is not news)', v_n;
+  end if;
+  select count(*) into v_n from public.notifications
+   where profile_id = current_setting('part_g.owner')::uuid and created_at >= now() and action_target = 'clinic:today';
+  if v_n <> 4 then raise exception 'FAIL: the practice owner got % clinic:today notices on insert, expected 4', v_n; end if;
+  raise notice 'ok: each inserted request, and the online booking, notifies the practice (clinic:today); the front desk''s booking does not';
 end $$;
 
 -- ===========================================================================
@@ -908,6 +955,33 @@ declare
   v_row public.service_bookings%rowtype;
 begin
   if public.is_admin() then raise exception 'FIXTURE: owner is an admin'; end if;
+
+  -- bookings_owner_update lets the owner write the row; the update guard
+  -- decides which columns and which moves.
+  begin
+    update public.service_bookings set status = 'cancelled' where id = current_setting('part_g.b_guard')::uuid;
+    raise exception 'FAIL: the owner cancelled a booking directly (no reason, customer never told)';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.service_bookings set amount_cents = 1 where id = current_setting('part_g.b_guard')::uuid;
+    raise exception 'FAIL: the owner changed a booking''s amount directly';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.service_bookings set status = 'paid' where id = v_done;
+    raise exception 'FAIL: the owner marked a booking paid without a payment';
+  exception when insufficient_privilege then null;
+  end;
+  -- What setBookingStatus sends for a confirm.
+  update public.service_bookings set status = 'confirmed', responded_at = now()
+   where id = current_setting('part_g.b_guard')::uuid;
+  if not found then raise exception 'FAIL: the owner''s direct confirm matched no row'; end if;
+  if (select status from public.service_bookings where id = current_setting('part_g.b_guard')::uuid) <> 'confirmed'
+     or (select amount_cents from public.service_bookings where id = current_setting('part_g.b_guard')::uuid) <> 4500 then
+    raise exception 'FAIL: the direct confirm did not land as confirmed with the amount untouched';
+  end if;
+  raise notice 'ok: the owner cannot cancel, re-price or mark paid directly (42501); a direct confirm still works';
 
   update public.businesses set contact_phone = '+1 (604) 555-0100', contact_email = 'hello@partg.example'
    where id = v_salon;
@@ -985,12 +1059,20 @@ begin
 end $$;
 
 reset role;
+select set_config('request.jwt.claims', '', true);
 do $$
 declare
   v_owner uuid := current_setting('part_g.owner')::uuid;
   v_outsider uuid := current_setting('part_g.outsider')::uuid;
   v_n int;
 begin
+  select count(*) into v_n from public.notifications
+   where profile_id = v_outsider and created_at >= now() and action_target = 'my-bookings'
+     and kind = 'appointment' and severity = 'success'
+     and title = 'Booking confirmed — Part G Salon'
+     and body like 'Part G Salon confirmed your booking for Part G Trim on %.';
+  if v_n <> 1 then raise exception 'FAIL: the customer got % confirmations of the direct confirm, expected 1', v_n; end if;
+
   select count(*) into v_n from public.notifications
    where profile_id = v_outsider and created_at >= now() and action_target = 'my-bookings'
      and kind = 'appointment' and severity = 'warning'
@@ -1036,6 +1118,29 @@ begin
                                             'Fully booked that week');
   if not coalesce((v->>'ok')::boolean, false) then raise exception 'FAIL: declining the request gave %', v; end if;
 end $$;
+
+-- A suspended pet owner cannot cancel either (as business_cancel_booking).
+-- Suspended here as the connection role with no caller, which the profile
+-- guard allows, and lifted again before the owner's real calls below.
+reset role;
+select set_config('request.jwt.claims', '', true);
+update public.profiles set is_suspended = true where id = current_setting('part_g.outsider')::uuid;
+set local role authenticated;
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
+do $$
+begin
+  begin
+    perform public.owner_cancel_appointment(current_setting('part_g.a_req')::uuid, 'Suspended');
+    raise exception 'FAIL: a suspended owner cancelled a visit';
+  exception when insufficient_privilege then null;
+  end;
+  raise notice 'ok: a suspended owner is refused owner_cancel_appointment (42501)';
+end $$;
+reset role;
+select set_config('request.jwt.claims', '', true);
+update public.profiles set is_suspended = false where id = current_setting('part_g.outsider')::uuid;
+set local role authenticated;
 
 select set_config('request.jwt.claims',
   json_build_object('sub', current_setting('part_g.outsider'), 'role', 'authenticated')::text, true);
@@ -1091,6 +1196,7 @@ end $$;
 -- 14. Who heard what
 -- ===========================================================================
 reset role;
+select set_config('request.jwt.claims', '', true);
 do $$
 declare
   v_owner uuid := current_setting('part_g.owner')::uuid;
@@ -1239,9 +1345,28 @@ begin
   end if;
   raise notice 'ok: seed_business_defaults is idempotent';
 
+  -- The backfill's call: an existing clinic with no types (and here no hours
+  -- either) gets the three types, none online-bookable, and the weekday hours.
+  delete from public.appointment_types where business_id = v_vet;
+  delete from public.staff_availability where business_id = v_vet;
+  perform public.seed_business_defaults(v_vet, false);
+  select count(*) into v_n from public.appointment_types
+   where business_id = v_vet and is_active and not is_online_bookable
+     and (name, duration_min, sort_order) in (('Wellness exam', 30, 0), ('Vaccination', 15, 1), ('Sick visit', 30, 2));
+  select count(*) into v_m from public.appointment_types where business_id = v_vet;
+  if v_n <> 3 or v_m <> 3 then
+    raise exception 'FAIL: the backfill call seeded % non-bookable types of %, expected 3 of 3', v_n, v_m;
+  end if;
+  if (select count(*) from public.staff_availability where business_id = v_vet) <> 5 then
+    raise exception 'FAIL: the backfill call did not seed weekday hours for a clinic with none';
+  end if;
+  -- Put the clinic back as bootstrap left it, for the owner's slots check below.
+  update public.appointment_types set is_online_bookable = true where business_id = v_vet;
+  raise notice 'ok: the backfill call (p_bookable false) seeds types that are not online-bookable, and hours only where there were none';
+
   -- Internal only: no client role may call it.
-  if has_function_privilege('authenticated', 'public.seed_business_defaults(uuid)', 'execute')
-     or has_function_privilege('anon', 'public.seed_business_defaults(uuid)', 'execute') then
+  if has_function_privilege('authenticated', 'public.seed_business_defaults(uuid, boolean)', 'execute')
+     or has_function_privilege('anon', 'public.seed_business_defaults(uuid, boolean)', 'execute') then
     raise exception 'FAIL: a client role can execute seed_business_defaults';
   end if;
   raise notice 'ok: seed_business_defaults is not callable by clients';

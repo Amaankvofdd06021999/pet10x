@@ -59,8 +59,9 @@
 --      between the count and the delete. Then, in order:
 --        not found                    {ok:false, error:'not_found'}
 --        name does not match          {ok:false, error:'name_mismatch'}
---          — exact after trimming both sides; case-sensitive; a blank name
---            never matches
+--          — exact after trimming both sides of all whitespace (regexp
+--            `\s`, so a pasted tab or newline does not break the match);
+--            case-sensitive; a blank name never matches
 --        patients + visits + invoices > 0, or open_bookings > 0
 --                                     {ok:false, error:'has_records', footprint}
 --        otherwise                    delete, audit_log business.deleted
@@ -219,7 +220,7 @@ set search_path = public, pg_temp
 as $$
 declare
   v_biz   record;
-  v_given text := btrim(coalesce(p_confirm_name, ''));
+  v_given text := regexp_replace(coalesce(p_confirm_name, ''), '^\s+|\s+$', '', 'g');
   v_fp    jsonb;
 begin
   if not public.is_admin() then
@@ -238,7 +239,7 @@ begin
 
   -- Typed name, exact after trimming both sides. Case counts: the point is
   -- that the admin looked at WHICH business this is.
-  if v_given = '' or v_given <> btrim(v_biz.name) then
+  if v_given = '' or v_given <> regexp_replace(coalesce(v_biz.name, ''), '^\s+|\s+$', '', 'g') then
     return jsonb_build_object('ok', false, 'error', 'name_mismatch');
   end if;
 

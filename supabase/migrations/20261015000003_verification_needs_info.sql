@@ -26,7 +26,9 @@
 --      Only from 'needs_info' ({ok:false, error:'not_needs_info'} otherwise).
 --      The details are re-checked with the grammar lib/data/verification-form.ts
 --      uses (licence ^[A-Za-z0-9][A-Za-z0-9 ./-]{2,39}$; issuing body 2-80
---      characters; phone empty or ^[+0-9 ()-]{7,20}$), 22023 on anything else.
+--      characters; phone empty or ^[+0-9 ()-]{7,20}$; contact name empty or
+--      at most 80 characters, trimmed of all whitespace like the note, so a
+--      tab alone is no name), 22023 on anything else.
 --      Updates the details, status back to submitted, clears reviewed_by,
 --      reviewed_at and the note (the audit row keeps the admin's question).
 --      audit_log `business.verification_resubmitted`.
@@ -102,7 +104,7 @@ declare
   v_req     record;
   v_licence text := btrim(coalesce(p_licence_number, ''));
   v_body    text := btrim(coalesce(p_issuing_body, ''));
-  v_name    text := nullif(btrim(coalesce(p_contact_name, '')), '');
+  v_name    text := nullif(regexp_replace(coalesce(p_contact_name, ''), '^\s+|\s+$', '', 'g'), '');
   v_phone   text := nullif(btrim(coalesce(p_contact_phone, '')), '');
 begin
   select * into v_req from public.business_verifications where id = p_request for update;
@@ -123,6 +125,9 @@ begin
   end if;
   if length(v_body) not between 2 and 80 then
     raise exception 'The issuing body needs 2 to 80 characters' using errcode = '22023';
+  end if;
+  if length(v_name) > 80 then
+    raise exception 'The contact name is too long (80 characters at most)' using errcode = '22023';
   end if;
   if v_phone is not null and v_phone !~ '^[+0-9 ()-]{7,20}$' then
     raise exception 'The phone number needs 7 to 20 digits, spaces, brackets, dashes or a leading +'

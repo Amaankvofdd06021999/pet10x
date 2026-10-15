@@ -42,6 +42,14 @@ describe("validateVerification", () => {
     }
   })
 
+  it("allows an empty contact name and caps it at 80 characters, as the database does", () => {
+    expect(validateVerification({ ...ok, contactName: "" }).ok).toBe(true)
+    expect(validateVerification({ ...ok, contactName: "x".repeat(80) }).ok).toBe(true)
+    const r = validateVerification({ ...ok, contactName: "x".repeat(81) })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.contactName).toBeTruthy()
+  })
+
   it("reports every problem at once", () => {
     const r = validateVerification({ licenceNumber: "", issuingBody: "", contactName: "", contactPhone: "x" })
     expect(r.ok).toBe(false)

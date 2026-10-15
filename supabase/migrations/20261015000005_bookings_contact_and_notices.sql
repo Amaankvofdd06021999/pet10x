@@ -11,6 +11,9 @@
 --     up.
 --   * A pet owner could book a vet visit and approve an estimate, but not
 --     cancel the visit or say no to the estimate — both meant phoning.
+--   * bookings_owner_update (20260722000000) lets the business owner update
+--     ANY column of their booking — status to cancelled with no reason (so the
+--     customer is never told), amount_cents, customer_id, payment_id.
 --   * Appointments told nobody anything (VC-3): only trg_appts_updated sits on
 --     the table. A request waited unseen until someone opened Today, and the
 --     owner never heard it was confirmed, declined, cancelled or missed.
@@ -53,7 +56,8 @@
 --
 --   7. owner_cancel_appointment(p_appointment, p_reason default null) -> jsonb.
 --      Only the pet's owner (appointments -> clinic_patients -> pets.owner_id,
---      the owner_approve_estimate path), else 42501. Only from requested or
+--      the owner_approve_estimate path), and not while suspended (as
+--      business_cancel_booking), else 42501. Only from requested or
 --      booked ({ok:false, error:'not_cancellable'}), and only while the start
 --      is more than 2 hours away ({ok:false, error:'too_late'}) — inside that
 --      the slot cannot be re-used and the owner should phone. Stamps
@@ -71,14 +75,34 @@
 --      estimate is final; the practice writes a new one.
 --
 --   9. Appointment notifications (VC-3):
---      * AFTER INSERT, status requested: the business owner and active
---        owner/manager/reception staff hear of it, target clinic:today.
+--      * AFTER INSERT, status requested, or booked through owner_book_
+--        appointment (source online — a type that needs no confirmation
+--        lands booked; the front desk's own bookings are not news to the
+--        front desk): the business owner and active
+--        owner/manager/reception staff hear of it, target clinic:today —
+--        "Appointment request" for a request, "New appointment booked
+--        online" for a booking.
 --      * AFTER UPDATE OF status to booked, cancelled or no_show, made by
 --        someone other than the pet's owner: the owner hears, target
 --        my-vets:visits. requested -> cancelled reads as a declined request;
 --        no_show -> booked as a rebooking. cancel_reason is quoted only when
 --        that same change wrote it.
 --      Suspended recipients are skipped throughout.
+--
+--  10. service_bookings_update_guard (written beside the insert guard, in
+--      section 2) — BEFORE UPDATE, security invoker, the
+--      insert guard's `current_user in ('authenticated', 'anon')` test, so
+--      definer RPCs (business_cancel_booking, customer_cancel_booking,
+--      business_mark_booking_paid) and the connection role pass untouched.
+--      For a client role it states what MAY change — the columns
+--      setBookingStatus writes: status, responded_at, declined_reason (and
+--      updated_at, which trg_bookings_updated stamps first) — and every other
+--      column must equal OLD (42501). The status may only move
+--      requested -> confirmed | declined, confirmed -> in_progress,
+--      in_progress -> completed; declined_reason only on the move to
+--      declined. Never to cancelled (the two cancel RPCs are the doors), never
+--      to paid (business_mark_booking_paid writes the payment with it), and
+--      never out of cancelled or declined.
 --
 -- Whitespace: every required reason is trimmed of all whitespace (tabs and
 -- newlines too, regexp `\s`), not just spaces — btrim() alone leaves a tab,
@@ -171,6 +195,62 @@ comment on function public.service_bookings_insert_guard() is
   'BEFORE INSERT on service_bookings (20261012000008; cancelled_* added 20261015000005). For authenticated/anon callers, rewrites status to requested, clears responded_at / payment_id / declined_reason / cancelled_reason / cancelled_by, and sets amount_cents, currency and commission_cents (15%) from the booked, active business_services row of the same business (0 with no service). Refuses a service that is not that business''s or not active (22023). Service role and definer RPCs pass untouched.';
 
 revoke all on function public.service_bookings_insert_guard() from public, anon, authenticated;
+
+-- What a client may change on an existing booking. Positive grammar: the
+-- allowed columns are named, and the rest of the row must come through
+-- untouched — compared as jsonb with the allowed keys removed, so a column
+-- added later is protected without editing this.
+create or replace function public.service_bookings_update_guard()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $guard$
+begin
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+
+  if (to_jsonb(new) - array['status', 'responded_at', 'declined_reason', 'updated_at'])
+     is distinct from
+     (to_jsonb(old) - array['status', 'responded_at', 'declined_reason', 'updated_at']) then
+    raise exception 'Only Pet10x can change that'
+      using errcode = '42501',
+            hint    = 'A booking''s status, response time and decline reason are the only client-editable fields.';
+  end if;
+
+  if new.status is distinct from old.status
+     and (old.status::text, new.status::text) not in (
+           ('requested',   'confirmed'),
+           ('requested',   'declined'),
+           ('confirmed',   'in_progress'),
+           ('in_progress', 'completed')) then
+    raise exception 'Only Pet10x can change that'
+      using errcode = '42501',
+            hint    = 'Cancel with business_cancel_booking; mark paid with business_mark_booking_paid.';
+  end if;
+
+  if new.declined_reason is distinct from old.declined_reason and new.status is distinct from 'declined' then
+    raise exception 'Only Pet10x can change that'
+      using errcode = '42501',
+            hint    = 'A decline reason is written with the decline.';
+  end if;
+
+  return new;
+end;
+$guard$;
+
+comment on function public.service_bookings_update_guard() is
+  'BEFORE UPDATE on service_bookings (20261015000005). For authenticated/anon callers only status, responded_at, declined_reason (and updated_at) may change — every other column must equal OLD — and status only requested->confirmed|declined, confirmed->in_progress, in_progress->completed; declined_reason only with declined. Else 42501. Cancelling and paying go through business_cancel_booking / customer_cancel_booking / business_mark_booking_paid. Service role and definer RPCs pass untouched.';
+
+revoke all on function public.service_bookings_update_guard() from public, anon, authenticated;
+
+-- Named after trg_bookings_updated, so (BEFORE triggers fire by name) it sees
+-- updated_at already stamped — which is why updated_at is on the allowed list.
+drop trigger if exists trg_service_bookings_update_guard on public.service_bookings;
+create trigger trg_service_bookings_update_guard
+  before update on public.service_bookings
+  for each row execute function public.service_bookings_update_guard();
 
 -- ---------------------------------------------------------------------------
 -- 3. A business cancels a booking, with a reason
@@ -436,6 +516,10 @@ begin
   if not found or v_appt.owner_id is distinct from v_me then
     raise exception 'That visit isn''t yours to cancel' using errcode = '42501';
   end if;
+  -- A suspended account acts on nothing, as in business_cancel_booking.
+  if exists (select 1 from public.profiles where id = v_me and is_suspended) then
+    raise exception 'Your account is suspended' using errcode = '42501';
+  end if;
 
   if length(v_reason) > 2000 then
     raise exception 'The reason is too long (2000 characters at most)' using errcode = '22023';
@@ -480,7 +564,7 @@ end;
 $$;
 
 comment on function public.owner_cancel_appointment(uuid, text) is
-  'The pet''s owner cancels a requested or booked appointment more than 2 hours before it starts (20261015000005). Optional reason (trimmed, <= 2000; 22023) stored as cancel_reason. 42501 for anyone else; {ok:false, error: not_cancellable | too_late}. Notifies the business owner and active owner/manager staff (kind clinic, target clinic:today).';
+  'The pet''s owner (unsuspended) cancels a requested or booked appointment more than 2 hours before it starts (20261015000005). Optional reason (trimmed, <= 2000; 22023) stored as cancel_reason. 42501 for anyone else; {ok:false, error: not_cancellable | too_late}. Notifies the business owner and active owner/manager staff (kind clinic, target clinic:today).';
 
 revoke all on function public.owner_cancel_appointment(uuid, text) from public, anon;
 grant execute on function public.owner_cancel_appointment(uuid, text) to authenticated;
@@ -589,7 +673,7 @@ revoke all on function public.owner_decline_estimate(uuid, text) from public, an
 grant execute on function public.owner_decline_estimate(uuid, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
--- 9a. A visit request reaches the practice (VC-3)
+-- 9a. A visit request, or an online booking, reaches the practice (VC-3)
 -- ---------------------------------------------------------------------------
 create or replace function public.notify_clinic_of_appointment_request()
 returns trigger
@@ -601,7 +685,9 @@ declare
   v_pet  text;
   v_who  text;
 begin
-  if new.status is distinct from 'requested' then return null; end if;
+  if not (new.status = 'requested' or (new.status = 'booked' and new.source = 'online')) then
+    return null;
+  end if;
 
   select cp.name into v_pet from public.clinic_patients cp where cp.id = new.patient_id;
   select nullif(split_part(trim(coalesce(full_name, '')), ' ', 1), '') into v_who
@@ -612,12 +698,14 @@ begin
   -- their calendar. Not the person who made the request, should they be staff.
   insert into public.notifications (profile_id, kind, severity, title, body, action_label, action_target)
   select r.profile_id, 'clinic', 'info',
-         'Appointment request' || coalesce(' — ' || v_pet, ''),
-         coalesce(v_who, 'An owner') || ' asked for '
+         case when new.status = 'booked' then 'New appointment booked online' else 'Appointment request' end
+           || coalesce(' — ' || v_pet, ''),
+         coalesce(v_who, 'An owner')
+           || case when new.status = 'booked' then ' booked ' else ' asked for ' end
            || coalesce(nullif(trim(coalesce(new.reason, '')), ''), 'an appointment')
            || coalesce(' for ' || v_pet, '')
            || coalesce(' on ' || public.booking_when(new.starts_at, r.profile_id), '')
-           || '. Confirm or decline it on Today.',
+           || case when new.status = 'booked' then '. It is on Today.' else '. Confirm or decline it on Today.' end,
          'Open today',
          'clinic:today'
     from (
@@ -639,7 +727,7 @@ drop trigger if exists trg_appts_notify_request on public.appointments;
 create trigger trg_appts_notify_request
   after insert on public.appointments
   for each row
-  when (new.status = 'requested')
+  when (new.status = 'requested' or (new.status = 'booked' and new.source = 'online'))
   execute function public.notify_clinic_of_appointment_request();
 
 -- ---------------------------------------------------------------------------
