@@ -15,6 +15,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { petFileSignedUrls, isStoragePath } from "@/lib/supabase/storage"
 import type { Database } from "@/lib/supabase/database.types"
 import { dbErrorMessage } from "@/lib/data/db-error"
+import { INCIDENT_CLOSED, INCIDENT_OPEN } from "@/lib/data/approvals-filter"
+import { useClosedPages } from "@/lib/data/use-closed-pages"
 
 /* DERIVED from the generated enums, not retyped from them.
  *
@@ -53,7 +55,7 @@ export const INCIDENT_STATUS_LABEL: Record<IncidentStatus, string> = {
 
 /** An incident is still on the manager's desk until it's resolved/dismissed/escalated. */
 export function isOpenIncident(s: IncidentStatus): boolean {
-  return s === "submitted" || s === "triaged" || s === "investigating"
+  return (INCIDENT_OPEN as readonly IncidentStatus[]).includes(s)
 }
 
 /* ------------------------------------------------------------------ */
@@ -226,69 +228,66 @@ export interface ManagerIncident {
   evidenceCount: number
 }
 
+export type ManagerIncidentQuery = {
+  /** Only these statuses. Omitted = every status (the history screens). */
+  statuses?: readonly IncidentStatus[]
+  /** By created_at. Default newest first. */
+  ascending?: boolean
+  /** Narrow to one of the manager's own buildings. */
+  buildingId?: string | null
+  /** created_at >= this. */
+  from?: string
+  /** created_at < this (the "Show older" cursor). */
+  before?: string
+  limit?: number
+}
+
 /**
- * Every incident for the buildings this manager runs.
- *
- * Scoped explicitly to those buildings rather than left to RLS. The policy
- * reads `is_manager_of(building_id) OR is_admin()`, so for an ordinary manager
- * an unscoped select happens to return the right rows — and for a super admin
- * it silently returns every building on Pet10x in one undifferentiated queue,
- * with the tab counts to match. RLS is the floor, not the filter.
+ * The one reader behind every manager incident list. Scoping, mapping and photo
+ * signing live here once; the hooks below differ only in what they ask for.
  */
-export function useIncidents() {
-  const [data, setData] = useState<ManagerIncident[]>([])
-  const [isLoading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export async function loadManagerIncidents(
+  opts: ManagerIncidentQuery = {},
+): Promise<{ rows: ManagerIncident[]; error: string | null }> {
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return { rows: [], error: null }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { rows: [], error: null }
 
-  const refetch = useCallback(async () => {
-    const supabase = getSupabaseBrowserClient()
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      setData([])
-      setLoading(false)
-      return
-    }
+  const { data: mine } = await supabase
+    .from("building_managers")
+    .select("building_id")
+    .eq("profile_id", user.id)
+  const buildingIds = (mine ?? []).map((m) => m.building_id).filter(Boolean) as string[]
+  if (buildingIds.length === 0) return { rows: [], error: null }
+  // An active building the manager does not run is no building at all, not
+  // permission to read it.
+  const scopeIds = opts.buildingId ? buildingIds.filter((id) => id === opts.buildingId) : buildingIds
+  if (scopeIds.length === 0) return { rows: [], error: null }
 
-    const { data: mine } = await supabase
-      .from("building_managers")
-      .select("building_id")
-      .eq("profile_id", user.id)
-    const buildingIds = (mine ?? []).map((m) => m.building_id).filter(Boolean) as string[]
-    if (buildingIds.length === 0) {
-      setData([])
-      setError(null)
-      setLoading(false)
-      return
-    }
+  let q = supabase
+    .from("incident_reports")
+    .select(
+      `id, building_id, type, status, description, location_text, unit_involved, is_anonymous,
+       reference_code, created_at, pet_id, evidence_paths,
+       building:buildings!incident_reports_building_id_fkey ( name ),
+       pet:pets!incident_reports_pet_id_fkey (
+         id, name, breed, species, image_url,
+         unit:units!pets_unit_id_fkey ( unit_number ),
+         owner:profiles!pets_owner_id_fkey ( full_name )
+       )`,
+    )
+    .in("building_id", scopeIds)
+  if (opts.statuses) q = q.in("status", [...opts.statuses])
+  if (opts.from) q = q.gte("created_at", opts.from)
+  if (opts.before) q = q.lt("created_at", opts.before)
+  q = q.order("created_at", { ascending: opts.ascending ?? false })
+  if (opts.limit) q = q.limit(opts.limit)
+  const { data: rows, error: err } = await q
 
-    const { data: rows, error: err } = await supabase
-      .from("incident_reports")
-      .select(
-        `id, building_id, type, status, description, location_text, unit_involved, is_anonymous,
-         reference_code, created_at, pet_id, evidence_paths,
-         building:buildings!incident_reports_building_id_fkey ( name ),
-         pet:pets!incident_reports_pet_id_fkey (
-           id, name, breed, species, image_url,
-           unit:units!pets_unit_id_fkey ( unit_number ),
-           owner:profiles!pets_owner_id_fkey ( full_name )
-         )`,
-      )
-      .in("building_id", buildingIds)
-      .order("created_at", { ascending: false })
-
-    if (err) {
-      setError(dbErrorMessage(err, "Couldn't load incidents. Try again."))
-      setData([])
-      setLoading(false)
-      return
-    }
+  if (err) return { rows: [], error: dbErrorMessage(err, "Couldn't load incidents. Try again.") }
 
     const first = <T,>(v: T | T[] | null | undefined): T | null =>
       Array.isArray(v) ? (v[0] ?? null) : (v ?? null)
@@ -353,16 +352,52 @@ export function useIncidents() {
       for (const m of mapped) m.evidenceUrls = m.evidencePaths.map((p) => signed[p]).filter(Boolean)
     }
 
-    setData(mapped)
-    setError(null)
+    return { rows: mapped, error: null }
+}
+
+function useIncidentList(opts: ManagerIncidentQuery) {
+  const [data, setData] = useState<ManagerIncident[]>([])
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  // The options are small and change only with the tab, so they key the effect
+  // as a string rather than forcing every caller to memoise an object.
+  const key = JSON.stringify(opts)
+
+  const refetch = useCallback(async () => {
+    setLoading(true)
+    const r = await loadManagerIncidents(JSON.parse(key) as ManagerIncidentQuery)
+    setData(r.rows)
+    setError(r.error)
     setLoading(false)
-  }, [])
+  }, [key])
 
   useEffect(() => {
     void refetch()
   }, [refetch])
 
   return { data, isLoading, error, refetch }
+}
+
+/**
+ * Every incident for the buildings this manager runs.
+ *
+ * Scoped explicitly to those buildings rather than left to RLS. The policy
+ * reads `is_manager_of(building_id) OR is_admin()`, so for an ordinary manager
+ * an unscoped select happens to return the right rows — and for a super admin
+ * it silently returns every building on Pet10x in one undifferentiated queue,
+ * with the tab counts to match. RLS is the floor, not the filter.
+ */
+export function useIncidents() {
+  return useIncidentList({})
+}
+
+/**
+ * The incidents waiting on a manager, oldest first: the one that has waited
+ * longest is the one to deal with next. Open is a status list sent to the
+ * database, so the queue stays as long as the work, not as long as the history.
+ */
+export function useOpenIncidents() {
+  return useIncidentList({ statuses: INCIDENT_OPEN, ascending: true })
 }
 
 /** Move an incident along the triage path. */
@@ -411,4 +446,31 @@ export interface ReportablePet {
   breed: string | null
   /** Signed URL, or null when the pet has no photo. */
   photoUrl: string | null
+}
+
+/**
+ * Incidents that have been dealt with: the last 90 days, newest first, 50 at a
+ * time, and older on request. Not fetched until `enabled` — most visits to
+ * Approvals never open Closed.
+ *
+ * Dated by `created_at`: `incident_reports` has no resolved or updated column,
+ * so "when it closed" is not recorded. A report filed long ago and resolved
+ * today therefore sits behind "Show older".
+ */
+export function useClosedIncidents(enabled: boolean, buildingId: string | null) {
+  return useClosedPages<ManagerIncident>({
+    enabled,
+    scopeKey: buildingId,
+    tsOf: (r) => r.createdAt,
+    fetchPage: async ({ cutoff, cursor, limit }) => {
+      const r = await loadManagerIncidents({
+        statuses: INCIDENT_CLOSED,
+        buildingId,
+        from: cursor ? undefined : cutoff,
+        before: cursor ?? undefined,
+        limit,
+      })
+      return { rows: r.rows, error: r.error }
+    },
+  })
 }

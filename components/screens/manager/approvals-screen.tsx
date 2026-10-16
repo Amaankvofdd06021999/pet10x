@@ -5,7 +5,8 @@ import { IOSNavBar } from "@/components/ios-nav-bar"
 import { useRegistrations, useDocumentsReview } from "@/lib/data"
 import { useRegistrationsLive, decideRegistration } from "@/lib/data/manager-queues"
 import {
-  useAccommodationsLive,
+  useOpenAccommodations,
+  useClosedAccommodations,
   useAccommodationDocuments,
   decideAccommodation,
   verifyAccommodationDocument,
@@ -22,11 +23,12 @@ import {
 } from "@/lib/data/accommodations"
 import { AccommodationDocumentViewer } from "@/components/screens/manager/accommodation-document-viewer"
 import { shortDate } from "@/lib/dates"
-import { useIncidents, isOpenIncident } from "@/lib/data/incidents"
+import { useOpenIncidents, useClosedIncidents, type ManagerIncident } from "@/lib/data/incidents"
 import { IncidentCard } from "@/components/screens/manager/incident-card"
 import { PetDocumentReviewControls } from "@/components/screens/manager/pet-document-review"
 import { SpeciesIcon } from "@/components/screens/shared/species-icon"
 import { Spinner } from "@/components/ui/spinner"
+import { SegmentedTabs } from "@/components/ui/segmented-tabs"
 import { LoadError } from "@/components/ui/load-error"
 import { EmptyState } from "@/components/ui/empty"
 import { approvalsState, defaultApprovalsTab, refreshFailed, type ApprovalsTabId } from "@/lib/data/approvals-view"
@@ -115,9 +117,9 @@ export function ManagerApprovalsScreen({
   const { activeBuildingId, scopeQuery, showBuilding, activeName, notice, buildingName } = useBuildingScope()
   const labelFor = (id: string | null, joined?: string | null) => (showBuilding ? buildingName(id, joined) : null)
   const regsQ = scopeQuery(useRegistrationsLive())
-  const accQ = scopeQuery(useAccommodationsLive())
+  const accQ = scopeQuery(useOpenAccommodations())
   const docsQ = scopeQuery(useDocumentsReview())
-  const incQ = scopeQuery(useIncidents())
+  const incQ = scopeQuery(useOpenIncidents())
   const { data: registrations, refetch: refetchRegs } = regsQ
   const { data: accommodations, refetch: refetchAcc } = accQ
   const { data: documentsReview, refetch: refetchDocs } = docsQ
@@ -147,10 +149,9 @@ export function ManagerApprovalsScreen({
     refetchRegs()
   }
 
-  // The Incidents tab is the open ones — what needs a decision — so its count
-  // and its list are the same rows. History lives in Incident reports.
-  const openIncidents = incidents.filter((i) => isOpenIncident(i.status))
-  const incidentsView = { ...incQ, data: openIncidents }
+  // Accommodations and Incidents are loaded as their OPEN rows only (a status
+  // list sent to the database), so each tab's count, its Open list and the
+  // work-queue are the same rows. Closed is fetched on demand inside the tab.
   const allLoaded = !(regsQ.isLoading || accQ.isLoading || docsQ.isLoading || incQ.isLoading)
   // Chosen ONCE, the first time every list has loaded. Re-deriving it on each
   // render would move the manager off the tab they are working in whenever a
@@ -167,7 +168,7 @@ export function ManagerApprovalsScreen({
         registrations: registrations.length,
         documents: documentsReview.length,
         accommodations: accommodations.length,
-        incidents: openIncidents.length,
+        incidents: incidents.length,
       }),
     })
   }
@@ -181,7 +182,7 @@ export function ManagerApprovalsScreen({
     { id: "registrations", label: "Registrations", count: registrations.length },
     { id: "documents", label: "Documents", count: documentsReview.length },
     { id: "accommodations", label: "Accommodations", count: accommodations.length },
-    { id: "incidents", label: "Incidents", count: openIncidents.length },
+    { id: "incidents", label: "Incidents", count: incidents.length },
   ]
   // A count is only a count once its list has loaded; "(0)" beside a tab that
   // is still loading, or failed, would say there is nothing there.
@@ -222,38 +223,10 @@ export function ManagerApprovalsScreen({
 
       <main className="ios-scroll flex-1 px-4 pb-24">
         <ScopeNotice notice={notice} className="mb-3" />
-        {/* Incidents — where guest and resident reports land for triage. */}
+        {/* Incidents — where guest and resident reports land for triage. Keyed
+            on the building so a switch remounts it on Open. */}
         {activeTab === "incidents" && (
-          <TabBody
-            q={incidentsView}
-            onRetry={refetchIncidents}
-            empty={
-              <EmptyState
-                title="No open incidents"
-                detail="History is in Incident reports."
-                action={
-                  onNavigate && (
-                    <Button variant="link" size="sm" onClick={() => onNavigate("incidents")}>
-                      Incident reports
-                    </Button>
-                  )
-                }
-              />
-            }
-          >
-            {(rows) => (
-              <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
-                {rows.map((incident) => (
-                  <IncidentCard
-                    key={incident.id}
-                    incident={incident}
-                    onChange={refetchIncidents}
-                    buildingName={labelFor(incident.buildingId, incident.buildingName)}
-                  />
-                ))}
-              </div>
-            )}
-          </TabBody>
+          <IncidentsTab key={activeBuildingId ?? "all"} q={incQ} refetch={refetchIncidents} onNavigate={onNavigate} />
         )}
 
         {/* Registrations Tab */}
@@ -465,6 +438,136 @@ export function ManagerApprovalsScreen({
 /* Accommodations                                                      */
 /* ------------------------------------------------------------------ */
 
+type ClosedQuery<T> = {
+  data: T[]
+  isLoading: boolean
+  isLoadingMore: boolean
+  error: string | null
+  hasMore: boolean
+  loadMore: () => void
+  refetch: () => void
+}
+
+/**
+ * Open / Closed switch for a worklist tab. Open is what waits on the manager;
+ * Closed is the last 90 days, with the rest behind "Show older".
+ */
+function OpenClosedSwitch({
+  label,
+  view,
+  onChange,
+  openCount,
+}: {
+  label: string
+  view: "open" | "closed"
+  onChange: (v: "open" | "closed") => void
+  openCount: number
+}) {
+  return (
+    <SegmentedTabs
+      label={label}
+      active={view}
+      onChange={onChange}
+      tabs={[
+        { id: "open", label: "Open", count: openCount },
+        { id: "closed", label: "Closed" },
+      ]}
+    />
+  )
+}
+
+/** The Closed list's body: the 90-day empty state, rows, and the "Show older" page. */
+function ClosedBody<T>({ q, children }: { q: ClosedQuery<T>; children: (rows: T[]) => ReactNode }) {
+  const older = q.hasMore ? (
+    <div className="mt-3 flex justify-center">
+      <Button variant="secondary" loading={q.isLoadingMore} onClick={q.loadMore}>
+        Show older
+      </Button>
+    </div>
+  ) : null
+  return (
+    <TabBody
+      q={q}
+      onRetry={q.refetch}
+      empty={
+        <>
+          <EmptyState title="Nothing closed in the last 90 days." />
+          {older}
+        </>
+      }
+    >
+      {(rows) => (
+        <>
+          {children(rows)}
+          {older}
+        </>
+      )}
+    </TabBody>
+  )
+}
+
+function IncidentsTab({
+  q,
+  refetch,
+  onNavigate,
+}: {
+  q: { data: ManagerIncident[]; isLoading: boolean; error: string | null }
+  refetch: () => void
+  onNavigate?: (screen: string) => void
+}) {
+  const [view, setView] = useState<"open" | "closed">("open")
+  const { activeBuildingId, scopeQuery, buildingName, showBuilding } = useBuildingScope()
+  const labelFor = (id: string | null, joined?: string | null) => (showBuilding ? buildingName(id, joined) : null)
+  // Not fetched until Closed is picked; picking it again reloads, so a row that
+  // was just resolved from Open is there.
+  const closedRaw = useClosedIncidents(view === "closed", activeBuildingId)
+  const closedQ = { ...scopeQuery(closedRaw), isLoadingMore: closedRaw.isLoadingMore, hasMore: closedRaw.hasMore, loadMore: closedRaw.loadMore, refetch: closedRaw.refetch }
+
+  const cards = (rows: ManagerIncident[]) => (
+    <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
+      {rows.map((incident) => (
+        <IncidentCard
+          key={incident.id}
+          incident={incident}
+          onChange={() => {
+            refetch()
+            if (view === "closed") closedRaw.refetch()
+          }}
+          buildingName={labelFor(incident.buildingId, incident.buildingName)}
+        />
+      ))}
+    </div>
+  )
+
+  return (
+    <div className="flex flex-col gap-3">
+      <OpenClosedSwitch label="Incident view" view={view} onChange={setView} openCount={q.data.length} />
+      {view === "open" ? (
+        <TabBody
+          q={q}
+          onRetry={refetch}
+          empty={
+            <EmptyState
+              title="Nothing waiting."
+              action={
+                onNavigate && (
+                  <Button variant="link" size="sm" onClick={() => onNavigate("incidents")}>
+                    Incident reports
+                  </Button>
+                )
+              }
+            />
+          }
+        >
+          {cards}
+        </TabBody>
+      ) : (
+        <ClosedBody q={closedQ}>{cards}</ClosedBody>
+      )}
+    </div>
+  )
+}
+
 /**
  * WHAT THIS REPLACED.
  *
@@ -495,33 +598,41 @@ function AccommodationsTab({
   labelFor: (buildingId: string | null) => string | null
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [view, setView] = useState<"open" | "closed">("open")
+  const { activeBuildingId, scopeQuery } = useBuildingScope()
+  // Not fetched until Closed is picked; picking it again reloads it.
+  const closedRaw = useClosedAccommodations(view === "closed", activeBuildingId)
+  const closedQ = { ...scopeQuery(closedRaw), isLoadingMore: closedRaw.isLoadingMore, hasMore: closedRaw.hasMore, loadMore: closedRaw.loadMore, refetch: closedRaw.refetch }
+
+  const cards = (requests: AccommodationRequestView[]) => (
+    <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
+      {requests.map((req) => (
+        <AccommodationCard
+          key={req.id}
+          request={req}
+          isOpen={expanded === req.id}
+          onToggle={() => setExpanded(expanded === req.id ? null : req.id)}
+          refetch={() => {
+            refetch()
+            if (view === "closed") closedRaw.refetch()
+          }}
+          buildingName={labelFor(req.buildingId)}
+        />
+      ))}
+    </div>
+  )
 
   return (
-    <TabBody
-      q={q}
-      onRetry={refetch}
-      empty={
-        <EmptyState
-          title="No accommodation requests waiting"
-          detail="ESA and service animal requests will appear here for review."
-        />
-      }
-    >
-      {(requests) => (
-        <div className="grid gap-2.5 lg:grid-cols-2 lg:items-start">
-          {requests.map((req) => (
-            <AccommodationCard
-              key={req.id}
-              request={req}
-              isOpen={expanded === req.id}
-              onToggle={() => setExpanded(expanded === req.id ? null : req.id)}
-              refetch={refetch}
-              buildingName={labelFor(req.buildingId)}
-            />
-          ))}
-        </div>
+    <div className="flex flex-col gap-3">
+      <OpenClosedSwitch label="Accommodation view" view={view} onChange={setView} openCount={q.data.length} />
+      {view === "open" ? (
+        <TabBody q={q} onRetry={refetch} empty={<EmptyState title="Nothing waiting." />}>
+          {cards}
+        </TabBody>
+      ) : (
+        <ClosedBody q={closedQ}>{cards}</ClosedBody>
       )}
-    </TabBody>
+    </div>
   )
 }
 

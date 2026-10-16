@@ -27,6 +27,8 @@ import {
   type DocKind,
 } from "./accommodations"
 import { dbErrorMessage } from "@/lib/data/db-error"
+import { ACCOMMODATION_CLOSED, ACCOMMODATION_OPEN } from "@/lib/data/approvals-filter"
+import { useClosedPages } from "@/lib/data/use-closed-pages"
 
 /** One request as the screens read it. `legalNote` is manager-authored guidance. */
 export interface AccommodationRequestView {
@@ -144,7 +146,9 @@ export function useMyAccommodations(): LiveResult<AccommodationRequestView[]> {
 
 /**
  * Every request in the manager's queue — everything the policies show them,
- * minus drafts.
+ * minus drafts. The Approvals screen and work queue now read `useOpenAccommodations`
+ * and `useClosedAccommodations` instead; this one stays for a caller that wants
+ * the whole history in one list.
  *
  * `.neq("status", "draft")` is the query filter over the policy floor. Note it
  * does NOT filter to `pending` only: a withdrawn or decided request is still
@@ -184,6 +188,81 @@ export function useAccommodationsLive(): LiveResult<AccommodationRequestView[]> 
     void refetch()
   }, [refetch])
   return { data, isLoading, error, refetch }
+}
+
+/**
+ * The requests waiting on a manager (pending, or asking the resident for more),
+ * oldest submission first — the one that has waited longest is next.
+ *
+ * The open statuses are named, not "everything but decided": a status added
+ * later is then not silently in the queue (approvals-filter.test.ts makes
+ * whoever adds one choose a side). Drafts are in neither list.
+ */
+export function useOpenAccommodations(): LiveResult<AccommodationRequestView[]> {
+  const [data, setData] = useState<AccommodationRequestView[]>([])
+  const [isLoading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const refetch = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient()
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    const { data: rows, error: err } = await supabase
+      .from("accommodation_requests")
+      .select(SELECT)
+      .in("status", [...ACCOMMODATION_OPEN])
+      .order("submitted_at", { ascending: true, nullsFirst: false })
+    if (err) {
+      setError(dbErrorMessage(err, "Couldn't load accommodation requests. Try again."))
+      setData([])
+      setLoading(false)
+      return
+    }
+    setData(((rows ?? []) as unknown as RawRow[]).map(mapRequest))
+    setError(null)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    void refetch()
+  }, [refetch])
+  return { data, isLoading, error, refetch }
+}
+
+/**
+ * Requests that have been decided or withdrawn: the last 90 days, newest first,
+ * 50 at a time, older on request. Dated by `updated_at` — a decision and a
+ * withdrawal both touch it, and `decided_at` is empty for a withdrawal. Not
+ * fetched until `enabled`.
+ */
+export function useClosedAccommodations(enabled: boolean, buildingId: string | null) {
+  return useClosedPages<AccommodationRequestView & { updatedAt: string }>({
+    enabled,
+    scopeKey: buildingId,
+    tsOf: (r) => r.updatedAt,
+    fetchPage: async ({ cutoff, cursor, limit }) => {
+      const supabase = getSupabaseBrowserClient()
+      if (!supabase) return { rows: [], error: null }
+      let q = supabase
+        .from("accommodation_requests")
+        .select(`${SELECT}, updated_at`)
+        .in("status", [...ACCOMMODATION_CLOSED])
+      if (buildingId) q = q.eq("building_id", buildingId)
+      q = cursor ? q.lt("updated_at", cursor) : q.gte("updated_at", cutoff)
+      const { data: rows, error: err } = await q.order("updated_at", { ascending: false }).limit(limit)
+      if (err) return { rows: [], error: dbErrorMessage(err, "Couldn't load accommodation requests. Try again.") }
+      return {
+        rows: ((rows ?? []) as unknown as (RawRow & { updated_at: string })[]).map((r) => ({
+          ...mapRequest(r),
+          updatedAt: r.updated_at,
+        })),
+        error: null,
+      }
+    },
+  })
 }
 
 const DOC_SELECT =

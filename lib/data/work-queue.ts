@@ -9,9 +9,9 @@
 
 import { useCallback, useMemo } from "react"
 import { useRegistrationsLive, useDocumentsReviewLive } from "./manager-queues"
-import { useAccommodationsLive } from "./accommodations-live"
+import { useOpenAccommodations } from "./accommodations-live"
 import { ACCOMMODATION_TYPE_LABEL } from "./accommodations"
-import { useIncidents, isOpenIncident, INCIDENT_TYPE_LABEL } from "./incidents"
+import { useOpenIncidents, INCIDENT_TYPE_LABEL } from "./incidents"
 import { useBuildingResidents } from "./live"
 import { useOutstandingFines } from "./portfolio"
 import type { DocumentReviewItem } from "./types"
@@ -74,8 +74,9 @@ export interface UseWorkQueueResult {
 export function useWorkQueue(): UseWorkQueueResult {
   const regs = useRegistrationsLive()
   const residents = useBuildingResidents()
-  const incidents = useIncidents()
-  const accs = useAccommodationsLive()
+  // Open only, asked of the database: the queue is what waits, not history.
+  const incidents = useOpenIncidents()
+  const accs = useOpenAccommodations()
   const docs = useDocumentsReviewLive()
   const fines = useOutstandingFines()
 
@@ -133,7 +134,7 @@ export function useWorkQueue(): UseWorkQueueResult {
     }
 
     // Open incidents
-    for (const i of incidents.data.filter((x) => isOpenIncident(x.status))) {
+    for (const i of incidents.data) {
       const age = daysSince(i.createdAt)
       const severe = i.type === "aggressive" || i.type === "damage"
       const urgency: Urgency = severe || age > 2 ? "high" : age > 1 ? "medium" : "low"
@@ -175,7 +176,7 @@ export function useWorkQueue(): UseWorkQueueResult {
      * makes it something a manager reads by accident, over someone's shoulder,
      * while looking for something else. The pet's name identifies the request
      * just as well and says nothing about the person. */
-    for (const a of accs.data.filter((x) => x.status === "pending" || x.status === "info_requested")) {
+    for (const a of accs.data) {
       const age = daysSince(a.submittedAt ?? a.createdAt)
       const urgency: Urgency = age > 5 ? "high" : "medium"
       out.push({
