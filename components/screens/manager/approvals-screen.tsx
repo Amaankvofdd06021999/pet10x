@@ -461,7 +461,8 @@ function OpenClosedSwitch({
   label: string
   view: "open" | "closed"
   onChange: (v: "open" | "closed") => void
-  openCount: number
+  /** Undefined until the list has loaded: "(0)" over a spinner would say nothing is waiting. */
+  openCount: number | undefined
 }) {
   return (
     <SegmentedTabs
@@ -541,7 +542,7 @@ function IncidentsTab({
 
   return (
     <div className="flex flex-col gap-3">
-      <OpenClosedSwitch label="Incident view" view={view} onChange={setView} openCount={q.data.length} />
+      <OpenClosedSwitch label="Incident view" view={view} onChange={setView} openCount={approvalsState(q) === "loading" || approvalsState(q) === "error" ? undefined : q.data.length} />
       {view === "open" ? (
         <TabBody
           q={q}
@@ -624,7 +625,7 @@ function AccommodationsTab({
 
   return (
     <div className="flex flex-col gap-3">
-      <OpenClosedSwitch label="Accommodation view" view={view} onChange={setView} openCount={q.data.length} />
+      <OpenClosedSwitch label="Accommodation view" view={view} onChange={setView} openCount={approvalsState(q) === "loading" || approvalsState(q) === "error" ? undefined : q.data.length} />
       {view === "open" ? (
         <TabBody q={q} onRetry={refetch} empty={<EmptyState title="Nothing waiting." />}>
           {cards}

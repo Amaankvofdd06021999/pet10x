@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { CLOSED_PAGE_SIZE, closedCutoff, nextClosedCursor } from "./approvals-filter"
+import { CLOSED_PAGE_SIZE, closedCutoff, nextClosedCursor, type ClosedCursor } from "./approvals-filter"
 
 /**
  * A Closed list: the last 90 days first, then older pages on request.
@@ -12,36 +12,38 @@ import { CLOSED_PAGE_SIZE, closedCutoff, nextClosedCursor } from "./approvals-fi
  * approvals-filter.ts; this only holds the pages.
  *
  * Nothing is fetched while `enabled` is false. A change of `scopeKey` or a
- * `refetch` starts again from the first page, and a response that arrives after
+ * `refetch` starts again from the first page (acting on a card after "Show older"
+ * therefore returns to the top), and a response that arrives after
  * that is dropped rather than appended to the wrong list.
  */
 export function useClosedPages<T>({
   enabled,
   scopeKey,
-  tsOf,
+  keyOf,
   fetchPage,
 }: {
   enabled: boolean
   scopeKey: string | null
-  tsOf: (row: T) => string
-  fetchPage: (a: { cutoff: string; cursor: string | null; limit: number }) => Promise<{ rows: T[]; error: string | null }>
+  /** A row's place in the `ts desc, id desc` order. */
+  keyOf: (row: T) => { ts: string; id: string }
+  fetchPage: (a: { cutoff: string; cursor: ClosedCursor | null; limit: number }) => Promise<{ rows: T[]; error: string | null }>
 }) {
   const [data, setData] = useState<T[]>([])
   const [isLoading, setLoading] = useState(enabled)
   const [isLoadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [cursor, setCursor] = useState<string | null>(null)
+  const [cursor, setCursor] = useState<ClosedCursor | null>(null)
   const run = useRef(0)
   // The latest callbacks, without making them effect dependencies: the caller's
   // closures change identity every render.
   const fetchRef = useRef(fetchPage)
-  const tsRef = useRef(tsOf)
+  const keyRef = useRef(keyOf)
   // Set once a load starts; a load more never runs before one has.
   const cutoffRef = useRef("")
   // Declared before the effect that loads, so the load sees this render's callbacks.
   useEffect(() => {
     fetchRef.current = fetchPage
-    tsRef.current = tsOf
+    keyRef.current = keyOf
   })
 
   const refetch = useCallback(async () => {
@@ -53,7 +55,7 @@ export function useClosedPages<T>({
     if (mine !== run.current) return
     setData(r.rows)
     setError(r.error)
-    setCursor(r.error ? null : nextClosedCursor(r.rows.map(tsRef.current), { cutoff: cutoffRef.current, firstPage: true }))
+    setCursor(r.error ? null : nextClosedCursor(r.rows.map(keyRef.current), { cutoff: cutoffRef.current, firstPage: true }))
     setLoading(false)
   }, [])
 
@@ -78,7 +80,7 @@ export function useClosedPages<T>({
     }
     setError(null)
     setData((d) => [...d, ...r.rows])
-    setCursor(nextClosedCursor(r.rows.map(tsRef.current), { cutoff: cutoffRef.current, firstPage: false }))
+    setCursor(nextClosedCursor(r.rows.map(keyRef.current), { cutoff: cutoffRef.current, firstPage: false }))
   }, [cursor])
 
   return { data, isLoading, isLoadingMore, error, hasMore: cursor !== null, loadMore, refetch }

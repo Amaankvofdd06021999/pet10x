@@ -15,7 +15,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { petFileSignedUrls, isStoragePath } from "@/lib/supabase/storage"
 import type { Database } from "@/lib/supabase/database.types"
 import { dbErrorMessage } from "@/lib/data/db-error"
-import { INCIDENT_CLOSED, INCIDENT_OPEN } from "@/lib/data/approvals-filter"
+import { INCIDENT_CLOSED, INCIDENT_OPEN, olderThanFilter, type ClosedCursor } from "@/lib/data/approvals-filter"
 import { useClosedPages } from "@/lib/data/use-closed-pages"
 
 /* DERIVED from the generated enums, not retyped from them.
@@ -226,6 +226,8 @@ export interface ManagerIncident {
    * from "signing failed" (say so) — those must not look the same.
    */
   evidenceCount: number
+  /** When the report last changed; for a closed one, when it was closed. */
+  updatedAt: string
 }
 
 export type ManagerIncidentQuery = {
@@ -233,12 +235,14 @@ export type ManagerIncidentQuery = {
   statuses?: readonly IncidentStatus[]
   /** By created_at. Default newest first. */
   ascending?: boolean
+  /** The closed list: ordered by updated_at, then id, newest first, instead of created_at. */
+  byLastChange?: boolean
   /** Narrow to one of the manager's own buildings. */
   buildingId?: string | null
-  /** created_at >= this. */
+  /** updated_at >= this (the closed list's window). */
   from?: string
-  /** created_at < this (the "Show older" cursor). */
-  before?: string
+  /** After this position in `updated_at desc, id desc` order (the "Show older" cursor). */
+  after?: ClosedCursor
   limit?: number
 }
 
@@ -271,7 +275,7 @@ export async function loadManagerIncidents(
     .from("incident_reports")
     .select(
       `id, building_id, type, status, description, location_text, unit_involved, is_anonymous,
-       reference_code, created_at, pet_id, evidence_paths,
+       reference_code, created_at, updated_at, pet_id, evidence_paths,
        building:buildings!incident_reports_building_id_fkey ( name ),
        pet:pets!incident_reports_pet_id_fkey (
          id, name, breed, species, image_url,
@@ -281,9 +285,11 @@ export async function loadManagerIncidents(
     )
     .in("building_id", scopeIds)
   if (opts.statuses) q = q.in("status", [...opts.statuses])
-  if (opts.from) q = q.gte("created_at", opts.from)
-  if (opts.before) q = q.lt("created_at", opts.before)
-  q = q.order("created_at", { ascending: opts.ascending ?? false })
+  if (opts.from) q = q.gte("updated_at", opts.from)
+  if (opts.after) q = q.or(olderThanFilter("updated_at", opts.after))
+  q = opts.byLastChange
+    ? q.order("updated_at", { ascending: false }).order("id", { ascending: false })
+    : q.order("created_at", { ascending: opts.ascending ?? false })
   if (opts.limit) q = q.limit(opts.limit)
   const { data: rows, error: err } = await q
 
@@ -319,6 +325,7 @@ export async function loadManagerIncidents(
         isAnonymous: Boolean(r.is_anonymous),
         reference: (r.reference_code as string) ?? null,
         createdAt: r.created_at as string,
+        updatedAt: r.updated_at as string,
         petId: pet?.id ?? null,
         petName: pet?.name ?? null,
         petBreed: pet?.breed ?? null,
@@ -449,25 +456,25 @@ export interface ReportablePet {
 }
 
 /**
- * Incidents that have been dealt with: the last 90 days, newest first, 50 at a
- * time, and older on request. Not fetched until `enabled` — most visits to
- * Approvals never open Closed.
+ * Incidents that have been dealt with: closed in the last 90 days, newest first,
+ * 50 at a time, and older on request. Not fetched until `enabled` — most visits
+ * to Approvals never open Closed.
  *
- * Dated by `created_at`: `incident_reports` has no resolved or updated column,
- * so "when it closed" is not recorded. A report filed long ago and resolved
- * today therefore sits behind "Show older".
+ * Dated by `updated_at` (migration 20261019000001), so a report filed long ago
+ * and resolved today is at the top, not behind "Show older".
  */
 export function useClosedIncidents(enabled: boolean, buildingId: string | null) {
   return useClosedPages<ManagerIncident>({
     enabled,
     scopeKey: buildingId,
-    tsOf: (r) => r.createdAt,
+    keyOf: (r) => ({ ts: r.updatedAt, id: r.id }),
     fetchPage: async ({ cutoff, cursor, limit }) => {
       const r = await loadManagerIncidents({
         statuses: INCIDENT_CLOSED,
         buildingId,
+        byLastChange: true,
         from: cursor ? undefined : cutoff,
-        before: cursor ?? undefined,
+        after: cursor ?? undefined,
         limit,
       })
       return { rows: r.rows, error: r.error }

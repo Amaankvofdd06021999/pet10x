@@ -33,22 +33,42 @@ export function closedCutoff(now: Date): string {
 }
 
 /**
- * Where the next "Show older" page starts: rows strictly older than this, or
+ * Where the next "Show older" page starts. Rows are ordered `ts desc, id desc`,
+ * so a position is a (ts, id) pair. `id: null` means "strictly older than ts"
+ * (the 90-day cutoff, where the first page already took everything at or after
+ * it).
+ */
+export type ClosedCursor = { ts: string; id: string | null }
+
+/**
+ * The cursor for the page after `rows` (the page just loaded, newest first), or
  * null when there is nothing older to ask for.
  *
- * `timestamps` are the page just loaded, newest first. A full page may have more
- * behind it, so it continues from its oldest row. A short first page has run out
- * of the 90-day window but not of history, so older starts at the cutoff. A
- * short page after that is the end.
+ * A full page may have more behind it, so it continues from its last row. A
+ * short first page has run out of the 90-day window but not of history, so older
+ * starts at the cutoff. A short page after that is the end.
  *
- * The cursor is a timestamp, so rows sharing one with the page boundary could be
- * skipped. These columns are microsecond timestamps set by the database, and a
- * collision on the 50th row is not worth a composite cursor.
+ * The id is part of the cursor because timestamps tie: `updated_at` comes from
+ * now(), which is the transaction's start, so one delete that nulls a foreign
+ * key on 70 rows stamps all 70 identically. A timestamp-only cursor would skip
+ * every tied row past the page boundary.
  */
 export function nextClosedCursor(
-  timestamps: readonly string[],
+  rows: readonly { ts: string; id: string }[],
   { cutoff, firstPage }: { cutoff: string; firstPage: boolean },
-): string | null {
-  if (timestamps.length >= CLOSED_PAGE_SIZE) return timestamps[timestamps.length - 1]
-  return firstPage ? cutoff : null
+): ClosedCursor | null {
+  if (rows.length >= CLOSED_PAGE_SIZE) {
+    const last = rows[rows.length - 1]
+    return { ts: last.ts, id: last.id }
+  }
+  return firstPage ? { ts: cutoff, id: null } : null
+}
+
+/**
+ * The PostgREST `.or()` expression that selects rows after `cursor` in
+ * `ts desc, id desc` order: older than ts, or at ts with a smaller id.
+ */
+export function olderThanFilter(tsColumn: string, cursor: ClosedCursor): string {
+  if (cursor.id === null) return `${tsColumn}.lt.${cursor.ts}`
+  return `${tsColumn}.lt.${cursor.ts},and(${tsColumn}.eq.${cursor.ts},id.lt.${cursor.id})`
 }

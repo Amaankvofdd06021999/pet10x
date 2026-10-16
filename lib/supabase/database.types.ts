@@ -2717,6 +2717,7 @@ export type Database = {
           type: Database["public"]["Enums"]["incident_type"]
           unit_id: string | null
           unit_involved: string | null
+          updated_at: string
         }
         Insert: {
           building_id: string
@@ -2735,6 +2736,7 @@ export type Database = {
           type: Database["public"]["Enums"]["incident_type"]
           unit_id?: string | null
           unit_involved?: string | null
+          updated_at?: string
         }
         Update: {
           building_id?: string
@@ -2753,6 +2755,7 @@ export type Database = {
           type?: Database["public"]["Enums"]["incident_type"]
           unit_id?: string | null
           unit_involved?: string | null
+          updated_at?: string
         }
         Relationships: [
           {

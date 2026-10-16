@@ -27,7 +27,7 @@ import {
   type DocKind,
 } from "./accommodations"
 import { dbErrorMessage } from "@/lib/data/db-error"
-import { ACCOMMODATION_CLOSED, ACCOMMODATION_OPEN } from "@/lib/data/approvals-filter"
+import { ACCOMMODATION_CLOSED, ACCOMMODATION_OPEN, olderThanFilter } from "@/lib/data/approvals-filter"
 import { useClosedPages } from "@/lib/data/use-closed-pages"
 
 /** One request as the screens read it. `legalNote` is manager-authored guidance. */
@@ -242,7 +242,7 @@ export function useClosedAccommodations(enabled: boolean, buildingId: string | n
   return useClosedPages<AccommodationRequestView & { updatedAt: string }>({
     enabled,
     scopeKey: buildingId,
-    tsOf: (r) => r.updatedAt,
+    keyOf: (r) => ({ ts: r.updatedAt, id: r.id }),
     fetchPage: async ({ cutoff, cursor, limit }) => {
       const supabase = getSupabaseBrowserClient()
       if (!supabase) return { rows: [], error: null }
@@ -251,8 +251,12 @@ export function useClosedAccommodations(enabled: boolean, buildingId: string | n
         .select(`${SELECT}, updated_at`)
         .in("status", [...ACCOMMODATION_CLOSED])
       if (buildingId) q = q.eq("building_id", buildingId)
-      q = cursor ? q.lt("updated_at", cursor) : q.gte("updated_at", cutoff)
-      const { data: rows, error: err } = await q.order("updated_at", { ascending: false }).limit(limit)
+      q = cursor ? q.or(olderThanFilter("updated_at", cursor)) : q.gte("updated_at", cutoff)
+      // `id` breaks ties: one delete that nulls a foreign key stamps many rows alike.
+      const { data: rows, error: err } = await q
+        .order("updated_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(limit)
       if (err) return { rows: [], error: dbErrorMessage(err, "Couldn't load accommodation requests. Try again.") }
       return {
         rows: ((rows ?? []) as unknown as (RawRow & { updated_at: string })[]).map((r) => ({

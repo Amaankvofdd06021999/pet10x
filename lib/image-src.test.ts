@@ -7,9 +7,11 @@ describe("canOptimize", () => {
   it("optimises this site's own images", () => {
     expect(canOptimize("/hero-image.jpg", SUPA)).toBe(true)
   })
-  it("optimises the project's storage, signed or public", () => {
-    expect(canOptimize(`${SUPA}/storage/v1/object/sign/pet-files/a.jpg?token=x`, SUPA)).toBe(true)
+  it("optimises the project's public storage", () => {
     expect(canOptimize(`${SUPA}/storage/v1/object/public/avatars/a.jpg`, SUPA)).toBe(true)
+  })
+  it("leaves signed URLs alone: a new token every load means no cache hit", () => {
+    expect(canOptimize(`${SUPA}/storage/v1/object/sign/pet-files/a.jpg?token=x`, SUPA)).toBe(false)
   })
   it("leaves everything else to the browser", () => {
     expect(canOptimize("blob:https://pet10x.app/1234", SUPA)).toBe(false)

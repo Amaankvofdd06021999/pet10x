@@ -1,225 +1,37 @@
--- DRY RUN — generated 2026-10-15 from branch ui-system by bundles/build.sh.
--- Applies every migration from 20261018000001 on, runs supabase/tests/part-*.sql,
+-- DRY RUN — generated 2026-10-16 from branch approvals-images by bundles/build.sh.
+-- Applies every migration from 20261019000001 on, runs supabase/tests/part-*.sql,
 -- then RAISES ON PURPOSE so the whole transaction rolls back. Nothing is saved.
 -- SUCCESS looks like the error:  DRY RUN OK — ...
 -- Any other error is the first thing that broke; fix it before running apply.sql.
 begin;
 set local lock_timeout = '5s';
 
--- ===== migration 20261018000001_ui_system.sql =====
--- UI system — notifications can be snoozed or deleted with a swipe.
+-- ===== migration 20261019000001_incident_updated_at.sql =====
+-- Incident reports record when they last changed.
 --
---   * notifications.snoozed_until — the row is asleep until then: out of the
---     inbox and the unread count, and not pushed or emailed. Snoozing clears
---     read_at, so the row comes back unread when it wakes.
---   * notifications.dismissed_at — "deleted" in the inbox. The row is hidden,
---     never erased: delivery bookkeeping (emailed_at, pushed_at, the claims)
---     stays intact, and Undo is restore_notification clearing the stamp.
---   * snooze_notification / dismiss_notification / restore_notification —
---     the only writers of the two columns. Security definer because
---     notifs_update would also let an admin (is_admin) touch other people's
---     rows through the API; these take the caller's OWN row and nobody
---     else's, admin or not. A row that is not the caller's (or does not
---     exist) is the same 'forbidden', so the answer says nothing about
---     whose ids are real.
---   * claim_notification_emails / claim_notification_pushes — copied from
---     their newest definitions (20261011000005 and 20261011000002) with one
---     filter added each: not dismissed, and not still asleep. A sleeping row
---     not yet sent is claimed when it wakes, not before.
+-- The Approvals Closed list dates a report by the last time it changed, which
+-- for a resolved or dismissed report is when it closed. incident_reports had
+-- only created_at, so a report filed months ago and resolved today could not be
+-- found under "last 90 days". Same column and trigger as every other table
+-- that has one (public.set_updated_at, init schema).
+--
+-- Backfill BEFORE the trigger exists: existing rows take created_at, the only
+-- date they have, rather than the moment of this migration (which would make
+-- every old report look closed today).
 
-alter table public.notifications
-  add column if not exists snoozed_until timestamptz,
-  add column if not exists dismissed_at  timestamptz;
+alter table public.incident_reports
+  add column if not exists updated_at timestamptz not null default now();
 
-create or replace function public.snooze_notification(p_id uuid, p_until timestamptz)
-returns jsonb
-language plpgsql
-volatile
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_me    uuid := auth.uid();
-  v_owner uuid;
-begin
-  select n.profile_id into v_owner from public.notifications n where n.id = p_id;
-  -- NULL-safe: no session, no row, or someone else's row are all refused.
-  if v_me is null or v_owner is null or v_owner <> v_me then
-    return jsonb_build_object('ok', false, 'error', 'forbidden');
-  end if;
-  -- The sheet only offers times inside this window; anything else is a
-  -- client bug or a hand-made call, not a choice someone made.
-  -- A time that has passed (a sheet left open, a slow clock) is named as
-  -- such; only a time too far ahead, or none, is about the 7-day window.
-  if p_until is not null and p_until <= now() then
-    raise exception 'That time has passed. Pick another.' using errcode = '22023';
-  end if;
-  if p_until is null or p_until > now() + interval '7 days' then
-    raise exception 'Pick a time within the next 7 days' using errcode = '22023';
-  end if;
-  update public.notifications
-     set snoozed_until = p_until,
-         read_at = null
-   where id = p_id;
-  return jsonb_build_object('ok', true);
-end
-$$;
+update public.incident_reports set updated_at = created_at;
 
-create or replace function public.dismiss_notification(p_id uuid)
-returns jsonb
-language plpgsql
-volatile
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_me    uuid := auth.uid();
-  v_owner uuid;
-begin
-  select n.profile_id into v_owner from public.notifications n where n.id = p_id;
-  if v_me is null or v_owner is null or v_owner <> v_me then
-    return jsonb_build_object('ok', false, 'error', 'forbidden');
-  end if;
-  -- coalesce: a second delete keeps the first stamp.
-  update public.notifications set dismissed_at = coalesce(dismissed_at, now()) where id = p_id;
-  return jsonb_build_object('ok', true);
-end
-$$;
+drop trigger if exists trg_incident_reports_updated on public.incident_reports;
+create trigger trg_incident_reports_updated
+  before update on public.incident_reports
+  for each row execute function public.set_updated_at();
 
-create or replace function public.restore_notification(p_id uuid)
-returns jsonb
-language plpgsql
-volatile
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_me    uuid := auth.uid();
-  v_owner uuid;
-begin
-  select n.profile_id into v_owner from public.notifications n where n.id = p_id;
-  if v_me is null or v_owner is null or v_owner <> v_me then
-    return jsonb_build_object('ok', false, 'error', 'forbidden');
-  end if;
-  update public.notifications set dismissed_at = null where id = p_id;
-  return jsonb_build_object('ok', true);
-end
-$$;
-
-revoke all on function public.snooze_notification(uuid, timestamptz) from public, anon;
-revoke all on function public.dismiss_notification(uuid) from public, anon;
-revoke all on function public.restore_notification(uuid) from public, anon;
-grant execute on function public.snooze_notification(uuid, timestamptz) to authenticated;
-grant execute on function public.dismiss_notification(uuid) to authenticated;
-grant execute on function public.restore_notification(uuid) to authenticated;
-
--- claim_notification_emails: verbatim from 20261011000005, plus the two
--- lines marked 20261018000001.
-create or replace function public.claim_notification_emails(
-  p_kinds public.notification_kind[], p_max_recipients integer default 200)
-returns table (
-  id uuid, profile_id uuid, email text, full_name text,
-  kind public.notification_kind, severity text, title text, body text,
-  action_label text, action_target text, created_at timestamptz,
-  read_at timestamptz, notify_email boolean)
-language sql
-volatile
-security definer
-set search_path = public, pg_temp
-as $$
-  with candidates as (
-    select n.id, n.profile_id, n.created_at
-      from public.notifications n
-     where n.emailed_at is null
-       and n.email_failed_at is null  -- 20261011000005: refused for good
-       and n.dismissed_at is null  -- 20261018000001: deleted in the inbox
-       and (n.snoozed_until is null or n.snoozed_until <= now())  -- 20261018000001: still asleep
-       and n.read_at is null
-       and n.created_at > now() - interval '24 hours'
-       and n.created_at <= now() - interval '2 minutes'
-       and (n.email_claimed_at is null or n.email_claimed_at < now() - interval '15 minutes')
-       and n.kind = any (p_kinds)
-       /* A practice's reminder goes by email only when its rule says Email
-          (20261011000003). `clinic_reminder_action('notify')` links the item
-          to the notification it wrote; an in-app or call-list rule's
-          reminder stays in the app (and push). */
-       and not exists (select 1 from public.reminder_items ri
-                        where ri.notification_id = n.id and ri.channel <> 'email')
-       and exists (select 1 from public.profiles p
-                    where p.id = n.profile_id and p.notify_email and not p.is_suspended
-                      -- An account with no address is never claimed, rather
-                      -- than re-leased all day for an email it cannot get.
-                      and coalesce((select u.email::text from auth.users u where u.id = p.id),
-                                   p.email, '') <> '')
-     for update of n skip locked
-  ),
-  recipients as (
-    select c.profile_id
-      from candidates c
-     group by c.profile_id
-     order by min(c.created_at)
-     limit greatest(coalesce(p_max_recipients, 200), 1)
-  ),
-  claimed as (
-    update public.notifications n
-       set email_claimed_at = now()
-      from candidates c
-      join recipients r on r.profile_id = c.profile_id
-     where n.id = c.id
-    returning n.id, n.profile_id, n.kind, n.severity, n.title, n.body,
-              n.action_label, n.action_target, n.created_at, n.read_at
-  )
-  select cl.id, cl.profile_id, coalesce(u.email::text, p.email), p.full_name,
-         cl.kind, cl.severity, cl.title, cl.body, cl.action_label, cl.action_target,
-         cl.created_at, cl.read_at, p.notify_email
-    from claimed cl
-    join public.profiles p on p.id = cl.profile_id
-    left join auth.users u on u.id = cl.profile_id
-   order by cl.profile_id, cl.created_at
-$$;
-revoke all on function public.claim_notification_emails(public.notification_kind[], integer) from public, anon, authenticated;
-grant execute on function public.claim_notification_emails(public.notification_kind[], integer) to service_role;
-
--- claim_notification_pushes: verbatim from 20261011000002 (its only
--- definition), plus the two lines marked 20261018000001.
-create or replace function public.claim_notification_pushes(p_limit integer default 500)
-returns table (
-  id uuid, profile_id uuid, kind public.notification_kind, severity text,
-  title text, body text, action_target text, created_at timestamptz)
-language sql
-volatile
-security definer
-set search_path = public, pg_temp
-as $$
-  with candidates as (
-    select n.id
-      from public.notifications n
-     where n.pushed_at is null
-       and n.dismissed_at is null  -- 20261018000001: deleted in the inbox
-       and (n.snoozed_until is null or n.snoozed_until <= now())  -- 20261018000001: still asleep
-       and n.read_at is null
-       and n.created_at > now() - interval '24 hours'
-       and (n.push_claimed_at is null or n.push_claimed_at < now() - interval '15 minutes')
-       and exists (select 1 from public.profiles p
-                    where p.id = n.profile_id and p.notify_push and not p.is_suspended)
-       and exists (select 1 from public.web_push_subscriptions s where s.profile_id = n.profile_id)
-     order by n.created_at
-     limit greatest(coalesce(p_limit, 500), 1)
-     for update of n skip locked
-  )
-  update public.notifications n
-     set push_claimed_at = now()
-    from candidates c
-   where n.id = c.id
-  returning n.id, n.profile_id, n.kind, n.severity, n.title, n.body, n.action_target, n.created_at
-$$;
-revoke all on function public.claim_notification_pushes(integer) from public, anon, authenticated;
-grant execute on function public.claim_notification_pushes(integer) to service_role;
-
--- UI system: teal is gone from the palette, so a new appointment type that
--- names no colour gets the brand orange. Existing rows keep the colour their
--- clinic chose (or the old default) — this changes the default only.
-alter table public.appointment_types alter column colour set default '#FD9340';
+-- The Closed list reads one building's closed reports newest change first.
+create index if not exists incident_reports_closed_idx
+  on public.incident_reports (building_id, updated_at desc, id desc);
 
 
 -- ===== checks part-a-archive =====
@@ -5068,6 +4880,53 @@ begin
     raise exception 'FAIL: appointment_types.colour default is %, expected #FD9340', v_default;
   end if;
   raise notice 'ok: appointment_types.colour defaults to #FD9340';
+end $$;
+
+rollback to savepoint checks; reset role;
+
+
+-- ===== checks part-k =====
+-- Part K — incident_reports.updated_at, in ONE rolled-back transaction.
+--
+-- Covers 20261019000001:
+--   * the column exists, is timestamptz and not null.
+--   * an update bumps it (the row is inserted with an old updated_at, since
+--     now() is constant inside one transaction).
+--   * a row inserted without one gets a value.
+--
+-- The building is any existing one; the rows are inserted here. Nothing
+-- survives: the file ends in ROLLBACK.
+
+savepoint checks;
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+do $$
+declare v_building uuid; v_type text; v_nullable text; v_after timestamptz; v_default timestamptz;
+begin
+  select data_type, is_nullable into v_type, v_nullable from information_schema.columns
+   where table_schema = 'public' and table_name = 'incident_reports' and column_name = 'updated_at';
+  if v_type is distinct from 'timestamp with time zone' then
+    raise exception 'FAIL: incident_reports.updated_at is %, expected timestamptz', v_type;
+  end if;
+  if v_nullable is distinct from 'NO' then raise exception 'FAIL: incident_reports.updated_at is nullable'; end if;
+  raise notice 'ok: incident_reports.updated_at exists and is not null';
+
+  select id into v_building from public.buildings order by created_at, id limit 1;
+  if v_building is null then raise exception 'FIXTURE: need a building'; end if;
+
+  insert into public.incident_reports (id, building_id, type, description, updated_at)
+  values ('00000000-0000-4000-8000-0000000b0001', v_building, 'other', 'Part K', '2020-01-01');
+  update public.incident_reports set status = 'resolved' where id = '00000000-0000-4000-8000-0000000b0001';
+  select updated_at into v_after from public.incident_reports where id = '00000000-0000-4000-8000-0000000b0001';
+  if v_after <= '2020-01-01' then raise exception 'FAIL: update did not bump updated_at (%)', v_after; end if;
+  raise notice 'ok: an update bumps updated_at';
+
+  insert into public.incident_reports (id, building_id, type, description)
+  values ('00000000-0000-4000-8000-0000000b0002', v_building, 'other', 'Part K default');
+  select updated_at into v_default from public.incident_reports where id = '00000000-0000-4000-8000-0000000b0002';
+  if v_default is null then raise exception 'FAIL: default updated_at is null'; end if;
+  raise notice 'ok: a new row gets updated_at';
 end $$;
 
 rollback to savepoint checks; reset role;

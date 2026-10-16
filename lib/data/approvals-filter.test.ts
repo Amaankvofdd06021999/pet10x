@@ -10,6 +10,7 @@ import {
   INCIDENT_OPEN,
   closedCutoff,
   nextClosedCursor,
+  olderThanFilter,
 } from "./approvals-filter"
 
 describe("incident status lists", () => {
@@ -59,22 +60,32 @@ describe("closedCutoff", () => {
 
 describe("nextClosedCursor", () => {
   const cutoff = "2026-07-17T12:00:00.000Z"
-  const full = (n: number) => Array.from({ length: n }, (_, i) => ({ ts: `2026-10-${String(15 - i).padStart(2, "0")}T00:00:00.000Z` }))
-  it("a full page continues from its oldest row", () => {
-    const rows = full(CLOSED_PAGE_SIZE)
+  const page = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      ts: `2026-10-${String(15 - i).padStart(2, "0")}T00:00:00.000Z`,
+      id: `id-${String(100 - i).padStart(3, "0")}`,
+    }))
+  it("a full page continues from its last row, id included", () => {
     expect(CLOSED_PAGE_SIZE).toBe(50)
-    expect(nextClosedCursor(rows.map((r) => r.ts), { cutoff, firstPage: true })).toBe(rows[rows.length - 1].ts)
+    const rows = page(CLOSED_PAGE_SIZE)
+    expect(nextClosedCursor(rows, { cutoff, firstPage: true })).toEqual(rows[rows.length - 1])
   })
-  it("a short first page has exhausted the window, so older starts at the cutoff", () => {
-    expect(nextClosedCursor(["2026-10-01T00:00:00.000Z"], { cutoff, firstPage: true })).toBe(cutoff)
-    expect(nextClosedCursor([], { cutoff, firstPage: true })).toBe(cutoff)
+  it("ties at row 50 keep the id, so the rest of the tie is still reachable", () => {
+    const tied = Array.from({ length: CLOSED_PAGE_SIZE }, (_, i) => ({ ts: "2026-10-01T00:00:00.000Z", id: `id-${99 - i}` }))
+    const cursor = nextClosedCursor(tied, { cutoff, firstPage: false })
+    expect(cursor).toEqual({ ts: "2026-10-01T00:00:00.000Z", id: "id-50" })
+    // Rows 49..0 share the timestamp and have smaller ids: the filter admits them.
+    expect(olderThanFilter("updated_at", cursor!)).toBe(
+      "updated_at.lt.2026-10-01T00:00:00.000Z,and(updated_at.eq.2026-10-01T00:00:00.000Z,id.lt.id-50)",
+    )
+  })
+  it("a short first page has exhausted the window, so older starts strictly at the cutoff", () => {
+    expect(nextClosedCursor(page(1), { cutoff, firstPage: true })).toEqual({ ts: cutoff, id: null })
+    expect(nextClosedCursor([], { cutoff, firstPage: true })).toEqual({ ts: cutoff, id: null })
+    expect(olderThanFilter("created_at", { ts: cutoff, id: null })).toBe(`created_at.lt.${cutoff}`)
   })
   it("a short later page is the end of history", () => {
-    expect(nextClosedCursor(["2026-05-01T00:00:00.000Z"], { cutoff, firstPage: false })).toBeNull()
+    expect(nextClosedCursor(page(3), { cutoff, firstPage: false })).toBeNull()
     expect(nextClosedCursor([], { cutoff, firstPage: false })).toBeNull()
-  })
-  it("a full later page continues from its oldest row", () => {
-    const ts = full(CLOSED_PAGE_SIZE).map((r) => r.ts)
-    expect(nextClosedCursor(ts, { cutoff, firstPage: false })).toBe(ts[ts.length - 1])
   })
 })
