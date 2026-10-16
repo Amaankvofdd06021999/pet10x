@@ -31,6 +31,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 import { DialogDescription, DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import { DonateSpcaCard } from "@/components/donate-spca"
 import { PetPickerSheet } from "@/components/pet-picker-sheet"
@@ -293,7 +294,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                   fall back to an initial rather than rendering an empty src. */}
               <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
                 {user?.avatar ? (
-                  <Image src={user.avatar} alt={user.name ?? ""} fill className="object-cover" />
+                  <Image src={user.avatar} alt={user.name ?? ""} fill sizes="56px" className="object-cover" unoptimized={!canOptimize(user.avatar)} />
                 ) : (
                   <span className="text-title font-semibold text-muted-foreground">
                     {(user?.name ?? "?").slice(0, 1).toUpperCase()}
@@ -352,7 +353,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                   className="flex flex-1 items-center gap-2.5 rounded-2xl card-raised p-2.5"
                 >
                   <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-muted flex-shrink-0">
-                    <Image src={pet.image} alt={pet.name} fill className="object-cover" />
+                    <Image src={pet.image} alt={pet.name} fill sizes="40px" className="object-cover" unoptimized={!canOptimize(pet.image)} />
                   </div>
                   <div>
                     <div className="flex items-center gap-1">
@@ -378,7 +379,7 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
               {memorial.map((pet) => (
                 <div key={pet.id} className="flex flex-1 items-center gap-2.5 rounded-2xl card-raised p-2.5">
                   <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl bg-muted">
-                    <Image src={pet.image} alt={pet.name} fill className="object-cover grayscale" />
+                    <Image src={pet.image} alt={pet.name} fill sizes="40px" className="object-cover grayscale" unoptimized={!canOptimize(pet.image)} />
                   </div>
                   <div className="min-w-0">
                     <span className="block truncate text-meta font-semibold text-foreground">{pet.name}</span>
@@ -502,7 +503,10 @@ export function ProfileScreen({ onNavigate }: ProfileScreenProps) {
                       src={(editAvatarPreview ?? user?.avatar) as string}
                       alt={user?.name ?? ""}
                       fill
+                      sizes="80px"
                       className="object-cover"
+                      // The preview is a blob: or data: URL until the upload lands.
+                      unoptimized={!canOptimize(editAvatarPreview ?? user?.avatar)}
                     />
                   ) : (
                     <span className="flex h-full w-full items-center justify-center text-[24px] font-semibold text-muted-foreground">

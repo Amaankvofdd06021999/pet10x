@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { RequiredTag } from "@/components/screens/pet/required-tag"
 import { useRef, useState } from "react"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 import { toast } from "sonner"
 import { CareTracker } from "@/components/screens/care/care-tracker"
 import { PetPhotoGallery } from "@/components/screens/pet/photo-gallery"
@@ -169,7 +170,7 @@ export function PetDetailScreen({ onBack, petId, initialTab, onNavigate }: PetDe
       <main className="ios-scroll flex-1 pb-24">
         {/* Hero */}
         <div className="relative h-64 w-full bg-muted">
-          <Image src={pet.image} alt={pet.name} fill className="object-cover" />
+          <Image src={pet.image} alt={pet.name} fill sizes="(max-width: 640px) 100vw, 640px" className="object-cover" unoptimized={!canOptimize(pet.image)} />
           <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
           <button
             onClick={() => photoInput.current?.click()}

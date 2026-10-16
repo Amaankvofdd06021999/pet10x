@@ -35,6 +35,7 @@ import {
   Utensils,
 } from "lucide-react"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 
 const STATUS_CONFIG = {
   home: { label: "Home", pill: "success" },
@@ -249,7 +250,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
               aria-label="Your profile"
               className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-full border-2 border-card shadow-md transition-transform active:scale-95"
             >
-              <Image src={user.avatar} alt="" fill className="object-cover" />
+              <Image src={user.avatar} alt="" fill sizes="48px" className="object-cover" unoptimized={!canOptimize(user.avatar)} />
             </button>
           ) : null}
         </section>
@@ -340,7 +341,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
                           singlePet ? "h-24 w-24" : "h-20 w-20"
                         }`}
                       >
-                        <Image src={pet.image} alt={pet.name} fill className="object-cover" priority={i === 0} />
+                        <Image src={pet.image} alt={pet.name} fill sizes="96px" className="object-cover" priority={i === 0} unoptimized={!canOptimize(pet.image)} />
                       </div>
 
                       <div className="flex min-w-0 flex-1 flex-col">

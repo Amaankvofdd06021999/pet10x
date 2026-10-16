@@ -99,7 +99,7 @@ export function PhotoAttachPreview({ images, onChange }: Pick<PhotoAttachProps, 
     <div className="flex flex-wrap gap-2 px-1 pb-2">
       {images.map((image) => (
         <div key={image.id} className="relative h-16 w-16 overflow-hidden rounded-xl border border-border bg-muted">
-          <Image src={image.previewUrl} alt="" fill className="object-cover" unoptimized />
+          <Image src={image.previewUrl} alt="" fill sizes="64px" className="object-cover" unoptimized />
           <button
             type="button"
             onClick={() => remove(image.id)}

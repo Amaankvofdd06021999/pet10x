@@ -22,6 +22,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 
 interface SidebarProps {
   activeTab: string
@@ -133,7 +134,7 @@ export function AppSidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="flex items-center gap-2.5 px-2 py-1.5">
           <div className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-muted">
             {user?.avatar ? (
-              <Image src={user.avatar} alt={user.name} fill className="object-cover" />
+              <Image src={user.avatar} alt={user.name} fill sizes="36px" className="object-cover" unoptimized={!canOptimize(user.avatar)} />
             ) : null}
           </div>
           <div className="min-w-0 flex-1">

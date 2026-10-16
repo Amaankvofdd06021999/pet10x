@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 import { Cat, ChevronRight, Dog } from "lucide-react"
 import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 import type { Pet } from "@/lib/data"
@@ -49,7 +50,7 @@ export function PetPickerSheet({
                   }`}
                 >
                   <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl bg-muted">
-                    <Image src={pet.image} alt={pet.name} fill className="object-cover" />
+                    <Image src={pet.image} alt={pet.name} fill sizes="40px" className="object-cover" unoptimized={!canOptimize(pet.image)} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1">

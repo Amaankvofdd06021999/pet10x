@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { isDirty } from "@/lib/unsaved"
 import { useUnsavedGuard } from "@/components/use-unsaved-guard"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 import { DonateSpcaLink } from "@/components/donate-spca"
 import { PICKER_ACCEPT, prepareChatImage } from "@/lib/ai/image"
 import { reportablePetsSigned, uploadEvidence } from "@/lib/data/evidence"
@@ -753,7 +754,7 @@ export function IncidentComposer({
                     >
                       <span className="relative block aspect-square w-full bg-muted">
                         {pet.photoUrl ? (
-                          <Image src={pet.photoUrl} alt="" fill className="object-cover" unoptimized />
+                          <Image src={pet.photoUrl} alt="" fill sizes="(max-width: 640px) 33vw, 200px" className="object-cover" unoptimized={!canOptimize(pet.photoUrl)} />
                         ) : (
                           <span className="flex h-full w-full items-center justify-center">
                             <PawPrint className="h-6 w-6 text-muted-foreground" />

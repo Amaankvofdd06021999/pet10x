@@ -61,6 +61,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 import { DialogLayer, DialogTitle } from "@/components/ui/dialog"
 
 type FeedTab = "feed" | "lost" | "events"
@@ -607,7 +608,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                         owns its own line and the metadata sits under it. */}
                     <div className="flex items-start gap-3">
                       <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-muted">
-                        <Image src={post.avatar || AVATAR_FALLBACK} alt={post.author} fill className="object-cover" />
+                        <Image src={post.avatar || AVATAR_FALLBACK} alt={post.author} fill sizes="40px" className="object-cover" unoptimized={!canOptimize(post.avatar || AVATAR_FALLBACK)} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -658,7 +659,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                   </div>
                   {post.image && (
                     <div className="relative h-52 w-full bg-muted">
-                      <Image src={post.image} alt="" fill className="object-cover" />
+                      <Image src={post.image} alt="" fill sizes="(max-width: 640px) 100vw, 640px" className="object-cover" unoptimized={!canOptimize(post.image)} />
                     </div>
                   )}
                   <div className="flex items-center gap-6 border-t border-border px-4 py-3">
@@ -732,7 +733,9 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                         src={item.image || PHOTO_FALLBACK}
                         alt={item.petName ?? "Pet"}
                         fill
+                        sizes="96px"
                         className="object-cover"
+                        unoptimized={!canOptimize(item.image || PHOTO_FALLBACK)}
                       />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -1143,7 +1146,7 @@ function CommunityScreenBody({ initialTab }: { initialTab?: string }) {
                   {comments.map((c) => (
                     <div key={c.id} className="flex gap-2.5">
                       <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-muted">
-                        <Image src={c.avatar || AVATAR_FALLBACK} alt={c.author} fill className="object-cover" />
+                        <Image src={c.avatar || AVATAR_FALLBACK} alt={c.author} fill sizes="32px" className="object-cover" unoptimized={!canOptimize(c.avatar || AVATAR_FALLBACK)} />
                       </div>
                       <div className="min-w-0 flex-1 rounded-xl bg-muted px-3 py-2">
                         <div className="flex items-center gap-2">

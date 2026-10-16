@@ -286,6 +286,7 @@ export default function LandingPage() {
               width={1448}
               height={1086}
               priority
+              sizes="(max-width: 1024px) 100vw, 640px"
               className="h-auto w-full"
             />
           </Reveal>

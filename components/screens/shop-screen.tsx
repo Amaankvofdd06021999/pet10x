@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 import { IOSNavBar } from "@/components/ios-nav-bar"
 import { NavBackButton } from "@/components/nav-back-button"
 import { usePets } from "@/lib/data"
@@ -78,7 +79,7 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
                   >
                     <div className="relative aspect-square w-full bg-muted">
                       {item.imageUrl ? (
-                        <Image src={item.imageUrl} alt="" fill className="object-cover" unoptimized />
+                        <Image src={item.imageUrl} alt="" fill sizes="(max-width: 640px) 50vw, 320px" className="object-cover" unoptimized={!canOptimize(item.imageUrl)} />
                       ) : (
                         <span className="flex h-full w-full items-center justify-center">
                           <ShoppingBag className="h-7 w-7 text-muted-foreground" />

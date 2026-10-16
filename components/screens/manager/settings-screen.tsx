@@ -36,6 +36,7 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 import { FineScheduleEditor } from "./fine-schedule-editor"
 import { BuildingRulesEditor } from "./building-rules-editor"
 import { useManagerBuildingRules } from "@/lib/data/building-rules-live"
@@ -140,7 +141,7 @@ export function ManagerSettingsScreen({
             <div className="flex items-center gap-3">
               <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-full bg-muted">
                 {user?.avatar ? (
-                  <Image src={user.avatar} alt={user.name ?? ""} fill className="object-cover" />
+                  <Image src={user.avatar} alt={user.name ?? ""} fill sizes="56px" className="object-cover" unoptimized={!canOptimize(user.avatar)} />
                 ) : (
                   <span className="flex h-full w-full items-center justify-center text-title font-semibold text-muted-foreground">
                     {user?.name?.charAt(0) ?? "?"}

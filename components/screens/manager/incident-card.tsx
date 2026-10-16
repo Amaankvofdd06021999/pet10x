@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -151,7 +152,10 @@ export function IncidentCard({
                       src={url}
                       alt={`Evidence photo ${i + 1} of ${incident.evidenceUrls.length}`}
                       fill
+                      sizes="64px"
                       className="object-cover"
+                      // Private evidence: a resized copy would sit in the server's image
+                      // cache after the signed link expires. Serve the original.
                       unoptimized
                     />
                   </a>
@@ -169,7 +173,7 @@ export function IncidentCard({
             <div className="mt-2.5 flex items-center gap-2.5 rounded-xl card-inset p-2.5">
               <span className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
                 {incident.petPhotoUrl ? (
-                  <Image src={incident.petPhotoUrl} alt="" fill className="object-cover" unoptimized />
+                  <Image src={incident.petPhotoUrl} alt="" fill sizes="44px" className="object-cover" unoptimized={!canOptimize(incident.petPhotoUrl)} />
                 ) : (
                   <span className="flex h-full w-full items-center justify-center">
                     <PawPrint className="h-5 w-5 text-muted-foreground" />

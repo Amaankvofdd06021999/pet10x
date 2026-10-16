@@ -26,7 +26,7 @@ function UserBubble({ turn }: { turn: ChatTurn }) {
           <div className="mb-1.5 flex flex-wrap justify-end gap-1.5">
             {urls.map((url) => (
               <div key={url} className="relative h-28 w-28 overflow-hidden rounded-xl bg-muted">
-                <Image src={url} alt="Attached photo" fill className="object-cover" unoptimized />
+                <Image src={url} alt="Attached photo" fill sizes="112px" className="object-cover" unoptimized />
               </div>
             ))}
           </div>

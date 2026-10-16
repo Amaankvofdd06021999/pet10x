@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 import { Cat, Dog, PawPrint } from "lucide-react"
 import type { Pet } from "@/lib/data"
 
@@ -27,7 +28,7 @@ export function PetAvatar({ pet, size = 20 }: { pet: Pet; size?: number }) {
         style={box}
         className="relative flex-shrink-0 overflow-hidden rounded-full bg-muted"
       >
-        <Image src={pet.image} alt="" fill sizes={`${size}px`} className="object-cover" />
+        <Image src={pet.image} alt="" fill sizes={`${size}px`} className="object-cover" unoptimized={!canOptimize(pet.image)} />
       </span>
     )
   }

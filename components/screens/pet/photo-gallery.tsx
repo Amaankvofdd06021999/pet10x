@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 import { toast } from "sonner"
 import { Camera, Loader2, Trash2 } from "lucide-react"
 import { usePetPhotos, addPetPhoto, deletePetPhoto } from "@/lib/data"
@@ -79,7 +80,7 @@ export function PetPhotoGallery({ petId }: { petId: string }) {
           {photos.map((p, i) => (
             <div key={p.id} className="relative aspect-square overflow-hidden rounded-xl bg-muted">
               {p.url ? (
-                <Image src={p.url} alt={p.caption ?? ""} fill className="object-cover" unoptimized />
+                <Image src={p.url} alt={p.caption ?? ""} fill sizes="(max-width: 640px) 33vw, 200px" className="object-cover" unoptimized={!canOptimize(p.url)} />
               ) : (
                 <span className="flex h-full w-full items-center justify-center">
                   <Camera className="h-5 w-5 text-muted-foreground" />

@@ -22,6 +22,7 @@ import {
   MailCheck,
 } from "lucide-react"
 import Image from "next/image"
+import { canOptimize } from "@/lib/image-src"
 import Link from "next/link"
 import { ConsentLine } from "@/components/legal/consent-line"
 
@@ -456,7 +457,7 @@ export function SignInScreen({ initialMode = "signin" }: { initialMode?: AuthMod
                     className={`flex items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left transition-all active:scale-[0.98]`}
                   >
                     <div className="relative h-11 w-11 overflow-hidden rounded-full bg-muted flex-shrink-0">
-                      <Image src={u.avatar} alt={u.name} fill className="object-cover" />
+                      <Image src={u.avatar} alt={u.name} fill sizes="44px" className="object-cover" unoptimized={!canOptimize(u.avatar)} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
