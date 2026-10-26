@@ -39,6 +39,12 @@
   --primary-soft: #FFF1E6;
   --primary-foreground: #FFFFFF;
 
+  /* Marketing grounds. Cream is the quiet warm panel (shop rail, footer, the
+   * third hero card); peach is a stronger warm accent used for decoration,
+   * like the footer wordmark — never for text the reader has to read. */
+  --cream: #FFF8EF;
+  --peach: #FFDCC6;
+
   --secondary: #EDEEF6;
   --secondary-foreground: #2C2E30;
   --muted: #EDEEF6;
@@ -107,6 +113,9 @@
   --primary-soft: #3A2616;
   --primary-foreground: #FFFFFF;
 
+  --cream: #221C16;
+  --peach: #4A2E1B;
+
   --secondary: #26272C;
   --secondary-foreground: #F2F3F5;
   --muted: #26272C;
@@ -148,7 +157,9 @@
 }
 
 @theme inline {
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  /* Helvetica Neue first: plain Helvetica on macOS has no Medium cut, so a
+   * font-medium would fall back to Regular. Arial stands in on Windows. */
+  --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --font-mono: 'Geist Mono', 'SF Mono', monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -160,6 +171,8 @@
   --color-primary-hover: var(--primary-hover);
   --color-primary-soft: var(--primary-soft);
   --color-primary-foreground: var(--primary-foreground);
+  --color-cream: var(--cream);
+  --color-peach: var(--peach);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

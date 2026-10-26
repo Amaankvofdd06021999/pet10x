@@ -41,6 +41,8 @@ const TOKENS = [
   "primary-hover",
   "primary-soft",
   "primary-foreground",
+  "cream",
+  "peach",
   "secondary",
   "secondary-foreground",
   "muted",
