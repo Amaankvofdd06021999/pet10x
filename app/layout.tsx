@@ -1,6 +1,16 @@
 import type { Metadata, Viewport } from 'next'
+import { Arimo } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
+
+// Self-hosted at build time, so every device gets the same face instead of
+// whatever Helvetica or Arial it has installed. Arimo is metric-compatible
+// with Helvetica and covers the 400/500/700 weights the site uses.
+const arimo = Arimo({
+  subsets: ['latin'],
+  variable: '--font-arimo',
+  display: 'swap',
+})
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -50,7 +60,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={arimo.variable}>
       <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
         <Analytics />
